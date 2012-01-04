@@ -5,5 +5,5 @@ for i in src/* ; do
     cp -r $i/build/html/* docs/`basename $i`;
     git add docs/`basename $i`;
 done
-#git commit -a -m "Updates...."
-#git push
+git commit -a -m "Updates...."
+git push
