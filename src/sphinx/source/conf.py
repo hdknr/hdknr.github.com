@@ -25,7 +25,10 @@ import sys, os
 
 # Add any Sphinx extension module names here, as strings. They can be extensions
 # coming with Sphinx (named 'sphinx.ext.*') or your custom ones.
-extensions = ['sphinx.ext.autodoc', 'sphinx.ext.doctest', 'sphinx.ext.intersphinx', 'sphinx.ext.todo', 'sphinx.ext.coverage', 'sphinx.ext.pngmath', 'sphinx.ext.ifconfig', 'sphinx.ext.viewcode']
+extensions = ['sphinx.ext.autodoc', 'sphinx.ext.doctest', 
+                'sphinx.ext.intersphinx', 'sphinx.ext.todo', 
+                'sphinx.ext.coverage', 'sphinx.ext.pngmath', 
+                'sphinx.ext.ifconfig', 'sphinx.ext.viewcode']
 
 extensions.append('sphinxtogithub')  #:GITHUB
 
@@ -288,4 +291,7 @@ epub_copyright = u'2012, HDKNR.COM'
 
 
 # Example configuration for intersphinx: refer to the Python standard library.
-intersphinx_mapping = {'http://docs.python.org/': None}
+intersphinx_mapping = {'http://docs.python.org/': None,
+                        'sphinx': ('http://sphinx.pocoo.org/',None),
+                      }
+
