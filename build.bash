@@ -6,4 +6,4 @@ for i in src/* ; do
     git add docs/`basename $i`;
 done
 git commit -a -m "Updates...."
-git push
+#git push

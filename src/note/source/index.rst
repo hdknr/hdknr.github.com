@@ -9,9 +9,9 @@ Welcome to Note's documentation!
 Contents:
 
 .. toctree::
-   :maxdepth: 2
+    :maxdepth: 2
 
-
+    x509
 
 Indices and tables
 ==================
