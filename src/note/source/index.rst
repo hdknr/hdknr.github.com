@@ -6,12 +6,12 @@
 Welcome to Note's documentation!
 ================================
 
-Contents:
-
 .. toctree::
     :maxdepth: 2
 
     x509
+    git
+    hg
 
 Indices and tables
 ==================

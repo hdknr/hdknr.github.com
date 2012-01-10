@@ -9,11 +9,12 @@ Cross Reference
 
 書式 ::
 
-    :ref:`表示 <リファレンス>` 
+    :ref:`タイトル<ターゲット>` 
+    :role:`title <target>` 
 
-リファレンス ::
+リファレンスターゲット ::
 
-    .. _リファンレンス:
+    .. _ターゲット:
 
 
 表(table)
@@ -68,4 +69,42 @@ Cross Reference
  +------------------------------+-----------------------------------------------------------+
  | ES512                        | ECDSA using P-521 curve and SHA-512 hash algorithm        |   
  +------------------------------+-----------------------------------------------------------+
+
+
+用語(term/glossary)
+====================
+
+ソート
+-------
+
+**:sorted:** を入れるとソートされます。
+
+.. code-block:: rst
+
+    .. glossary::
+       :sorted:
+
+複数定義
+--------
+
+.. code-block:: rst
+
+    Access Token
+    Access Tokens
+        アクセストークン
+
+で、 :term:`Access Token` と :term:`Access Tokens` の複数のtermに対して１つの定義を記述できます。
+
+例
+---
+
+.. glossary::
+    :sorted:
+
+    Connect
+        OpenID Connect プロトコル
+
+    Access Token
+    Access Tokens
+        アクセストークン
 

@@ -290,3 +290,6 @@ epub_copyright = u'2012, HDKNR.COM'
 
 # Example configuration for intersphinx: refer to the Python standard library.
 intersphinx_mapping = {'http://docs.python.org/': None}
+#
+todo_include_todos = True
+

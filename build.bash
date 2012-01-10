@@ -22,5 +22,5 @@ cat >> docs.html <<EOF
 </div>
 EOF
 
-#git commit -a -m "Updates...."
-#git push
+git commit -a -m "Updates...."
+git push
