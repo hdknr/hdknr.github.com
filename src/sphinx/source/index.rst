@@ -11,9 +11,11 @@ Contents:
 .. toctree::
     :maxdepth: 2
 
+    rst
     xref
     ext
     github
+    glossary
 
 Indices and tables
 ==================
