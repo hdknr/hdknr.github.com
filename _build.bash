@@ -23,5 +23,8 @@ cat >> $BASE/docs.html <<EOF
 </div>
 EOF
 
-git commit $BASE  -m "Updates...."
-git push $BASE
+pushd .
+cd $BASE
+git commit -a -m "Updates...."
+git push 
+popd
