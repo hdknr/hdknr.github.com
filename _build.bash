@@ -12,7 +12,7 @@ for i in $BASE/src/* ; do
     if [ ! -d $BASE/docs/$DOC ] ; then
         mkdir -p $BASE/docs/$DOC ;
     fi;
-    cp -r $i/build/html/* docs/$DOC;
+    cp -r $i/build/html/* $BASE/docs/$DOC;
     git add $BASE/docs/$DOC ;
     cat >> $BASE/docs.html << EOF
     <li><a href="docs/$DOC/">$DOC</a></li>
@@ -23,8 +23,10 @@ cat >> $BASE/docs.html <<EOF
 </div>
 EOF
 
-pushd .
-cd $BASE
-git commit -a -m "Updates...."
-git push 
-popd
+if [ "$1" == "push" ] ; then
+    pushd .
+    cd $BASE
+    git commit -a -m "Updates...."
+    git push 
+    popd
+fi
