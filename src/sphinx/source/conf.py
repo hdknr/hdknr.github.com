@@ -296,3 +296,8 @@ intersphinx_mapping = {'http://docs.python.org/': None,
                         'sphinx': ('http://sphinx.pocoo.org/',None),
                       }
 
+####
+PRJ_PATH= os.path.dirname( os.path.abspath(__file__))
+sys.path.insert(0, os.path.dirname(PRJ_PATH ))
+sys.path.insert(0, os.path.join(os.path.dirname(PRJ_PATH ),'app'))
+os.environ['DJANGO_SETTINGS_MODULE'] = 'app.settings'

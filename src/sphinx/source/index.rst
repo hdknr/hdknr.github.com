@@ -9,8 +9,9 @@ Welcome to Sphinx Cheat's documentation!
 Contents:
 
 .. toctree::
-    :maxdepth: 2
+    :maxdepth: 4
 
+    conf
     rst
     xref
     ext

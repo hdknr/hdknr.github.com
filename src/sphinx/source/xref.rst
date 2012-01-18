@@ -108,3 +108,16 @@ Cross Reference
     Access Tokens
         アクセストークン
 
+Python シンボル
+===============
+
+
+クラス (:py:class:)
+--------------------
+
+.. code-block:: rst
+
+    :py:class:`django.conf.BaseSettings` 
+
+と記述すると、 :py:class:`django.conf.BaseSettings` に飛ぶ事ができます。
+
