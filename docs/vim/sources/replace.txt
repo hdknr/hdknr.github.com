@@ -14,10 +14,10 @@ Sphinx のクロスリファレンス
 コマンド::
     
 
-    :'<,'>s/"\(.*\)"/":term:\`\1`":
+    :'<,'>s/"\(.*\)"/":term:\`\1`"/g
     
 
 結果::
 
-    ":term:`Access Token`":,
-    ":term:`Refresh Token`":,
+    ":term:`Access Token`",
+    ":term:`Refresh Token`",
