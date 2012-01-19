@@ -1,0 +1,238 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>django.db.models.query_utils &mdash; Django Cheat 1 documentation</title>
+    
+    <link rel="stylesheet" href="../../../../static/haiku.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../static/print.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../../',
+        VERSION:     '1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../../../static/jquery.js"></script>
+    <script type="text/javascript" src="../../../../static/underscore.js"></script>
+    <script type="text/javascript" src="../../../../static/doctools.js"></script>
+    <script type="text/javascript" src="../../../../static/theme_extras.js"></script>
+    <link rel="top" title="Django Cheat 1 documentation" href="../../../../index.html" />
+    <link rel="up" title="django.db.models" href="../models.html" /> 
+  </head>
+  <body>
+      <div class="header"><h1 class="heading"><a href="../../../../index.html">
+          <span>Django Cheat 1 documentation</span></a></h1>
+        <h2 class="heading"><span>django.db.models.query_utils</span></h2>
+      </div>
+      <div class="topnav">
+      
+        <p>
+        <a href="/">Home</a>:
+        <a class="uplink" href="../../../../index.html">Contents</a>
+        </p>
+
+      </div>
+      <div class="content">
+        
+        
+  <h1>Source code for django.db.models.query_utils</h1><div class="highlight"><pre>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Various data structures used in query construction.</span>
+
+<span class="sd">Factored out from django.db.models.query to avoid making the main module very</span>
+<span class="sd">large and/or so that they can be used by other modules without getting into</span>
+<span class="sd">circular import difficulties.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">weakref</span>
+<span class="kn">from</span> <span class="nn">django.utils.copycompat</span> <span class="kn">import</span> <span class="n">deepcopy</span>
+
+<span class="kn">from</span> <span class="nn">django.db.backends</span> <span class="kn">import</span> <span class="n">util</span>
+<span class="kn">from</span> <span class="nn">django.utils</span> <span class="kn">import</span> <span class="n">tree</span>
+<span class="kn">from</span> <span class="nn">django.utils.datastructures</span> <span class="kn">import</span> <span class="n">SortedDict</span>
+
+
+<div class="viewcode-block" id="InvalidQuery"><a class="viewcode-back" href="../../../../django.db.models.html#django.db.models.query_utils.InvalidQuery">[docs]</a><span class="k">class</span> <span class="nc">InvalidQuery</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    The query passed to raw isn&#39;t a safe query to use with raw.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">pass</span>
+
+</div>
+<div class="viewcode-block" id="QueryWrapper"><a class="viewcode-back" href="../../../../django.db.models.html#django.db.models.query_utils.QueryWrapper">[docs]</a><span class="k">class</span> <span class="nc">QueryWrapper</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    A type that indicates the contents are an SQL fragment and the associate</span>
+<span class="sd">    parameters. Can be used to pass opaque data to a where-clause, for example.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sql</span><span class="p">,</span> <span class="n">params</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="n">sql</span><span class="p">,</span> <span class="n">params</span>
+
+    <span class="k">def</span> <span class="nf">as_sql</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">qn</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">connection</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span>
+</div>
+<div class="viewcode-block" id="Q"><a class="viewcode-back" href="../../../../django.db.models.html#django.db.models.query_utils.Q">[docs]</a><span class="k">class</span> <span class="nc">Q</span><span class="p">(</span><span class="n">tree</span><span class="o">.</span><span class="n">Node</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Encapsulates filters as objects that can then be combined logically (using</span>
+<span class="sd">    &amp; and |).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c"># Connection types</span>
+    <span class="n">AND</span> <span class="o">=</span> <span class="s">&#39;AND&#39;</span>
+    <span class="n">OR</span> <span class="o">=</span> <span class="s">&#39;OR&#39;</span>
+    <span class="n">default</span> <span class="o">=</span> <span class="n">AND</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">Q</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="n">children</span><span class="o">=</span><span class="nb">list</span><span class="p">(</span><span class="n">args</span><span class="p">)</span> <span class="o">+</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">items</span><span class="p">())</span>
+
+    <span class="k">def</span> <span class="nf">_combine</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">,</span> <span class="n">conn</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">other</span><span class="p">,</span> <span class="n">Q</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="n">other</span><span class="p">)</span>
+        <span class="n">obj</span> <span class="o">=</span> <span class="nb">type</span><span class="p">(</span><span class="bp">self</span><span class="p">)()</span>
+        <span class="n">obj</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">conn</span><span class="p">)</span>
+        <span class="n">obj</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">other</span><span class="p">,</span> <span class="n">conn</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">obj</span>
+
+    <span class="k">def</span> <span class="nf">__or__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_combine</span><span class="p">(</span><span class="n">other</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">OR</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__and__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_combine</span><span class="p">(</span><span class="n">other</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">AND</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__invert__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">obj</span> <span class="o">=</span> <span class="nb">type</span><span class="p">(</span><span class="bp">self</span><span class="p">)()</span>
+        <span class="n">obj</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">AND</span><span class="p">)</span>
+        <span class="n">obj</span><span class="o">.</span><span class="n">negate</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">obj</span>
+</div>
+<div class="viewcode-block" id="DeferredAttribute"><a class="viewcode-back" href="../../../../django.db.models.html#django.db.models.query_utils.DeferredAttribute">[docs]</a><span class="k">class</span> <span class="nc">DeferredAttribute</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    A wrapper for a deferred-loading field. When the value is read from this</span>
+<span class="sd">    object the first time, the query is executed.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">field_name</span><span class="p">,</span> <span class="n">model</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">field_name</span> <span class="o">=</span> <span class="n">field_name</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">model_ref</span> <span class="o">=</span> <span class="n">weakref</span><span class="o">.</span><span class="n">ref</span><span class="p">(</span><span class="n">model</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">loaded</span> <span class="o">=</span> <span class="bp">False</span>
+
+    <span class="k">def</span> <span class="nf">__get__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">instance</span><span class="p">,</span> <span class="n">owner</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Retrieves and caches the value from the datastore on the first lookup.</span>
+<span class="sd">        Returns the cached value.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="kn">from</span> <span class="nn">django.db.models.fields</span> <span class="kn">import</span> <span class="n">FieldDoesNotExist</span>
+
+        <span class="k">assert</span> <span class="n">instance</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span>
+        <span class="n">cls</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">model_ref</span><span class="p">()</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">instance</span><span class="o">.</span><span class="n">__dict__</span>
+        <span class="k">if</span> <span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">field_name</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span> <span class="ow">is</span> <span class="bp">self</span><span class="p">:</span>
+            <span class="c"># self.field_name is the attname of the field, but only() takes the</span>
+            <span class="c"># actual name, so we need to translate it here.</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">cls</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">get_field_by_name</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">field_name</span><span class="p">)</span>
+                <span class="n">name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">field_name</span>
+            <span class="k">except</span> <span class="n">FieldDoesNotExist</span><span class="p">:</span>
+                <span class="n">name</span> <span class="o">=</span> <span class="p">[</span><span class="n">f</span><span class="o">.</span><span class="n">name</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">cls</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">fields</span>
+                    <span class="k">if</span> <span class="n">f</span><span class="o">.</span><span class="n">attname</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">field_name</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+            <span class="c"># We use only() instead of values() here because we want the</span>
+            <span class="c"># various data coersion methods (to_python(), etc.) to be called</span>
+            <span class="c"># here.</span>
+            <span class="n">val</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span>
+                <span class="n">cls</span><span class="o">.</span><span class="n">_base_manager</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">pk</span><span class="o">=</span><span class="n">instance</span><span class="o">.</span><span class="n">pk</span><span class="p">)</span><span class="o">.</span><span class="n">only</span><span class="p">(</span><span class="n">name</span><span class="p">)</span><span class="o">.</span><span class="n">using</span><span class="p">(</span>
+                    <span class="n">instance</span><span class="o">.</span><span class="n">_state</span><span class="o">.</span><span class="n">db</span><span class="p">)</span><span class="o">.</span><span class="n">get</span><span class="p">(),</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">field_name</span>
+            <span class="p">)</span>
+            <span class="n">data</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">field_name</span><span class="p">]</span> <span class="o">=</span> <span class="n">val</span>
+        <span class="k">return</span> <span class="n">data</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">field_name</span><span class="p">]</span>
+
+    <span class="k">def</span> <span class="nf">__set__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">instance</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Deferred loading attributes can be set normally (which means there will</span>
+<span class="sd">        never be a database lookup involved.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">instance</span><span class="o">.</span><span class="n">__dict__</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">field_name</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span>
+</div>
+<div class="viewcode-block" id="select_related_descend"><a class="viewcode-back" href="../../../../django.db.models.html#django.db.models.query_utils.select_related_descend">[docs]</a><span class="k">def</span> <span class="nf">select_related_descend</span><span class="p">(</span><span class="n">field</span><span class="p">,</span> <span class="n">restricted</span><span class="p">,</span> <span class="n">requested</span><span class="p">,</span> <span class="n">reverse</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Returns True if this field should be used to descend deeper for</span>
+<span class="sd">    select_related() purposes. Used by both the query construction code</span>
+<span class="sd">    (sql.query.fill_related_selections()) and the model instance creation code</span>
+<span class="sd">    (query.get_cached_row()).</span>
+
+<span class="sd">    Arguments:</span>
+<span class="sd">     * field - the field to be checked</span>
+<span class="sd">     * restricted - a boolean field, indicating if the field list has been</span>
+<span class="sd">       manually restricted using a requested clause)</span>
+<span class="sd">     * requested - The select_related() dictionary.</span>
+<span class="sd">     * reverse - boolean, True if we are checking a reverse select related</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">field</span><span class="o">.</span><span class="n">rel</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">False</span>
+    <span class="k">if</span> <span class="n">field</span><span class="o">.</span><span class="n">rel</span><span class="o">.</span><span class="n">parent_link</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">reverse</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">False</span>
+    <span class="k">if</span> <span class="n">restricted</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">reverse</span> <span class="ow">and</span> <span class="n">field</span><span class="o">.</span><span class="n">related_query_name</span><span class="p">()</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">requested</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">False</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">reverse</span> <span class="ow">and</span> <span class="n">field</span><span class="o">.</span><span class="n">name</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">requested</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">False</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">restricted</span> <span class="ow">and</span> <span class="n">field</span><span class="o">.</span><span class="n">null</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">False</span>
+    <span class="k">return</span> <span class="bp">True</span>
+
+<span class="c"># This function is needed because data descriptors must be defined on a class</span>
+<span class="c"># object, not an instance, to have any effect.</span>
+</div>
+<div class="viewcode-block" id="deferred_class_factory"><a class="viewcode-back" href="../../../../django.db.models.html#django.db.models.query_utils.deferred_class_factory">[docs]</a><span class="k">def</span> <span class="nf">deferred_class_factory</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">attrs</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Returns a class object that is a copy of &quot;model&quot; with the specified &quot;attrs&quot;</span>
+<span class="sd">    being replaced with DeferredAttribute objects. The &quot;pk_value&quot; ties the</span>
+<span class="sd">    deferred attributes to a particular instance of the model.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">class</span> <span class="nc">Meta</span><span class="p">:</span>
+        <span class="n">proxy</span> <span class="o">=</span> <span class="bp">True</span>
+        <span class="n">app_label</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">app_label</span>
+
+    <span class="c"># The app_cache wants a unique name for each model, otherwise the new class</span>
+    <span class="c"># won&#39;t be created (we get an old one back). Therefore, we generate the</span>
+    <span class="c"># name using the passed in attrs. It&#39;s OK to reuse an existing class</span>
+    <span class="c"># object if the attrs are identical.</span>
+    <span class="n">name</span> <span class="o">=</span> <span class="s">&quot;</span><span class="si">%s</span><span class="s">_Deferred_</span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">__name__</span><span class="p">,</span> <span class="s">&#39;_&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">sorted</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">attrs</span><span class="p">))))</span>
+    <span class="n">name</span> <span class="o">=</span> <span class="n">util</span><span class="o">.</span><span class="n">truncate_name</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="mi">80</span><span class="p">,</span> <span class="mi">32</span><span class="p">)</span>
+
+    <span class="n">overrides</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">([(</span><span class="n">attr</span><span class="p">,</span> <span class="n">DeferredAttribute</span><span class="p">(</span><span class="n">attr</span><span class="p">,</span> <span class="n">model</span><span class="p">))</span>
+            <span class="k">for</span> <span class="n">attr</span> <span class="ow">in</span> <span class="n">attrs</span><span class="p">])</span>
+    <span class="n">overrides</span><span class="p">[</span><span class="s">&quot;Meta&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">Meta</span>
+    <span class="n">overrides</span><span class="p">[</span><span class="s">&quot;__module__&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">__module__</span>
+    <span class="n">overrides</span><span class="p">[</span><span class="s">&quot;_deferred&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">True</span>
+    <span class="k">return</span> <span class="nb">type</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="p">(</span><span class="n">model</span><span class="p">,),</span> <span class="n">overrides</span><span class="p">)</span>
+
+<span class="c"># The above function is also used to unpickle model instances with deferred</span>
+<span class="c"># fields.</span></div>
+<span class="n">deferred_class_factory</span><span class="o">.</span><span class="n">__safe_for_unpickling__</span> <span class="o">=</span> <span class="bp">True</span>
+</pre></div>
+
+      </div>
+      <div class="bottomnav">
+      
+        <p>
+        <a href="/">Home</a>:
+        <a class="uplink" href="../../../../index.html">Contents</a>
+        </p>
+
+      </div>
+
+    <div class="footer">
+        &copy; Copyright 2012, HDKNR.COM.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.2pre.
+    </div>
+  </body>
+</html>

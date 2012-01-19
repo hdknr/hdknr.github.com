@@ -1,0 +1,260 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>django.core.management.commands.dumpdata &mdash; Django Cheat 1 documentation</title>
+    
+    <link rel="stylesheet" href="../../../../../static/haiku.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../../static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../../static/print.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../../../',
+        VERSION:     '1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../../../../static/jquery.js"></script>
+    <script type="text/javascript" src="../../../../../static/underscore.js"></script>
+    <script type="text/javascript" src="../../../../../static/doctools.js"></script>
+    <script type="text/javascript" src="../../../../../static/theme_extras.js"></script>
+    <link rel="top" title="Django Cheat 1 documentation" href="../../../../../index.html" />
+    <link rel="up" title="django.core.management" href="../../management.html" /> 
+  </head>
+  <body>
+      <div class="header"><h1 class="heading"><a href="../../../../../index.html">
+          <span>Django Cheat 1 documentation</span></a></h1>
+        <h2 class="heading"><span>django.core.management.commands.dumpdata</span></h2>
+      </div>
+      <div class="topnav">
+      
+        <p>
+        <a href="/">Home</a>:
+        <a class="uplink" href="../../../../../index.html">Contents</a>
+        </p>
+
+      </div>
+      <div class="content">
+        
+        
+  <h1>Source code for django.core.management.commands.dumpdata</h1><div class="highlight"><pre>
+<span class="kn">from</span> <span class="nn">django.core.exceptions</span> <span class="kn">import</span> <span class="n">ImproperlyConfigured</span>
+<span class="kn">from</span> <span class="nn">django.core.management.base</span> <span class="kn">import</span> <span class="n">BaseCommand</span><span class="p">,</span> <span class="n">CommandError</span>
+<span class="kn">from</span> <span class="nn">django.core</span> <span class="kn">import</span> <span class="n">serializers</span>
+<span class="kn">from</span> <span class="nn">django.db</span> <span class="kn">import</span> <span class="n">connections</span><span class="p">,</span> <span class="n">router</span><span class="p">,</span> <span class="n">DEFAULT_DB_ALIAS</span>
+<span class="kn">from</span> <span class="nn">django.utils.datastructures</span> <span class="kn">import</span> <span class="n">SortedDict</span>
+
+<span class="kn">from</span> <span class="nn">optparse</span> <span class="kn">import</span> <span class="n">make_option</span>
+
+<span class="k">class</span> <span class="nc">Command</span><span class="p">(</span><span class="n">BaseCommand</span><span class="p">):</span>
+    <span class="n">option_list</span> <span class="o">=</span> <span class="n">BaseCommand</span><span class="o">.</span><span class="n">option_list</span> <span class="o">+</span> <span class="p">(</span>
+        <span class="n">make_option</span><span class="p">(</span><span class="s">&#39;--format&#39;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="s">&#39;json&#39;</span><span class="p">,</span> <span class="n">dest</span><span class="o">=</span><span class="s">&#39;format&#39;</span><span class="p">,</span>
+            <span class="n">help</span><span class="o">=</span><span class="s">&#39;Specifies the output serialization format for fixtures.&#39;</span><span class="p">),</span>
+        <span class="n">make_option</span><span class="p">(</span><span class="s">&#39;--indent&#39;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">dest</span><span class="o">=</span><span class="s">&#39;indent&#39;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="s">&#39;int&#39;</span><span class="p">,</span>
+            <span class="n">help</span><span class="o">=</span><span class="s">&#39;Specifies the indent level to use when pretty-printing output&#39;</span><span class="p">),</span>
+        <span class="n">make_option</span><span class="p">(</span><span class="s">&#39;--database&#39;</span><span class="p">,</span> <span class="n">action</span><span class="o">=</span><span class="s">&#39;store&#39;</span><span class="p">,</span> <span class="n">dest</span><span class="o">=</span><span class="s">&#39;database&#39;</span><span class="p">,</span>
+            <span class="n">default</span><span class="o">=</span><span class="n">DEFAULT_DB_ALIAS</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s">&#39;Nominates a specific database to load &#39;</span>
+                <span class="s">&#39;fixtures into. Defaults to the &quot;default&quot; database.&#39;</span><span class="p">),</span>
+        <span class="n">make_option</span><span class="p">(</span><span class="s">&#39;-e&#39;</span><span class="p">,</span> <span class="s">&#39;--exclude&#39;</span><span class="p">,</span> <span class="n">dest</span><span class="o">=</span><span class="s">&#39;exclude&#39;</span><span class="p">,</span><span class="n">action</span><span class="o">=</span><span class="s">&#39;append&#39;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="p">[],</span>
+            <span class="n">help</span><span class="o">=</span><span class="s">&#39;An appname or appname.ModelName to exclude (use multiple --exclude to exclude multiple apps/models).&#39;</span><span class="p">),</span>
+        <span class="n">make_option</span><span class="p">(</span><span class="s">&#39;-n&#39;</span><span class="p">,</span> <span class="s">&#39;--natural&#39;</span><span class="p">,</span> <span class="n">action</span><span class="o">=</span><span class="s">&#39;store_true&#39;</span><span class="p">,</span> <span class="n">dest</span><span class="o">=</span><span class="s">&#39;use_natural_keys&#39;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span>
+            <span class="n">help</span><span class="o">=</span><span class="s">&#39;Use natural keys if they are available.&#39;</span><span class="p">),</span>
+        <span class="n">make_option</span><span class="p">(</span><span class="s">&#39;-a&#39;</span><span class="p">,</span> <span class="s">&#39;--all&#39;</span><span class="p">,</span> <span class="n">action</span><span class="o">=</span><span class="s">&#39;store_true&#39;</span><span class="p">,</span> <span class="n">dest</span><span class="o">=</span><span class="s">&#39;use_base_manager&#39;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span>
+            <span class="n">help</span><span class="o">=</span><span class="s">&quot;Use Django&#39;s base manager to dump all models stored in the database, including those that would otherwise be filtered or modified by a custom manager.&quot;</span><span class="p">),</span>
+    <span class="p">)</span>
+    <span class="n">help</span> <span class="o">=</span> <span class="p">(</span><span class="s">&quot;Output the contents of the database as a fixture of the given &quot;</span>
+            <span class="s">&quot;format (using each model&#39;s default manager unless --all is &quot;</span>
+            <span class="s">&quot;specified).&quot;</span><span class="p">)</span>
+    <span class="n">args</span> <span class="o">=</span> <span class="s">&#39;[appname appname.ModelName ...]&#39;</span>
+
+    <span class="k">def</span> <span class="nf">handle</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">app_labels</span><span class="p">,</span> <span class="o">**</span><span class="n">options</span><span class="p">):</span>
+        <span class="kn">from</span> <span class="nn">django.db.models</span> <span class="kn">import</span> <span class="n">get_app</span><span class="p">,</span> <span class="n">get_apps</span><span class="p">,</span> <span class="n">get_models</span><span class="p">,</span> <span class="n">get_model</span>
+
+        <span class="n">format</span> <span class="o">=</span> <span class="n">options</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;format&#39;</span><span class="p">,</span><span class="s">&#39;json&#39;</span><span class="p">)</span>
+        <span class="n">indent</span> <span class="o">=</span> <span class="n">options</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;indent&#39;</span><span class="p">,</span><span class="bp">None</span><span class="p">)</span>
+        <span class="n">using</span> <span class="o">=</span> <span class="n">options</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;database&#39;</span><span class="p">,</span> <span class="n">DEFAULT_DB_ALIAS</span><span class="p">)</span>
+        <span class="n">connection</span> <span class="o">=</span> <span class="n">connections</span><span class="p">[</span><span class="n">using</span><span class="p">]</span>
+        <span class="n">excludes</span> <span class="o">=</span> <span class="n">options</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;exclude&#39;</span><span class="p">,[])</span>
+        <span class="n">show_traceback</span> <span class="o">=</span> <span class="n">options</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;traceback&#39;</span><span class="p">,</span> <span class="bp">False</span><span class="p">)</span>
+        <span class="n">use_natural_keys</span> <span class="o">=</span> <span class="n">options</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;use_natural_keys&#39;</span><span class="p">,</span> <span class="bp">False</span><span class="p">)</span>
+        <span class="n">use_base_manager</span> <span class="o">=</span> <span class="n">options</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;use_base_manager&#39;</span><span class="p">,</span> <span class="bp">False</span><span class="p">)</span>
+
+        <span class="n">excluded_apps</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+        <span class="n">excluded_models</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">exclude</span> <span class="ow">in</span> <span class="n">excludes</span><span class="p">:</span>
+            <span class="k">if</span> <span class="s">&#39;.&#39;</span> <span class="ow">in</span> <span class="n">exclude</span><span class="p">:</span>
+                <span class="n">app_label</span><span class="p">,</span> <span class="n">model_name</span> <span class="o">=</span> <span class="n">exclude</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&#39;.&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+                <span class="n">model_obj</span> <span class="o">=</span> <span class="n">get_model</span><span class="p">(</span><span class="n">app_label</span><span class="p">,</span> <span class="n">model_name</span><span class="p">)</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">model_obj</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="n">CommandError</span><span class="p">(</span><span class="s">&#39;Unknown model in excludes: </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">exclude</span><span class="p">)</span>
+                <span class="n">excluded_models</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">model_obj</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="n">app_obj</span> <span class="o">=</span> <span class="n">get_app</span><span class="p">(</span><span class="n">exclude</span><span class="p">)</span>
+                    <span class="n">excluded_apps</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">app_obj</span><span class="p">)</span>
+                <span class="k">except</span> <span class="n">ImproperlyConfigured</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="n">CommandError</span><span class="p">(</span><span class="s">&#39;Unknown app in excludes: </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">exclude</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">app_labels</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">app_list</span> <span class="o">=</span> <span class="n">SortedDict</span><span class="p">((</span><span class="n">app</span><span class="p">,</span> <span class="bp">None</span><span class="p">)</span> <span class="k">for</span> <span class="n">app</span> <span class="ow">in</span> <span class="n">get_apps</span><span class="p">()</span> <span class="k">if</span> <span class="n">app</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">excluded_apps</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">app_list</span> <span class="o">=</span> <span class="n">SortedDict</span><span class="p">()</span>
+            <span class="k">for</span> <span class="n">label</span> <span class="ow">in</span> <span class="n">app_labels</span><span class="p">:</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="n">app_label</span><span class="p">,</span> <span class="n">model_label</span> <span class="o">=</span> <span class="n">label</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&#39;.&#39;</span><span class="p">)</span>
+                    <span class="k">try</span><span class="p">:</span>
+                        <span class="n">app</span> <span class="o">=</span> <span class="n">get_app</span><span class="p">(</span><span class="n">app_label</span><span class="p">)</span>
+                    <span class="k">except</span> <span class="n">ImproperlyConfigured</span><span class="p">:</span>
+                        <span class="k">raise</span> <span class="n">CommandError</span><span class="p">(</span><span class="s">&quot;Unknown application: </span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">app_label</span><span class="p">)</span>
+                    <span class="k">if</span> <span class="n">app</span> <span class="ow">in</span> <span class="n">excluded_apps</span><span class="p">:</span>
+                        <span class="k">continue</span>
+                    <span class="n">model</span> <span class="o">=</span> <span class="n">get_model</span><span class="p">(</span><span class="n">app_label</span><span class="p">,</span> <span class="n">model_label</span><span class="p">)</span>
+                    <span class="k">if</span> <span class="n">model</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+                        <span class="k">raise</span> <span class="n">CommandError</span><span class="p">(</span><span class="s">&quot;Unknown model: </span><span class="si">%s</span><span class="s">.</span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">app_label</span><span class="p">,</span> <span class="n">model_label</span><span class="p">))</span>
+
+                    <span class="k">if</span> <span class="n">app</span> <span class="ow">in</span> <span class="n">app_list</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+                        <span class="k">if</span> <span class="n">app_list</span><span class="p">[</span><span class="n">app</span><span class="p">]</span> <span class="ow">and</span> <span class="n">model</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">app_list</span><span class="p">[</span><span class="n">app</span><span class="p">]:</span>
+                            <span class="n">app_list</span><span class="p">[</span><span class="n">app</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">model</span><span class="p">)</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="n">app_list</span><span class="p">[</span><span class="n">app</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="n">model</span><span class="p">]</span>
+                <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+                    <span class="c"># This is just an app - no model qualifier</span>
+                    <span class="n">app_label</span> <span class="o">=</span> <span class="n">label</span>
+                    <span class="k">try</span><span class="p">:</span>
+                        <span class="n">app</span> <span class="o">=</span> <span class="n">get_app</span><span class="p">(</span><span class="n">app_label</span><span class="p">)</span>
+                    <span class="k">except</span> <span class="n">ImproperlyConfigured</span><span class="p">:</span>
+                        <span class="k">raise</span> <span class="n">CommandError</span><span class="p">(</span><span class="s">&quot;Unknown application: </span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">app_label</span><span class="p">)</span>
+                    <span class="k">if</span> <span class="n">app</span> <span class="ow">in</span> <span class="n">excluded_apps</span><span class="p">:</span>
+                        <span class="k">continue</span>
+                    <span class="n">app_list</span><span class="p">[</span><span class="n">app</span><span class="p">]</span> <span class="o">=</span> <span class="bp">None</span>
+
+        <span class="c"># Check that the serialization format exists; this is a shortcut to</span>
+        <span class="c"># avoid collating all the objects and _then_ failing.</span>
+        <span class="k">if</span> <span class="n">format</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">serializers</span><span class="o">.</span><span class="n">get_public_serializer_formats</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="n">CommandError</span><span class="p">(</span><span class="s">&quot;Unknown serialization format: </span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">format</span><span class="p">)</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">serializers</span><span class="o">.</span><span class="n">get_serializer</span><span class="p">(</span><span class="n">format</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">CommandError</span><span class="p">(</span><span class="s">&quot;Unknown serialization format: </span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">format</span><span class="p">)</span>
+
+        <span class="c"># Now collate the objects to be serialized.</span>
+        <span class="n">objects</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">model</span> <span class="ow">in</span> <span class="n">sort_dependencies</span><span class="p">(</span><span class="n">app_list</span><span class="o">.</span><span class="n">items</span><span class="p">()):</span>
+            <span class="k">if</span> <span class="n">model</span> <span class="ow">in</span> <span class="n">excluded_models</span><span class="p">:</span>
+                <span class="k">continue</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">model</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">proxy</span> <span class="ow">and</span> <span class="n">router</span><span class="o">.</span><span class="n">allow_syncdb</span><span class="p">(</span><span class="n">using</span><span class="p">,</span> <span class="n">model</span><span class="p">):</span>
+                <span class="k">if</span> <span class="n">use_base_manager</span><span class="p">:</span>
+                    <span class="n">objects</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">_base_manager</span><span class="o">.</span><span class="n">using</span><span class="p">(</span><span class="n">using</span><span class="p">)</span><span class="o">.</span><span class="n">all</span><span class="p">())</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">objects</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">_default_manager</span><span class="o">.</span><span class="n">using</span><span class="p">(</span><span class="n">using</span><span class="p">)</span><span class="o">.</span><span class="n">all</span><span class="p">())</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">serializers</span><span class="o">.</span><span class="n">serialize</span><span class="p">(</span><span class="n">format</span><span class="p">,</span> <span class="n">objects</span><span class="p">,</span> <span class="n">indent</span><span class="o">=</span><span class="n">indent</span><span class="p">,</span>
+                        <span class="n">use_natural_keys</span><span class="o">=</span><span class="n">use_natural_keys</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span><span class="p">,</span> <span class="n">e</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">show_traceback</span><span class="p">:</span>
+                <span class="k">raise</span>
+            <span class="k">raise</span> <span class="n">CommandError</span><span class="p">(</span><span class="s">&quot;Unable to serialize database: </span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">e</span><span class="p">)</span>
+
+<div class="viewcode-block" id="sort_dependencies"><a class="viewcode-back" href="../../../../../django.core.management.commands.html#django.core.management.commands.dumpdata.sort_dependencies">[docs]</a><span class="k">def</span> <span class="nf">sort_dependencies</span><span class="p">(</span><span class="n">app_list</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Sort a list of app,modellist pairs into a single list of models.</span>
+
+<span class="sd">    The single list of models is sorted so that any model with a natural key</span>
+<span class="sd">    is serialized before a normal model, and any model with a natural key</span>
+<span class="sd">    dependency has it&#39;s dependencies serialized first.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="kn">from</span> <span class="nn">django.db.models</span> <span class="kn">import</span> <span class="n">get_model</span><span class="p">,</span> <span class="n">get_models</span>
+    <span class="c"># Process the list of models, and get the list of dependencies</span>
+    <span class="n">model_dependencies</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">models</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+    <span class="k">for</span> <span class="n">app</span><span class="p">,</span> <span class="n">model_list</span> <span class="ow">in</span> <span class="n">app_list</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">model_list</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="n">model_list</span> <span class="o">=</span> <span class="n">get_models</span><span class="p">(</span><span class="n">app</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">model</span> <span class="ow">in</span> <span class="n">model_list</span><span class="p">:</span>
+            <span class="n">models</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">model</span><span class="p">)</span>
+            <span class="c"># Add any explicitly defined dependencies</span>
+            <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="s">&#39;natural_key&#39;</span><span class="p">):</span>
+                <span class="n">deps</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">natural_key</span><span class="p">,</span> <span class="s">&#39;dependencies&#39;</span><span class="p">,</span> <span class="p">[])</span>
+                <span class="k">if</span> <span class="n">deps</span><span class="p">:</span>
+                    <span class="n">deps</span> <span class="o">=</span> <span class="p">[</span><span class="n">get_model</span><span class="p">(</span><span class="o">*</span><span class="n">d</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&#39;.&#39;</span><span class="p">))</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">deps</span><span class="p">]</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">deps</span> <span class="o">=</span> <span class="p">[]</span>
+
+            <span class="c"># Now add a dependency for any FK or M2M relation with</span>
+            <span class="c"># a model that defines a natural key</span>
+            <span class="k">for</span> <span class="n">field</span> <span class="ow">in</span> <span class="n">model</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">fields</span><span class="p">:</span>
+                <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">field</span><span class="o">.</span><span class="n">rel</span><span class="p">,</span> <span class="s">&#39;to&#39;</span><span class="p">):</span>
+                    <span class="n">rel_model</span> <span class="o">=</span> <span class="n">field</span><span class="o">.</span><span class="n">rel</span><span class="o">.</span><span class="n">to</span>
+                    <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">rel_model</span><span class="p">,</span> <span class="s">&#39;natural_key&#39;</span><span class="p">):</span>
+                        <span class="n">deps</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">rel_model</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">field</span> <span class="ow">in</span> <span class="n">model</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">many_to_many</span><span class="p">:</span>
+                <span class="n">rel_model</span> <span class="o">=</span> <span class="n">field</span><span class="o">.</span><span class="n">rel</span><span class="o">.</span><span class="n">to</span>
+                <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">rel_model</span><span class="p">,</span> <span class="s">&#39;natural_key&#39;</span><span class="p">):</span>
+                    <span class="n">deps</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">rel_model</span><span class="p">)</span>
+            <span class="n">model_dependencies</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">model</span><span class="p">,</span> <span class="n">deps</span><span class="p">))</span>
+
+    <span class="n">model_dependencies</span><span class="o">.</span><span class="n">reverse</span><span class="p">()</span>
+    <span class="c"># Now sort the models to ensure that dependencies are met. This</span>
+    <span class="c"># is done by repeatedly iterating over the input list of models.</span>
+    <span class="c"># If all the dependencies of a given model are in the final list,</span>
+    <span class="c"># that model is promoted to the end of the final list. This process</span>
+    <span class="c"># continues until the input list is empty, or we do a full iteration</span>
+    <span class="c"># over the input models without promoting a model to the final list.</span>
+    <span class="c"># If we do a full iteration without a promotion, that means there are</span>
+    <span class="c"># circular dependencies in the list.</span>
+    <span class="n">model_list</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">while</span> <span class="n">model_dependencies</span><span class="p">:</span>
+        <span class="n">skipped</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">changed</span> <span class="o">=</span> <span class="bp">False</span>
+        <span class="k">while</span> <span class="n">model_dependencies</span><span class="p">:</span>
+            <span class="n">model</span><span class="p">,</span> <span class="n">deps</span> <span class="o">=</span> <span class="n">model_dependencies</span><span class="o">.</span><span class="n">pop</span><span class="p">()</span>
+
+            <span class="c"># If all of the models in the dependency list are either already</span>
+            <span class="c"># on the final model list, or not on the original serialization list,</span>
+            <span class="c"># then we&#39;ve found another model with all it&#39;s dependencies satisfied.</span>
+            <span class="n">found</span> <span class="o">=</span> <span class="bp">True</span>
+            <span class="k">for</span> <span class="n">candidate</span> <span class="ow">in</span> <span class="p">((</span><span class="n">d</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">models</span> <span class="ow">or</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">model_list</span><span class="p">)</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">deps</span><span class="p">):</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">candidate</span><span class="p">:</span>
+                    <span class="n">found</span> <span class="o">=</span> <span class="bp">False</span>
+            <span class="k">if</span> <span class="n">found</span><span class="p">:</span>
+                <span class="n">model_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">model</span><span class="p">)</span>
+                <span class="n">changed</span> <span class="o">=</span> <span class="bp">True</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">skipped</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">model</span><span class="p">,</span> <span class="n">deps</span><span class="p">))</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">changed</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">CommandError</span><span class="p">(</span><span class="s">&quot;Can&#39;t resolve dependencies for </span><span class="si">%s</span><span class="s"> in serialized app list.&quot;</span> <span class="o">%</span>
+                <span class="s">&#39;, &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="s">&#39;</span><span class="si">%s</span><span class="s">.</span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">app_label</span><span class="p">,</span> <span class="n">model</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">object_name</span><span class="p">)</span>
+                <span class="k">for</span> <span class="n">model</span><span class="p">,</span> <span class="n">deps</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">skipped</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">obj</span><span class="p">:</span> <span class="n">obj</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">__name__</span><span class="p">))</span>
+            <span class="p">)</span>
+        <span class="n">model_dependencies</span> <span class="o">=</span> <span class="n">skipped</span>
+
+    <span class="k">return</span> <span class="n">model_list</span></div>
+</pre></div>
+
+      </div>
+      <div class="bottomnav">
+      
+        <p>
+        <a href="/">Home</a>:
+        <a class="uplink" href="../../../../../index.html">Contents</a>
+        </p>
+
+      </div>
+
+    <div class="footer">
+        &copy; Copyright 2012, HDKNR.COM.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.2pre.
+    </div>
+  </body>
+</html>

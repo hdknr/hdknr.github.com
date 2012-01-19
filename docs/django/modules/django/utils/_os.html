@@ -1,0 +1,133 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>django.utils._os &mdash; Django Cheat 1 documentation</title>
+    
+    <link rel="stylesheet" href="../../../static/haiku.css" type="text/css" />
+    <link rel="stylesheet" href="../../../static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../../../static/print.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../',
+        VERSION:     '1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../../static/jquery.js"></script>
+    <script type="text/javascript" src="../../../static/underscore.js"></script>
+    <script type="text/javascript" src="../../../static/doctools.js"></script>
+    <script type="text/javascript" src="../../../static/theme_extras.js"></script>
+    <link rel="top" title="Django Cheat 1 documentation" href="../../../index.html" />
+    <link rel="up" title="Module code" href="../../index.html" /> 
+  </head>
+  <body>
+      <div class="header"><h1 class="heading"><a href="../../../index.html">
+          <span>Django Cheat 1 documentation</span></a></h1>
+        <h2 class="heading"><span>django.utils._os</span></h2>
+      </div>
+      <div class="topnav">
+      
+        <p>
+        <a href="/">Home</a>:
+        <a class="uplink" href="../../../index.html">Contents</a>
+        </p>
+
+      </div>
+      <div class="content">
+        
+        
+  <h1>Source code for django.utils._os</h1><div class="highlight"><pre>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">stat</span>
+<span class="kn">from</span> <span class="nn">os.path</span> <span class="kn">import</span> <span class="n">join</span><span class="p">,</span> <span class="n">normcase</span><span class="p">,</span> <span class="n">normpath</span><span class="p">,</span> <span class="n">abspath</span><span class="p">,</span> <span class="n">isabs</span><span class="p">,</span> <span class="n">sep</span>
+<span class="kn">from</span> <span class="nn">django.utils.encoding</span> <span class="kn">import</span> <span class="n">force_unicode</span>
+
+<span class="c"># Define our own abspath function that can handle joining </span>
+<span class="c"># unicode paths to a current working directory that has non-ASCII</span>
+<span class="c"># characters in it.  This isn&#39;t necessary on Windows since the </span>
+<span class="c"># Windows version of abspath handles this correctly.  The Windows</span>
+<span class="c"># abspath also handles drive letters differently than the pure </span>
+<span class="c"># Python implementation, so it&#39;s best not to replace it.</span>
+<span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">name</span> <span class="o">==</span> <span class="s">&#39;nt&#39;</span><span class="p">:</span>
+    <span class="n">abspathu</span> <span class="o">=</span> <span class="n">abspath</span>
+<span class="k">else</span><span class="p">:</span>
+<div class="viewcode-block" id="abspathu"><a class="viewcode-back" href="../../../django.utils.html#django.utils._os.abspathu">[docs]</a>    <span class="k">def</span> <span class="nf">abspathu</span><span class="p">(</span><span class="n">path</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Version of os.path.abspath that uses the unicode representation</span>
+<span class="sd">        of the current working directory, thus avoiding a UnicodeDecodeError</span>
+<span class="sd">        in join when the cwd has non-ASCII characters.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">isabs</span><span class="p">(</span><span class="n">path</span><span class="p">):</span>
+            <span class="n">path</span> <span class="o">=</span> <span class="n">join</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">getcwdu</span><span class="p">(),</span> <span class="n">path</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">normpath</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="safe_join"><a class="viewcode-back" href="../../../django.utils.html#django.utils._os.safe_join">[docs]</a><span class="k">def</span> <span class="nf">safe_join</span><span class="p">(</span><span class="n">base</span><span class="p">,</span> <span class="o">*</span><span class="n">paths</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Joins one or more path components to the base path component intelligently.</span>
+<span class="sd">    Returns a normalized, absolute version of the final path.</span>
+
+<span class="sd">    The final path must be located inside of the base path component (otherwise</span>
+<span class="sd">    a ValueError is raised).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c"># We need to use normcase to ensure we don&#39;t false-negative on case</span>
+    <span class="c"># insensitive operating systems (like Windows).</span>
+    <span class="n">base</span> <span class="o">=</span> <span class="n">force_unicode</span><span class="p">(</span><span class="n">base</span><span class="p">)</span>
+    <span class="n">paths</span> <span class="o">=</span> <span class="p">[</span><span class="n">force_unicode</span><span class="p">(</span><span class="n">p</span><span class="p">)</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">paths</span><span class="p">]</span>
+    <span class="n">final_path</span> <span class="o">=</span> <span class="n">normcase</span><span class="p">(</span><span class="n">abspathu</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">base</span><span class="p">,</span> <span class="o">*</span><span class="n">paths</span><span class="p">)))</span>
+    <span class="n">base_path</span> <span class="o">=</span> <span class="n">normcase</span><span class="p">(</span><span class="n">abspathu</span><span class="p">(</span><span class="n">base</span><span class="p">))</span>
+    <span class="n">base_path_len</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">base_path</span><span class="p">)</span>
+    <span class="c"># Ensure final_path starts with base_path and that the next character after</span>
+    <span class="c"># the final path is os.sep (or nothing, in which case final_path must be</span>
+    <span class="c"># equal to base_path).</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">final_path</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="n">base_path</span><span class="p">)</span> \
+       <span class="ow">or</span> <span class="n">final_path</span><span class="p">[</span><span class="n">base_path_len</span><span class="p">:</span><span class="n">base_path_len</span><span class="o">+</span><span class="mi">1</span><span class="p">]</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">(</span><span class="s">&#39;&#39;</span><span class="p">,</span> <span class="n">sep</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s">&#39;The joined path (</span><span class="si">%s</span><span class="s">) is located outside of the base &#39;</span>
+                         <span class="s">&#39;path component (</span><span class="si">%s</span><span class="s">)&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">final_path</span><span class="p">,</span> <span class="n">base_path</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">final_path</span>
+</div>
+<div class="viewcode-block" id="rmtree_errorhandler"><a class="viewcode-back" href="../../../django.utils.html#django.utils._os.rmtree_errorhandler">[docs]</a><span class="k">def</span> <span class="nf">rmtree_errorhandler</span><span class="p">(</span><span class="n">func</span><span class="p">,</span> <span class="n">path</span><span class="p">,</span> <span class="n">exc_info</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    On Windows, some files are read-only (e.g. in in .svn dirs), so when</span>
+<span class="sd">    rmtree() tries to remove them, an exception is thrown.</span>
+<span class="sd">    We catch that here, remove the read-only attribute, and hopefully</span>
+<span class="sd">    continue without problems.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">exctype</span><span class="p">,</span> <span class="n">value</span> <span class="o">=</span> <span class="n">exc_info</span><span class="p">[:</span><span class="mi">2</span><span class="p">]</span>
+    <span class="c"># lookin for a windows error</span>
+    <span class="k">if</span> <span class="n">exctype</span> <span class="ow">is</span> <span class="ow">not</span> <span class="ne">WindowsError</span> <span class="ow">or</span> <span class="s">&#39;Access is denied&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="nb">str</span><span class="p">(</span><span class="n">value</span><span class="p">):</span>
+        <span class="k">raise</span>
+    <span class="c"># file type should currently be read only</span>
+    <span class="k">if</span> <span class="p">((</span><span class="n">os</span><span class="o">.</span><span class="n">stat</span><span class="p">(</span><span class="n">path</span><span class="p">)</span><span class="o">.</span><span class="n">st_mode</span> <span class="o">&amp;</span> <span class="n">stat</span><span class="o">.</span><span class="n">S_IREAD</span><span class="p">)</span> <span class="o">!=</span> <span class="n">stat</span><span class="o">.</span><span class="n">S_IREAD</span><span class="p">):</span>
+        <span class="k">raise</span>
+    <span class="c"># convert to read/write</span>
+    <span class="n">os</span><span class="o">.</span><span class="n">chmod</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">stat</span><span class="o">.</span><span class="n">S_IWRITE</span><span class="p">)</span>
+    <span class="c"># use the original function to repeat the operation</span>
+    <span class="n">func</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+</pre></div></div>
+
+      </div>
+      <div class="bottomnav">
+      
+        <p>
+        <a href="/">Home</a>:
+        <a class="uplink" href="../../../index.html">Contents</a>
+        </p>
+
+      </div>
+
+    <div class="footer">
+        &copy; Copyright 2012, HDKNR.COM.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.2pre.
+    </div>
+  </body>
+</html>

@@ -7,6 +7,9 @@ django.utils
 django.utils
 ============
 
+.. include:: cheat/django.utils.rst
+
+
 .. automodule:: django.utils
     :members:
 
@@ -24,6 +27,9 @@ Sub
 
 django.utils.crypto
 ===================
+
+.. include:: cheat/django.utils.crypto.rst
+
 .. automodule:: django.utils.crypto
     :members:
 
@@ -31,6 +37,9 @@ django.utils.crypto
 
 django.utils.encoding
 =====================
+
+.. include:: cheat/django.utils.encoding.rst
+
 .. automodule:: django.utils.encoding
     :members:
 
@@ -38,6 +47,9 @@ django.utils.encoding
 
 django.utils.http
 =================
+
+.. include:: cheat/django.utils.http.rst
+
 .. automodule:: django.utils.http
     :members:
 
@@ -45,6 +57,9 @@ django.utils.http
 
 django.utils.hashcompat
 =======================
+
+.. include:: cheat/django.utils.hashcompat.rst
+
 .. automodule:: django.utils.hashcompat
     :members:
 
@@ -52,6 +67,9 @@ django.utils.hashcompat
 
 django.utils.importlib
 ======================
+
+.. include:: cheat/django.utils.importlib.rst
+
 .. automodule:: django.utils.importlib
     :members:
 
@@ -59,6 +77,9 @@ django.utils.importlib
 
 django.utils._threading_local
 =============================
+
+.. include:: cheat/django.utils._threading_local.rst
+
 .. automodule:: django.utils._threading_local
     :members:
 
@@ -66,6 +87,9 @@ django.utils._threading_local
 
 django.utils.autoreload
 =======================
+
+.. include:: cheat/django.utils.autoreload.rst
+
 .. automodule:: django.utils.autoreload
     :members:
 
@@ -73,6 +97,9 @@ django.utils.autoreload
 
 django.utils.synch
 ==================
+
+.. include:: cheat/django.utils.synch.rst
+
 .. automodule:: django.utils.synch
     :members:
 
@@ -80,6 +107,9 @@ django.utils.synch
 
 django.utils.regex_helper
 =========================
+
+.. include:: cheat/django.utils.regex_helper.rst
+
 .. automodule:: django.utils.regex_helper
     :members:
 
@@ -87,6 +117,9 @@ django.utils.regex_helper
 
 django.utils.dateformat
 =======================
+
+.. include:: cheat/django.utils.dateformat.rst
+
 .. automodule:: django.utils.dateformat
     :members:
 
@@ -94,6 +127,9 @@ django.utils.dateformat
 
 django.utils._os
 ================
+
+.. include:: cheat/django.utils._os.rst
+
 .. automodule:: django.utils._os
     :members:
 
@@ -101,6 +137,9 @@ django.utils._os
 
 django.utils.dictconfig
 =======================
+
+.. include:: cheat/django.utils.dictconfig.rst
+
 .. automodule:: django.utils.dictconfig
     :members:
 
@@ -108,6 +147,9 @@ django.utils.dictconfig
 
 django.utils.datastructures
 ===========================
+
+.. include:: cheat/django.utils.datastructures.rst
+
 .. automodule:: django.utils.datastructures
     :members:
 
@@ -115,6 +157,9 @@ django.utils.datastructures
 
 django.utils.timesince
 ======================
+
+.. include:: cheat/django.utils.timesince.rst
+
 .. automodule:: django.utils.timesince
     :members:
 
@@ -122,6 +167,9 @@ django.utils.timesince
 
 django.utils.log
 ================
+
+.. include:: cheat/django.utils.log.rst
+
 .. automodule:: django.utils.log
     :members:
 
@@ -129,6 +177,9 @@ django.utils.log
 
 django.utils.formats
 ====================
+
+.. include:: cheat/django.utils.formats.rst
+
 .. automodule:: django.utils.formats
     :members:
 
@@ -136,6 +187,9 @@ django.utils.formats
 
 django.utils.tzinfo
 ===================
+
+.. include:: cheat/django.utils.tzinfo.rst
+
 .. automodule:: django.utils.tzinfo
     :members:
 
@@ -143,6 +197,9 @@ django.utils.tzinfo
 
 django.utils.dates
 ==================
+
+.. include:: cheat/django.utils.dates.rst
+
 .. automodule:: django.utils.dates
     :members:
 
@@ -150,6 +207,9 @@ django.utils.dates
 
 django.utils.daemonize
 ======================
+
+.. include:: cheat/django.utils.daemonize.rst
+
 .. automodule:: django.utils.daemonize
     :members:
 
@@ -157,6 +217,9 @@ django.utils.daemonize
 
 django.utils.datetime_safe
 ==========================
+
+.. include:: cheat/django.utils.datetime_safe.rst
+
 .. automodule:: django.utils.datetime_safe
     :members:
 
@@ -164,6 +227,9 @@ django.utils.datetime_safe
 
 django.utils.tree
 =================
+
+.. include:: cheat/django.utils.tree.rst
+
 .. automodule:: django.utils.tree
     :members:
 
@@ -171,6 +237,9 @@ django.utils.tree
 
 django.utils.functional
 =======================
+
+.. include:: cheat/django.utils.functional.rst
+
 .. automodule:: django.utils.functional
     :members:
 
@@ -178,6 +247,9 @@ django.utils.functional
 
 django.utils.module_loading
 ===========================
+
+.. include:: cheat/django.utils.module_loading.rst
+
 .. automodule:: django.utils.module_loading
     :members:
 
@@ -185,6 +257,9 @@ django.utils.module_loading
 
 django.utils.html
 =================
+
+.. include:: cheat/django.utils.html.rst
+
 .. automodule:: django.utils.html
     :members:
 
@@ -192,6 +267,9 @@ django.utils.html
 
 django.utils.version
 ====================
+
+.. include:: cheat/django.utils.version.rst
+
 .. automodule:: django.utils.version
     :members:
 
@@ -199,6 +277,9 @@ django.utils.version
 
 django.utils.feedgenerator
 ==========================
+
+.. include:: cheat/django.utils.feedgenerator.rst
+
 .. automodule:: django.utils.feedgenerator
     :members:
 
@@ -206,6 +287,9 @@ django.utils.feedgenerator
 
 django.utils.xmlutils
 =====================
+
+.. include:: cheat/django.utils.xmlutils.rst
+
 .. automodule:: django.utils.xmlutils
     :members:
 
@@ -213,6 +297,9 @@ django.utils.xmlutils
 
 django.utils.itercompat
 =======================
+
+.. include:: cheat/django.utils.itercompat.rst
+
 .. automodule:: django.utils.itercompat
     :members:
 
@@ -220,6 +307,9 @@ django.utils.itercompat
 
 django.utils.termcolors
 =======================
+
+.. include:: cheat/django.utils.termcolors.rst
+
 .. automodule:: django.utils.termcolors
     :members:
 
@@ -227,6 +317,9 @@ django.utils.termcolors
 
 django.utils.safestring
 =======================
+
+.. include:: cheat/django.utils.safestring.rst
+
 .. automodule:: django.utils.safestring
     :members:
 
@@ -234,6 +327,9 @@ django.utils.safestring
 
 django.utils.cache
 ==================
+
+.. include:: cheat/django.utils.cache.rst
+
 .. automodule:: django.utils.cache
     :members:
 
@@ -241,6 +337,9 @@ django.utils.cache
 
 django.utils.checksums
 ======================
+
+.. include:: cheat/django.utils.checksums.rst
+
 .. automodule:: django.utils.checksums
     :members:
 
@@ -248,6 +347,9 @@ django.utils.checksums
 
 django.utils.copycompat
 =======================
+
+.. include:: cheat/django.utils.copycompat.rst
+
 .. automodule:: django.utils.copycompat
     :members:
 
@@ -255,6 +357,9 @@ django.utils.copycompat
 
 django.utils.text
 =================
+
+.. include:: cheat/django.utils.text.rst
+
 .. automodule:: django.utils.text
     :members:
 
@@ -262,6 +367,9 @@ django.utils.text
 
 django.utils.stopwords
 ======================
+
+.. include:: cheat/django.utils.stopwords.rst
+
 .. automodule:: django.utils.stopwords
     :members:
 
@@ -269,6 +377,9 @@ django.utils.stopwords
 
 django.utils.decorators
 =======================
+
+.. include:: cheat/django.utils.decorators.rst
+
 .. automodule:: django.utils.decorators
     :members:
 
@@ -276,6 +387,9 @@ django.utils.decorators
 
 django.utils.numberformat
 =========================
+
+.. include:: cheat/django.utils.numberformat.rst
+
 .. automodule:: django.utils.numberformat
     :members:
 

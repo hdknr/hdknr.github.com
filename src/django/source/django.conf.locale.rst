@@ -7,6 +7,9 @@ django.conf.locale
 django.conf.locale
 ==================
 
+.. include:: cheat/django.conf.locale.rst
+
+
 .. automodule:: django.conf.locale
     :members:
 

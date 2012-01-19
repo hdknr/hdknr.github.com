@@ -1,0 +1,153 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>django.contrib.gis.geos.prototypes.threadsafe &mdash; Django Cheat 1 documentation</title>
+    
+    <link rel="stylesheet" href="../../../../../../static/haiku.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../../../static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../../../static/print.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../../../../',
+        VERSION:     '1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../../../../../static/jquery.js"></script>
+    <script type="text/javascript" src="../../../../../../static/underscore.js"></script>
+    <script type="text/javascript" src="../../../../../../static/doctools.js"></script>
+    <script type="text/javascript" src="../../../../../../static/theme_extras.js"></script>
+    <link rel="top" title="Django Cheat 1 documentation" href="../../../../../../index.html" />
+    <link rel="up" title="Module code" href="../../../../../index.html" /> 
+  </head>
+  <body>
+      <div class="header"><h1 class="heading"><a href="../../../../../../index.html">
+          <span>Django Cheat 1 documentation</span></a></h1>
+        <h2 class="heading"><span>django.contrib.gis.geos.prototypes.threadsafe</span></h2>
+      </div>
+      <div class="topnav">
+      
+        <p>
+        <a href="/">Home</a>:
+        <a class="uplink" href="../../../../../../index.html">Contents</a>
+        </p>
+
+      </div>
+      <div class="content">
+        
+        
+  <h1>Source code for django.contrib.gis.geos.prototypes.threadsafe</h1><div class="highlight"><pre>
+<span class="kn">import</span> <span class="nn">threading</span>
+<span class="kn">from</span> <span class="nn">django.contrib.gis.geos.libgeos</span> <span class="kn">import</span> <span class="n">lgeos</span><span class="p">,</span> <span class="n">notice_h</span><span class="p">,</span> <span class="n">error_h</span><span class="p">,</span> <span class="n">CONTEXT_PTR</span>
+
+<div class="viewcode-block" id="GEOSContextHandle"><a class="viewcode-back" href="../../../../../../django.contrib.gis.geos.prototypes.html#django.contrib.gis.geos.prototypes.threadsafe.GEOSContextHandle">[docs]</a><span class="k">class</span> <span class="nc">GEOSContextHandle</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Python object representing a GEOS context handle.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c"># Initializing the context handler for this thread with</span>
+        <span class="c"># the notice and error handler.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ptr</span> <span class="o">=</span> <span class="n">lgeos</span><span class="o">.</span><span class="n">initGEOS_r</span><span class="p">(</span><span class="n">notice_h</span><span class="p">,</span> <span class="n">error_h</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__del__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">ptr</span><span class="p">:</span> <span class="n">lgeos</span><span class="o">.</span><span class="n">finishGEOS_r</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ptr</span><span class="p">)</span>
+
+<span class="c"># Defining a thread-local object and creating an instance</span>
+<span class="c"># to hold a reference to GEOSContextHandle for this thread.</span></div>
+<span class="k">class</span> <span class="nc">GEOSContext</span><span class="p">(</span><span class="n">threading</span><span class="o">.</span><span class="n">local</span><span class="p">):</span>
+    <span class="n">handle</span> <span class="o">=</span> <span class="bp">None</span>
+
+<span class="n">thread_context</span> <span class="o">=</span> <span class="n">GEOSContext</span><span class="p">()</span>
+
+<div class="viewcode-block" id="GEOSFunc"><a class="viewcode-back" href="../../../../../../django.contrib.gis.geos.prototypes.html#django.contrib.gis.geos.prototypes.threadsafe.GEOSFunc">[docs]</a><span class="k">class</span> <span class="nc">GEOSFunc</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Class that serves as a wrapper for GEOS C Functions, and will</span>
+<span class="sd">    use thread-safe function variants when available.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">func_name</span><span class="p">):</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="c"># GEOS thread-safe function signatures end with &#39;_r&#39;, and</span>
+            <span class="c"># take an additional context handle parameter.</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">cfunc</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">lgeos</span><span class="p">,</span> <span class="n">func_name</span> <span class="o">+</span> <span class="s">&#39;_r&#39;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">threaded</span> <span class="o">=</span> <span class="bp">True</span>
+            <span class="c"># Create a reference here to thread_context so it&#39;s not</span>
+            <span class="c"># garbage-collected before an attempt to call this object.</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">thread_context</span> <span class="o">=</span> <span class="n">thread_context</span>
+        <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>
+            <span class="c"># Otherwise, use usual function.</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">cfunc</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">lgeos</span><span class="p">,</span> <span class="n">func_name</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">threaded</span> <span class="o">=</span> <span class="bp">False</span>
+
+    <span class="k">def</span> <span class="nf">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">threaded</span><span class="p">:</span>
+            <span class="c"># If a context handle does not exist for this thread, initialize one.</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">thread_context</span><span class="o">.</span><span class="n">handle</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">thread_context</span><span class="o">.</span><span class="n">handle</span> <span class="o">=</span> <span class="n">GEOSContextHandle</span><span class="p">()</span>
+            <span class="c"># Call the threaded GEOS routine with pointer of the context handle</span>
+            <span class="c"># as the first argument.</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">cfunc</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">thread_context</span><span class="o">.</span><span class="n">handle</span><span class="o">.</span><span class="n">ptr</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">cfunc</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">cfunc</span><span class="o">.</span><span class="n">__name__</span>
+
+    <span class="c"># argtypes property</span>
+    <span class="k">def</span> <span class="nf">_get_argtypes</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">cfunc</span><span class="o">.</span><span class="n">argtypes</span>
+
+    <span class="k">def</span> <span class="nf">_set_argtypes</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">argtypes</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">threaded</span><span class="p">:</span>
+            <span class="n">new_argtypes</span> <span class="o">=</span> <span class="p">[</span><span class="n">CONTEXT_PTR</span><span class="p">]</span>
+            <span class="n">new_argtypes</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">argtypes</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">cfunc</span><span class="o">.</span><span class="n">argtypes</span> <span class="o">=</span> <span class="n">new_argtypes</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">cfunc</span><span class="o">.</span><span class="n">argtypes</span> <span class="o">=</span> <span class="n">argtypes</span>
+
+    <span class="n">argtypes</span> <span class="o">=</span> <span class="nb">property</span><span class="p">(</span><span class="n">_get_argtypes</span><span class="p">,</span> <span class="n">_set_argtypes</span><span class="p">)</span>
+
+    <span class="c"># restype property</span>
+    <span class="k">def</span> <span class="nf">_get_restype</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">cfunc</span><span class="o">.</span><span class="n">restype</span>
+
+    <span class="k">def</span> <span class="nf">_set_restype</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">restype</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cfunc</span><span class="o">.</span><span class="n">restype</span> <span class="o">=</span> <span class="n">restype</span>
+
+    <span class="n">restype</span> <span class="o">=</span> <span class="nb">property</span><span class="p">(</span><span class="n">_get_restype</span><span class="p">,</span> <span class="n">_set_restype</span><span class="p">)</span>
+
+    <span class="c"># errcheck property</span>
+    <span class="k">def</span> <span class="nf">_get_errcheck</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">cfunc</span><span class="o">.</span><span class="n">errcheck</span>
+
+    <span class="k">def</span> <span class="nf">_set_errcheck</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">errcheck</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cfunc</span><span class="o">.</span><span class="n">errcheck</span> <span class="o">=</span> <span class="n">errcheck</span>
+
+    <span class="n">errcheck</span> <span class="o">=</span> <span class="nb">property</span><span class="p">(</span><span class="n">_get_errcheck</span><span class="p">,</span> <span class="n">_set_errcheck</span><span class="p">)</span></div>
+</pre></div>
+
+      </div>
+      <div class="bottomnav">
+      
+        <p>
+        <a href="/">Home</a>:
+        <a class="uplink" href="../../../../../../index.html">Contents</a>
+        </p>
+
+      </div>
+
+    <div class="footer">
+        &copy; Copyright 2012, HDKNR.COM.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.2pre.
+    </div>
+  </body>
+</html>

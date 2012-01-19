@@ -7,6 +7,9 @@ django.conf.locale.en_GB
 django.conf.locale.en_GB
 ========================
 
+.. include:: cheat/django.conf.locale.en_GB.rst
+
+
 .. automodule:: django.conf.locale.en_GB
     :members:
 
@@ -15,6 +18,9 @@ django.conf.locale.en_GB
 
 django.conf.locale.en_GB.formats
 ================================
+
+.. include:: cheat/django.conf.locale.en_GB.formats.rst
+
 .. automodule:: django.conf.locale.en_GB.formats
     :members:
 

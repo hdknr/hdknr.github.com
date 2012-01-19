@@ -7,6 +7,9 @@ django
 django
 ======
 
+.. include:: cheat/django.rst
+
+
 .. automodule:: django
     :members:
 

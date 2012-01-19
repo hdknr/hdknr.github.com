@@ -7,6 +7,9 @@ django.contrib.gis.tests
 django.contrib.gis.tests
 ========================
 
+.. include:: cheat/django.contrib.gis.tests.rst
+
+
 .. automodule:: django.contrib.gis.tests
     :members:
 
@@ -30,6 +33,9 @@ Sub
 
 django.contrib.gis.tests.test_geoip
 ===================================
+
+.. include:: cheat/django.contrib.gis.tests.test_geoip.rst
+
 .. automodule:: django.contrib.gis.tests.test_geoip
     :members:
 
@@ -37,6 +43,9 @@ django.contrib.gis.tests.test_geoip
 
 django.contrib.gis.tests.utils
 ==============================
+
+.. include:: cheat/django.contrib.gis.tests.utils.rst
+
 .. automodule:: django.contrib.gis.tests.utils
     :members:
 
@@ -44,6 +53,9 @@ django.contrib.gis.tests.utils
 
 django.contrib.gis.tests.test_geoforms
 ======================================
+
+.. include:: cheat/django.contrib.gis.tests.test_geoforms.rst
+
 .. automodule:: django.contrib.gis.tests.test_geoforms
     :members:
 
@@ -51,6 +63,9 @@ django.contrib.gis.tests.test_geoforms
 
 django.contrib.gis.tests.test_spatialrefsys
 ===========================================
+
+.. include:: cheat/django.contrib.gis.tests.test_spatialrefsys.rst
+
 .. automodule:: django.contrib.gis.tests.test_spatialrefsys
     :members:
 
@@ -58,6 +73,9 @@ django.contrib.gis.tests.test_spatialrefsys
 
 django.contrib.gis.tests.test_measure
 =====================================
+
+.. include:: cheat/django.contrib.gis.tests.test_measure.rst
+
 .. automodule:: django.contrib.gis.tests.test_measure
     :members:
 

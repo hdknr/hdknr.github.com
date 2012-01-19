@@ -1,0 +1,178 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>django.contrib.gis.sitemaps.views &mdash; Django Cheat 1 documentation</title>
+    
+    <link rel="stylesheet" href="../../../../../static/haiku.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../../static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../../static/print.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../../../',
+        VERSION:     '1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../../../../static/jquery.js"></script>
+    <script type="text/javascript" src="../../../../../static/underscore.js"></script>
+    <script type="text/javascript" src="../../../../../static/doctools.js"></script>
+    <script type="text/javascript" src="../../../../../static/theme_extras.js"></script>
+    <link rel="top" title="Django Cheat 1 documentation" href="../../../../../index.html" />
+    <link rel="up" title="Module code" href="../../../../index.html" /> 
+  </head>
+  <body>
+      <div class="header"><h1 class="heading"><a href="../../../../../index.html">
+          <span>Django Cheat 1 documentation</span></a></h1>
+        <h2 class="heading"><span>django.contrib.gis.sitemaps.views</span></h2>
+      </div>
+      <div class="topnav">
+      
+        <p>
+        <a href="/">Home</a>:
+        <a class="uplink" href="../../../../../index.html">Contents</a>
+        </p>
+
+      </div>
+      <div class="content">
+        
+        
+  <h1>Source code for django.contrib.gis.sitemaps.views</h1><div class="highlight"><pre>
+<span class="kn">from</span> <span class="nn">django.http</span> <span class="kn">import</span> <span class="n">HttpResponse</span><span class="p">,</span> <span class="n">Http404</span>
+<span class="kn">from</span> <span class="nn">django.template</span> <span class="kn">import</span> <span class="n">loader</span>
+<span class="kn">from</span> <span class="nn">django.contrib.sites.models</span> <span class="kn">import</span> <span class="n">get_current_site</span>
+<span class="kn">from</span> <span class="nn">django.core</span> <span class="kn">import</span> <span class="n">urlresolvers</span>
+<span class="kn">from</span> <span class="nn">django.core.paginator</span> <span class="kn">import</span> <span class="n">EmptyPage</span><span class="p">,</span> <span class="n">PageNotAnInteger</span>
+<span class="kn">from</span> <span class="nn">django.contrib.gis.db.models.fields</span> <span class="kn">import</span> <span class="n">GeometryField</span>
+<span class="kn">from</span> <span class="nn">django.db</span> <span class="kn">import</span> <span class="n">connections</span><span class="p">,</span> <span class="n">DEFAULT_DB_ALIAS</span>
+<span class="kn">from</span> <span class="nn">django.db.models</span> <span class="kn">import</span> <span class="n">get_model</span>
+<span class="kn">from</span> <span class="nn">django.utils.encoding</span> <span class="kn">import</span> <span class="n">smart_str</span>
+
+<span class="kn">from</span> <span class="nn">django.contrib.gis.shortcuts</span> <span class="kn">import</span> <span class="n">render_to_kml</span><span class="p">,</span> <span class="n">render_to_kmz</span>
+
+<div class="viewcode-block" id="index"><a class="viewcode-back" href="../../../../../django.contrib.gis.sitemaps.html#django.contrib.gis.sitemaps.views.index">[docs]</a><span class="k">def</span> <span class="nf">index</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="n">sitemaps</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    This view generates a sitemap index that uses the proper view</span>
+<span class="sd">    for resolving geographic section sitemap URLs.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">current_site</span> <span class="o">=</span> <span class="n">get_current_site</span><span class="p">(</span><span class="n">request</span><span class="p">)</span>
+    <span class="n">sites</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">protocol</span> <span class="o">=</span> <span class="n">request</span><span class="o">.</span><span class="n">is_secure</span><span class="p">()</span> <span class="ow">and</span> <span class="s">&#39;https&#39;</span> <span class="ow">or</span> <span class="s">&#39;http&#39;</span>
+    <span class="k">for</span> <span class="n">section</span><span class="p">,</span> <span class="n">site</span> <span class="ow">in</span> <span class="n">sitemaps</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="k">if</span> <span class="nb">callable</span><span class="p">(</span><span class="n">site</span><span class="p">):</span>
+            <span class="n">pages</span> <span class="o">=</span> <span class="n">site</span><span class="p">()</span><span class="o">.</span><span class="n">paginator</span><span class="o">.</span><span class="n">num_pages</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">pages</span> <span class="o">=</span> <span class="n">site</span><span class="o">.</span><span class="n">paginator</span><span class="o">.</span><span class="n">num_pages</span>
+        <span class="n">sitemap_url</span> <span class="o">=</span> <span class="n">urlresolvers</span><span class="o">.</span><span class="n">reverse</span><span class="p">(</span><span class="s">&#39;django.contrib.gis.sitemaps.views.sitemap&#39;</span><span class="p">,</span> <span class="n">kwargs</span><span class="o">=</span><span class="p">{</span><span class="s">&#39;section&#39;</span><span class="p">:</span> <span class="n">section</span><span class="p">})</span>
+        <span class="n">sites</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s">&#39;</span><span class="si">%s</span><span class="s">://</span><span class="si">%s%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">protocol</span><span class="p">,</span> <span class="n">current_site</span><span class="o">.</span><span class="n">domain</span><span class="p">,</span> <span class="n">sitemap_url</span><span class="p">))</span>
+
+        <span class="k">if</span> <span class="n">pages</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">page</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="n">pages</span><span class="o">+</span><span class="mi">1</span><span class="p">):</span>
+                <span class="n">sites</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s">&#39;</span><span class="si">%s</span><span class="s">://</span><span class="si">%s%s</span><span class="s">?p=</span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">protocol</span><span class="p">,</span> <span class="n">current_site</span><span class="o">.</span><span class="n">domain</span><span class="p">,</span> <span class="n">sitemap_url</span><span class="p">,</span> <span class="n">page</span><span class="p">))</span>
+    <span class="n">xml</span> <span class="o">=</span> <span class="n">loader</span><span class="o">.</span><span class="n">render_to_string</span><span class="p">(</span><span class="s">&#39;sitemap_index.xml&#39;</span><span class="p">,</span> <span class="p">{</span><span class="s">&#39;sitemaps&#39;</span><span class="p">:</span> <span class="n">sites</span><span class="p">})</span>
+    <span class="k">return</span> <span class="n">HttpResponse</span><span class="p">(</span><span class="n">xml</span><span class="p">,</span> <span class="n">mimetype</span><span class="o">=</span><span class="s">&#39;application/xml&#39;</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="sitemap"><a class="viewcode-back" href="../../../../../django.contrib.gis.sitemaps.html#django.contrib.gis.sitemaps.views.sitemap">[docs]</a><span class="k">def</span> <span class="nf">sitemap</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="n">sitemaps</span><span class="p">,</span> <span class="n">section</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    This view generates a sitemap with additional geographic</span>
+<span class="sd">    elements defined by Google.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">maps</span><span class="p">,</span> <span class="n">urls</span> <span class="o">=</span> <span class="p">[],</span> <span class="p">[]</span>
+    <span class="k">if</span> <span class="n">section</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">section</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">sitemaps</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">Http404</span><span class="p">(</span><span class="s">&quot;No sitemap available for section: </span><span class="si">%r</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">section</span><span class="p">)</span>
+        <span class="n">maps</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">sitemaps</span><span class="p">[</span><span class="n">section</span><span class="p">])</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">maps</span> <span class="o">=</span> <span class="n">sitemaps</span><span class="o">.</span><span class="n">values</span><span class="p">()</span>
+
+    <span class="n">page</span> <span class="o">=</span> <span class="n">request</span><span class="o">.</span><span class="n">GET</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&quot;p&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+    <span class="n">current_site</span> <span class="o">=</span> <span class="n">get_current_site</span><span class="p">(</span><span class="n">request</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">site</span> <span class="ow">in</span> <span class="n">maps</span><span class="p">:</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">callable</span><span class="p">(</span><span class="n">site</span><span class="p">):</span>
+                <span class="n">urls</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">site</span><span class="p">()</span><span class="o">.</span><span class="n">get_urls</span><span class="p">(</span><span class="n">page</span><span class="o">=</span><span class="n">page</span><span class="p">,</span> <span class="n">site</span><span class="o">=</span><span class="n">current_site</span><span class="p">))</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">urls</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">site</span><span class="o">.</span><span class="n">get_urls</span><span class="p">(</span><span class="n">page</span><span class="o">=</span><span class="n">page</span><span class="p">,</span> <span class="n">site</span><span class="o">=</span><span class="n">current_site</span><span class="p">))</span>
+        <span class="k">except</span> <span class="n">EmptyPage</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">Http404</span><span class="p">(</span><span class="s">&quot;Page </span><span class="si">%s</span><span class="s"> empty&quot;</span> <span class="o">%</span> <span class="n">page</span><span class="p">)</span>
+        <span class="k">except</span> <span class="n">PageNotAnInteger</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">Http404</span><span class="p">(</span><span class="s">&quot;No page &#39;</span><span class="si">%s</span><span class="s">&#39;&quot;</span> <span class="o">%</span> <span class="n">page</span><span class="p">)</span>
+    <span class="n">xml</span> <span class="o">=</span> <span class="n">smart_str</span><span class="p">(</span><span class="n">loader</span><span class="o">.</span><span class="n">render_to_string</span><span class="p">(</span><span class="s">&#39;gis/sitemaps/geo_sitemap.xml&#39;</span><span class="p">,</span> <span class="p">{</span><span class="s">&#39;urlset&#39;</span><span class="p">:</span> <span class="n">urls</span><span class="p">}))</span>
+    <span class="k">return</span> <span class="n">HttpResponse</span><span class="p">(</span><span class="n">xml</span><span class="p">,</span> <span class="n">mimetype</span><span class="o">=</span><span class="s">&#39;application/xml&#39;</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="kml"><a class="viewcode-back" href="../../../../../django.contrib.gis.sitemaps.html#django.contrib.gis.sitemaps.views.kml">[docs]</a><span class="k">def</span> <span class="nf">kml</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="n">label</span><span class="p">,</span> <span class="n">model</span><span class="p">,</span> <span class="n">field_name</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">compress</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">using</span><span class="o">=</span><span class="n">DEFAULT_DB_ALIAS</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    This view generates KML for the given app label, model, and field name.</span>
+
+<span class="sd">    The model&#39;s default manager must be GeoManager, and the field name</span>
+<span class="sd">    must be that of a geographic field.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">placemarks</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">klass</span> <span class="o">=</span> <span class="n">get_model</span><span class="p">(</span><span class="n">label</span><span class="p">,</span> <span class="n">model</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">klass</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">Http404</span><span class="p">(</span><span class="s">&#39;You must supply a valid app label and module name.  Got &quot;</span><span class="si">%s</span><span class="s">.</span><span class="si">%s</span><span class="s">&quot;&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">label</span><span class="p">,</span> <span class="n">model</span><span class="p">))</span>
+
+    <span class="k">if</span> <span class="n">field_name</span><span class="p">:</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">info</span> <span class="o">=</span> <span class="n">klass</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">get_field_by_name</span><span class="p">(</span><span class="n">field_name</span><span class="p">)</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">info</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">GeometryField</span><span class="p">):</span>
+                <span class="k">raise</span> <span class="ne">Exception</span>
+        <span class="k">except</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">Http404</span><span class="p">(</span><span class="s">&#39;Invalid geometry field.&#39;</span><span class="p">)</span>
+
+    <span class="n">connection</span> <span class="o">=</span> <span class="n">connections</span><span class="p">[</span><span class="n">using</span><span class="p">]</span>
+
+    <span class="k">if</span> <span class="n">connection</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">postgis</span><span class="p">:</span>
+        <span class="c"># PostGIS will take care of transformation.</span>
+        <span class="n">placemarks</span> <span class="o">=</span> <span class="n">klass</span><span class="o">.</span><span class="n">_default_manager</span><span class="o">.</span><span class="n">using</span><span class="p">(</span><span class="n">using</span><span class="p">)</span><span class="o">.</span><span class="n">kml</span><span class="p">(</span><span class="n">field_name</span><span class="o">=</span><span class="n">field_name</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="c"># There&#39;s no KML method on Oracle or MySQL, so we use the `kml`</span>
+        <span class="c"># attribute of the lazy geometry instead.</span>
+        <span class="n">placemarks</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">if</span> <span class="n">connection</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">oracle</span><span class="p">:</span>
+            <span class="n">qs</span> <span class="o">=</span> <span class="n">klass</span><span class="o">.</span><span class="n">_default_manager</span><span class="o">.</span><span class="n">using</span><span class="p">(</span><span class="n">using</span><span class="p">)</span><span class="o">.</span><span class="n">transform</span><span class="p">(</span><span class="mi">4326</span><span class="p">,</span> <span class="n">field_name</span><span class="o">=</span><span class="n">field_name</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">qs</span> <span class="o">=</span> <span class="n">klass</span><span class="o">.</span><span class="n">_default_manager</span><span class="o">.</span><span class="n">using</span><span class="p">(</span><span class="n">using</span><span class="p">)</span><span class="o">.</span><span class="n">all</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">mod</span> <span class="ow">in</span> <span class="n">qs</span><span class="p">:</span>
+            <span class="n">mod</span><span class="o">.</span><span class="n">kml</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">mod</span><span class="p">,</span> <span class="n">field_name</span><span class="p">)</span><span class="o">.</span><span class="n">kml</span>
+            <span class="n">placemarks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">mod</span><span class="p">)</span>
+
+    <span class="c"># Getting the render function and rendering to the correct.</span>
+    <span class="k">if</span> <span class="n">compress</span><span class="p">:</span>
+        <span class="n">render</span> <span class="o">=</span> <span class="n">render_to_kmz</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">render</span> <span class="o">=</span> <span class="n">render_to_kml</span>
+    <span class="k">return</span> <span class="n">render</span><span class="p">(</span><span class="s">&#39;gis/kml/placemarks.kml&#39;</span><span class="p">,</span> <span class="p">{</span><span class="s">&#39;places&#39;</span> <span class="p">:</span> <span class="n">placemarks</span><span class="p">})</span>
+</div>
+<div class="viewcode-block" id="kmz"><a class="viewcode-back" href="../../../../../django.contrib.gis.sitemaps.html#django.contrib.gis.sitemaps.views.kmz">[docs]</a><span class="k">def</span> <span class="nf">kmz</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="n">label</span><span class="p">,</span> <span class="n">model</span><span class="p">,</span> <span class="n">field_name</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">using</span><span class="o">=</span><span class="n">DEFAULT_DB_ALIAS</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    This view returns KMZ for the given app label, model, and field name.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">kml</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="n">label</span><span class="p">,</span> <span class="n">model</span><span class="p">,</span> <span class="n">field_name</span><span class="p">,</span> <span class="n">compress</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">using</span><span class="o">=</span><span class="n">using</span><span class="p">)</span></div>
+</pre></div>
+
+      </div>
+      <div class="bottomnav">
+      
+        <p>
+        <a href="/">Home</a>:
+        <a class="uplink" href="../../../../../index.html">Contents</a>
+        </p>
+
+      </div>
+
+    <div class="footer">
+        &copy; Copyright 2012, HDKNR.COM.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.2pre.
+    </div>
+  </body>
+</html>

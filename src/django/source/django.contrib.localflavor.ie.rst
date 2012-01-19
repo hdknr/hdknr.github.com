@@ -7,6 +7,9 @@ django.contrib.localflavor.ie
 django.contrib.localflavor.ie
 =============================
 
+.. include:: cheat/django.contrib.localflavor.ie.rst
+
+
 .. automodule:: django.contrib.localflavor.ie
     :members:
 
@@ -15,6 +18,9 @@ django.contrib.localflavor.ie
 
 django.contrib.localflavor.ie.forms
 ===================================
+
+.. include:: cheat/django.contrib.localflavor.ie.forms.rst
+
 .. automodule:: django.contrib.localflavor.ie.forms
     :members:
 
@@ -22,6 +28,9 @@ django.contrib.localflavor.ie.forms
 
 django.contrib.localflavor.ie.ie_counties
 =========================================
+
+.. include:: cheat/django.contrib.localflavor.ie.ie_counties.rst
+
 .. automodule:: django.contrib.localflavor.ie.ie_counties
     :members:
 

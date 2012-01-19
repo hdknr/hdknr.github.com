@@ -7,6 +7,9 @@ django.contrib.gis.maps
 django.contrib.gis.maps
 =======================
 
+.. include:: cheat/django.contrib.gis.maps.rst
+
+
 .. automodule:: django.contrib.gis.maps
     :members:
 

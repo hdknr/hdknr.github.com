@@ -7,6 +7,9 @@ django.contrib.gis
 django.contrib.gis
 ==================
 
+.. include:: cheat/django.contrib.gis.rst
+
+
 .. automodule:: django.contrib.gis
     :members:
 
@@ -40,6 +43,9 @@ Sub
 
 django.contrib.gis.shortcuts
 ============================
+
+.. include:: cheat/django.contrib.gis.shortcuts.rst
+
 .. automodule:: django.contrib.gis.shortcuts
     :members:
 
@@ -47,6 +53,9 @@ django.contrib.gis.shortcuts
 
 django.contrib.gis.feeds
 ========================
+
+.. include:: cheat/django.contrib.gis.feeds.rst
+
 .. automodule:: django.contrib.gis.feeds
     :members:
 
@@ -54,6 +63,9 @@ django.contrib.gis.feeds
 
 django.contrib.gis.measure
 ==========================
+
+.. include:: cheat/django.contrib.gis.measure.rst
+
 .. automodule:: django.contrib.gis.measure
     :members:
 
@@ -61,6 +73,9 @@ django.contrib.gis.measure
 
 django.contrib.gis.models
 =========================
+
+.. include:: cheat/django.contrib.gis.models.rst
+
 .. automodule:: django.contrib.gis.models
     :members:
 

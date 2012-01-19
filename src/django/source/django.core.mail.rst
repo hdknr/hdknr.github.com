@@ -7,6 +7,9 @@ django.core.mail
 django.core.mail
 ================
 
+.. include:: cheat/django.core.mail.rst
+
+
 .. automodule:: django.core.mail
     :members:
 
@@ -15,6 +18,9 @@ django.core.mail
 
 django.core.mail.utils
 ======================
+
+.. include:: cheat/django.core.mail.utils.rst
+
 .. automodule:: django.core.mail.utils
     :members:
 
@@ -22,6 +28,9 @@ django.core.mail.utils
 
 django.core.mail.message
 ========================
+
+.. include:: cheat/django.core.mail.message.rst
+
 .. automodule:: django.core.mail.message
     :members:
 

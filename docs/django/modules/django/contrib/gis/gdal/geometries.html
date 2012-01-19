@@ -1,0 +1,804 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>django.contrib.gis.gdal.geometries &mdash; Django Cheat 1 documentation</title>
+    
+    <link rel="stylesheet" href="../../../../../static/haiku.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../../static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../../static/print.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../../../',
+        VERSION:     '1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../../../../static/jquery.js"></script>
+    <script type="text/javascript" src="../../../../../static/underscore.js"></script>
+    <script type="text/javascript" src="../../../../../static/doctools.js"></script>
+    <script type="text/javascript" src="../../../../../static/theme_extras.js"></script>
+    <link rel="top" title="Django Cheat 1 documentation" href="../../../../../index.html" />
+    <link rel="up" title="Module code" href="../../../../index.html" /> 
+  </head>
+  <body>
+      <div class="header"><h1 class="heading"><a href="../../../../../index.html">
+          <span>Django Cheat 1 documentation</span></a></h1>
+        <h2 class="heading"><span>django.contrib.gis.gdal.geometries</span></h2>
+      </div>
+      <div class="topnav">
+      
+        <p>
+        <a href="/">Home</a>:
+        <a class="uplink" href="../../../../../index.html">Contents</a>
+        </p>
+
+      </div>
+      <div class="content">
+        
+        
+  <h1>Source code for django.contrib.gis.gdal.geometries</h1><div class="highlight"><pre>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd"> The OGRGeometry is a wrapper for using the OGR Geometry class</span>
+<span class="sd"> (see http://www.gdal.org/ogr/classOGRGeometry.html).  OGRGeometry</span>
+<span class="sd"> may be instantiated when reading geometries from OGR Data Sources</span>
+<span class="sd"> (e.g. SHP files), or when given OGC WKT (a string).</span>
+
+<span class="sd"> While the &#39;full&#39; API is not present yet, the API is &quot;pythonic&quot; unlike</span>
+<span class="sd"> the traditional and &quot;next-generation&quot; OGR Python bindings.  One major</span>
+<span class="sd"> advantage OGR Geometries have over their GEOS counterparts is support</span>
+<span class="sd"> for spatial reference systems and their transformation.</span>
+
+<span class="sd"> Example:</span>
+<span class="sd">  &gt;&gt;&gt; from django.contrib.gis.gdal import OGRGeometry, OGRGeomType, SpatialReference</span>
+<span class="sd">  &gt;&gt;&gt; wkt1, wkt2 = &#39;POINT(-90 30)&#39;, &#39;POLYGON((0 0, 5 0, 5 5, 0 5)&#39;</span>
+<span class="sd">  &gt;&gt;&gt; pnt = OGRGeometry(wkt1)</span>
+<span class="sd">  &gt;&gt;&gt; print pnt</span>
+<span class="sd">  POINT (-90 30)</span>
+<span class="sd">  &gt;&gt;&gt; mpnt = OGRGeometry(OGRGeomType(&#39;MultiPoint&#39;), SpatialReference(&#39;WGS84&#39;))</span>
+<span class="sd">  &gt;&gt;&gt; mpnt.add(wkt1)</span>
+<span class="sd">  &gt;&gt;&gt; mpnt.add(wkt1)</span>
+<span class="sd">  &gt;&gt;&gt; print mpnt</span>
+<span class="sd">  MULTIPOINT (-90 30,-90 30)</span>
+<span class="sd">  &gt;&gt;&gt; print mpnt.srs.name</span>
+<span class="sd">  WGS 84</span>
+<span class="sd">  &gt;&gt;&gt; print mpnt.srs.proj</span>
+<span class="sd">  +proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs</span>
+<span class="sd">  &gt;&gt;&gt; mpnt.transform_to(SpatialReference(&#39;NAD27&#39;))</span>
+<span class="sd">  &gt;&gt;&gt; print mpnt.proj</span>
+<span class="sd">  +proj=longlat +ellps=clrk66 +datum=NAD27 +no_defs</span>
+<span class="sd">  &gt;&gt;&gt; print mpnt</span>
+<span class="sd">  MULTIPOINT (-89.999930378602485 29.999797886557641,-89.999930378602485 29.999797886557641)</span>
+
+<span class="sd">  The OGRGeomType class is to make it easy to specify an OGR geometry type:</span>
+<span class="sd">  &gt;&gt;&gt; from django.contrib.gis.gdal import OGRGeomType</span>
+<span class="sd">  &gt;&gt;&gt; gt1 = OGRGeomType(3) # Using an integer for the type</span>
+<span class="sd">  &gt;&gt;&gt; gt2 = OGRGeomType(&#39;Polygon&#39;) # Using a string</span>
+<span class="sd">  &gt;&gt;&gt; gt3 = OGRGeomType(&#39;POLYGON&#39;) # It&#39;s case-insensitive</span>
+<span class="sd">  &gt;&gt;&gt; print gt1 == 3, gt1 == &#39;Polygon&#39; # Equivalence works w/non-OGRGeomType objects</span>
+<span class="sd">  True</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="c"># Python library requisites.</span>
+<span class="kn">import</span> <span class="nn">sys</span>
+<span class="kn">from</span> <span class="nn">binascii</span> <span class="kn">import</span> <span class="n">a2b_hex</span>
+<span class="kn">from</span> <span class="nn">ctypes</span> <span class="kn">import</span> <span class="n">byref</span><span class="p">,</span> <span class="n">string_at</span><span class="p">,</span> <span class="n">c_char_p</span><span class="p">,</span> <span class="n">c_double</span><span class="p">,</span> <span class="n">c_ubyte</span><span class="p">,</span> <span class="n">c_void_p</span>
+
+<span class="c"># Getting GDAL prerequisites</span>
+<span class="kn">from</span> <span class="nn">django.contrib.gis.gdal.base</span> <span class="kn">import</span> <span class="n">GDALBase</span>
+<span class="kn">from</span> <span class="nn">django.contrib.gis.gdal.envelope</span> <span class="kn">import</span> <span class="n">Envelope</span><span class="p">,</span> <span class="n">OGREnvelope</span>
+<span class="kn">from</span> <span class="nn">django.contrib.gis.gdal.error</span> <span class="kn">import</span> <span class="n">OGRException</span><span class="p">,</span> <span class="n">OGRIndexError</span><span class="p">,</span> <span class="n">SRSException</span>
+<span class="kn">from</span> <span class="nn">django.contrib.gis.gdal.geomtype</span> <span class="kn">import</span> <span class="n">OGRGeomType</span>
+<span class="kn">from</span> <span class="nn">django.contrib.gis.gdal.libgdal</span> <span class="kn">import</span> <span class="n">GEOJSON</span><span class="p">,</span> <span class="n">GDAL_VERSION</span>
+<span class="kn">from</span> <span class="nn">django.contrib.gis.gdal.srs</span> <span class="kn">import</span> <span class="n">SpatialReference</span><span class="p">,</span> <span class="n">CoordTransform</span>
+
+<span class="c"># Getting the ctypes prototype functions that interface w/the GDAL C library.</span>
+<span class="kn">from</span> <span class="nn">django.contrib.gis.gdal.prototypes</span> <span class="kn">import</span> <span class="n">geom</span> <span class="k">as</span> <span class="n">capi</span><span class="p">,</span> <span class="n">srs</span> <span class="k">as</span> <span class="n">srs_api</span>
+
+<span class="c"># For recognizing geometry input.</span>
+<span class="kn">from</span> <span class="nn">django.contrib.gis.geometry.regex</span> <span class="kn">import</span> <span class="n">hex_regex</span><span class="p">,</span> <span class="n">wkt_regex</span><span class="p">,</span> <span class="n">json_regex</span>
+
+<span class="c"># For more information, see the OGR C API source code:</span>
+<span class="c">#  http://www.gdal.org/ogr/ogr__api_8h.html</span>
+<span class="c">#</span>
+<span class="c"># The OGR_G_* routines are relevant here.</span>
+
+<span class="c">#### OGRGeometry Class ####</span>
+<div class="viewcode-block" id="OGRGeometry"><a class="viewcode-back" href="../../../../../django.contrib.gis.gdal.html#django.contrib.gis.gdal.geometries.OGRGeometry">[docs]</a><span class="k">class</span> <span class="nc">OGRGeometry</span><span class="p">(</span><span class="n">GDALBase</span><span class="p">):</span>
+    <span class="s">&quot;Generally encapsulates an OGR geometry.&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">geom_input</span><span class="p">,</span> <span class="n">srs</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="s">&quot;Initializes Geometry on either WKT or an OGR pointer as input.&quot;</span>
+
+        <span class="n">str_instance</span> <span class="o">=</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">geom_input</span><span class="p">,</span> <span class="nb">basestring</span><span class="p">)</span>
+
+        <span class="c"># If HEX, unpack input to to a binary buffer.</span>
+        <span class="k">if</span> <span class="n">str_instance</span> <span class="ow">and</span> <span class="n">hex_regex</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="n">geom_input</span><span class="p">):</span>
+            <span class="n">geom_input</span> <span class="o">=</span> <span class="nb">buffer</span><span class="p">(</span><span class="n">a2b_hex</span><span class="p">(</span><span class="n">geom_input</span><span class="o">.</span><span class="n">upper</span><span class="p">()))</span>
+            <span class="n">str_instance</span> <span class="o">=</span> <span class="bp">False</span>
+
+        <span class="c"># Constructing the geometry,</span>
+        <span class="k">if</span> <span class="n">str_instance</span><span class="p">:</span>
+            <span class="c"># Checking if unicode</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">geom_input</span><span class="p">,</span> <span class="nb">unicode</span><span class="p">):</span>
+                <span class="c"># Encoding to ASCII, WKT or HEX doesn&#39;t need any more.</span>
+                <span class="n">geom_input</span> <span class="o">=</span> <span class="n">geom_input</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s">&#39;ascii&#39;</span><span class="p">)</span>
+
+            <span class="n">wkt_m</span> <span class="o">=</span> <span class="n">wkt_regex</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="n">geom_input</span><span class="p">)</span>
+            <span class="n">json_m</span> <span class="o">=</span> <span class="n">json_regex</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="n">geom_input</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">wkt_m</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">wkt_m</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="s">&#39;srid&#39;</span><span class="p">):</span>
+                    <span class="c"># If there&#39;s EWKT, set the SRS w/value of the SRID.</span>
+                    <span class="n">srs</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">wkt_m</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="s">&#39;srid&#39;</span><span class="p">))</span>
+                <span class="k">if</span> <span class="n">wkt_m</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="s">&#39;type&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">upper</span><span class="p">()</span> <span class="o">==</span> <span class="s">&#39;LINEARRING&#39;</span><span class="p">:</span>
+                    <span class="c"># OGR_G_CreateFromWkt doesn&#39;t work with LINEARRING WKT.</span>
+                    <span class="c">#  See http://trac.osgeo.org/gdal/ticket/1992.</span>
+                    <span class="n">g</span> <span class="o">=</span> <span class="n">capi</span><span class="o">.</span><span class="n">create_geom</span><span class="p">(</span><span class="n">OGRGeomType</span><span class="p">(</span><span class="n">wkt_m</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="s">&#39;type&#39;</span><span class="p">))</span><span class="o">.</span><span class="n">num</span><span class="p">)</span>
+                    <span class="n">capi</span><span class="o">.</span><span class="n">import_wkt</span><span class="p">(</span><span class="n">g</span><span class="p">,</span> <span class="n">byref</span><span class="p">(</span><span class="n">c_char_p</span><span class="p">(</span><span class="n">wkt_m</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="s">&#39;wkt&#39;</span><span class="p">))))</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">g</span> <span class="o">=</span> <span class="n">capi</span><span class="o">.</span><span class="n">from_wkt</span><span class="p">(</span><span class="n">byref</span><span class="p">(</span><span class="n">c_char_p</span><span class="p">(</span><span class="n">wkt_m</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="s">&#39;wkt&#39;</span><span class="p">))),</span> <span class="bp">None</span><span class="p">,</span> <span class="n">byref</span><span class="p">(</span><span class="n">c_void_p</span><span class="p">()))</span>
+            <span class="k">elif</span> <span class="n">json_m</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">GEOJSON</span><span class="p">:</span>
+                    <span class="n">g</span> <span class="o">=</span> <span class="n">capi</span><span class="o">.</span><span class="n">from_json</span><span class="p">(</span><span class="n">geom_input</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s">&#39;GeoJSON input only supported on GDAL 1.5+.&#39;</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="c"># Seeing if the input is a valid short-hand string</span>
+                <span class="c"># (e.g., &#39;Point&#39;, &#39;POLYGON&#39;).</span>
+                <span class="n">ogr_t</span> <span class="o">=</span> <span class="n">OGRGeomType</span><span class="p">(</span><span class="n">geom_input</span><span class="p">)</span>
+                <span class="n">g</span> <span class="o">=</span> <span class="n">capi</span><span class="o">.</span><span class="n">create_geom</span><span class="p">(</span><span class="n">OGRGeomType</span><span class="p">(</span><span class="n">geom_input</span><span class="p">)</span><span class="o">.</span><span class="n">num</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">geom_input</span><span class="p">,</span> <span class="nb">buffer</span><span class="p">):</span>
+            <span class="c"># WKB was passed in</span>
+            <span class="n">g</span> <span class="o">=</span> <span class="n">capi</span><span class="o">.</span><span class="n">from_wkb</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">geom_input</span><span class="p">),</span> <span class="bp">None</span><span class="p">,</span> <span class="n">byref</span><span class="p">(</span><span class="n">c_void_p</span><span class="p">()),</span> <span class="nb">len</span><span class="p">(</span><span class="n">geom_input</span><span class="p">))</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">geom_input</span><span class="p">,</span> <span class="n">OGRGeomType</span><span class="p">):</span>
+            <span class="c"># OGRGeomType was passed in, an empty geometry will be created.</span>
+            <span class="n">g</span> <span class="o">=</span> <span class="n">capi</span><span class="o">.</span><span class="n">create_geom</span><span class="p">(</span><span class="n">geom_input</span><span class="o">.</span><span class="n">num</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">geom_input</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">ptr_type</span><span class="p">):</span>
+            <span class="c"># OGR pointer (c_void_p) was the input.</span>
+            <span class="n">g</span> <span class="o">=</span> <span class="n">geom_input</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">OGRException</span><span class="p">(</span><span class="s">&#39;Invalid input type for OGR Geometry construction: </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="nb">type</span><span class="p">(</span><span class="n">geom_input</span><span class="p">))</span>
+
+        <span class="c"># Now checking the Geometry pointer before finishing initialization</span>
+        <span class="c"># by setting the pointer for the object.</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">g</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">OGRException</span><span class="p">(</span><span class="s">&#39;Cannot create OGR Geometry from input: </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="nb">str</span><span class="p">(</span><span class="n">geom_input</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ptr</span> <span class="o">=</span> <span class="n">g</span>
+
+        <span class="c"># Assigning the SpatialReference object to the geometry, if valid.</span>
+        <span class="k">if</span> <span class="nb">bool</span><span class="p">(</span><span class="n">srs</span><span class="p">):</span> <span class="bp">self</span><span class="o">.</span><span class="n">srs</span> <span class="o">=</span> <span class="n">srs</span>
+
+        <span class="c"># Setting the class depending upon the OGR Geometry Type</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__class__</span> <span class="o">=</span> <span class="n">GEO_CLASSES</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">geom_type</span><span class="o">.</span><span class="n">num</span><span class="p">]</span>
+
+    <span class="k">def</span> <span class="nf">__del__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="s">&quot;Deletes this Geometry.&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_ptr</span><span class="p">:</span> <span class="n">capi</span><span class="o">.</span><span class="n">destroy_geom</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_ptr</span><span class="p">)</span>
+
+    <span class="c"># Pickle routines</span>
+    <span class="k">def</span> <span class="nf">__getstate__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">srs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">srs</span>
+        <span class="k">if</span> <span class="n">srs</span><span class="p">:</span>
+            <span class="n">srs</span> <span class="o">=</span> <span class="n">srs</span><span class="o">.</span><span class="n">wkt</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">srs</span> <span class="o">=</span> <span class="bp">None</span>
+        <span class="k">return</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">wkb</span><span class="p">),</span> <span class="n">srs</span>
+
+    <span class="k">def</span> <span class="nf">__setstate__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">state</span><span class="p">):</span>
+        <span class="n">wkb</span><span class="p">,</span> <span class="n">srs</span> <span class="o">=</span> <span class="n">state</span>
+        <span class="n">ptr</span> <span class="o">=</span> <span class="n">capi</span><span class="o">.</span><span class="n">from_wkb</span><span class="p">(</span><span class="n">wkb</span><span class="p">,</span> <span class="bp">None</span><span class="p">,</span> <span class="n">byref</span><span class="p">(</span><span class="n">c_void_p</span><span class="p">()),</span> <span class="nb">len</span><span class="p">(</span><span class="n">wkb</span><span class="p">))</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">ptr</span><span class="p">:</span> <span class="k">raise</span> <span class="n">OGRException</span><span class="p">(</span><span class="s">&#39;Invalid OGRGeometry loaded from pickled state.&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ptr</span> <span class="o">=</span> <span class="n">ptr</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">srs</span> <span class="o">=</span> <span class="n">srs</span>
+
+    <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="OGRGeometry.from_bbox"><a class="viewcode-back" href="../../../../../django.contrib.gis.gdal.html#django.contrib.gis.gdal.geometries.OGRGeometry.from_bbox">[docs]</a>    <span class="k">def</span> <span class="nf">from_bbox</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">bbox</span><span class="p">):</span>
+        <span class="s">&quot;Constructs a Polygon from a bounding box (4-tuple).&quot;</span>
+        <span class="n">x0</span><span class="p">,</span> <span class="n">y0</span><span class="p">,</span> <span class="n">x1</span><span class="p">,</span> <span class="n">y1</span> <span class="o">=</span> <span class="n">bbox</span>
+        <span class="k">return</span> <span class="n">OGRGeometry</span><span class="p">(</span> <span class="s">&#39;POLYGON((</span><span class="si">%s</span><span class="s"> </span><span class="si">%s</span><span class="s">, </span><span class="si">%s</span><span class="s"> </span><span class="si">%s</span><span class="s">, </span><span class="si">%s</span><span class="s"> </span><span class="si">%s</span><span class="s">, </span><span class="si">%s</span><span class="s"> </span><span class="si">%s</span><span class="s">, </span><span class="si">%s</span><span class="s"> </span><span class="si">%s</span><span class="s">))&#39;</span> <span class="o">%</span>  <span class="p">(</span>
+                <span class="n">x0</span><span class="p">,</span> <span class="n">y0</span><span class="p">,</span> <span class="n">x0</span><span class="p">,</span> <span class="n">y1</span><span class="p">,</span> <span class="n">x1</span><span class="p">,</span> <span class="n">y1</span><span class="p">,</span> <span class="n">x1</span><span class="p">,</span> <span class="n">y0</span><span class="p">,</span> <span class="n">x0</span><span class="p">,</span> <span class="n">y0</span><span class="p">)</span> <span class="p">)</span>
+
+    <span class="c">### Geometry set-like operations ###</span>
+    <span class="c"># g = g1 | g2</span></div>
+    <span class="k">def</span> <span class="nf">__or__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+        <span class="s">&quot;Returns the union of the two geometries.&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">union</span><span class="p">(</span><span class="n">other</span><span class="p">)</span>
+
+    <span class="c"># g = g1 &amp; g2</span>
+    <span class="k">def</span> <span class="nf">__and__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+        <span class="s">&quot;Returns the intersection of this Geometry and the other.&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">intersection</span><span class="p">(</span><span class="n">other</span><span class="p">)</span>
+
+    <span class="c"># g = g1 - g2</span>
+    <span class="k">def</span> <span class="nf">__sub__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+        <span class="s">&quot;Return the difference this Geometry and the other.&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">difference</span><span class="p">(</span><span class="n">other</span><span class="p">)</span>
+
+    <span class="c"># g = g1 ^ g2</span>
+    <span class="k">def</span> <span class="nf">__xor__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+        <span class="s">&quot;Return the symmetric difference of this Geometry and the other.&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">sym_difference</span><span class="p">(</span><span class="n">other</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__eq__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+        <span class="s">&quot;Is this Geometry equal to the other?&quot;</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">other</span><span class="p">,</span> <span class="n">OGRGeometry</span><span class="p">):</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">equals</span><span class="p">(</span><span class="n">other</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">False</span>
+
+    <span class="k">def</span> <span class="nf">__ne__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+        <span class="s">&quot;Tests for inequality.&quot;</span>
+        <span class="k">return</span> <span class="ow">not</span> <span class="p">(</span><span class="bp">self</span> <span class="o">==</span> <span class="n">other</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="s">&quot;WKT is used for the string representation.&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">wkt</span>
+
+    <span class="c">#### Geometry Properties ####</span>
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="OGRGeometry.dimension"><a class="viewcode-back" href="../../../../../django.contrib.gis.gdal.html#django.contrib.gis.gdal.geometries.OGRGeometry.dimension">[docs]</a>    <span class="k">def</span> <span class="nf">dimension</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="s">&quot;Returns 0 for points, 1 for lines, and 2 for surfaces.&quot;</span>
+        <span class="k">return</span> <span class="n">capi</span><span class="o">.</span><span class="n">get_dims</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ptr</span><span class="p">)</span>
+</div>
+    <span class="k">def</span> <span class="nf">_get_coord_dim</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="s">&quot;Returns the coordinate dimension of the Geometry.&quot;</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">GeometryCollection</span><span class="p">)</span> <span class="ow">and</span> <span class="n">GDAL_VERSION</span> <span class="o">&lt;</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">2</span><span class="p">):</span>
+            <span class="c"># On GDAL versions prior to 1.5.2, there exists a bug in which</span>
+            <span class="c"># the coordinate dimension of geometry collections is always 2:</span>
+            <span class="c">#   http://trac.osgeo.org/gdal/ticket/2334</span>
+            <span class="c"># Here we workaround by returning the coordinate dimension of the</span>
+            <span class="c"># first geometry in the collection instead.</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+                <span class="k">return</span> <span class="n">capi</span><span class="o">.</span><span class="n">get_coord_dim</span><span class="p">(</span><span class="n">capi</span><span class="o">.</span><span class="n">get_geom_ref</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ptr</span><span class="p">,</span> <span class="mi">0</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">capi</span><span class="o">.</span><span class="n">get_coord_dim</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ptr</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_set_coord_dim</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dim</span><span class="p">):</span>
+        <span class="s">&quot;Sets the coordinate dimension of this Geometry.&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">dim</span> <span class="ow">in</span> <span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s">&#39;Geometry dimension must be either 2 or 3&#39;</span><span class="p">)</span>
+        <span class="n">capi</span><span class="o">.</span><span class="n">set_coord_dim</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ptr</span><span class="p">,</span> <span class="n">dim</span><span class="p">)</span>
+
+    <span class="n">coord_dim</span> <span class="o">=</span> <span class="nb">property</span><span class="p">(</span><span class="n">_get_coord_dim</span><span class="p">,</span> <span class="n">_set_coord_dim</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="OGRGeometry.geom_count"><a class="viewcode-back" href="../../../../../django.contrib.gis.gdal.html#django.contrib.gis.gdal.geometries.OGRGeometry.geom_count">[docs]</a>    <span class="k">def</span> <span class="nf">geom_count</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="s">&quot;The number of elements in this Geometry.&quot;</span>
+        <span class="k">return</span> <span class="n">capi</span><span class="o">.</span><span class="n">get_geom_count</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ptr</span><span class="p">)</span>
+</div>
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="OGRGeometry.point_count"><a class="viewcode-back" href="../../../../../django.contrib.gis.gdal.html#django.contrib.gis.gdal.geometries.OGRGeometry.point_count">[docs]</a>    <span class="k">def</span> <span class="nf">point_count</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="s">&quot;Returns the number of Points in this Geometry.&quot;</span>
+        <span class="k">return</span> <span class="n">capi</span><span class="o">.</span><span class="n">get_point_count</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ptr</span><span class="p">)</span>
+</div>
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="OGRGeometry.num_points"><a class="viewcode-back" href="../../../../../django.contrib.gis.gdal.html#django.contrib.gis.gdal.geometries.OGRGeometry.num_points">[docs]</a>    <span class="k">def</span> <span class="nf">num_points</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="s">&quot;Alias for `point_count` (same name method in GEOS API.)&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">point_count</span>
+</div>
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="OGRGeometry.num_coords"><a class="viewcode-back" href="../../../../../django.contrib.gis.gdal.html#django.contrib.gis.gdal.geometries.OGRGeometry.num_coords">[docs]</a>    <span class="k">def</span> <span class="nf">num_coords</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="s">&quot;Alais for `point_count`.&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">point_count</span>
+</div>
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="OGRGeometry.geom_type"><a class="viewcode-back" href="../../../../../django.contrib.gis.gdal.html#django.contrib.gis.gdal.geometries.OGRGeometry.geom_type">[docs]</a>    <span class="k">def</span> <span class="nf">geom_type</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="s">&quot;Returns the Type for this Geometry.&quot;</span>
+        <span class="k">return</span> <span class="n">OGRGeomType</span><span class="p">(</span><span class="n">capi</span><span class="o">.</span><span class="n">get_geom_type</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ptr</span><span class="p">))</span>
+</div>
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="OGRGeometry.geom_name"><a class="viewcode-back" href="../../../../../django.contrib.gis.gdal.html#django.contrib.gis.gdal.geometries.OGRGeometry.geom_name">[docs]</a>    <span class="k">def</span> <span class="nf">geom_name</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="s">&quot;Returns the Name of this Geometry.&quot;</span>
+        <span class="k">return</span> <span class="n">capi</span><span class="o">.</span><span class="n">get_geom_name</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ptr</span><span class="p">)</span>
+</div>
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="OGRGeometry.area"><a class="viewcode-back" href="../../../../../django.contrib.gis.gdal.html#django.contrib.gis.gdal.geometries.OGRGeometry.area">[docs]</a>    <span class="k">def</span> <span class="nf">area</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="s">&quot;Returns the area for a LinearRing, Polygon, or MultiPolygon; 0 otherwise.&quot;</span>
+        <span class="k">return</span> <span class="n">capi</span><span class="o">.</span><span class="n">get_area</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ptr</span><span class="p">)</span>
+</div>
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="OGRGeometry.envelope"><a class="viewcode-back" href="../../../../../django.contrib.gis.gdal.html#django.contrib.gis.gdal.geometries.OGRGeometry.envelope">[docs]</a>    <span class="k">def</span> <span class="nf">envelope</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="s">&quot;Returns the envelope for this Geometry.&quot;</span>
+        <span class="c"># TODO: Fix Envelope() for Point geometries.</span>
+        <span class="k">return</span> <span class="n">Envelope</span><span class="p">(</span><span class="n">capi</span><span class="o">.</span><span class="n">get_envelope</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ptr</span><span class="p">,</span> <span class="n">byref</span><span class="p">(</span><span class="n">OGREnvelope</span><span class="p">())))</span>
+</div>
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="OGRGeometry.extent"><a class="viewcode-back" href="../../../../../django.contrib.gis.gdal.html#django.contrib.gis.gdal.geometries.OGRGeometry.extent">[docs]</a>    <span class="k">def</span> <span class="nf">extent</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="s">&quot;Returns the envelope as a 4-tuple, instead of as an Envelope object.&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">envelope</span><span class="o">.</span><span class="n">tuple</span>
+
+    <span class="c">#### SpatialReference-related Properties ####</span>
+
+    <span class="c"># The SRS property</span></div>
+    <span class="k">def</span> <span class="nf">_get_srs</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="s">&quot;Returns the Spatial Reference for this Geometry.&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">srs_ptr</span> <span class="o">=</span> <span class="n">capi</span><span class="o">.</span><span class="n">get_geom_srs</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ptr</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">SpatialReference</span><span class="p">(</span><span class="n">srs_api</span><span class="o">.</span><span class="n">clone_srs</span><span class="p">(</span><span class="n">srs_ptr</span><span class="p">))</span>
+        <span class="k">except</span> <span class="n">SRSException</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">None</span>
+
+    <span class="k">def</span> <span class="nf">_set_srs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">srs</span><span class="p">):</span>
+        <span class="s">&quot;Sets the SpatialReference for this geometry.&quot;</span>
+        <span class="c"># Do not have to clone the `SpatialReference` object pointer because</span>
+        <span class="c"># when it is assigned to this `OGRGeometry` it&#39;s internal OGR</span>
+        <span class="c"># reference count is incremented, and will likewise be released</span>
+        <span class="c"># (decremented) when this geometry&#39;s destructor is called.</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">srs</span><span class="p">,</span> <span class="n">SpatialReference</span><span class="p">):</span>
+            <span class="n">srs_ptr</span> <span class="o">=</span> <span class="n">srs</span><span class="o">.</span><span class="n">ptr</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">srs</span><span class="p">,</span> <span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="nb">long</span><span class="p">,</span> <span class="nb">basestring</span><span class="p">)):</span>
+            <span class="n">sr</span> <span class="o">=</span> <span class="n">SpatialReference</span><span class="p">(</span><span class="n">srs</span><span class="p">)</span>
+            <span class="n">srs_ptr</span> <span class="o">=</span> <span class="n">sr</span><span class="o">.</span><span class="n">ptr</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s">&#39;Cannot assign spatial reference with object of type: </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="nb">type</span><span class="p">(</span><span class="n">srs</span><span class="p">))</span>
+        <span class="n">capi</span><span class="o">.</span><span class="n">assign_srs</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ptr</span><span class="p">,</span> <span class="n">srs_ptr</span><span class="p">)</span>
+
+    <span class="n">srs</span> <span class="o">=</span> <span class="nb">property</span><span class="p">(</span><span class="n">_get_srs</span><span class="p">,</span> <span class="n">_set_srs</span><span class="p">)</span>
+
+    <span class="c"># The SRID property</span>
+    <span class="k">def</span> <span class="nf">_get_srid</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">srs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">srs</span>
+        <span class="k">if</span> <span class="n">srs</span><span class="p">:</span> <span class="k">return</span> <span class="n">srs</span><span class="o">.</span><span class="n">srid</span>
+        <span class="k">return</span> <span class="bp">None</span>
+
+    <span class="k">def</span> <span class="nf">_set_srid</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">srid</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">srid</span><span class="p">,</span> <span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="nb">long</span><span class="p">)):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">srs</span> <span class="o">=</span> <span class="n">srid</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s">&#39;SRID must be set with an integer.&#39;</span><span class="p">)</span>
+
+    <span class="n">srid</span> <span class="o">=</span> <span class="nb">property</span><span class="p">(</span><span class="n">_get_srid</span><span class="p">,</span> <span class="n">_set_srid</span><span class="p">)</span>
+
+    <span class="c">#### Output Methods ####</span>
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="OGRGeometry.geos"><a class="viewcode-back" href="../../../../../django.contrib.gis.gdal.html#django.contrib.gis.gdal.geometries.OGRGeometry.geos">[docs]</a>    <span class="k">def</span> <span class="nf">geos</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="s">&quot;Returns a GEOSGeometry object from this OGRGeometry.&quot;</span>
+        <span class="kn">from</span> <span class="nn">django.contrib.gis.geos</span> <span class="kn">import</span> <span class="n">GEOSGeometry</span>
+        <span class="k">return</span> <span class="n">GEOSGeometry</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">wkb</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">srid</span><span class="p">)</span>
+</div>
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="OGRGeometry.gml"><a class="viewcode-back" href="../../../../../django.contrib.gis.gdal.html#django.contrib.gis.gdal.geometries.OGRGeometry.gml">[docs]</a>    <span class="k">def</span> <span class="nf">gml</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="s">&quot;Returns the GML representation of the Geometry.&quot;</span>
+        <span class="k">return</span> <span class="n">capi</span><span class="o">.</span><span class="n">to_gml</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ptr</span><span class="p">)</span>
+</div>
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="OGRGeometry.hex"><a class="viewcode-back" href="../../../../../django.contrib.gis.gdal.html#django.contrib.gis.gdal.geometries.OGRGeometry.hex">[docs]</a>    <span class="k">def</span> <span class="nf">hex</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="s">&quot;Returns the hexadecimal representation of the WKB (a string).&quot;</span>
+        <span class="k">return</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">wkb</span><span class="p">)</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s">&#39;hex&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">upper</span><span class="p">()</span>
+        <span class="c">#return b2a_hex(self.wkb).upper()</span>
+</div>
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="OGRGeometry.json"><a class="viewcode-back" href="../../../../../django.contrib.gis.gdal.html#django.contrib.gis.gdal.geometries.OGRGeometry.json">[docs]</a>    <span class="k">def</span> <span class="nf">json</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns the GeoJSON representation of this Geometry (requires</span>
+<span class="sd">        GDAL 1.5+).</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">GEOJSON</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">capi</span><span class="o">.</span><span class="n">to_json</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ptr</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s">&#39;GeoJSON output only supported on GDAL 1.5+.&#39;</span><span class="p">)</span></div>
+    <span class="n">geojson</span> <span class="o">=</span> <span class="n">json</span>
+
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="OGRGeometry.kml"><a class="viewcode-back" href="../../../../../django.contrib.gis.gdal.html#django.contrib.gis.gdal.geometries.OGRGeometry.kml">[docs]</a>    <span class="k">def</span> <span class="nf">kml</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="s">&quot;Returns the KML representation of the Geometry.&quot;</span>
+        <span class="k">if</span> <span class="n">GEOJSON</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">capi</span><span class="o">.</span><span class="n">to_kml</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ptr</span><span class="p">,</span> <span class="bp">None</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s">&#39;KML output only supported on GDAL 1.5+.&#39;</span><span class="p">)</span>
+</div>
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="OGRGeometry.wkb_size"><a class="viewcode-back" href="../../../../../django.contrib.gis.gdal.html#django.contrib.gis.gdal.geometries.OGRGeometry.wkb_size">[docs]</a>    <span class="k">def</span> <span class="nf">wkb_size</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="s">&quot;Returns the size of the WKB buffer.&quot;</span>
+        <span class="k">return</span> <span class="n">capi</span><span class="o">.</span><span class="n">get_wkbsize</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ptr</span><span class="p">)</span>
+</div>
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="OGRGeometry.wkb"><a class="viewcode-back" href="../../../../../django.contrib.gis.gdal.html#django.contrib.gis.gdal.geometries.OGRGeometry.wkb">[docs]</a>    <span class="k">def</span> <span class="nf">wkb</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="s">&quot;Returns the WKB representation of the Geometry.&quot;</span>
+        <span class="k">if</span> <span class="n">sys</span><span class="o">.</span><span class="n">byteorder</span> <span class="o">==</span> <span class="s">&#39;little&#39;</span><span class="p">:</span>
+            <span class="n">byteorder</span> <span class="o">=</span> <span class="mi">1</span> <span class="c"># wkbNDR (from ogr_core.h)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">byteorder</span> <span class="o">=</span> <span class="mi">0</span> <span class="c"># wkbXDR</span>
+        <span class="n">sz</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">wkb_size</span>
+        <span class="c"># Creating the unsigned character buffer, and passing it in by reference.</span>
+        <span class="n">buf</span> <span class="o">=</span> <span class="p">(</span><span class="n">c_ubyte</span> <span class="o">*</span> <span class="n">sz</span><span class="p">)()</span>
+        <span class="n">wkb</span> <span class="o">=</span> <span class="n">capi</span><span class="o">.</span><span class="n">to_wkb</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ptr</span><span class="p">,</span> <span class="n">byteorder</span><span class="p">,</span> <span class="n">byref</span><span class="p">(</span><span class="n">buf</span><span class="p">))</span>
+        <span class="c"># Returning a buffer of the string at the pointer.</span>
+        <span class="k">return</span> <span class="nb">buffer</span><span class="p">(</span><span class="n">string_at</span><span class="p">(</span><span class="n">buf</span><span class="p">,</span> <span class="n">sz</span><span class="p">))</span>
+</div>
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="OGRGeometry.wkt"><a class="viewcode-back" href="../../../../../django.contrib.gis.gdal.html#django.contrib.gis.gdal.geometries.OGRGeometry.wkt">[docs]</a>    <span class="k">def</span> <span class="nf">wkt</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="s">&quot;Returns the WKT representation of the Geometry.&quot;</span>
+        <span class="k">return</span> <span class="n">capi</span><span class="o">.</span><span class="n">to_wkt</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ptr</span><span class="p">,</span> <span class="n">byref</span><span class="p">(</span><span class="n">c_char_p</span><span class="p">()))</span>
+</div>
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="OGRGeometry.ewkt"><a class="viewcode-back" href="../../../../../django.contrib.gis.gdal.html#django.contrib.gis.gdal.geometries.OGRGeometry.ewkt">[docs]</a>    <span class="k">def</span> <span class="nf">ewkt</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="s">&quot;Returns the EWKT representation of the Geometry.&quot;</span>
+        <span class="n">srs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">srs</span>
+        <span class="k">if</span> <span class="n">srs</span> <span class="ow">and</span> <span class="n">srs</span><span class="o">.</span><span class="n">srid</span><span class="p">:</span>
+            <span class="k">return</span> <span class="s">&#39;SRID=</span><span class="si">%s</span><span class="s">;</span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">srs</span><span class="o">.</span><span class="n">srid</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">wkt</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">wkt</span>
+
+    <span class="c">#### Geometry Methods ####</span></div>
+<div class="viewcode-block" id="OGRGeometry.clone"><a class="viewcode-back" href="../../../../../django.contrib.gis.gdal.html#django.contrib.gis.gdal.geometries.OGRGeometry.clone">[docs]</a>    <span class="k">def</span> <span class="nf">clone</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="s">&quot;Clones this OGR Geometry.&quot;</span>
+        <span class="k">return</span> <span class="n">OGRGeometry</span><span class="p">(</span><span class="n">capi</span><span class="o">.</span><span class="n">clone_geom</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ptr</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">srs</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="OGRGeometry.close_rings"><a class="viewcode-back" href="../../../../../django.contrib.gis.gdal.html#django.contrib.gis.gdal.geometries.OGRGeometry.close_rings">[docs]</a>    <span class="k">def</span> <span class="nf">close_rings</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        If there are any rings within this geometry that have not been</span>
+<span class="sd">        closed, this routine will do so by adding the starting point at the</span>
+<span class="sd">        end.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c"># Closing the open rings.</span>
+        <span class="n">capi</span><span class="o">.</span><span class="n">geom_close_rings</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ptr</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="OGRGeometry.transform"><a class="viewcode-back" href="../../../../../django.contrib.gis.gdal.html#django.contrib.gis.gdal.geometries.OGRGeometry.transform">[docs]</a>    <span class="k">def</span> <span class="nf">transform</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">coord_trans</span><span class="p">,</span> <span class="n">clone</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Transforms this geometry to a different spatial reference system.</span>
+<span class="sd">        May take a CoordTransform object, a SpatialReference object, string</span>
+<span class="sd">        WKT or PROJ.4, and/or an integer SRID.  By default nothing is returned</span>
+<span class="sd">        and the geometry is transformed in-place.  However, if the `clone`</span>
+<span class="sd">        keyword is set, then a transformed clone of this geometry will be</span>
+<span class="sd">        returned.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">clone</span><span class="p">:</span>
+            <span class="n">klone</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">clone</span><span class="p">()</span>
+            <span class="n">klone</span><span class="o">.</span><span class="n">transform</span><span class="p">(</span><span class="n">coord_trans</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">klone</span>
+
+        <span class="c"># Have to get the coordinate dimension of the original geometry</span>
+        <span class="c"># so it can be used to reset the transformed geometry&#39;s dimension</span>
+        <span class="c"># afterwards.  This is done because of GDAL bug (in versions prior</span>
+        <span class="c"># to 1.7) that turns geometries 3D after transformation, see:</span>
+        <span class="c">#  http://trac.osgeo.org/gdal/changeset/17792</span>
+        <span class="k">if</span> <span class="n">GDAL_VERSION</span> <span class="o">&lt;</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">7</span><span class="p">):</span>
+            <span class="n">orig_dim</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">coord_dim</span>
+
+        <span class="c"># Depending on the input type, use the appropriate OGR routine</span>
+        <span class="c"># to perform the transformation.</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">coord_trans</span><span class="p">,</span> <span class="n">CoordTransform</span><span class="p">):</span>
+            <span class="n">capi</span><span class="o">.</span><span class="n">geom_transform</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ptr</span><span class="p">,</span> <span class="n">coord_trans</span><span class="o">.</span><span class="n">ptr</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">coord_trans</span><span class="p">,</span> <span class="n">SpatialReference</span><span class="p">):</span>
+            <span class="n">capi</span><span class="o">.</span><span class="n">geom_transform_to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ptr</span><span class="p">,</span> <span class="n">coord_trans</span><span class="o">.</span><span class="n">ptr</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">coord_trans</span><span class="p">,</span> <span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="nb">long</span><span class="p">,</span> <span class="nb">basestring</span><span class="p">)):</span>
+            <span class="n">sr</span> <span class="o">=</span> <span class="n">SpatialReference</span><span class="p">(</span><span class="n">coord_trans</span><span class="p">)</span>
+            <span class="n">capi</span><span class="o">.</span><span class="n">geom_transform_to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ptr</span><span class="p">,</span> <span class="n">sr</span><span class="o">.</span><span class="n">ptr</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s">&#39;Transform only accepts CoordTransform, &#39;</span>
+                            <span class="s">&#39;SpatialReference, string, and integer objects.&#39;</span><span class="p">)</span>
+
+        <span class="c"># Setting with original dimension, see comment above.</span>
+        <span class="k">if</span> <span class="n">GDAL_VERSION</span> <span class="o">&lt;</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">7</span><span class="p">):</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">GeometryCollection</span><span class="p">):</span>
+                <span class="c"># With geometry collections have to set dimension on</span>
+                <span class="c"># each internal geometry reference, as the collection</span>
+                <span class="c"># dimension isn&#39;t affected.</span>
+                <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">xrange</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="p">)):</span>
+                    <span class="n">internal_ptr</span> <span class="o">=</span> <span class="n">capi</span><span class="o">.</span><span class="n">get_geom_ref</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ptr</span><span class="p">,</span> <span class="n">i</span><span class="p">)</span>
+                    <span class="k">if</span> <span class="n">orig_dim</span> <span class="o">!=</span> <span class="n">capi</span><span class="o">.</span><span class="n">get_coord_dim</span><span class="p">(</span><span class="n">internal_ptr</span><span class="p">):</span>
+                        <span class="n">capi</span><span class="o">.</span><span class="n">set_coord_dim</span><span class="p">(</span><span class="n">internal_ptr</span><span class="p">,</span> <span class="n">orig_dim</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">coord_dim</span> <span class="o">!=</span> <span class="n">orig_dim</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">coord_dim</span> <span class="o">=</span> <span class="n">orig_dim</span>
+</div>
+<div class="viewcode-block" id="OGRGeometry.transform_to"><a class="viewcode-back" href="../../../../../django.contrib.gis.gdal.html#django.contrib.gis.gdal.geometries.OGRGeometry.transform_to">[docs]</a>    <span class="k">def</span> <span class="nf">transform_to</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">srs</span><span class="p">):</span>
+        <span class="s">&quot;For backwards-compatibility.&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">transform</span><span class="p">(</span><span class="n">srs</span><span class="p">)</span>
+
+    <span class="c">#### Topology Methods ####</span></div>
+    <span class="k">def</span> <span class="nf">_topology</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">func</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;A generalized function for topology operations, takes a GDAL function and</span>
+<span class="sd">        the other geometry to perform the operation on.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">other</span><span class="p">,</span> <span class="n">OGRGeometry</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s">&#39;Must use another OGRGeometry object for topology operations!&#39;</span><span class="p">)</span>
+
+        <span class="c"># Returning the output of the given function with the other geometry&#39;s</span>
+        <span class="c"># pointer.</span>
+        <span class="k">return</span> <span class="n">func</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ptr</span><span class="p">,</span> <span class="n">other</span><span class="o">.</span><span class="n">ptr</span><span class="p">)</span>
+
+<div class="viewcode-block" id="OGRGeometry.intersects"><a class="viewcode-back" href="../../../../../django.contrib.gis.gdal.html#django.contrib.gis.gdal.geometries.OGRGeometry.intersects">[docs]</a>    <span class="k">def</span> <span class="nf">intersects</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+        <span class="s">&quot;Returns True if this geometry intersects with the other.&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_topology</span><span class="p">(</span><span class="n">capi</span><span class="o">.</span><span class="n">ogr_intersects</span><span class="p">,</span> <span class="n">other</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="OGRGeometry.equals"><a class="viewcode-back" href="../../../../../django.contrib.gis.gdal.html#django.contrib.gis.gdal.geometries.OGRGeometry.equals">[docs]</a>    <span class="k">def</span> <span class="nf">equals</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+        <span class="s">&quot;Returns True if this geometry is equivalent to the other.&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_topology</span><span class="p">(</span><span class="n">capi</span><span class="o">.</span><span class="n">ogr_equals</span><span class="p">,</span> <span class="n">other</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="OGRGeometry.disjoint"><a class="viewcode-back" href="../../../../../django.contrib.gis.gdal.html#django.contrib.gis.gdal.geometries.OGRGeometry.disjoint">[docs]</a>    <span class="k">def</span> <span class="nf">disjoint</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+        <span class="s">&quot;Returns True if this geometry and the other are spatially disjoint.&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_topology</span><span class="p">(</span><span class="n">capi</span><span class="o">.</span><span class="n">ogr_disjoint</span><span class="p">,</span> <span class="n">other</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="OGRGeometry.touches"><a class="viewcode-back" href="../../../../../django.contrib.gis.gdal.html#django.contrib.gis.gdal.geometries.OGRGeometry.touches">[docs]</a>    <span class="k">def</span> <span class="nf">touches</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+        <span class="s">&quot;Returns True if this geometry touches the other.&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_topology</span><span class="p">(</span><span class="n">capi</span><span class="o">.</span><span class="n">ogr_touches</span><span class="p">,</span> <span class="n">other</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="OGRGeometry.crosses"><a class="viewcode-back" href="../../../../../django.contrib.gis.gdal.html#django.contrib.gis.gdal.geometries.OGRGeometry.crosses">[docs]</a>    <span class="k">def</span> <span class="nf">crosses</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+        <span class="s">&quot;Returns True if this geometry crosses the other.&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_topology</span><span class="p">(</span><span class="n">capi</span><span class="o">.</span><span class="n">ogr_crosses</span><span class="p">,</span> <span class="n">other</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="OGRGeometry.within"><a class="viewcode-back" href="../../../../../django.contrib.gis.gdal.html#django.contrib.gis.gdal.geometries.OGRGeometry.within">[docs]</a>    <span class="k">def</span> <span class="nf">within</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+        <span class="s">&quot;Returns True if this geometry is within the other.&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_topology</span><span class="p">(</span><span class="n">capi</span><span class="o">.</span><span class="n">ogr_within</span><span class="p">,</span> <span class="n">other</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="OGRGeometry.contains"><a class="viewcode-back" href="../../../../../django.contrib.gis.gdal.html#django.contrib.gis.gdal.geometries.OGRGeometry.contains">[docs]</a>    <span class="k">def</span> <span class="nf">contains</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+        <span class="s">&quot;Returns True if this geometry contains the other.&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_topology</span><span class="p">(</span><span class="n">capi</span><span class="o">.</span><span class="n">ogr_contains</span><span class="p">,</span> <span class="n">other</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="OGRGeometry.overlaps"><a class="viewcode-back" href="../../../../../django.contrib.gis.gdal.html#django.contrib.gis.gdal.geometries.OGRGeometry.overlaps">[docs]</a>    <span class="k">def</span> <span class="nf">overlaps</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+        <span class="s">&quot;Returns True if this geometry overlaps the other.&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_topology</span><span class="p">(</span><span class="n">capi</span><span class="o">.</span><span class="n">ogr_overlaps</span><span class="p">,</span> <span class="n">other</span><span class="p">)</span>
+
+    <span class="c">#### Geometry-generation Methods ####</span></div>
+    <span class="k">def</span> <span class="nf">_geomgen</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">gen_func</span><span class="p">,</span> <span class="n">other</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="s">&quot;A helper routine for the OGR routines that generate geometries.&quot;</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">other</span><span class="p">,</span> <span class="n">OGRGeometry</span><span class="p">):</span>
+            <span class="k">return</span> <span class="n">OGRGeometry</span><span class="p">(</span><span class="n">gen_func</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ptr</span><span class="p">,</span> <span class="n">other</span><span class="o">.</span><span class="n">ptr</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">srs</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">OGRGeometry</span><span class="p">(</span><span class="n">gen_func</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ptr</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">srs</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="OGRGeometry.boundary"><a class="viewcode-back" href="../../../../../django.contrib.gis.gdal.html#django.contrib.gis.gdal.geometries.OGRGeometry.boundary">[docs]</a>    <span class="k">def</span> <span class="nf">boundary</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="s">&quot;Returns the boundary of this geometry.&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_geomgen</span><span class="p">(</span><span class="n">capi</span><span class="o">.</span><span class="n">get_boundary</span><span class="p">)</span>
+</div>
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="OGRGeometry.convex_hull"><a class="viewcode-back" href="../../../../../django.contrib.gis.gdal.html#django.contrib.gis.gdal.geometries.OGRGeometry.convex_hull">[docs]</a>    <span class="k">def</span> <span class="nf">convex_hull</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns the smallest convex Polygon that contains all the points in</span>
+<span class="sd">        this Geometry.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_geomgen</span><span class="p">(</span><span class="n">capi</span><span class="o">.</span><span class="n">geom_convex_hull</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="OGRGeometry.difference"><a class="viewcode-back" href="../../../../../django.contrib.gis.gdal.html#django.contrib.gis.gdal.geometries.OGRGeometry.difference">[docs]</a>    <span class="k">def</span> <span class="nf">difference</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns a new geometry consisting of the region which is the difference</span>
+<span class="sd">        of this geometry and the other.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_geomgen</span><span class="p">(</span><span class="n">capi</span><span class="o">.</span><span class="n">geom_diff</span><span class="p">,</span> <span class="n">other</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="OGRGeometry.intersection"><a class="viewcode-back" href="../../../../../django.contrib.gis.gdal.html#django.contrib.gis.gdal.geometries.OGRGeometry.intersection">[docs]</a>    <span class="k">def</span> <span class="nf">intersection</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns a new geometry consisting of the region of intersection of this</span>
+<span class="sd">        geometry and the other.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_geomgen</span><span class="p">(</span><span class="n">capi</span><span class="o">.</span><span class="n">geom_intersection</span><span class="p">,</span> <span class="n">other</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="OGRGeometry.sym_difference"><a class="viewcode-back" href="../../../../../django.contrib.gis.gdal.html#django.contrib.gis.gdal.geometries.OGRGeometry.sym_difference">[docs]</a>    <span class="k">def</span> <span class="nf">sym_difference</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns a new geometry which is the symmetric difference of this</span>
+<span class="sd">        geometry and the other.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_geomgen</span><span class="p">(</span><span class="n">capi</span><span class="o">.</span><span class="n">geom_sym_diff</span><span class="p">,</span> <span class="n">other</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="OGRGeometry.union"><a class="viewcode-back" href="../../../../../django.contrib.gis.gdal.html#django.contrib.gis.gdal.geometries.OGRGeometry.union">[docs]</a>    <span class="k">def</span> <span class="nf">union</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns a new geometry consisting of the region which is the union of</span>
+<span class="sd">        this geometry and the other.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_geomgen</span><span class="p">(</span><span class="n">capi</span><span class="o">.</span><span class="n">geom_union</span><span class="p">,</span> <span class="n">other</span><span class="p">)</span>
+
+<span class="c"># The subclasses for OGR Geometry.</span></div></div>
+<span class="k">class</span> <span class="nc">Point</span><span class="p">(</span><span class="n">OGRGeometry</span><span class="p">):</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">x</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="s">&quot;Returns the X coordinate for this Point.&quot;</span>
+        <span class="k">return</span> <span class="n">capi</span><span class="o">.</span><span class="n">getx</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ptr</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">y</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="s">&quot;Returns the Y coordinate for this Point.&quot;</span>
+        <span class="k">return</span> <span class="n">capi</span><span class="o">.</span><span class="n">gety</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ptr</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">z</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="s">&quot;Returns the Z coordinate for this Point.&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">coord_dim</span> <span class="o">==</span> <span class="mi">3</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">capi</span><span class="o">.</span><span class="n">getz</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ptr</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">tuple</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="s">&quot;Returns the tuple of this point.&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">coord_dim</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="k">return</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">x</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">y</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">coord_dim</span> <span class="o">==</span> <span class="mi">3</span><span class="p">:</span>
+            <span class="k">return</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">x</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">y</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">z</span><span class="p">)</span>
+    <span class="n">coords</span> <span class="o">=</span> <span class="nb">tuple</span>
+
+<span class="k">class</span> <span class="nc">LineString</span><span class="p">(</span><span class="n">OGRGeometry</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="nf">__getitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">index</span><span class="p">):</span>
+        <span class="s">&quot;Returns the Point at the given index.&quot;</span>
+        <span class="k">if</span> <span class="n">index</span> <span class="o">&gt;=</span> <span class="mi">0</span> <span class="ow">and</span> <span class="n">index</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">point_count</span><span class="p">:</span>
+            <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">z</span> <span class="o">=</span> <span class="n">c_double</span><span class="p">(),</span> <span class="n">c_double</span><span class="p">(),</span> <span class="n">c_double</span><span class="p">()</span>
+            <span class="n">capi</span><span class="o">.</span><span class="n">get_point</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ptr</span><span class="p">,</span> <span class="n">index</span><span class="p">,</span> <span class="n">byref</span><span class="p">(</span><span class="n">x</span><span class="p">),</span> <span class="n">byref</span><span class="p">(</span><span class="n">y</span><span class="p">),</span> <span class="n">byref</span><span class="p">(</span><span class="n">z</span><span class="p">))</span>
+            <span class="n">dim</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">coord_dim</span>
+            <span class="k">if</span> <span class="n">dim</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="k">return</span> <span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">value</span><span class="p">,)</span>
+            <span class="k">elif</span> <span class="n">dim</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
+                <span class="k">return</span> <span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">value</span><span class="p">,</span> <span class="n">y</span><span class="o">.</span><span class="n">value</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="n">dim</span> <span class="o">==</span> <span class="mi">3</span><span class="p">:</span>
+                <span class="k">return</span> <span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">value</span><span class="p">,</span> <span class="n">y</span><span class="o">.</span><span class="n">value</span><span class="p">,</span> <span class="n">z</span><span class="o">.</span><span class="n">value</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">OGRIndexError</span><span class="p">(</span><span class="s">&#39;index out of range: </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="nb">str</span><span class="p">(</span><span class="n">index</span><span class="p">))</span>
+
+    <span class="k">def</span> <span class="nf">__iter__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="s">&quot;Iterates over each point in the LineString.&quot;</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">xrange</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">point_count</span><span class="p">):</span>
+            <span class="k">yield</span> <span class="bp">self</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+
+    <span class="k">def</span> <span class="nf">__len__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="s">&quot;The length returns the number of points in the LineString.&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">point_count</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">tuple</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="s">&quot;Returns the tuple representation of this LineString.&quot;</span>
+        <span class="k">return</span> <span class="nb">tuple</span><span class="p">([</span><span class="bp">self</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">xrange</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="p">))])</span>
+    <span class="n">coords</span> <span class="o">=</span> <span class="nb">tuple</span>
+
+    <span class="k">def</span> <span class="nf">_listarr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">func</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Internal routine that returns a sequence (list) corresponding with</span>
+<span class="sd">        the given function.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="p">[</span><span class="n">func</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ptr</span><span class="p">,</span> <span class="n">i</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">xrange</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="p">))]</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">x</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="s">&quot;Returns the X coordinates in a list.&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_listarr</span><span class="p">(</span><span class="n">capi</span><span class="o">.</span><span class="n">getx</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">y</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="s">&quot;Returns the Y coordinates in a list.&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_listarr</span><span class="p">(</span><span class="n">capi</span><span class="o">.</span><span class="n">gety</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">z</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="s">&quot;Returns the Z coordinates in a list.&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">coord_dim</span> <span class="o">==</span> <span class="mi">3</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_listarr</span><span class="p">(</span><span class="n">capi</span><span class="o">.</span><span class="n">getz</span><span class="p">)</span>
+
+<span class="c"># LinearRings are used in Polygons.</span>
+<span class="k">class</span> <span class="nc">LinearRing</span><span class="p">(</span><span class="n">LineString</span><span class="p">):</span> <span class="k">pass</span>
+
+<span class="k">class</span> <span class="nc">Polygon</span><span class="p">(</span><span class="n">OGRGeometry</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="nf">__len__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="s">&quot;The number of interior rings in this Polygon.&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">geom_count</span>
+
+    <span class="k">def</span> <span class="nf">__iter__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="s">&quot;Iterates through each ring in the Polygon.&quot;</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">xrange</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">geom_count</span><span class="p">):</span>
+            <span class="k">yield</span> <span class="bp">self</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+
+    <span class="k">def</span> <span class="nf">__getitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">index</span><span class="p">):</span>
+        <span class="s">&quot;Gets the ring at the specified index.&quot;</span>
+        <span class="k">if</span> <span class="n">index</span> <span class="o">&lt;</span> <span class="mi">0</span> <span class="ow">or</span> <span class="n">index</span> <span class="o">&gt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">geom_count</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">OGRIndexError</span><span class="p">(</span><span class="s">&#39;index out of range: </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">index</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">OGRGeometry</span><span class="p">(</span><span class="n">capi</span><span class="o">.</span><span class="n">clone_geom</span><span class="p">(</span><span class="n">capi</span><span class="o">.</span><span class="n">get_geom_ref</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ptr</span><span class="p">,</span> <span class="n">index</span><span class="p">)),</span> <span class="bp">self</span><span class="o">.</span><span class="n">srs</span><span class="p">)</span>
+
+    <span class="c"># Polygon Properties</span>
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">shell</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="s">&quot;Returns the shell of this Polygon.&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="c"># First ring is the shell</span>
+    <span class="n">exterior_ring</span> <span class="o">=</span> <span class="n">shell</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">tuple</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="s">&quot;Returns a tuple of LinearRing coordinate tuples.&quot;</span>
+        <span class="k">return</span> <span class="nb">tuple</span><span class="p">([</span><span class="bp">self</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">tuple</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">xrange</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">geom_count</span><span class="p">)])</span>
+    <span class="n">coords</span> <span class="o">=</span> <span class="nb">tuple</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">point_count</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="s">&quot;The number of Points in this Polygon.&quot;</span>
+        <span class="c"># Summing up the number of points in each ring of the Polygon.</span>
+        <span class="k">return</span> <span class="nb">sum</span><span class="p">([</span><span class="bp">self</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">point_count</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">xrange</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">geom_count</span><span class="p">)])</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">centroid</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="s">&quot;Returns the centroid (a Point) of this Polygon.&quot;</span>
+        <span class="c"># The centroid is a Point, create a geometry for this.</span>
+        <span class="n">p</span> <span class="o">=</span> <span class="n">OGRGeometry</span><span class="p">(</span><span class="n">OGRGeomType</span><span class="p">(</span><span class="s">&#39;Point&#39;</span><span class="p">))</span>
+        <span class="n">capi</span><span class="o">.</span><span class="n">get_centroid</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ptr</span><span class="p">,</span> <span class="n">p</span><span class="o">.</span><span class="n">ptr</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">p</span>
+
+<span class="c"># Geometry Collection base class.</span>
+<div class="viewcode-block" id="GeometryCollection"><a class="viewcode-back" href="../../../../../django.contrib.gis.gdal.html#django.contrib.gis.gdal.geometries.GeometryCollection">[docs]</a><span class="k">class</span> <span class="nc">GeometryCollection</span><span class="p">(</span><span class="n">OGRGeometry</span><span class="p">):</span>
+    <span class="s">&quot;The Geometry Collection class.&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__getitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">index</span><span class="p">):</span>
+        <span class="s">&quot;Gets the Geometry at the specified index.&quot;</span>
+        <span class="k">if</span> <span class="n">index</span> <span class="o">&lt;</span> <span class="mi">0</span> <span class="ow">or</span> <span class="n">index</span> <span class="o">&gt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">geom_count</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">OGRIndexError</span><span class="p">(</span><span class="s">&#39;index out of range: </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">index</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">OGRGeometry</span><span class="p">(</span><span class="n">capi</span><span class="o">.</span><span class="n">clone_geom</span><span class="p">(</span><span class="n">capi</span><span class="o">.</span><span class="n">get_geom_ref</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ptr</span><span class="p">,</span> <span class="n">index</span><span class="p">)),</span> <span class="bp">self</span><span class="o">.</span><span class="n">srs</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__iter__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="s">&quot;Iterates over each Geometry.&quot;</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">xrange</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">geom_count</span><span class="p">):</span>
+            <span class="k">yield</span> <span class="bp">self</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+
+    <span class="k">def</span> <span class="nf">__len__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="s">&quot;The number of geometries in this Geometry Collection.&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">geom_count</span>
+
+<div class="viewcode-block" id="GeometryCollection.add"><a class="viewcode-back" href="../../../../../django.contrib.gis.gdal.html#django.contrib.gis.gdal.geometries.GeometryCollection.add">[docs]</a>    <span class="k">def</span> <span class="nf">add</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">geom</span><span class="p">):</span>
+        <span class="s">&quot;Add the geometry to this Geometry Collection.&quot;</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">geom</span><span class="p">,</span> <span class="n">OGRGeometry</span><span class="p">):</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">geom</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="p">):</span>
+                <span class="k">for</span> <span class="n">g</span> <span class="ow">in</span> <span class="n">geom</span><span class="p">:</span> <span class="n">capi</span><span class="o">.</span><span class="n">add_geom</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ptr</span><span class="p">,</span> <span class="n">g</span><span class="o">.</span><span class="n">ptr</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">capi</span><span class="o">.</span><span class="n">add_geom</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ptr</span><span class="p">,</span> <span class="n">geom</span><span class="o">.</span><span class="n">ptr</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">geom</span><span class="p">,</span> <span class="nb">basestring</span><span class="p">):</span>
+            <span class="n">tmp</span> <span class="o">=</span> <span class="n">OGRGeometry</span><span class="p">(</span><span class="n">geom</span><span class="p">)</span>
+            <span class="n">capi</span><span class="o">.</span><span class="n">add_geom</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ptr</span><span class="p">,</span> <span class="n">tmp</span><span class="o">.</span><span class="n">ptr</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">OGRException</span><span class="p">(</span><span class="s">&#39;Must add an OGRGeometry.&#39;</span><span class="p">)</span>
+</div>
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="GeometryCollection.point_count"><a class="viewcode-back" href="../../../../../django.contrib.gis.gdal.html#django.contrib.gis.gdal.geometries.GeometryCollection.point_count">[docs]</a>    <span class="k">def</span> <span class="nf">point_count</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="s">&quot;The number of Points in this Geometry Collection.&quot;</span>
+        <span class="c"># Summing up the number of points in each geometry in this collection</span>
+        <span class="k">return</span> <span class="nb">sum</span><span class="p">([</span><span class="bp">self</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">point_count</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">xrange</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">geom_count</span><span class="p">)])</span>
+</div>
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="GeometryCollection.tuple"><a class="viewcode-back" href="../../../../../django.contrib.gis.gdal.html#django.contrib.gis.gdal.geometries.GeometryCollection.tuple">[docs]</a>    <span class="k">def</span> <span class="nf">tuple</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="s">&quot;Returns a tuple representation of this Geometry Collection.&quot;</span>
+        <span class="k">return</span> <span class="nb">tuple</span><span class="p">([</span><span class="bp">self</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">tuple</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">xrange</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">geom_count</span><span class="p">)])</span></div>
+    <span class="n">coords</span> <span class="o">=</span> <span class="nb">tuple</span>
+
+<span class="c"># Multiple Geometry types.</span></div>
+<span class="k">class</span> <span class="nc">MultiPoint</span><span class="p">(</span><span class="n">GeometryCollection</span><span class="p">):</span> <span class="k">pass</span>
+<span class="k">class</span> <span class="nc">MultiLineString</span><span class="p">(</span><span class="n">GeometryCollection</span><span class="p">):</span> <span class="k">pass</span>
+<span class="k">class</span> <span class="nc">MultiPolygon</span><span class="p">(</span><span class="n">GeometryCollection</span><span class="p">):</span> <span class="k">pass</span>
+
+<span class="c"># Class mapping dictionary (using the OGRwkbGeometryType as the key)</span>
+<span class="n">GEO_CLASSES</span> <span class="o">=</span> <span class="p">{</span><span class="mi">1</span> <span class="p">:</span> <span class="n">Point</span><span class="p">,</span>
+               <span class="mi">2</span> <span class="p">:</span> <span class="n">LineString</span><span class="p">,</span>
+               <span class="mi">3</span> <span class="p">:</span> <span class="n">Polygon</span><span class="p">,</span>
+               <span class="mi">4</span> <span class="p">:</span> <span class="n">MultiPoint</span><span class="p">,</span>
+               <span class="mi">5</span> <span class="p">:</span> <span class="n">MultiLineString</span><span class="p">,</span>
+               <span class="mi">6</span> <span class="p">:</span> <span class="n">MultiPolygon</span><span class="p">,</span>
+               <span class="mi">7</span> <span class="p">:</span> <span class="n">GeometryCollection</span><span class="p">,</span>
+               <span class="mi">101</span><span class="p">:</span> <span class="n">LinearRing</span><span class="p">,</span>
+               <span class="mi">1</span> <span class="o">+</span> <span class="n">OGRGeomType</span><span class="o">.</span><span class="n">wkb25bit</span> <span class="p">:</span> <span class="n">Point</span><span class="p">,</span>
+               <span class="mi">2</span> <span class="o">+</span> <span class="n">OGRGeomType</span><span class="o">.</span><span class="n">wkb25bit</span> <span class="p">:</span> <span class="n">LineString</span><span class="p">,</span>
+               <span class="mi">3</span> <span class="o">+</span> <span class="n">OGRGeomType</span><span class="o">.</span><span class="n">wkb25bit</span> <span class="p">:</span> <span class="n">Polygon</span><span class="p">,</span>
+               <span class="mi">4</span> <span class="o">+</span> <span class="n">OGRGeomType</span><span class="o">.</span><span class="n">wkb25bit</span> <span class="p">:</span> <span class="n">MultiPoint</span><span class="p">,</span>
+               <span class="mi">5</span> <span class="o">+</span> <span class="n">OGRGeomType</span><span class="o">.</span><span class="n">wkb25bit</span> <span class="p">:</span> <span class="n">MultiLineString</span><span class="p">,</span>
+               <span class="mi">6</span> <span class="o">+</span> <span class="n">OGRGeomType</span><span class="o">.</span><span class="n">wkb25bit</span> <span class="p">:</span> <span class="n">MultiPolygon</span><span class="p">,</span>
+               <span class="mi">7</span> <span class="o">+</span> <span class="n">OGRGeomType</span><span class="o">.</span><span class="n">wkb25bit</span> <span class="p">:</span> <span class="n">GeometryCollection</span><span class="p">,</span>
+               <span class="p">}</span>
+</pre></div>
+
+      </div>
+      <div class="bottomnav">
+      
+        <p>
+        <a href="/">Home</a>:
+        <a class="uplink" href="../../../../../index.html">Contents</a>
+        </p>
+
+      </div>
+
+    <div class="footer">
+        &copy; Copyright 2012, HDKNR.COM.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.2pre.
+    </div>
+  </body>
+</html>

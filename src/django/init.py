@@ -2,6 +2,7 @@ import os
 
 top='/home/hdknr/ve/main/lib/python2.6/site-packages/django'
 dst="tmp/%s.rst"
+cheat="tmp/cheat/%s.rst"
 index="tmp/files.rst"
 
 index_file = open(index,"w")
@@ -18,10 +19,17 @@ for root, dirs, files in os.walk(top, topdown=True):
     rstfile.write( "=" * len(rstname)+ "\n" )
     rstfile.write("\n"  )
 
+    cheat_file = open(cheat % rstname, "a")
+    cheat_file.write('')
+    cheat_file.close()
+
     rstfile.write( ".. _%s:" % rstname + "\n")
     rstfile.write("\n"  )
     rstfile.write( rstname +"\n")
     rstfile.write( "="* len(rstname )+"\n" )
+
+    rstfile.write( "\n.. include:: cheat/%s.rst" % rstname +"\n\n")
+
     rstfile.write("" +"\n" )
     rstfile.write( ".. automodule:: %s" % rstname+"\n" )
     rstfile.write( "    :members:"+"\n" )
@@ -43,10 +51,18 @@ for root, dirs, files in os.walk(top, topdown=True):
         if ext != '.py' or base == '__init__' : 
             continue
         modname = "%s.%s" % (rstname,base) 
+
+        cheat_file = open(cheat % modname, "a")
+        cheat_file.write('')
+        cheat_file.close()
+ 
         rstfile.write( ".. _%s:" % modname +"\n")
         rstfile.write(""  +"\n")
         rstfile.write( modname+"\n" )
         rstfile.write( '=' * len(modname ) +"\n")
+
+        rstfile.write( "\n.. include:: cheat/%s.rst" % modname +"\n\n")
+        
         rstfile.write( ".. automodule:: %s" % modname +"\n")
         rstfile.write( "    :members:" +"\n")
         rstfile.write(""  +"\n")

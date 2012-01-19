@@ -1,0 +1,273 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>django.utils.unittest.runner &mdash; Django Cheat 1 documentation</title>
+    
+    <link rel="stylesheet" href="../../../../static/haiku.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../static/print.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../../',
+        VERSION:     '1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../../../static/jquery.js"></script>
+    <script type="text/javascript" src="../../../../static/underscore.js"></script>
+    <script type="text/javascript" src="../../../../static/doctools.js"></script>
+    <script type="text/javascript" src="../../../../static/theme_extras.js"></script>
+    <link rel="top" title="Django Cheat 1 documentation" href="../../../../index.html" />
+    <link rel="up" title="django.utils.unittest" href="../unittest.html" /> 
+  </head>
+  <body>
+      <div class="header"><h1 class="heading"><a href="../../../../index.html">
+          <span>Django Cheat 1 documentation</span></a></h1>
+        <h2 class="heading"><span>django.utils.unittest.runner</span></h2>
+      </div>
+      <div class="topnav">
+      
+        <p>
+        <a href="/">Home</a>:
+        <a class="uplink" href="../../../../index.html">Contents</a>
+        </p>
+
+      </div>
+      <div class="content">
+        
+        
+  <h1>Source code for django.utils.unittest.runner</h1><div class="highlight"><pre>
+<span class="sd">&quot;&quot;&quot;Running tests&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">sys</span>
+<span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">import</span> <span class="nn">unittest</span>
+
+<span class="kn">from</span> <span class="nn">django.utils.unittest</span> <span class="kn">import</span> <span class="n">result</span>
+
+<span class="k">try</span><span class="p">:</span>
+    <span class="kn">from</span> <span class="nn">django.utils.unittest.signals</span> <span class="kn">import</span> <span class="n">registerResult</span>
+<span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
+    <span class="k">def</span> <span class="nf">registerResult</span><span class="p">(</span><span class="n">_</span><span class="p">):</span>
+        <span class="k">pass</span>
+
+<span class="n">__unittest</span> <span class="o">=</span> <span class="bp">True</span>
+
+
+<span class="k">class</span> <span class="nc">_WritelnDecorator</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Used to decorate file-like objects with a handy &#39;writeln&#39; method&quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">stream</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">stream</span> <span class="o">=</span> <span class="n">stream</span>
+
+    <span class="k">def</span> <span class="nf">__getattr__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">attr</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">attr</span> <span class="ow">in</span> <span class="p">(</span><span class="s">&#39;stream&#39;</span><span class="p">,</span> <span class="s">&#39;__getstate__&#39;</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">AttributeError</span><span class="p">(</span><span class="n">attr</span><span class="p">)</span>
+        <span class="k">return</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">stream</span><span class="p">,</span><span class="n">attr</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">writeln</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">arg</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">arg</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">arg</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s">&#39;</span><span class="se">\n</span><span class="s">&#39;</span><span class="p">)</span> <span class="c"># text-mode streams translate to \r\n if needed</span>
+
+
+<div class="viewcode-block" id="TextTestResult"><a class="viewcode-back" href="../../../../django.utils.unittest.html#django.utils.unittest.runner.TextTestResult">[docs]</a><span class="k">class</span> <span class="nc">TextTestResult</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">TestResult</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;A test result class that can print formatted text results to a stream.</span>
+
+<span class="sd">    Used by TextTestRunner.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">separator1</span> <span class="o">=</span> <span class="s">&#39;=&#39;</span> <span class="o">*</span> <span class="mi">70</span>
+    <span class="n">separator2</span> <span class="o">=</span> <span class="s">&#39;-&#39;</span> <span class="o">*</span> <span class="mi">70</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">stream</span><span class="p">,</span> <span class="n">descriptions</span><span class="p">,</span> <span class="n">verbosity</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">TextTestResult</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">stream</span> <span class="o">=</span> <span class="n">stream</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">showAll</span> <span class="o">=</span> <span class="n">verbosity</span> <span class="o">&gt;</span> <span class="mi">1</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dots</span> <span class="o">=</span> <span class="n">verbosity</span> <span class="o">==</span> <span class="mi">1</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">descriptions</span> <span class="o">=</span> <span class="n">descriptions</span>
+
+    <span class="k">def</span> <span class="nf">getDescription</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">test</span><span class="p">):</span>
+        <span class="n">doc_first_line</span> <span class="o">=</span> <span class="n">test</span><span class="o">.</span><span class="n">shortDescription</span><span class="p">()</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">descriptions</span> <span class="ow">and</span> <span class="n">doc_first_line</span><span class="p">:</span>
+            <span class="k">return</span> <span class="s">&#39;</span><span class="se">\n</span><span class="s">&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">((</span><span class="nb">str</span><span class="p">(</span><span class="n">test</span><span class="p">),</span> <span class="n">doc_first_line</span><span class="p">))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="nb">str</span><span class="p">(</span><span class="n">test</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">startTest</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">test</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">TextTestResult</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">startTest</span><span class="p">(</span><span class="n">test</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">showAll</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">stream</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">getDescription</span><span class="p">(</span><span class="n">test</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">stream</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s">&quot; ... &quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">stream</span><span class="o">.</span><span class="n">flush</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">addSuccess</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">test</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">TextTestResult</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">addSuccess</span><span class="p">(</span><span class="n">test</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">showAll</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">stream</span><span class="o">.</span><span class="n">writeln</span><span class="p">(</span><span class="s">&quot;ok&quot;</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">dots</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">stream</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s">&#39;.&#39;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">stream</span><span class="o">.</span><span class="n">flush</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">addError</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">test</span><span class="p">,</span> <span class="n">err</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">TextTestResult</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">addError</span><span class="p">(</span><span class="n">test</span><span class="p">,</span> <span class="n">err</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">showAll</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">stream</span><span class="o">.</span><span class="n">writeln</span><span class="p">(</span><span class="s">&quot;ERROR&quot;</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">dots</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">stream</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s">&#39;E&#39;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">stream</span><span class="o">.</span><span class="n">flush</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">addFailure</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">test</span><span class="p">,</span> <span class="n">err</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">TextTestResult</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">addFailure</span><span class="p">(</span><span class="n">test</span><span class="p">,</span> <span class="n">err</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">showAll</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">stream</span><span class="o">.</span><span class="n">writeln</span><span class="p">(</span><span class="s">&quot;FAIL&quot;</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">dots</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">stream</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s">&#39;F&#39;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">stream</span><span class="o">.</span><span class="n">flush</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">addSkip</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">test</span><span class="p">,</span> <span class="n">reason</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">TextTestResult</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">addSkip</span><span class="p">(</span><span class="n">test</span><span class="p">,</span> <span class="n">reason</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">showAll</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">stream</span><span class="o">.</span><span class="n">writeln</span><span class="p">(</span><span class="s">&quot;skipped </span><span class="si">%r</span><span class="s">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">reason</span><span class="p">,))</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">dots</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">stream</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s">&quot;s&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">stream</span><span class="o">.</span><span class="n">flush</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">addExpectedFailure</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">test</span><span class="p">,</span> <span class="n">err</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">TextTestResult</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">addExpectedFailure</span><span class="p">(</span><span class="n">test</span><span class="p">,</span> <span class="n">err</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">showAll</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">stream</span><span class="o">.</span><span class="n">writeln</span><span class="p">(</span><span class="s">&quot;expected failure&quot;</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">dots</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">stream</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s">&quot;x&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">stream</span><span class="o">.</span><span class="n">flush</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">addUnexpectedSuccess</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">test</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">TextTestResult</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">addUnexpectedSuccess</span><span class="p">(</span><span class="n">test</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">showAll</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">stream</span><span class="o">.</span><span class="n">writeln</span><span class="p">(</span><span class="s">&quot;unexpected success&quot;</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">dots</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">stream</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s">&quot;u&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">stream</span><span class="o">.</span><span class="n">flush</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">printErrors</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">dots</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">showAll</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">stream</span><span class="o">.</span><span class="n">writeln</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">printErrorList</span><span class="p">(</span><span class="s">&#39;ERROR&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">errors</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">printErrorList</span><span class="p">(</span><span class="s">&#39;FAIL&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">failures</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">printErrorList</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">flavour</span><span class="p">,</span> <span class="n">errors</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">test</span><span class="p">,</span> <span class="n">err</span> <span class="ow">in</span> <span class="n">errors</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">stream</span><span class="o">.</span><span class="n">writeln</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">separator1</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">stream</span><span class="o">.</span><span class="n">writeln</span><span class="p">(</span><span class="s">&quot;</span><span class="si">%s</span><span class="s">: </span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">flavour</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">getDescription</span><span class="p">(</span><span class="n">test</span><span class="p">)))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">stream</span><span class="o">.</span><span class="n">writeln</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">separator2</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">stream</span><span class="o">.</span><span class="n">writeln</span><span class="p">(</span><span class="s">&quot;</span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">err</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">stopTestRun</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">TextTestResult</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">stopTestRun</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">printErrors</span><span class="p">()</span>
+
+</div>
+<div class="viewcode-block" id="TextTestRunner"><a class="viewcode-back" href="../../../../django.utils.unittest.html#django.utils.unittest.runner.TextTestRunner">[docs]</a><span class="k">class</span> <span class="nc">TextTestRunner</span><span class="p">(</span><span class="n">unittest</span><span class="o">.</span><span class="n">TextTestRunner</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;A test runner class that displays results in textual form.</span>
+
+<span class="sd">    It prints out the names of tests as they are run, errors as they</span>
+<span class="sd">    occur, and a summary of the results at the end of the test run.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">resultclass</span> <span class="o">=</span> <span class="n">TextTestResult</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">stream</span><span class="o">=</span><span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="p">,</span> <span class="n">descriptions</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">verbosity</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+                    <span class="n">failfast</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="nb">buffer</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">resultclass</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">stream</span> <span class="o">=</span> <span class="n">_WritelnDecorator</span><span class="p">(</span><span class="n">stream</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">descriptions</span> <span class="o">=</span> <span class="n">descriptions</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">verbosity</span> <span class="o">=</span> <span class="n">verbosity</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">failfast</span> <span class="o">=</span> <span class="n">failfast</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">buffer</span> <span class="o">=</span> <span class="nb">buffer</span>
+        <span class="k">if</span> <span class="n">resultclass</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">resultclass</span> <span class="o">=</span> <span class="n">resultclass</span>
+
+    <span class="k">def</span> <span class="nf">_makeResult</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">resultclass</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">stream</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">descriptions</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">verbosity</span><span class="p">)</span>
+
+<div class="viewcode-block" id="TextTestRunner.run"><a class="viewcode-back" href="../../../../django.utils.unittest.html#django.utils.unittest.runner.TextTestRunner.run">[docs]</a>    <span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">test</span><span class="p">):</span>
+        <span class="s">&quot;Run the given test case or test suite.&quot;</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_makeResult</span><span class="p">()</span>
+        <span class="n">result</span><span class="o">.</span><span class="n">failfast</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">failfast</span>
+        <span class="n">result</span><span class="o">.</span><span class="n">buffer</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">buffer</span>
+        <span class="n">registerResult</span><span class="p">(</span><span class="n">result</span><span class="p">)</span>
+
+        <span class="n">startTime</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+        <span class="n">startTestRun</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">result</span><span class="p">,</span> <span class="s">&#39;startTestRun&#39;</span><span class="p">,</span> <span class="bp">None</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">startTestRun</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="n">startTestRun</span><span class="p">()</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">test</span><span class="p">(</span><span class="n">result</span><span class="p">)</span>
+        <span class="k">finally</span><span class="p">:</span>
+            <span class="n">stopTestRun</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">result</span><span class="p">,</span> <span class="s">&#39;stopTestRun&#39;</span><span class="p">,</span> <span class="bp">None</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">stopTestRun</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+                <span class="n">stopTestRun</span><span class="p">()</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">result</span><span class="o">.</span><span class="n">printErrors</span><span class="p">()</span>
+        <span class="n">stopTime</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+        <span class="n">timeTaken</span> <span class="o">=</span> <span class="n">stopTime</span> <span class="o">-</span> <span class="n">startTime</span>
+        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">result</span><span class="p">,</span> <span class="s">&#39;separator2&#39;</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">stream</span><span class="o">.</span><span class="n">writeln</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">separator2</span><span class="p">)</span>
+        <span class="n">run</span> <span class="o">=</span> <span class="n">result</span><span class="o">.</span><span class="n">testsRun</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">stream</span><span class="o">.</span><span class="n">writeln</span><span class="p">(</span><span class="s">&quot;Ran </span><span class="si">%d</span><span class="s"> test</span><span class="si">%s</span><span class="s"> in </span><span class="si">%.3f</span><span class="s">s&quot;</span> <span class="o">%</span>
+                            <span class="p">(</span><span class="n">run</span><span class="p">,</span> <span class="n">run</span> <span class="o">!=</span> <span class="mi">1</span> <span class="ow">and</span> <span class="s">&quot;s&quot;</span> <span class="ow">or</span> <span class="s">&quot;&quot;</span><span class="p">,</span> <span class="n">timeTaken</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">stream</span><span class="o">.</span><span class="n">writeln</span><span class="p">()</span>
+
+        <span class="n">expectedFails</span> <span class="o">=</span> <span class="n">unexpectedSuccesses</span> <span class="o">=</span> <span class="n">skipped</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">results</span> <span class="o">=</span> <span class="nb">map</span><span class="p">(</span><span class="nb">len</span><span class="p">,</span> <span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">expectedFailures</span><span class="p">,</span>
+                                <span class="n">result</span><span class="o">.</span><span class="n">unexpectedSuccesses</span><span class="p">,</span>
+                                <span class="n">result</span><span class="o">.</span><span class="n">skipped</span><span class="p">))</span>
+            <span class="n">expectedFails</span><span class="p">,</span> <span class="n">unexpectedSuccesses</span><span class="p">,</span> <span class="n">skipped</span> <span class="o">=</span> <span class="n">results</span>
+        <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>
+            <span class="k">pass</span>
+        <span class="n">infos</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">result</span><span class="o">.</span><span class="n">wasSuccessful</span><span class="p">():</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">stream</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s">&quot;FAILED&quot;</span><span class="p">)</span>
+            <span class="n">failed</span><span class="p">,</span> <span class="n">errored</span> <span class="o">=</span> <span class="nb">map</span><span class="p">(</span><span class="nb">len</span><span class="p">,</span> <span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">failures</span><span class="p">,</span> <span class="n">result</span><span class="o">.</span><span class="n">errors</span><span class="p">))</span>
+            <span class="k">if</span> <span class="n">failed</span><span class="p">:</span>
+                <span class="n">infos</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s">&quot;failures=</span><span class="si">%d</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">failed</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">errored</span><span class="p">:</span>
+                <span class="n">infos</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s">&quot;errors=</span><span class="si">%d</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">errored</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">stream</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s">&quot;OK&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">skipped</span><span class="p">:</span>
+            <span class="n">infos</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s">&quot;skipped=</span><span class="si">%d</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">skipped</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">expectedFails</span><span class="p">:</span>
+            <span class="n">infos</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s">&quot;expected failures=</span><span class="si">%d</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">expectedFails</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">unexpectedSuccesses</span><span class="p">:</span>
+            <span class="n">infos</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s">&quot;unexpected successes=</span><span class="si">%d</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">unexpectedSuccesses</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">infos</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">stream</span><span class="o">.</span><span class="n">writeln</span><span class="p">(</span><span class="s">&quot; (</span><span class="si">%s</span><span class="s">)&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="s">&quot;, &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">infos</span><span class="p">),))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">stream</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s">&quot;</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">result</span></div></div>
+</pre></div>
+
+      </div>
+      <div class="bottomnav">
+      
+        <p>
+        <a href="/">Home</a>:
+        <a class="uplink" href="../../../../index.html">Contents</a>
+        </p>
+
+      </div>
+
+    <div class="footer">
+        &copy; Copyright 2012, HDKNR.COM.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.2pre.
+    </div>
+  </body>
+</html>

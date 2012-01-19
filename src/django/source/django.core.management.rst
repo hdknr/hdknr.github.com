@@ -7,6 +7,9 @@ django.core.management
 django.core.management
 ======================
 
+.. include:: cheat/django.core.management.rst
+
+
 .. automodule:: django.core.management
     :members:
 
@@ -15,6 +18,9 @@ django.core.management
 
 django.core.management.base
 ===========================
+
+.. include:: cheat/django.core.management.base.rst
+
 .. automodule:: django.core.management.base
     :members:
 
@@ -22,6 +28,9 @@ django.core.management.base
 
 django.core.management.validation
 =================================
+
+.. include:: cheat/django.core.management.validation.rst
+
 .. automodule:: django.core.management.validation
     :members:
 
@@ -29,6 +38,9 @@ django.core.management.validation
 
 django.core.management.sql
 ==========================
+
+.. include:: cheat/django.core.management.sql.rst
+
 .. automodule:: django.core.management.sql
     :members:
 
@@ -36,6 +48,9 @@ django.core.management.sql
 
 django.core.management.color
 ============================
+
+.. include:: cheat/django.core.management.color.rst
+
 .. automodule:: django.core.management.color
     :members:
 

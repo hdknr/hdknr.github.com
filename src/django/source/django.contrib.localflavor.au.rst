@@ -7,6 +7,9 @@ django.contrib.localflavor.au
 django.contrib.localflavor.au
 =============================
 
+.. include:: cheat/django.contrib.localflavor.au.rst
+
+
 .. automodule:: django.contrib.localflavor.au
     :members:
 
@@ -15,6 +18,9 @@ django.contrib.localflavor.au
 
 django.contrib.localflavor.au.forms
 ===================================
+
+.. include:: cheat/django.contrib.localflavor.au.forms.rst
+
 .. automodule:: django.contrib.localflavor.au.forms
     :members:
 
@@ -22,6 +28,9 @@ django.contrib.localflavor.au.forms
 
 django.contrib.localflavor.au.au_states
 =======================================
+
+.. include:: cheat/django.contrib.localflavor.au.au_states.rst
+
 .. automodule:: django.contrib.localflavor.au.au_states
     :members:
 

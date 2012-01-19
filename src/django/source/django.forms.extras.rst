@@ -7,6 +7,9 @@ django.forms.extras
 django.forms.extras
 ===================
 
+.. include:: cheat/django.forms.extras.rst
+
+
 .. automodule:: django.forms.extras
     :members:
 
@@ -15,6 +18,9 @@ django.forms.extras
 
 django.forms.extras.widgets
 ===========================
+
+.. include:: cheat/django.forms.extras.widgets.rst
+
 .. automodule:: django.forms.extras.widgets
     :members:
 

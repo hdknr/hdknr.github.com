@@ -7,6 +7,9 @@ django.db.backends.sqlite3
 django.db.backends.sqlite3
 ==========================
 
+.. include:: cheat/django.db.backends.sqlite3.rst
+
+
 .. automodule:: django.db.backends.sqlite3
     :members:
 
@@ -15,6 +18,9 @@ django.db.backends.sqlite3
 
 django.db.backends.sqlite3.base
 ===============================
+
+.. include:: cheat/django.db.backends.sqlite3.base.rst
+
 .. automodule:: django.db.backends.sqlite3.base
     :members:
 
@@ -22,6 +28,9 @@ django.db.backends.sqlite3.base
 
 django.db.backends.sqlite3.client
 =================================
+
+.. include:: cheat/django.db.backends.sqlite3.client.rst
+
 .. automodule:: django.db.backends.sqlite3.client
     :members:
 
@@ -29,6 +38,9 @@ django.db.backends.sqlite3.client
 
 django.db.backends.sqlite3.introspection
 ========================================
+
+.. include:: cheat/django.db.backends.sqlite3.introspection.rst
+
 .. automodule:: django.db.backends.sqlite3.introspection
     :members:
 
@@ -36,6 +48,9 @@ django.db.backends.sqlite3.introspection
 
 django.db.backends.sqlite3.creation
 ===================================
+
+.. include:: cheat/django.db.backends.sqlite3.creation.rst
+
 .. automodule:: django.db.backends.sqlite3.creation
     :members:
 

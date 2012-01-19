@@ -7,6 +7,9 @@ django.contrib.flatpages
 django.contrib.flatpages
 ========================
 
+.. include:: cheat/django.contrib.flatpages.rst
+
+
 .. automodule:: django.contrib.flatpages
     :members:
 
@@ -22,6 +25,9 @@ Sub
 
 django.contrib.flatpages.middleware
 ===================================
+
+.. include:: cheat/django.contrib.flatpages.middleware.rst
+
 .. automodule:: django.contrib.flatpages.middleware
     :members:
 
@@ -29,6 +35,9 @@ django.contrib.flatpages.middleware
 
 django.contrib.flatpages.views
 ==============================
+
+.. include:: cheat/django.contrib.flatpages.views.rst
+
 .. automodule:: django.contrib.flatpages.views
     :members:
 
@@ -36,6 +45,9 @@ django.contrib.flatpages.views
 
 django.contrib.flatpages.admin
 ==============================
+
+.. include:: cheat/django.contrib.flatpages.admin.rst
+
 .. automodule:: django.contrib.flatpages.admin
     :members:
 
@@ -43,6 +55,9 @@ django.contrib.flatpages.admin
 
 django.contrib.flatpages.urls
 =============================
+
+.. include:: cheat/django.contrib.flatpages.urls.rst
+
 .. automodule:: django.contrib.flatpages.urls
     :members:
 
@@ -50,6 +65,9 @@ django.contrib.flatpages.urls
 
 django.contrib.flatpages.models
 ===============================
+
+.. include:: cheat/django.contrib.flatpages.models.rst
+
 .. automodule:: django.contrib.flatpages.models
     :members:
 

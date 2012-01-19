@@ -7,6 +7,9 @@ django.conf.locale.km
 django.conf.locale.km
 =====================
 
+.. include:: cheat/django.conf.locale.km.rst
+
+
 .. automodule:: django.conf.locale.km
     :members:
 
@@ -15,6 +18,9 @@ django.conf.locale.km
 
 django.conf.locale.km.formats
 =============================
+
+.. include:: cheat/django.conf.locale.km.formats.rst
+
 .. automodule:: django.conf.locale.km.formats
     :members:
 

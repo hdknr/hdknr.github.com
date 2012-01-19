@@ -7,6 +7,9 @@ django.contrib.localflavor.tr
 django.contrib.localflavor.tr
 =============================
 
+.. include:: cheat/django.contrib.localflavor.tr.rst
+
+
 .. automodule:: django.contrib.localflavor.tr
     :members:
 
@@ -15,6 +18,9 @@ django.contrib.localflavor.tr
 
 django.contrib.localflavor.tr.forms
 ===================================
+
+.. include:: cheat/django.contrib.localflavor.tr.forms.rst
+
 .. automodule:: django.contrib.localflavor.tr.forms
     :members:
 
@@ -22,6 +28,9 @@ django.contrib.localflavor.tr.forms
 
 django.contrib.localflavor.tr.tr_provinces
 ==========================================
+
+.. include:: cheat/django.contrib.localflavor.tr.tr_provinces.rst
+
 .. automodule:: django.contrib.localflavor.tr.tr_provinces
     :members:
 

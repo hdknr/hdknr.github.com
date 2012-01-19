@@ -7,6 +7,9 @@ django.contrib.messages.tests
 django.contrib.messages.tests
 =============================
 
+.. include:: cheat/django.contrib.messages.tests.rst
+
+
 .. automodule:: django.contrib.messages.tests
     :members:
 
@@ -15,6 +18,9 @@ django.contrib.messages.tests
 
 django.contrib.messages.tests.base
 ==================================
+
+.. include:: cheat/django.contrib.messages.tests.base.rst
+
 .. automodule:: django.contrib.messages.tests.base
     :members:
 
@@ -22,6 +28,9 @@ django.contrib.messages.tests.base
 
 django.contrib.messages.tests.middleware
 ========================================
+
+.. include:: cheat/django.contrib.messages.tests.middleware.rst
+
 .. automodule:: django.contrib.messages.tests.middleware
     :members:
 
@@ -29,6 +38,9 @@ django.contrib.messages.tests.middleware
 
 django.contrib.messages.tests.user_messages
 ===========================================
+
+.. include:: cheat/django.contrib.messages.tests.user_messages.rst
+
 .. automodule:: django.contrib.messages.tests.user_messages
     :members:
 
@@ -36,6 +48,9 @@ django.contrib.messages.tests.user_messages
 
 django.contrib.messages.tests.cookie
 ====================================
+
+.. include:: cheat/django.contrib.messages.tests.cookie.rst
+
 .. automodule:: django.contrib.messages.tests.cookie
     :members:
 
@@ -43,6 +58,9 @@ django.contrib.messages.tests.cookie
 
 django.contrib.messages.tests.session
 =====================================
+
+.. include:: cheat/django.contrib.messages.tests.session.rst
+
 .. automodule:: django.contrib.messages.tests.session
     :members:
 
@@ -50,6 +68,9 @@ django.contrib.messages.tests.session
 
 django.contrib.messages.tests.fallback
 ======================================
+
+.. include:: cheat/django.contrib.messages.tests.fallback.rst
+
 .. automodule:: django.contrib.messages.tests.fallback
     :members:
 
@@ -57,6 +78,9 @@ django.contrib.messages.tests.fallback
 
 django.contrib.messages.tests.urls
 ==================================
+
+.. include:: cheat/django.contrib.messages.tests.urls.rst
+
 .. automodule:: django.contrib.messages.tests.urls
     :members:
 

@@ -1,0 +1,202 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>django.contrib.comments.views.comments &mdash; Django Cheat 1 documentation</title>
+    
+    <link rel="stylesheet" href="../../../../../static/haiku.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../../static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../../static/print.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../../../',
+        VERSION:     '1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../../../../static/jquery.js"></script>
+    <script type="text/javascript" src="../../../../../static/underscore.js"></script>
+    <script type="text/javascript" src="../../../../../static/doctools.js"></script>
+    <script type="text/javascript" src="../../../../../static/theme_extras.js"></script>
+    <link rel="top" title="Django Cheat 1 documentation" href="../../../../../index.html" />
+    <link rel="up" title="django.contrib.comments" href="../../comments.html" /> 
+  </head>
+  <body>
+      <div class="header"><h1 class="heading"><a href="../../../../../index.html">
+          <span>Django Cheat 1 documentation</span></a></h1>
+        <h2 class="heading"><span>django.contrib.comments.views.comments</span></h2>
+      </div>
+      <div class="topnav">
+      
+        <p>
+        <a href="/">Home</a>:
+        <a class="uplink" href="../../../../../index.html">Contents</a>
+        </p>
+
+      </div>
+      <div class="content">
+        
+        
+  <h1>Source code for django.contrib.comments.views.comments</h1><div class="highlight"><pre>
+<span class="kn">from</span> <span class="nn">django</span> <span class="kn">import</span> <span class="n">http</span>
+<span class="kn">from</span> <span class="nn">django.conf</span> <span class="kn">import</span> <span class="n">settings</span>
+<span class="kn">from</span> <span class="nn">utils</span> <span class="kn">import</span> <span class="n">next_redirect</span><span class="p">,</span> <span class="n">confirmation_view</span>
+<span class="kn">from</span> <span class="nn">django.core.exceptions</span> <span class="kn">import</span> <span class="n">ObjectDoesNotExist</span><span class="p">,</span> <span class="n">ValidationError</span>
+<span class="kn">from</span> <span class="nn">django.db</span> <span class="kn">import</span> <span class="n">models</span>
+<span class="kn">from</span> <span class="nn">django.shortcuts</span> <span class="kn">import</span> <span class="n">render_to_response</span>
+<span class="kn">from</span> <span class="nn">django.template</span> <span class="kn">import</span> <span class="n">RequestContext</span>
+<span class="kn">from</span> <span class="nn">django.template.loader</span> <span class="kn">import</span> <span class="n">render_to_string</span>
+<span class="kn">from</span> <span class="nn">django.utils.html</span> <span class="kn">import</span> <span class="n">escape</span>
+<span class="kn">from</span> <span class="nn">django.views.decorators.http</span> <span class="kn">import</span> <span class="n">require_POST</span>
+<span class="kn">from</span> <span class="nn">django.contrib</span> <span class="kn">import</span> <span class="n">comments</span>
+<span class="kn">from</span> <span class="nn">django.contrib.comments</span> <span class="kn">import</span> <span class="n">signals</span>
+<span class="kn">from</span> <span class="nn">django.views.decorators.csrf</span> <span class="kn">import</span> <span class="n">csrf_protect</span>
+
+<div class="viewcode-block" id="CommentPostBadRequest"><a class="viewcode-back" href="../../../../../django.contrib.comments.views.html#django.contrib.comments.views.comments.CommentPostBadRequest">[docs]</a><span class="k">class</span> <span class="nc">CommentPostBadRequest</span><span class="p">(</span><span class="n">http</span><span class="o">.</span><span class="n">HttpResponseBadRequest</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Response returned when a comment post is invalid. If ``DEBUG`` is on a</span>
+<span class="sd">    nice-ish error message will be displayed (for debugging purposes), but in</span>
+<span class="sd">    production mode a simple opaque 400 page will be displayed.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">why</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">CommentPostBadRequest</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__init__</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">settings</span><span class="o">.</span><span class="n">DEBUG</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">content</span> <span class="o">=</span> <span class="n">render_to_string</span><span class="p">(</span><span class="s">&quot;comments/400-debug.html&quot;</span><span class="p">,</span> <span class="p">{</span><span class="s">&quot;why&quot;</span><span class="p">:</span> <span class="n">why</span><span class="p">})</span>
+</div>
+<span class="nd">@csrf_protect</span>
+<span class="nd">@require_POST</span>
+<div class="viewcode-block" id="post_comment"><a class="viewcode-back" href="../../../../../django.contrib.comments.views.html#django.contrib.comments.views.comments.post_comment">[docs]</a><span class="k">def</span> <span class="nf">post_comment</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="nb">next</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">using</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Post a comment.</span>
+
+<span class="sd">    HTTP POST is required. If ``POST[&#39;submit&#39;] == &quot;preview&quot;`` or if there are</span>
+<span class="sd">    errors a preview template, ``comments/preview.html``, will be rendered.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c"># Fill out some initial data fields from an authenticated user, if present</span>
+    <span class="n">data</span> <span class="o">=</span> <span class="n">request</span><span class="o">.</span><span class="n">POST</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">request</span><span class="o">.</span><span class="n">user</span><span class="o">.</span><span class="n">is_authenticated</span><span class="p">():</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;name&#39;</span><span class="p">,</span> <span class="s">&#39;&#39;</span><span class="p">):</span>
+            <span class="n">data</span><span class="p">[</span><span class="s">&quot;name&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">request</span><span class="o">.</span><span class="n">user</span><span class="o">.</span><span class="n">get_full_name</span><span class="p">()</span> <span class="ow">or</span> <span class="n">request</span><span class="o">.</span><span class="n">user</span><span class="o">.</span><span class="n">username</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;email&#39;</span><span class="p">,</span> <span class="s">&#39;&#39;</span><span class="p">):</span>
+            <span class="n">data</span><span class="p">[</span><span class="s">&quot;email&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">request</span><span class="o">.</span><span class="n">user</span><span class="o">.</span><span class="n">email</span>
+
+    <span class="c"># Check to see if the POST data overrides the view&#39;s next argument.</span>
+    <span class="nb">next</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&quot;next&quot;</span><span class="p">,</span> <span class="nb">next</span><span class="p">)</span>
+
+    <span class="c"># Look up the object we&#39;re trying to comment about</span>
+    <span class="n">ctype</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&quot;content_type&quot;</span><span class="p">)</span>
+    <span class="n">object_pk</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&quot;object_pk&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">ctype</span> <span class="ow">is</span> <span class="bp">None</span> <span class="ow">or</span> <span class="n">object_pk</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">CommentPostBadRequest</span><span class="p">(</span><span class="s">&quot;Missing content_type or object_pk field.&quot;</span><span class="p">)</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">model</span> <span class="o">=</span> <span class="n">models</span><span class="o">.</span><span class="n">get_model</span><span class="p">(</span><span class="o">*</span><span class="n">ctype</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&quot;.&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
+        <span class="n">target</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">_default_manager</span><span class="o">.</span><span class="n">using</span><span class="p">(</span><span class="n">using</span><span class="p">)</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">pk</span><span class="o">=</span><span class="n">object_pk</span><span class="p">)</span>
+    <span class="k">except</span> <span class="ne">TypeError</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">CommentPostBadRequest</span><span class="p">(</span>
+            <span class="s">&quot;Invalid content_type value: </span><span class="si">%r</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">escape</span><span class="p">(</span><span class="n">ctype</span><span class="p">))</span>
+    <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">CommentPostBadRequest</span><span class="p">(</span>
+            <span class="s">&quot;The given content-type </span><span class="si">%r</span><span class="s"> does not resolve to a valid model.&quot;</span> <span class="o">%</span> \
+                <span class="n">escape</span><span class="p">(</span><span class="n">ctype</span><span class="p">))</span>
+    <span class="k">except</span> <span class="n">ObjectDoesNotExist</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">CommentPostBadRequest</span><span class="p">(</span>
+            <span class="s">&quot;No object matching content-type </span><span class="si">%r</span><span class="s"> and object PK </span><span class="si">%r</span><span class="s"> exists.&quot;</span> <span class="o">%</span> \
+                <span class="p">(</span><span class="n">escape</span><span class="p">(</span><span class="n">ctype</span><span class="p">),</span> <span class="n">escape</span><span class="p">(</span><span class="n">object_pk</span><span class="p">)))</span>
+    <span class="k">except</span> <span class="p">(</span><span class="ne">ValueError</span><span class="p">,</span> <span class="n">ValidationError</span><span class="p">),</span> <span class="n">e</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">CommentPostBadRequest</span><span class="p">(</span>
+            <span class="s">&quot;Attempting go get content-type </span><span class="si">%r</span><span class="s"> and object PK </span><span class="si">%r</span><span class="s"> exists raised </span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> \
+                <span class="p">(</span><span class="n">escape</span><span class="p">(</span><span class="n">ctype</span><span class="p">),</span> <span class="n">escape</span><span class="p">(</span><span class="n">object_pk</span><span class="p">),</span> <span class="n">e</span><span class="o">.</span><span class="n">__class__</span><span class="o">.</span><span class="n">__name__</span><span class="p">))</span>
+
+    <span class="c"># Do we want to preview the comment?</span>
+    <span class="n">preview</span> <span class="o">=</span> <span class="s">&quot;preview&quot;</span> <span class="ow">in</span> <span class="n">data</span>
+
+    <span class="c"># Construct the comment form</span>
+    <span class="n">form</span> <span class="o">=</span> <span class="n">comments</span><span class="o">.</span><span class="n">get_form</span><span class="p">()(</span><span class="n">target</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="n">data</span><span class="p">)</span>
+
+    <span class="c"># Check security information</span>
+    <span class="k">if</span> <span class="n">form</span><span class="o">.</span><span class="n">security_errors</span><span class="p">():</span>
+        <span class="k">return</span> <span class="n">CommentPostBadRequest</span><span class="p">(</span>
+            <span class="s">&quot;The comment form failed security verification: </span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> \
+                <span class="n">escape</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">form</span><span class="o">.</span><span class="n">security_errors</span><span class="p">())))</span>
+
+    <span class="c"># If there are errors or if we requested a preview show the comment</span>
+    <span class="k">if</span> <span class="n">form</span><span class="o">.</span><span class="n">errors</span> <span class="ow">or</span> <span class="n">preview</span><span class="p">:</span>
+        <span class="n">template_list</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="c"># These first two exist for purely historical reasons.</span>
+            <span class="c"># Django v1.0 and v1.1 allowed the underscore format for</span>
+            <span class="c"># preview templates, so we have to preserve that format.</span>
+            <span class="s">&quot;comments/</span><span class="si">%s</span><span class="s">_</span><span class="si">%s</span><span class="s">_preview.html&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">app_label</span><span class="p">,</span> <span class="n">model</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">module_name</span><span class="p">),</span>
+            <span class="s">&quot;comments/</span><span class="si">%s</span><span class="s">_preview.html&quot;</span> <span class="o">%</span> <span class="n">model</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">app_label</span><span class="p">,</span>
+            <span class="c"># Now the usual directory based template heirarchy.</span>
+            <span class="s">&quot;comments/</span><span class="si">%s</span><span class="s">/</span><span class="si">%s</span><span class="s">/preview.html&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">app_label</span><span class="p">,</span> <span class="n">model</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">module_name</span><span class="p">),</span>
+            <span class="s">&quot;comments/</span><span class="si">%s</span><span class="s">/preview.html&quot;</span> <span class="o">%</span> <span class="n">model</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">app_label</span><span class="p">,</span>
+            <span class="s">&quot;comments/preview.html&quot;</span><span class="p">,</span>
+        <span class="p">]</span>
+        <span class="k">return</span> <span class="n">render_to_response</span><span class="p">(</span>
+            <span class="n">template_list</span><span class="p">,</span> <span class="p">{</span>
+                <span class="s">&quot;comment&quot;</span> <span class="p">:</span> <span class="n">form</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&quot;comment&quot;</span><span class="p">,</span> <span class="s">&quot;&quot;</span><span class="p">),</span>
+                <span class="s">&quot;form&quot;</span> <span class="p">:</span> <span class="n">form</span><span class="p">,</span>
+                <span class="s">&quot;next&quot;</span><span class="p">:</span> <span class="nb">next</span><span class="p">,</span>
+            <span class="p">},</span>
+            <span class="n">RequestContext</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="p">{})</span>
+        <span class="p">)</span>
+
+    <span class="c"># Otherwise create the comment</span>
+    <span class="n">comment</span> <span class="o">=</span> <span class="n">form</span><span class="o">.</span><span class="n">get_comment_object</span><span class="p">()</span>
+    <span class="n">comment</span><span class="o">.</span><span class="n">ip_address</span> <span class="o">=</span> <span class="n">request</span><span class="o">.</span><span class="n">META</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&quot;REMOTE_ADDR&quot;</span><span class="p">,</span> <span class="bp">None</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">request</span><span class="o">.</span><span class="n">user</span><span class="o">.</span><span class="n">is_authenticated</span><span class="p">():</span>
+        <span class="n">comment</span><span class="o">.</span><span class="n">user</span> <span class="o">=</span> <span class="n">request</span><span class="o">.</span><span class="n">user</span>
+
+    <span class="c"># Signal that the comment is about to be saved</span>
+    <span class="n">responses</span> <span class="o">=</span> <span class="n">signals</span><span class="o">.</span><span class="n">comment_will_be_posted</span><span class="o">.</span><span class="n">send</span><span class="p">(</span>
+        <span class="n">sender</span>  <span class="o">=</span> <span class="n">comment</span><span class="o">.</span><span class="n">__class__</span><span class="p">,</span>
+        <span class="n">comment</span> <span class="o">=</span> <span class="n">comment</span><span class="p">,</span>
+        <span class="n">request</span> <span class="o">=</span> <span class="n">request</span>
+    <span class="p">)</span>
+
+    <span class="k">for</span> <span class="p">(</span><span class="n">receiver</span><span class="p">,</span> <span class="n">response</span><span class="p">)</span> <span class="ow">in</span> <span class="n">responses</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">response</span> <span class="o">==</span> <span class="bp">False</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">CommentPostBadRequest</span><span class="p">(</span>
+                <span class="s">&quot;comment_will_be_posted receiver </span><span class="si">%r</span><span class="s"> killed the comment&quot;</span> <span class="o">%</span> <span class="n">receiver</span><span class="o">.</span><span class="n">__name__</span><span class="p">)</span>
+
+    <span class="c"># Save the comment and signal that it was saved</span>
+    <span class="n">comment</span><span class="o">.</span><span class="n">save</span><span class="p">()</span>
+    <span class="n">signals</span><span class="o">.</span><span class="n">comment_was_posted</span><span class="o">.</span><span class="n">send</span><span class="p">(</span>
+        <span class="n">sender</span>  <span class="o">=</span> <span class="n">comment</span><span class="o">.</span><span class="n">__class__</span><span class="p">,</span>
+        <span class="n">comment</span> <span class="o">=</span> <span class="n">comment</span><span class="p">,</span>
+        <span class="n">request</span> <span class="o">=</span> <span class="n">request</span>
+    <span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">next_redirect</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="nb">next</span><span class="p">,</span> <span class="n">comment_done</span><span class="p">,</span> <span class="n">c</span><span class="o">=</span><span class="n">comment</span><span class="o">.</span><span class="n">_get_pk_val</span><span class="p">())</span>
+</div>
+<span class="n">comment_done</span> <span class="o">=</span> <span class="n">confirmation_view</span><span class="p">(</span>
+    <span class="n">template</span> <span class="o">=</span> <span class="s">&quot;comments/posted.html&quot;</span><span class="p">,</span>
+    <span class="n">doc</span> <span class="o">=</span> <span class="s">&quot;&quot;&quot;Display a &quot;comment was posted&quot; success page.&quot;&quot;&quot;</span>
+<span class="p">)</span>
+</pre></div>
+
+      </div>
+      <div class="bottomnav">
+      
+        <p>
+        <a href="/">Home</a>:
+        <a class="uplink" href="../../../../../index.html">Contents</a>
+        </p>
+
+      </div>
+
+    <div class="footer">
+        &copy; Copyright 2012, HDKNR.COM.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.2pre.
+    </div>
+  </body>
+</html>

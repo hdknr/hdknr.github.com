@@ -7,6 +7,9 @@ django.core
 django.core
 ===========
 
+.. include:: cheat/django.core.rst
+
+
 .. automodule:: django.core
     :members:
 
@@ -32,6 +35,9 @@ Sub
 
 django.core.exceptions
 ======================
+
+.. include:: cheat/django.core.exceptions.rst
+
 .. automodule:: django.core.exceptions
     :members:
 
@@ -39,6 +45,9 @@ django.core.exceptions
 
 django.core.urlresolvers
 ========================
+
+.. include:: cheat/django.core.urlresolvers.rst
+
 .. automodule:: django.core.urlresolvers
     :members:
 
@@ -46,6 +55,9 @@ django.core.urlresolvers
 
 django.core.xheaders
 ====================
+
+.. include:: cheat/django.core.xheaders.rst
+
 .. automodule:: django.core.xheaders
     :members:
 
@@ -53,6 +65,9 @@ django.core.xheaders
 
 django.core.template_loader
 ===========================
+
+.. include:: cheat/django.core.template_loader.rst
+
 .. automodule:: django.core.template_loader
     :members:
 
@@ -60,6 +75,9 @@ django.core.template_loader
 
 django.core.validators
 ======================
+
+.. include:: cheat/django.core.validators.rst
+
 .. automodule:: django.core.validators
     :members:
 
@@ -67,6 +85,9 @@ django.core.validators
 
 django.core.signals
 ===================
+
+.. include:: cheat/django.core.signals.rst
+
 .. automodule:: django.core.signals
     :members:
 
@@ -74,6 +95,9 @@ django.core.signals
 
 django.core.context_processors
 ==============================
+
+.. include:: cheat/django.core.context_processors.rst
+
 .. automodule:: django.core.context_processors
     :members:
 
@@ -81,6 +105,9 @@ django.core.context_processors
 
 django.core.paginator
 =====================
+
+.. include:: cheat/django.core.paginator.rst
+
 .. automodule:: django.core.paginator
     :members:
 

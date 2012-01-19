@@ -7,6 +7,9 @@ django.conf.urls
 django.conf.urls
 ================
 
+.. include:: cheat/django.conf.urls.rst
+
+
 .. automodule:: django.conf.urls
     :members:
 
@@ -15,6 +18,9 @@ django.conf.urls
 
 django.conf.urls.defaults
 =========================
+
+.. include:: cheat/django.conf.urls.defaults.rst
+
 .. automodule:: django.conf.urls.defaults
     :members:
 
@@ -22,6 +28,9 @@ django.conf.urls.defaults
 
 django.conf.urls.shortcut
 =========================
+
+.. include:: cheat/django.conf.urls.shortcut.rst
+
 .. automodule:: django.conf.urls.shortcut
     :members:
 
@@ -29,6 +38,9 @@ django.conf.urls.shortcut
 
 django.conf.urls.static
 =======================
+
+.. include:: cheat/django.conf.urls.static.rst
+
 .. automodule:: django.conf.urls.static
     :members:
 
@@ -36,6 +48,9 @@ django.conf.urls.static
 
 django.conf.urls.i18n
 =====================
+
+.. include:: cheat/django.conf.urls.i18n.rst
+
 .. automodule:: django.conf.urls.i18n
     :members:
 

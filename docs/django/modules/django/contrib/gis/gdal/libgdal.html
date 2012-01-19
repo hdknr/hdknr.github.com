@@ -1,0 +1,170 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>django.contrib.gis.gdal.libgdal &mdash; Django Cheat 1 documentation</title>
+    
+    <link rel="stylesheet" href="../../../../../static/haiku.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../../static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../../static/print.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../../../',
+        VERSION:     '1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../../../../static/jquery.js"></script>
+    <script type="text/javascript" src="../../../../../static/underscore.js"></script>
+    <script type="text/javascript" src="../../../../../static/doctools.js"></script>
+    <script type="text/javascript" src="../../../../../static/theme_extras.js"></script>
+    <link rel="top" title="Django Cheat 1 documentation" href="../../../../../index.html" />
+    <link rel="up" title="Module code" href="../../../../index.html" /> 
+  </head>
+  <body>
+      <div class="header"><h1 class="heading"><a href="../../../../../index.html">
+          <span>Django Cheat 1 documentation</span></a></h1>
+        <h2 class="heading"><span>django.contrib.gis.gdal.libgdal</span></h2>
+      </div>
+      <div class="topnav">
+      
+        <p>
+        <a href="/">Home</a>:
+        <a class="uplink" href="../../../../../index.html">Contents</a>
+        </p>
+
+      </div>
+      <div class="content">
+        
+        
+  <h1>Source code for django.contrib.gis.gdal.libgdal</h1><div class="highlight"><pre>
+<span class="kn">import</span> <span class="nn">os</span><span class="o">,</span> <span class="nn">re</span><span class="o">,</span> <span class="nn">sys</span>
+<span class="kn">from</span> <span class="nn">ctypes</span> <span class="kn">import</span> <span class="n">c_char_p</span><span class="p">,</span> <span class="n">CDLL</span>
+<span class="kn">from</span> <span class="nn">ctypes.util</span> <span class="kn">import</span> <span class="n">find_library</span>
+<span class="kn">from</span> <span class="nn">django.contrib.gis.gdal.error</span> <span class="kn">import</span> <span class="n">OGRException</span>
+
+<span class="c"># Custom library path set?</span>
+<span class="k">try</span><span class="p">:</span>
+    <span class="kn">from</span> <span class="nn">django.conf</span> <span class="kn">import</span> <span class="n">settings</span>
+    <span class="n">lib_path</span> <span class="o">=</span> <span class="n">settings</span><span class="o">.</span><span class="n">GDAL_LIBRARY_PATH</span>
+<span class="k">except</span> <span class="p">(</span><span class="ne">AttributeError</span><span class="p">,</span> <span class="ne">EnvironmentError</span><span class="p">,</span> <span class="ne">ImportError</span><span class="p">):</span>
+    <span class="n">lib_path</span> <span class="o">=</span> <span class="bp">None</span>
+
+<span class="k">if</span> <span class="n">lib_path</span><span class="p">:</span>
+    <span class="n">lib_names</span> <span class="o">=</span> <span class="bp">None</span>
+<span class="k">elif</span> <span class="n">os</span><span class="o">.</span><span class="n">name</span> <span class="o">==</span> <span class="s">&#39;nt&#39;</span><span class="p">:</span>
+    <span class="c"># Windows NT shared libraries</span>
+    <span class="n">lib_names</span> <span class="o">=</span> <span class="p">[</span><span class="s">&#39;gdal18&#39;</span><span class="p">,</span> <span class="s">&#39;gdal17&#39;</span><span class="p">,</span> <span class="s">&#39;gdal16&#39;</span><span class="p">,</span> <span class="s">&#39;gdal15&#39;</span><span class="p">]</span>
+<span class="k">elif</span> <span class="n">os</span><span class="o">.</span><span class="n">name</span> <span class="o">==</span> <span class="s">&#39;posix&#39;</span><span class="p">:</span>
+    <span class="c"># *NIX library names.</span>
+    <span class="n">lib_names</span> <span class="o">=</span> <span class="p">[</span><span class="s">&#39;gdal&#39;</span><span class="p">,</span> <span class="s">&#39;GDAL&#39;</span><span class="p">,</span> <span class="s">&#39;gdal1.7.0&#39;</span><span class="p">,</span> <span class="s">&#39;gdal1.6.0&#39;</span><span class="p">,</span> <span class="s">&#39;gdal1.5.0&#39;</span><span class="p">,</span> <span class="s">&#39;gdal1.4.0&#39;</span><span class="p">]</span>
+<span class="k">else</span><span class="p">:</span>
+    <span class="k">raise</span> <span class="n">OGRException</span><span class="p">(</span><span class="s">&#39;Unsupported OS &quot;</span><span class="si">%s</span><span class="s">&quot;&#39;</span> <span class="o">%</span> <span class="n">os</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+
+<span class="c"># Using the ctypes `find_library` utility  to find the </span>
+<span class="c"># path to the GDAL library from the list of library names.</span>
+<span class="k">if</span> <span class="n">lib_names</span><span class="p">:</span>
+    <span class="k">for</span> <span class="n">lib_name</span> <span class="ow">in</span> <span class="n">lib_names</span><span class="p">:</span>
+        <span class="n">lib_path</span> <span class="o">=</span> <span class="n">find_library</span><span class="p">(</span><span class="n">lib_name</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">lib_path</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span> <span class="k">break</span>
+        
+<span class="k">if</span> <span class="n">lib_path</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+    <span class="k">raise</span> <span class="n">OGRException</span><span class="p">(</span><span class="s">&#39;Could not find the GDAL library (tried &quot;</span><span class="si">%s</span><span class="s">&quot;). &#39;</span>
+                       <span class="s">&#39;Try setting GDAL_LIBRARY_PATH in your settings.&#39;</span> <span class="o">%</span> 
+                       <span class="s">&#39;&quot;, &quot;&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">lib_names</span><span class="p">))</span>
+
+<span class="c"># This loads the GDAL/OGR C library</span>
+<span class="n">lgdal</span> <span class="o">=</span> <span class="n">CDLL</span><span class="p">(</span><span class="n">lib_path</span><span class="p">)</span>
+
+<span class="c"># On Windows, the GDAL binaries have some OSR routines exported with </span>
+<span class="c"># STDCALL, while others are not.  Thus, the library will also need to </span>
+<span class="c"># be loaded up as WinDLL for said OSR functions that require the </span>
+<span class="c"># different calling convention.</span>
+<span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">name</span> <span class="o">==</span> <span class="s">&#39;nt&#39;</span><span class="p">:</span>
+    <span class="kn">from</span> <span class="nn">ctypes</span> <span class="kn">import</span> <span class="n">WinDLL</span>
+    <span class="n">lwingdal</span> <span class="o">=</span> <span class="n">WinDLL</span><span class="p">(</span><span class="n">lib_path</span><span class="p">)</span>
+
+<div class="viewcode-block" id="std_call"><a class="viewcode-back" href="../../../../../django.contrib.gis.gdal.html#django.contrib.gis.gdal.libgdal.std_call">[docs]</a><span class="k">def</span> <span class="nf">std_call</span><span class="p">(</span><span class="n">func</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Returns the correct STDCALL function for certain OSR routines on Win32</span>
+<span class="sd">    platforms.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">name</span> <span class="o">==</span> <span class="s">&#39;nt&#39;</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">lwingdal</span><span class="p">[</span><span class="n">func</span><span class="p">]</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">lgdal</span><span class="p">[</span><span class="n">func</span><span class="p">]</span>
+
+<span class="c">#### Version-information functions. ####</span>
+
+<span class="c"># Returns GDAL library version information with the given key.</span></div>
+<span class="n">_version_info</span> <span class="o">=</span> <span class="n">std_call</span><span class="p">(</span><span class="s">&#39;GDALVersionInfo&#39;</span><span class="p">)</span>
+<span class="n">_version_info</span><span class="o">.</span><span class="n">argtypes</span> <span class="o">=</span> <span class="p">[</span><span class="n">c_char_p</span><span class="p">]</span>
+<span class="n">_version_info</span><span class="o">.</span><span class="n">restype</span> <span class="o">=</span> <span class="n">c_char_p</span>
+
+<div class="viewcode-block" id="gdal_version"><a class="viewcode-back" href="../../../../../django.contrib.gis.gdal.html#django.contrib.gis.gdal.libgdal.gdal_version">[docs]</a><span class="k">def</span> <span class="nf">gdal_version</span><span class="p">():</span>
+    <span class="s">&quot;Returns only the GDAL version number information.&quot;</span>
+    <span class="k">return</span> <span class="n">_version_info</span><span class="p">(</span><span class="s">&#39;RELEASE_NAME&#39;</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="gdal_full_version"><a class="viewcode-back" href="../../../../../django.contrib.gis.gdal.html#django.contrib.gis.gdal.libgdal.gdal_full_version">[docs]</a><span class="k">def</span> <span class="nf">gdal_full_version</span><span class="p">():</span> 
+    <span class="s">&quot;Returns the full GDAL version information.&quot;</span>
+    <span class="k">return</span> <span class="n">_version_info</span><span class="p">(</span><span class="s">&#39;&#39;</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="gdal_release_date"><a class="viewcode-back" href="../../../../../django.contrib.gis.gdal.html#django.contrib.gis.gdal.libgdal.gdal_release_date">[docs]</a><span class="k">def</span> <span class="nf">gdal_release_date</span><span class="p">(</span><span class="n">date</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span> 
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Returns the release date in a string format, e.g, &quot;2007/06/27&quot;.</span>
+<span class="sd">    If the date keyword argument is set to True, a Python datetime object</span>
+<span class="sd">    will be returned instead.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="kn">from</span> <span class="nn">datetime</span> <span class="kn">import</span> <span class="n">date</span> <span class="k">as</span> <span class="n">date_type</span>
+    <span class="n">rel</span> <span class="o">=</span> <span class="n">_version_info</span><span class="p">(</span><span class="s">&#39;RELEASE_DATE&#39;</span><span class="p">)</span>
+    <span class="n">yy</span><span class="p">,</span> <span class="n">mm</span><span class="p">,</span> <span class="n">dd</span> <span class="o">=</span> <span class="nb">map</span><span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="p">(</span><span class="n">rel</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="mi">4</span><span class="p">],</span> <span class="n">rel</span><span class="p">[</span><span class="mi">4</span><span class="p">:</span><span class="mi">6</span><span class="p">],</span> <span class="n">rel</span><span class="p">[</span><span class="mi">6</span><span class="p">:</span><span class="mi">8</span><span class="p">]))</span>
+    <span class="n">d</span> <span class="o">=</span> <span class="n">date_type</span><span class="p">(</span><span class="n">yy</span><span class="p">,</span> <span class="n">mm</span><span class="p">,</span> <span class="n">dd</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">date</span><span class="p">:</span> <span class="k">return</span> <span class="n">d</span>
+    <span class="k">else</span><span class="p">:</span> <span class="k">return</span> <span class="n">d</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s">&#39;%Y/%m/</span><span class="si">%d</span><span class="s">&#39;</span><span class="p">)</span>
+</div>
+<span class="n">version_regex</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="s">r&#39;^(?P&lt;major&gt;\d+)\.(?P&lt;minor&gt;\d+)(\.(?P&lt;subminor&gt;\d+))?&#39;</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">gdal_version_info</span><span class="p">():</span>
+    <span class="n">ver</span> <span class="o">=</span> <span class="n">gdal_version</span><span class="p">()</span>
+    <span class="n">m</span> <span class="o">=</span> <span class="n">version_regex</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="n">ver</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">m</span><span class="p">:</span> <span class="k">raise</span> <span class="n">OGRException</span><span class="p">(</span><span class="s">&#39;Could not parse GDAL version string &quot;</span><span class="si">%s</span><span class="s">&quot;&#39;</span> <span class="o">%</span> <span class="n">ver</span><span class="p">)</span>
+    <span class="k">return</span> <span class="nb">dict</span><span class="p">([(</span><span class="n">key</span><span class="p">,</span> <span class="n">m</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="n">key</span><span class="p">))</span> <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="p">(</span><span class="s">&#39;major&#39;</span><span class="p">,</span> <span class="s">&#39;minor&#39;</span><span class="p">,</span> <span class="s">&#39;subminor&#39;</span><span class="p">)])</span>
+
+<span class="n">_verinfo</span> <span class="o">=</span> <span class="n">gdal_version_info</span><span class="p">()</span>
+<span class="n">GDAL_MAJOR_VERSION</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">_verinfo</span><span class="p">[</span><span class="s">&#39;major&#39;</span><span class="p">])</span>
+<span class="n">GDAL_MINOR_VERSION</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">_verinfo</span><span class="p">[</span><span class="s">&#39;minor&#39;</span><span class="p">])</span>
+<span class="n">GDAL_SUBMINOR_VERSION</span> <span class="o">=</span> <span class="n">_verinfo</span><span class="p">[</span><span class="s">&#39;subminor&#39;</span><span class="p">]</span> <span class="ow">and</span> <span class="nb">int</span><span class="p">(</span><span class="n">_verinfo</span><span class="p">[</span><span class="s">&#39;subminor&#39;</span><span class="p">])</span>
+<span class="n">GDAL_VERSION</span> <span class="o">=</span> <span class="p">(</span><span class="n">GDAL_MAJOR_VERSION</span><span class="p">,</span> <span class="n">GDAL_MINOR_VERSION</span><span class="p">,</span> <span class="n">GDAL_SUBMINOR_VERSION</span><span class="p">)</span>
+<span class="k">del</span> <span class="n">_verinfo</span>
+
+<span class="c"># GeoJSON support is available only in GDAL 1.5+.</span>
+<span class="k">if</span> <span class="n">GDAL_VERSION</span> <span class="o">&gt;=</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">5</span><span class="p">):</span>
+    <span class="n">GEOJSON</span> <span class="o">=</span> <span class="bp">True</span>
+<span class="k">else</span><span class="p">:</span>
+    <span class="n">GEOJSON</span> <span class="o">=</span> <span class="bp">False</span>
+</pre></div>
+
+      </div>
+      <div class="bottomnav">
+      
+        <p>
+        <a href="/">Home</a>:
+        <a class="uplink" href="../../../../../index.html">Contents</a>
+        </p>
+
+      </div>
+
+    <div class="footer">
+        &copy; Copyright 2012, HDKNR.COM.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.2pre.
+    </div>
+  </body>
+</html>

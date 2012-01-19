@@ -7,6 +7,9 @@ django.contrib.gis.forms
 django.contrib.gis.forms
 ========================
 
+.. include:: cheat/django.contrib.gis.forms.rst
+
+
 .. automodule:: django.contrib.gis.forms
     :members:
 
@@ -15,6 +18,9 @@ django.contrib.gis.forms
 
 django.contrib.gis.forms.fields
 ===============================
+
+.. include:: cheat/django.contrib.gis.forms.fields.rst
+
 .. automodule:: django.contrib.gis.forms.fields
     :members:
 

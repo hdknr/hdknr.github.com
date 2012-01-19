@@ -7,6 +7,9 @@ django.middleware
 django.middleware
 =================
 
+.. include:: cheat/django.middleware.rst
+
+
 .. automodule:: django.middleware
     :members:
 
@@ -15,6 +18,9 @@ django.middleware
 
 django.middleware.http
 ======================
+
+.. include:: cheat/django.middleware.http.rst
+
 .. automodule:: django.middleware.http
     :members:
 
@@ -22,6 +28,9 @@ django.middleware.http
 
 django.middleware.transaction
 =============================
+
+.. include:: cheat/django.middleware.transaction.rst
+
 .. automodule:: django.middleware.transaction
     :members:
 
@@ -29,6 +38,9 @@ django.middleware.transaction
 
 django.middleware.locale
 ========================
+
+.. include:: cheat/django.middleware.locale.rst
+
 .. automodule:: django.middleware.locale
     :members:
 
@@ -36,6 +48,9 @@ django.middleware.locale
 
 django.middleware.csrf
 ======================
+
+.. include:: cheat/django.middleware.csrf.rst
+
 .. automodule:: django.middleware.csrf
     :members:
 
@@ -43,6 +58,9 @@ django.middleware.csrf
 
 django.middleware.common
 ========================
+
+.. include:: cheat/django.middleware.common.rst
+
 .. automodule:: django.middleware.common
     :members:
 
@@ -50,6 +68,9 @@ django.middleware.common
 
 django.middleware.cache
 =======================
+
+.. include:: cheat/django.middleware.cache.rst
+
 .. automodule:: django.middleware.cache
     :members:
 
@@ -57,6 +78,9 @@ django.middleware.cache
 
 django.middleware.doc
 =====================
+
+.. include:: cheat/django.middleware.doc.rst
+
 .. automodule:: django.middleware.doc
     :members:
 
@@ -64,6 +88,9 @@ django.middleware.doc
 
 django.middleware.gzip
 ======================
+
+.. include:: cheat/django.middleware.gzip.rst
+
 .. automodule:: django.middleware.gzip
     :members:
 

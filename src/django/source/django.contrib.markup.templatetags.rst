@@ -7,6 +7,9 @@ django.contrib.markup.templatetags
 django.contrib.markup.templatetags
 ==================================
 
+.. include:: cheat/django.contrib.markup.templatetags.rst
+
+
 .. automodule:: django.contrib.markup.templatetags
     :members:
 
@@ -15,6 +18,9 @@ django.contrib.markup.templatetags
 
 django.contrib.markup.templatetags.markup
 =========================================
+
+.. include:: cheat/django.contrib.markup.templatetags.markup.rst
+
 .. automodule:: django.contrib.markup.templatetags.markup
     :members:
 

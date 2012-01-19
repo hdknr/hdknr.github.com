@@ -7,6 +7,9 @@ django.contrib.syndication
 django.contrib.syndication
 ==========================
 
+.. include:: cheat/django.contrib.syndication.rst
+
+
 .. automodule:: django.contrib.syndication
     :members:
 
@@ -15,6 +18,9 @@ django.contrib.syndication
 
 django.contrib.syndication.views
 ================================
+
+.. include:: cheat/django.contrib.syndication.views.rst
+
 .. automodule:: django.contrib.syndication.views
     :members:
 
@@ -22,6 +28,9 @@ django.contrib.syndication.views
 
 django.contrib.syndication.feeds
 ================================
+
+.. include:: cheat/django.contrib.syndication.feeds.rst
+
 .. automodule:: django.contrib.syndication.feeds
     :members:
 

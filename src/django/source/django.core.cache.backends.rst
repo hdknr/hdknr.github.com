@@ -7,6 +7,9 @@ django.core.cache.backends
 django.core.cache.backends
 ==========================
 
+.. include:: cheat/django.core.cache.backends.rst
+
+
 .. automodule:: django.core.cache.backends
     :members:
 
@@ -15,6 +18,9 @@ django.core.cache.backends
 
 django.core.cache.backends.base
 ===============================
+
+.. include:: cheat/django.core.cache.backends.base.rst
+
 .. automodule:: django.core.cache.backends.base
     :members:
 
@@ -22,6 +28,9 @@ django.core.cache.backends.base
 
 django.core.cache.backends.locmem
 =================================
+
+.. include:: cheat/django.core.cache.backends.locmem.rst
+
 .. automodule:: django.core.cache.backends.locmem
     :members:
 
@@ -29,6 +38,9 @@ django.core.cache.backends.locmem
 
 django.core.cache.backends.filebased
 ====================================
+
+.. include:: cheat/django.core.cache.backends.filebased.rst
+
 .. automodule:: django.core.cache.backends.filebased
     :members:
 
@@ -36,6 +48,9 @@ django.core.cache.backends.filebased
 
 django.core.cache.backends.dummy
 ================================
+
+.. include:: cheat/django.core.cache.backends.dummy.rst
+
 .. automodule:: django.core.cache.backends.dummy
     :members:
 
@@ -43,6 +58,9 @@ django.core.cache.backends.dummy
 
 django.core.cache.backends.memcached
 ====================================
+
+.. include:: cheat/django.core.cache.backends.memcached.rst
+
 .. automodule:: django.core.cache.backends.memcached
     :members:
 
@@ -50,6 +68,9 @@ django.core.cache.backends.memcached
 
 django.core.cache.backends.db
 =============================
+
+.. include:: cheat/django.core.cache.backends.db.rst
+
 .. automodule:: django.core.cache.backends.db
     :members:
 

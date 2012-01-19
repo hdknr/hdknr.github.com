@@ -1,0 +1,235 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>django.test.utils &mdash; Django Cheat 1 documentation</title>
+    
+    <link rel="stylesheet" href="../../../static/haiku.css" type="text/css" />
+    <link rel="stylesheet" href="../../../static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../../../static/print.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../',
+        VERSION:     '1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../../static/jquery.js"></script>
+    <script type="text/javascript" src="../../../static/underscore.js"></script>
+    <script type="text/javascript" src="../../../static/doctools.js"></script>
+    <script type="text/javascript" src="../../../static/theme_extras.js"></script>
+    <link rel="top" title="Django Cheat 1 documentation" href="../../../index.html" />
+    <link rel="up" title="Module code" href="../../index.html" /> 
+  </head>
+  <body>
+      <div class="header"><h1 class="heading"><a href="../../../index.html">
+          <span>Django Cheat 1 documentation</span></a></h1>
+        <h2 class="heading"><span>django.test.utils</span></h2>
+      </div>
+      <div class="topnav">
+      
+        <p>
+        <a href="/">Home</a>:
+        <a class="uplink" href="../../../index.html">Contents</a>
+        </p>
+
+      </div>
+      <div class="content">
+        
+        
+  <h1>Source code for django.test.utils</h1><div class="highlight"><pre>
+<span class="kn">import</span> <span class="nn">sys</span>
+<span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">warnings</span>
+<span class="kn">from</span> <span class="nn">django.conf</span> <span class="kn">import</span> <span class="n">settings</span>
+<span class="kn">from</span> <span class="nn">django.core</span> <span class="kn">import</span> <span class="n">mail</span>
+<span class="kn">from</span> <span class="nn">django.core.mail.backends</span> <span class="kn">import</span> <span class="n">locmem</span>
+<span class="kn">from</span> <span class="nn">django.test</span> <span class="kn">import</span> <span class="n">signals</span>
+<span class="kn">from</span> <span class="nn">django.template</span> <span class="kn">import</span> <span class="n">Template</span><span class="p">,</span> <span class="n">loader</span><span class="p">,</span> <span class="n">TemplateDoesNotExist</span>
+<span class="kn">from</span> <span class="nn">django.template.loaders</span> <span class="kn">import</span> <span class="n">cached</span>
+<span class="kn">from</span> <span class="nn">django.utils.translation</span> <span class="kn">import</span> <span class="n">deactivate</span>
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">(</span><span class="s">&#39;Approximate&#39;</span><span class="p">,</span> <span class="s">&#39;ContextList&#39;</span><span class="p">,</span> <span class="s">&#39;setup_test_environment&#39;</span><span class="p">,</span>
+       <span class="s">&#39;teardown_test_environment&#39;</span><span class="p">,</span> <span class="s">&#39;get_runner&#39;</span><span class="p">)</span>
+
+<span class="n">RESTORE_LOADERS_ATTR</span> <span class="o">=</span> <span class="s">&#39;_original_template_source_loaders&#39;</span>
+
+
+<span class="k">class</span> <span class="nc">Approximate</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">val</span><span class="p">,</span> <span class="n">places</span><span class="o">=</span><span class="mi">7</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">val</span> <span class="o">=</span> <span class="n">val</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">places</span> <span class="o">=</span> <span class="n">places</span>
+
+    <span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="nb">repr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">val</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__eq__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">val</span> <span class="o">==</span> <span class="n">other</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">True</span>
+        <span class="k">return</span> <span class="nb">round</span><span class="p">(</span><span class="nb">abs</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">val</span><span class="o">-</span><span class="n">other</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">places</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span>
+
+
+<div class="viewcode-block" id="ContextList"><a class="viewcode-back" href="../../../django.test.html#django.test.utils.ContextList">[docs]</a><span class="k">class</span> <span class="nc">ContextList</span><span class="p">(</span><span class="nb">list</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;A wrapper that provides direct key access to context items contained</span>
+<span class="sd">    in a list of context objects.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">__getitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="nb">basestring</span><span class="p">):</span>
+            <span class="k">for</span> <span class="n">subcontext</span> <span class="ow">in</span> <span class="bp">self</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">subcontext</span><span class="p">:</span>
+                    <span class="k">return</span> <span class="n">subcontext</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
+            <span class="k">raise</span> <span class="ne">KeyError</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="nb">super</span><span class="p">(</span><span class="n">ContextList</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__getitem__</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__contains__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">):</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">value</span> <span class="o">=</span> <span class="bp">self</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
+        <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">False</span>
+        <span class="k">return</span> <span class="bp">True</span>
+
+</div>
+<span class="k">def</span> <span class="nf">instrumented_test_render</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">context</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    An instrumented Template render method, providing a signal</span>
+<span class="sd">    that can be intercepted by the test system Client</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">signals</span><span class="o">.</span><span class="n">template_rendered</span><span class="o">.</span><span class="n">send</span><span class="p">(</span><span class="n">sender</span><span class="o">=</span><span class="bp">self</span><span class="p">,</span> <span class="n">template</span><span class="o">=</span><span class="bp">self</span><span class="p">,</span> <span class="n">context</span><span class="o">=</span><span class="n">context</span><span class="p">)</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">nodelist</span><span class="o">.</span><span class="n">render</span><span class="p">(</span><span class="n">context</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="setup_test_environment"><a class="viewcode-back" href="../../../django.test.html#django.test.utils.setup_test_environment">[docs]</a><span class="k">def</span> <span class="nf">setup_test_environment</span><span class="p">():</span>
+    <span class="sd">&quot;&quot;&quot;Perform any global pre-test setup. This involves:</span>
+
+<span class="sd">        - Installing the instrumented test renderer</span>
+<span class="sd">        - Set the email backend to the locmem email backend.</span>
+<span class="sd">        - Setting the active locale to match the LANGUAGE_CODE setting.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">Template</span><span class="o">.</span><span class="n">original_render</span> <span class="o">=</span> <span class="n">Template</span><span class="o">.</span><span class="n">_render</span>
+    <span class="n">Template</span><span class="o">.</span><span class="n">_render</span> <span class="o">=</span> <span class="n">instrumented_test_render</span>
+
+    <span class="n">mail</span><span class="o">.</span><span class="n">original_SMTPConnection</span> <span class="o">=</span> <span class="n">mail</span><span class="o">.</span><span class="n">SMTPConnection</span>
+    <span class="n">mail</span><span class="o">.</span><span class="n">SMTPConnection</span> <span class="o">=</span> <span class="n">locmem</span><span class="o">.</span><span class="n">EmailBackend</span>
+
+    <span class="n">mail</span><span class="o">.</span><span class="n">original_email_backend</span> <span class="o">=</span> <span class="n">settings</span><span class="o">.</span><span class="n">EMAIL_BACKEND</span>
+    <span class="n">settings</span><span class="o">.</span><span class="n">EMAIL_BACKEND</span> <span class="o">=</span> <span class="s">&#39;django.core.mail.backends.locmem.EmailBackend&#39;</span>
+
+    <span class="n">mail</span><span class="o">.</span><span class="n">outbox</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="n">deactivate</span><span class="p">()</span>
+
+</div>
+<div class="viewcode-block" id="teardown_test_environment"><a class="viewcode-back" href="../../../django.test.html#django.test.utils.teardown_test_environment">[docs]</a><span class="k">def</span> <span class="nf">teardown_test_environment</span><span class="p">():</span>
+    <span class="sd">&quot;&quot;&quot;Perform any global post-test teardown. This involves:</span>
+
+<span class="sd">        - Restoring the original test renderer</span>
+<span class="sd">        - Restoring the email sending functions</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">Template</span><span class="o">.</span><span class="n">_render</span> <span class="o">=</span> <span class="n">Template</span><span class="o">.</span><span class="n">original_render</span>
+    <span class="k">del</span> <span class="n">Template</span><span class="o">.</span><span class="n">original_render</span>
+
+    <span class="n">mail</span><span class="o">.</span><span class="n">SMTPConnection</span> <span class="o">=</span> <span class="n">mail</span><span class="o">.</span><span class="n">original_SMTPConnection</span>
+    <span class="k">del</span> <span class="n">mail</span><span class="o">.</span><span class="n">original_SMTPConnection</span>
+
+    <span class="n">settings</span><span class="o">.</span><span class="n">EMAIL_BACKEND</span> <span class="o">=</span> <span class="n">mail</span><span class="o">.</span><span class="n">original_email_backend</span>
+    <span class="k">del</span> <span class="n">mail</span><span class="o">.</span><span class="n">original_email_backend</span>
+
+    <span class="k">del</span> <span class="n">mail</span><span class="o">.</span><span class="n">outbox</span>
+
+</div>
+<span class="k">def</span> <span class="nf">get_warnings_state</span><span class="p">():</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Returns an object containing the state of the warnings module</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c"># There is no public interface for doing this, but this implementation of</span>
+    <span class="c"># get_warnings_state and restore_warnings_state appears to work on Python</span>
+    <span class="c"># 2.4 to 2.7.</span>
+    <span class="k">return</span> <span class="n">warnings</span><span class="o">.</span><span class="n">filters</span><span class="p">[:]</span>
+
+
+<span class="k">def</span> <span class="nf">restore_warnings_state</span><span class="p">(</span><span class="n">state</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Restores the state of the warnings module when passed an object that was</span>
+<span class="sd">    returned by get_warnings_state()</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">warnings</span><span class="o">.</span><span class="n">filters</span> <span class="o">=</span> <span class="n">state</span><span class="p">[:]</span>
+
+
+<span class="k">def</span> <span class="nf">get_runner</span><span class="p">(</span><span class="n">settings</span><span class="p">):</span>
+    <span class="n">test_path</span> <span class="o">=</span> <span class="n">settings</span><span class="o">.</span><span class="n">TEST_RUNNER</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&#39;.&#39;</span><span class="p">)</span>
+    <span class="c"># Allow for Python 2.5 relative paths</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">test_path</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="n">test_module_name</span> <span class="o">=</span> <span class="s">&#39;.&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">test_path</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">test_module_name</span> <span class="o">=</span> <span class="s">&#39;.&#39;</span>
+    <span class="n">test_module</span> <span class="o">=</span> <span class="nb">__import__</span><span class="p">(</span><span class="n">test_module_name</span><span class="p">,</span> <span class="p">{},</span> <span class="p">{},</span> <span class="n">test_path</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+    <span class="n">test_runner</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">test_module</span><span class="p">,</span> <span class="n">test_path</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+    <span class="k">return</span> <span class="n">test_runner</span>
+
+
+<span class="k">def</span> <span class="nf">setup_test_template_loader</span><span class="p">(</span><span class="n">templates_dict</span><span class="p">,</span> <span class="n">use_cached_loader</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Changes Django to only find templates from within a dictionary (where each</span>
+<span class="sd">    key is the template name and each value is the corresponding template</span>
+<span class="sd">    content to return).</span>
+
+<span class="sd">    Use meth:`restore_template_loaders` to restore the original loaders.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">loader</span><span class="p">,</span> <span class="n">RESTORE_LOADERS_ATTR</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s">&quot;loader.</span><span class="si">%s</span><span class="s"> already exists&quot;</span> <span class="o">%</span> <span class="n">RESTORE_LOADERS_ATTR</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">test_template_loader</span><span class="p">(</span><span class="n">template_name</span><span class="p">,</span> <span class="n">template_dirs</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="s">&quot;A custom template loader that loads templates from a dictionary.&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">return</span> <span class="p">(</span><span class="n">templates_dict</span><span class="p">[</span><span class="n">template_name</span><span class="p">],</span> <span class="s">&quot;test:</span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">template_name</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">TemplateDoesNotExist</span><span class="p">(</span><span class="n">template_name</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">use_cached_loader</span><span class="p">:</span>
+        <span class="n">template_loader</span> <span class="o">=</span> <span class="n">cached</span><span class="o">.</span><span class="n">Loader</span><span class="p">((</span><span class="s">&#39;test_template_loader&#39;</span><span class="p">,))</span>
+        <span class="n">template_loader</span><span class="o">.</span><span class="n">_cached_loaders</span> <span class="o">=</span> <span class="p">(</span><span class="n">test_template_loader</span><span class="p">,)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">template_loader</span> <span class="o">=</span> <span class="n">test_template_loader</span>
+
+    <span class="nb">setattr</span><span class="p">(</span><span class="n">loader</span><span class="p">,</span> <span class="n">RESTORE_LOADERS_ATTR</span><span class="p">,</span> <span class="n">loader</span><span class="o">.</span><span class="n">template_source_loaders</span><span class="p">)</span>
+    <span class="n">loader</span><span class="o">.</span><span class="n">template_source_loaders</span> <span class="o">=</span> <span class="p">(</span><span class="n">template_loader</span><span class="p">,)</span>
+    <span class="k">return</span> <span class="n">template_loader</span>
+
+
+<span class="k">def</span> <span class="nf">restore_template_loaders</span><span class="p">():</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Restores the original template loaders after</span>
+<span class="sd">    :meth:`setup_test_template_loader` has been run.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">loader</span><span class="o">.</span><span class="n">template_source_loaders</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">loader</span><span class="p">,</span> <span class="n">RESTORE_LOADERS_ATTR</span><span class="p">)</span>
+    <span class="nb">delattr</span><span class="p">(</span><span class="n">loader</span><span class="p">,</span> <span class="n">RESTORE_LOADERS_ATTR</span><span class="p">)</span>
+</pre></div>
+
+      </div>
+      <div class="bottomnav">
+      
+        <p>
+        <a href="/">Home</a>:
+        <a class="uplink" href="../../../index.html">Contents</a>
+        </p>
+
+      </div>
+
+    <div class="footer">
+        &copy; Copyright 2012, HDKNR.COM.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.2pre.
+    </div>
+  </body>
+</html>

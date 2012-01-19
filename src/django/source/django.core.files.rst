@@ -7,6 +7,9 @@ django.core.files
 django.core.files
 =================
 
+.. include:: cheat/django.core.files.rst
+
+
 .. automodule:: django.core.files
     :members:
 
@@ -15,6 +18,9 @@ django.core.files
 
 django.core.files.base
 ======================
+
+.. include:: cheat/django.core.files.base.rst
+
 .. automodule:: django.core.files.base
     :members:
 
@@ -22,6 +28,9 @@ django.core.files.base
 
 django.core.files.locks
 =======================
+
+.. include:: cheat/django.core.files.locks.rst
+
 .. automodule:: django.core.files.locks
     :members:
 
@@ -29,6 +38,9 @@ django.core.files.locks
 
 django.core.files.utils
 =======================
+
+.. include:: cheat/django.core.files.utils.rst
+
 .. automodule:: django.core.files.utils
     :members:
 
@@ -36,6 +48,9 @@ django.core.files.utils
 
 django.core.files.uploadhandler
 ===============================
+
+.. include:: cheat/django.core.files.uploadhandler.rst
+
 .. automodule:: django.core.files.uploadhandler
     :members:
 
@@ -43,6 +58,9 @@ django.core.files.uploadhandler
 
 django.core.files.images
 ========================
+
+.. include:: cheat/django.core.files.images.rst
+
 .. automodule:: django.core.files.images
     :members:
 
@@ -50,6 +68,9 @@ django.core.files.images
 
 django.core.files.storage
 =========================
+
+.. include:: cheat/django.core.files.storage.rst
+
 .. automodule:: django.core.files.storage
     :members:
 
@@ -57,6 +78,9 @@ django.core.files.storage
 
 django.core.files.move
 ======================
+
+.. include:: cheat/django.core.files.move.rst
+
 .. automodule:: django.core.files.move
     :members:
 
@@ -64,6 +88,9 @@ django.core.files.move
 
 django.core.files.temp
 ======================
+
+.. include:: cheat/django.core.files.temp.rst
+
 .. automodule:: django.core.files.temp
     :members:
 
@@ -71,6 +98,9 @@ django.core.files.temp
 
 django.core.files.uploadedfile
 ==============================
+
+.. include:: cheat/django.core.files.uploadedfile.rst
+
 .. automodule:: django.core.files.uploadedfile
     :members:
 

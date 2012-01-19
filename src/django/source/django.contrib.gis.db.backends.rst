@@ -7,6 +7,9 @@ django.contrib.gis.db.backends
 django.contrib.gis.db.backends
 ==============================
 
+.. include:: cheat/django.contrib.gis.db.backends.rst
+
+
 .. automodule:: django.contrib.gis.db.backends
     :members:
 
@@ -26,6 +29,9 @@ Sub
 
 django.contrib.gis.db.backends.base
 ===================================
+
+.. include:: cheat/django.contrib.gis.db.backends.base.rst
+
 .. automodule:: django.contrib.gis.db.backends.base
     :members:
 
@@ -33,6 +39,9 @@ django.contrib.gis.db.backends.base
 
 django.contrib.gis.db.backends.util
 ===================================
+
+.. include:: cheat/django.contrib.gis.db.backends.util.rst
+
 .. automodule:: django.contrib.gis.db.backends.util
     :members:
 
@@ -40,6 +49,9 @@ django.contrib.gis.db.backends.util
 
 django.contrib.gis.db.backends.adapter
 ======================================
+
+.. include:: cheat/django.contrib.gis.db.backends.adapter.rst
+
 .. automodule:: django.contrib.gis.db.backends.adapter
     :members:
 

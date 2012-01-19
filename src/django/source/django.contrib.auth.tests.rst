@@ -7,6 +7,9 @@ django.contrib.auth.tests
 django.contrib.auth.tests
 =========================
 
+.. include:: cheat/django.contrib.auth.tests.rst
+
+
 .. automodule:: django.contrib.auth.tests
     :members:
 
@@ -15,6 +18,9 @@ django.contrib.auth.tests
 
 django.contrib.auth.tests.forms
 ===============================
+
+.. include:: cheat/django.contrib.auth.tests.forms.rst
+
 .. automodule:: django.contrib.auth.tests.forms
     :members:
 
@@ -22,6 +28,9 @@ django.contrib.auth.tests.forms
 
 django.contrib.auth.tests.remote_user
 =====================================
+
+.. include:: cheat/django.contrib.auth.tests.remote_user.rst
+
 .. automodule:: django.contrib.auth.tests.remote_user
     :members:
 
@@ -29,6 +38,9 @@ django.contrib.auth.tests.remote_user
 
 django.contrib.auth.tests.auth_backends
 =======================================
+
+.. include:: cheat/django.contrib.auth.tests.auth_backends.rst
+
 .. automodule:: django.contrib.auth.tests.auth_backends
     :members:
 
@@ -36,6 +48,9 @@ django.contrib.auth.tests.auth_backends
 
 django.contrib.auth.tests.views
 ===============================
+
+.. include:: cheat/django.contrib.auth.tests.views.rst
+
 .. automodule:: django.contrib.auth.tests.views
     :members:
 
@@ -43,6 +58,9 @@ django.contrib.auth.tests.views
 
 django.contrib.auth.tests.permissions
 =====================================
+
+.. include:: cheat/django.contrib.auth.tests.permissions.rst
+
 .. automodule:: django.contrib.auth.tests.permissions
     :members:
 
@@ -50,6 +68,9 @@ django.contrib.auth.tests.permissions
 
 django.contrib.auth.tests.signals
 =================================
+
+.. include:: cheat/django.contrib.auth.tests.signals.rst
+
 .. automodule:: django.contrib.auth.tests.signals
     :members:
 
@@ -57,6 +78,9 @@ django.contrib.auth.tests.signals
 
 django.contrib.auth.tests.tokens
 ================================
+
+.. include:: cheat/django.contrib.auth.tests.tokens.rst
+
 .. automodule:: django.contrib.auth.tests.tokens
     :members:
 
@@ -64,6 +88,9 @@ django.contrib.auth.tests.tokens
 
 django.contrib.auth.tests.urls
 ==============================
+
+.. include:: cheat/django.contrib.auth.tests.urls.rst
+
 .. automodule:: django.contrib.auth.tests.urls
     :members:
 
@@ -71,6 +98,9 @@ django.contrib.auth.tests.urls
 
 django.contrib.auth.tests.models
 ================================
+
+.. include:: cheat/django.contrib.auth.tests.models.rst
+
 .. automodule:: django.contrib.auth.tests.models
     :members:
 
@@ -78,6 +108,9 @@ django.contrib.auth.tests.models
 
 django.contrib.auth.tests.decorators
 ====================================
+
+.. include:: cheat/django.contrib.auth.tests.decorators.rst
+
 .. automodule:: django.contrib.auth.tests.decorators
     :members:
 
@@ -85,6 +118,9 @@ django.contrib.auth.tests.decorators
 
 django.contrib.auth.tests.basic
 ===============================
+
+.. include:: cheat/django.contrib.auth.tests.basic.rst
+
 .. automodule:: django.contrib.auth.tests.basic
     :members:
 

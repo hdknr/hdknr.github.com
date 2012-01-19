@@ -7,6 +7,9 @@ django.contrib.comments.templatetags
 django.contrib.comments.templatetags
 ====================================
 
+.. include:: cheat/django.contrib.comments.templatetags.rst
+
+
 .. automodule:: django.contrib.comments.templatetags
     :members:
 
@@ -15,6 +18,9 @@ django.contrib.comments.templatetags
 
 django.contrib.comments.templatetags.comments
 =============================================
+
+.. include:: cheat/django.contrib.comments.templatetags.comments.rst
+
 .. automodule:: django.contrib.comments.templatetags.comments
     :members:
 

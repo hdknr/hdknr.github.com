@@ -7,6 +7,9 @@ django.contrib.markup
 django.contrib.markup
 =====================
 
+.. include:: cheat/django.contrib.markup.rst
+
+
 .. automodule:: django.contrib.markup
     :members:
 
@@ -15,6 +18,9 @@ django.contrib.markup
 
 django.contrib.markup.models
 ============================
+
+.. include:: cheat/django.contrib.markup.models.rst
+
 .. automodule:: django.contrib.markup.models
     :members:
 
@@ -22,6 +28,9 @@ django.contrib.markup.models
 
 django.contrib.markup.tests
 ===========================
+
+.. include:: cheat/django.contrib.markup.tests.rst
+
 .. automodule:: django.contrib.markup.tests
     :members:
 

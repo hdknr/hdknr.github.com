@@ -7,6 +7,9 @@ django.conf.locale.hu
 django.conf.locale.hu
 =====================
 
+.. include:: cheat/django.conf.locale.hu.rst
+
+
 .. automodule:: django.conf.locale.hu
     :members:
 
@@ -15,6 +18,9 @@ django.conf.locale.hu
 
 django.conf.locale.hu.formats
 =============================
+
+.. include:: cheat/django.conf.locale.hu.formats.rst
+
 .. automodule:: django.conf.locale.hu.formats
     :members:
 

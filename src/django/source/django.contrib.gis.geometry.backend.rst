@@ -7,6 +7,9 @@ django.contrib.gis.geometry.backend
 django.contrib.gis.geometry.backend
 ===================================
 
+.. include:: cheat/django.contrib.gis.geometry.backend.rst
+
+
 .. automodule:: django.contrib.gis.geometry.backend
     :members:
 
@@ -15,6 +18,9 @@ django.contrib.gis.geometry.backend
 
 django.contrib.gis.geometry.backend.geos
 ========================================
+
+.. include:: cheat/django.contrib.gis.geometry.backend.geos.rst
+
 .. automodule:: django.contrib.gis.geometry.backend.geos
     :members:
 

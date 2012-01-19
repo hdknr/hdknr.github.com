@@ -1,0 +1,290 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>django.db.models.sql.subqueries &mdash; Django Cheat 1 documentation</title>
+    
+    <link rel="stylesheet" href="../../../../../static/haiku.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../../static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../../static/print.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../../../',
+        VERSION:     '1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../../../../static/jquery.js"></script>
+    <script type="text/javascript" src="../../../../../static/underscore.js"></script>
+    <script type="text/javascript" src="../../../../../static/doctools.js"></script>
+    <script type="text/javascript" src="../../../../../static/theme_extras.js"></script>
+    <link rel="top" title="Django Cheat 1 documentation" href="../../../../../index.html" />
+    <link rel="up" title="django.db.models.sql" href="../sql.html" /> 
+  </head>
+  <body>
+      <div class="header"><h1 class="heading"><a href="../../../../../index.html">
+          <span>Django Cheat 1 documentation</span></a></h1>
+        <h2 class="heading"><span>django.db.models.sql.subqueries</span></h2>
+      </div>
+      <div class="topnav">
+      
+        <p>
+        <a href="/">Home</a>:
+        <a class="uplink" href="../../../../../index.html">Contents</a>
+        </p>
+
+      </div>
+      <div class="content">
+        
+        
+  <h1>Source code for django.db.models.sql.subqueries</h1><div class="highlight"><pre>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Query subclasses which provide extra functionality beyond simple data retrieval.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span> <span class="nn">django.core.exceptions</span> <span class="kn">import</span> <span class="n">FieldError</span>
+<span class="kn">from</span> <span class="nn">django.db</span> <span class="kn">import</span> <span class="n">connections</span>
+<span class="kn">from</span> <span class="nn">django.db.models.fields</span> <span class="kn">import</span> <span class="n">DateField</span><span class="p">,</span> <span class="n">FieldDoesNotExist</span>
+<span class="kn">from</span> <span class="nn">django.db.models.sql.constants</span> <span class="kn">import</span> <span class="o">*</span>
+<span class="kn">from</span> <span class="nn">django.db.models.sql.datastructures</span> <span class="kn">import</span> <span class="n">Date</span>
+<span class="kn">from</span> <span class="nn">django.db.models.sql.expressions</span> <span class="kn">import</span> <span class="n">SQLEvaluator</span>
+<span class="kn">from</span> <span class="nn">django.db.models.sql.query</span> <span class="kn">import</span> <span class="n">Query</span>
+<span class="kn">from</span> <span class="nn">django.db.models.sql.where</span> <span class="kn">import</span> <span class="n">AND</span><span class="p">,</span> <span class="n">Constraint</span>
+
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s">&#39;DeleteQuery&#39;</span><span class="p">,</span> <span class="s">&#39;UpdateQuery&#39;</span><span class="p">,</span> <span class="s">&#39;InsertQuery&#39;</span><span class="p">,</span> <span class="s">&#39;DateQuery&#39;</span><span class="p">,</span>
+        <span class="s">&#39;AggregateQuery&#39;</span><span class="p">]</span>
+
+<div class="viewcode-block" id="DeleteQuery"><a class="viewcode-back" href="../../../../../django.db.models.sql.html#django.db.models.sql.subqueries.DeleteQuery">[docs]</a><span class="k">class</span> <span class="nc">DeleteQuery</span><span class="p">(</span><span class="n">Query</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Delete queries are done through this class, since they are more constrained</span>
+<span class="sd">    than general queries.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">compiler</span> <span class="o">=</span> <span class="s">&#39;SQLDeleteCompiler&#39;</span>
+
+    <span class="k">def</span> <span class="nf">do_query</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">table</span><span class="p">,</span> <span class="n">where</span><span class="p">,</span> <span class="n">using</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">tables</span> <span class="o">=</span> <span class="p">[</span><span class="n">table</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">where</span> <span class="o">=</span> <span class="n">where</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">get_compiler</span><span class="p">(</span><span class="n">using</span><span class="p">)</span><span class="o">.</span><span class="n">execute_sql</span><span class="p">(</span><span class="bp">None</span><span class="p">)</span>
+
+<div class="viewcode-block" id="DeleteQuery.delete_batch"><a class="viewcode-back" href="../../../../../django.db.models.sql.html#django.db.models.sql.subqueries.DeleteQuery.delete_batch">[docs]</a>    <span class="k">def</span> <span class="nf">delete_batch</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pk_list</span><span class="p">,</span> <span class="n">using</span><span class="p">,</span> <span class="n">field</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Set up and execute delete queries for all the objects in pk_list.</span>
+
+<span class="sd">        More than one physical query may be executed if there are a</span>
+<span class="sd">        lot of values in pk_list.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">field</span><span class="p">:</span>
+            <span class="n">field</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">pk</span>
+        <span class="k">for</span> <span class="n">offset</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">pk_list</span><span class="p">),</span> <span class="n">GET_ITERATOR_CHUNK_SIZE</span><span class="p">):</span>
+            <span class="n">where</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">where_class</span><span class="p">()</span>
+            <span class="n">where</span><span class="o">.</span><span class="n">add</span><span class="p">((</span><span class="n">Constraint</span><span class="p">(</span><span class="bp">None</span><span class="p">,</span> <span class="n">field</span><span class="o">.</span><span class="n">column</span><span class="p">,</span> <span class="n">field</span><span class="p">),</span> <span class="s">&#39;in&#39;</span><span class="p">,</span>
+                    <span class="n">pk_list</span><span class="p">[</span><span class="n">offset</span> <span class="p">:</span> <span class="n">offset</span> <span class="o">+</span> <span class="n">GET_ITERATOR_CHUNK_SIZE</span><span class="p">]),</span> <span class="n">AND</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">do_query</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">db_table</span><span class="p">,</span> <span class="n">where</span><span class="p">,</span> <span class="n">using</span><span class="o">=</span><span class="n">using</span><span class="p">)</span>
+</div></div>
+<div class="viewcode-block" id="UpdateQuery"><a class="viewcode-back" href="../../../../../django.db.models.sql.html#django.db.models.sql.subqueries.UpdateQuery">[docs]</a><span class="k">class</span> <span class="nc">UpdateQuery</span><span class="p">(</span><span class="n">Query</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Represents an &quot;update&quot; SQL query.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">compiler</span> <span class="o">=</span> <span class="s">&#39;SQLUpdateCompiler&#39;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">UpdateQuery</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_setup_query</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">_setup_query</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Runs on initialization and after cloning. Any attributes that would</span>
+<span class="sd">        normally be set in __init__ should go in here, instead, so that they</span>
+<span class="sd">        are also set up after a clone() call.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">values</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">related_ids</span> <span class="o">=</span> <span class="bp">None</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s">&#39;related_updates&#39;</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">related_updates</span> <span class="o">=</span> <span class="p">{}</span>
+
+    <span class="k">def</span> <span class="nf">clone</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">klass</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="k">return</span> <span class="nb">super</span><span class="p">(</span><span class="n">UpdateQuery</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">clone</span><span class="p">(</span><span class="n">klass</span><span class="p">,</span>
+                <span class="n">related_updates</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">related_updates</span><span class="o">.</span><span class="n">copy</span><span class="p">(),</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+
+    <span class="k">def</span> <span class="nf">update_batch</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pk_list</span><span class="p">,</span> <span class="n">values</span><span class="p">,</span> <span class="n">using</span><span class="p">):</span>
+        <span class="n">pk_field</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">pk</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_update_values</span><span class="p">(</span><span class="n">values</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">offset</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">pk_list</span><span class="p">),</span> <span class="n">GET_ITERATOR_CHUNK_SIZE</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">where</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">where_class</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">where</span><span class="o">.</span><span class="n">add</span><span class="p">((</span><span class="n">Constraint</span><span class="p">(</span><span class="bp">None</span><span class="p">,</span> <span class="n">pk_field</span><span class="o">.</span><span class="n">column</span><span class="p">,</span> <span class="n">pk_field</span><span class="p">),</span> <span class="s">&#39;in&#39;</span><span class="p">,</span>
+                    <span class="n">pk_list</span><span class="p">[</span><span class="n">offset</span> <span class="p">:</span> <span class="n">offset</span> <span class="o">+</span> <span class="n">GET_ITERATOR_CHUNK_SIZE</span><span class="p">]),</span>
+                    <span class="n">AND</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">get_compiler</span><span class="p">(</span><span class="n">using</span><span class="p">)</span><span class="o">.</span><span class="n">execute_sql</span><span class="p">(</span><span class="bp">None</span><span class="p">)</span>
+
+<div class="viewcode-block" id="UpdateQuery.add_update_values"><a class="viewcode-back" href="../../../../../django.db.models.sql.html#django.db.models.sql.subqueries.UpdateQuery.add_update_values">[docs]</a>    <span class="k">def</span> <span class="nf">add_update_values</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">values</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Convert a dictionary of field name to value mappings into an update</span>
+<span class="sd">        query. This is the entry point for the public update() method on</span>
+<span class="sd">        querysets.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">values_seq</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">val</span> <span class="ow">in</span> <span class="n">values</span><span class="o">.</span><span class="n">iteritems</span><span class="p">():</span>
+            <span class="n">field</span><span class="p">,</span> <span class="n">model</span><span class="p">,</span> <span class="n">direct</span><span class="p">,</span> <span class="n">m2m</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">get_field_by_name</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">direct</span> <span class="ow">or</span> <span class="n">m2m</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">FieldError</span><span class="p">(</span><span class="s">&#39;Cannot update model field </span><span class="si">%r</span><span class="s"> (only non-relations and foreign keys permitted).&#39;</span> <span class="o">%</span> <span class="n">field</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">model</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">add_related_update</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">field</span><span class="p">,</span> <span class="n">val</span><span class="p">)</span>
+                <span class="k">continue</span>
+            <span class="n">values_seq</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">field</span><span class="p">,</span> <span class="n">model</span><span class="p">,</span> <span class="n">val</span><span class="p">))</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">add_update_fields</span><span class="p">(</span><span class="n">values_seq</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="UpdateQuery.add_update_fields"><a class="viewcode-back" href="../../../../../django.db.models.sql.html#django.db.models.sql.subqueries.UpdateQuery.add_update_fields">[docs]</a>    <span class="k">def</span> <span class="nf">add_update_fields</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">values_seq</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Turn a sequence of (field, model, value) triples into an update query.</span>
+<span class="sd">        Used by add_update_values() as well as the &quot;fast&quot; update path when</span>
+<span class="sd">        saving models.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">values</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">values_seq</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="UpdateQuery.add_related_update"><a class="viewcode-back" href="../../../../../django.db.models.sql.html#django.db.models.sql.subqueries.UpdateQuery.add_related_update">[docs]</a>    <span class="k">def</span> <span class="nf">add_related_update</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">model</span><span class="p">,</span> <span class="n">field</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Adds (name, value) to an update query for an ancestor model.</span>
+
+<span class="sd">        Updates are coalesced so that we only run one update query per ancestor.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">related_updates</span><span class="p">[</span><span class="n">model</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">field</span><span class="p">,</span> <span class="bp">None</span><span class="p">,</span> <span class="n">value</span><span class="p">))</span>
+        <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">related_updates</span><span class="p">[</span><span class="n">model</span><span class="p">]</span> <span class="o">=</span> <span class="p">[(</span><span class="n">field</span><span class="p">,</span> <span class="bp">None</span><span class="p">,</span> <span class="n">value</span><span class="p">)]</span>
+</div>
+<div class="viewcode-block" id="UpdateQuery.get_related_updates"><a class="viewcode-back" href="../../../../../django.db.models.sql.html#django.db.models.sql.subqueries.UpdateQuery.get_related_updates">[docs]</a>    <span class="k">def</span> <span class="nf">get_related_updates</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns a list of query objects: one for each update required to an</span>
+<span class="sd">        ancestor model. Each query will have the same filtering conditions as</span>
+<span class="sd">        the current query but will only update a single table.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">related_updates</span><span class="p">:</span>
+            <span class="k">return</span> <span class="p">[]</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">model</span><span class="p">,</span> <span class="n">values</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">related_updates</span><span class="o">.</span><span class="n">iteritems</span><span class="p">():</span>
+            <span class="n">query</span> <span class="o">=</span> <span class="n">UpdateQuery</span><span class="p">(</span><span class="n">model</span><span class="p">)</span>
+            <span class="n">query</span><span class="o">.</span><span class="n">values</span> <span class="o">=</span> <span class="n">values</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">related_ids</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+                <span class="n">query</span><span class="o">.</span><span class="n">add_filter</span><span class="p">((</span><span class="s">&#39;pk__in&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">related_ids</span><span class="p">))</span>
+            <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">query</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">result</span>
+</div></div>
+<span class="k">class</span> <span class="nc">InsertQuery</span><span class="p">(</span><span class="n">Query</span><span class="p">):</span>
+    <span class="n">compiler</span> <span class="o">=</span> <span class="s">&#39;SQLInsertCompiler&#39;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">InsertQuery</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">columns</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">values</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">params</span> <span class="o">=</span> <span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">clone</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">klass</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="n">extras</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s">&#39;columns&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">columns</span><span class="p">[:],</span>
+            <span class="s">&#39;values&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">values</span><span class="p">[:],</span>
+            <span class="s">&#39;params&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span>
+        <span class="p">}</span>
+        <span class="n">extras</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="k">return</span> <span class="nb">super</span><span class="p">(</span><span class="n">InsertQuery</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">clone</span><span class="p">(</span><span class="n">klass</span><span class="p">,</span> <span class="o">**</span><span class="n">extras</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">insert_values</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">insert_values</span><span class="p">,</span> <span class="n">raw_values</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Set up the insert query from the &#39;insert_values&#39; dictionary. The</span>
+<span class="sd">        dictionary gives the model field names and their target values.</span>
+
+<span class="sd">        If &#39;raw_values&#39; is True, the values in the &#39;insert_values&#39; dictionary</span>
+<span class="sd">        are inserted directly into the query, rather than passed as SQL</span>
+<span class="sd">        parameters. This provides a way to insert NULL and DEFAULT keywords</span>
+<span class="sd">        into the query, for example.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">placeholders</span><span class="p">,</span> <span class="n">values</span> <span class="o">=</span> <span class="p">[],</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">field</span><span class="p">,</span> <span class="n">val</span> <span class="ow">in</span> <span class="n">insert_values</span><span class="p">:</span>
+            <span class="n">placeholders</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">field</span><span class="p">,</span> <span class="n">val</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">columns</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">field</span><span class="o">.</span><span class="n">column</span><span class="p">)</span>
+            <span class="n">values</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">val</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">raw_values</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">values</span><span class="o">.</span><span class="n">extend</span><span class="p">([(</span><span class="bp">None</span><span class="p">,</span> <span class="n">v</span><span class="p">)</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">values</span><span class="p">])</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">params</span> <span class="o">+=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">values</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">values</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">placeholders</span><span class="p">)</span>
+
+<div class="viewcode-block" id="DateQuery"><a class="viewcode-back" href="../../../../../django.db.models.sql.html#django.db.models.sql.subqueries.DateQuery">[docs]</a><span class="k">class</span> <span class="nc">DateQuery</span><span class="p">(</span><span class="n">Query</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    A DateQuery is a normal query, except that it specifically selects a single</span>
+<span class="sd">    date field. This requires some special handling when converting the results</span>
+<span class="sd">    back to Python objects, so we put it in a separate class.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">compiler</span> <span class="o">=</span> <span class="s">&#39;SQLDateCompiler&#39;</span>
+
+<div class="viewcode-block" id="DateQuery.add_date_select"><a class="viewcode-back" href="../../../../../django.db.models.sql.html#django.db.models.sql.subqueries.DateQuery.add_date_select">[docs]</a>    <span class="k">def</span> <span class="nf">add_date_select</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">field_name</span><span class="p">,</span> <span class="n">lookup_type</span><span class="p">,</span> <span class="n">order</span><span class="o">=</span><span class="s">&#39;ASC&#39;</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Converts the query into a date extraction query.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">result</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">setup_joins</span><span class="p">(</span>
+                <span class="n">field_name</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">LOOKUP_SEP</span><span class="p">),</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">get_meta</span><span class="p">(),</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">get_initial_alias</span><span class="p">(),</span>
+                <span class="bp">False</span>
+            <span class="p">)</span>
+        <span class="k">except</span> <span class="n">FieldError</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">FieldDoesNotExist</span><span class="p">(</span><span class="s">&quot;</span><span class="si">%s</span><span class="s"> has no field named &#39;</span><span class="si">%s</span><span class="s">&#39;&quot;</span> <span class="o">%</span> <span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">object_name</span><span class="p">,</span> <span class="n">field_name</span>
+            <span class="p">))</span>
+        <span class="n">field</span> <span class="o">=</span> <span class="n">result</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">field</span><span class="p">,</span> <span class="n">DateField</span><span class="p">),</span> <span class="s">&quot;</span><span class="si">%r</span><span class="s"> isn&#39;t a DateField.&quot;</span> \
+                <span class="o">%</span> <span class="n">field</span><span class="o">.</span><span class="n">name</span>
+        <span class="n">alias</span> <span class="o">=</span> <span class="n">result</span><span class="p">[</span><span class="mi">3</span><span class="p">][</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+        <span class="n">select</span> <span class="o">=</span> <span class="n">Date</span><span class="p">((</span><span class="n">alias</span><span class="p">,</span> <span class="n">field</span><span class="o">.</span><span class="n">column</span><span class="p">),</span> <span class="n">lookup_type</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">select</span> <span class="o">=</span> <span class="p">[</span><span class="n">select</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">select_fields</span> <span class="o">=</span> <span class="p">[</span><span class="bp">None</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">select_related</span> <span class="o">=</span> <span class="bp">False</span> <span class="c"># See #7097.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">set_extra_mask</span><span class="p">([])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">distinct</span> <span class="o">=</span> <span class="bp">True</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">order_by</span> <span class="o">=</span> <span class="n">order</span> <span class="o">==</span> <span class="s">&#39;ASC&#39;</span> <span class="ow">and</span> <span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="ow">or</span> <span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="n">field</span><span class="o">.</span><span class="n">null</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">add_filter</span><span class="p">((</span><span class="s">&quot;</span><span class="si">%s</span><span class="s">__isnull&quot;</span> <span class="o">%</span> <span class="n">field_name</span><span class="p">,</span> <span class="bp">False</span><span class="p">))</span>
+</div></div>
+<div class="viewcode-block" id="AggregateQuery"><a class="viewcode-back" href="../../../../../django.db.models.sql.html#django.db.models.sql.subqueries.AggregateQuery">[docs]</a><span class="k">class</span> <span class="nc">AggregateQuery</span><span class="p">(</span><span class="n">Query</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    An AggregateQuery takes another query as a parameter to the FROM</span>
+<span class="sd">    clause and only selects the elements in the provided list.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">compiler</span> <span class="o">=</span> <span class="s">&#39;SQLAggregateCompiler&#39;</span>
+
+    <span class="k">def</span> <span class="nf">add_subquery</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">query</span><span class="p">,</span> <span class="n">using</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">subquery</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">sub_params</span> <span class="o">=</span> <span class="n">query</span><span class="o">.</span><span class="n">get_compiler</span><span class="p">(</span><span class="n">using</span><span class="p">)</span><span class="o">.</span><span class="n">as_sql</span><span class="p">(</span><span class="n">with_col_aliases</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span></div>
+</pre></div>
+
+      </div>
+      <div class="bottomnav">
+      
+        <p>
+        <a href="/">Home</a>:
+        <a class="uplink" href="../../../../../index.html">Contents</a>
+        </p>
+
+      </div>
+
+    <div class="footer">
+        &copy; Copyright 2012, HDKNR.COM.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.2pre.
+    </div>
+  </body>
+</html>

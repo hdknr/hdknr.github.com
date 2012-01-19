@@ -7,6 +7,9 @@ django.db.models
 django.db.models
 ================
 
+.. include:: cheat/django.db.models.rst
+
+
 .. automodule:: django.db.models
     :members:
 
@@ -22,6 +25,9 @@ Sub
 
 django.db.models.query_utils
 ============================
+
+.. include:: cheat/django.db.models.query_utils.rst
+
 .. automodule:: django.db.models.query_utils
     :members:
 
@@ -29,6 +35,9 @@ django.db.models.query_utils
 
 django.db.models.base
 =====================
+
+.. include:: cheat/django.db.models.base.rst
+
 .. automodule:: django.db.models.base
     :members:
 
@@ -36,6 +45,9 @@ django.db.models.base
 
 django.db.models.aggregates
 ===========================
+
+.. include:: cheat/django.db.models.aggregates.rst
+
 .. automodule:: django.db.models.aggregates
     :members:
 
@@ -43,6 +55,9 @@ django.db.models.aggregates
 
 django.db.models.query
 ======================
+
+.. include:: cheat/django.db.models.query.rst
+
 .. automodule:: django.db.models.query
     :members:
 
@@ -50,6 +65,9 @@ django.db.models.query
 
 django.db.models.expressions
 ============================
+
+.. include:: cheat/django.db.models.expressions.rst
+
 .. automodule:: django.db.models.expressions
     :members:
 
@@ -57,6 +75,9 @@ django.db.models.expressions
 
 django.db.models.deletion
 =========================
+
+.. include:: cheat/django.db.models.deletion.rst
+
 .. automodule:: django.db.models.deletion
     :members:
 
@@ -64,6 +85,9 @@ django.db.models.deletion
 
 django.db.models.loading
 ========================
+
+.. include:: cheat/django.db.models.loading.rst
+
 .. automodule:: django.db.models.loading
     :members:
 
@@ -71,6 +95,9 @@ django.db.models.loading
 
 django.db.models.signals
 ========================
+
+.. include:: cheat/django.db.models.signals.rst
+
 .. automodule:: django.db.models.signals
     :members:
 
@@ -78,6 +105,9 @@ django.db.models.signals
 
 django.db.models.manager
 ========================
+
+.. include:: cheat/django.db.models.manager.rst
+
 .. automodule:: django.db.models.manager
     :members:
 
@@ -85,6 +115,9 @@ django.db.models.manager
 
 django.db.models.options
 ========================
+
+.. include:: cheat/django.db.models.options.rst
+
 .. automodule:: django.db.models.options
     :members:
 
@@ -92,6 +125,9 @@ django.db.models.options
 
 django.db.models.related
 ========================
+
+.. include:: cheat/django.db.models.related.rst
+
 .. automodule:: django.db.models.related
     :members:
 

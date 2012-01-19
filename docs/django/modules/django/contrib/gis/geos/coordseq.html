@@ -1,0 +1,223 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>django.contrib.gis.geos.coordseq &mdash; Django Cheat 1 documentation</title>
+    
+    <link rel="stylesheet" href="../../../../../static/haiku.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../../static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../../static/print.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../../../',
+        VERSION:     '1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../../../../static/jquery.js"></script>
+    <script type="text/javascript" src="../../../../../static/underscore.js"></script>
+    <script type="text/javascript" src="../../../../../static/doctools.js"></script>
+    <script type="text/javascript" src="../../../../../static/theme_extras.js"></script>
+    <link rel="top" title="Django Cheat 1 documentation" href="../../../../../index.html" />
+    <link rel="up" title="Module code" href="../../../../index.html" /> 
+  </head>
+  <body>
+      <div class="header"><h1 class="heading"><a href="../../../../../index.html">
+          <span>Django Cheat 1 documentation</span></a></h1>
+        <h2 class="heading"><span>django.contrib.gis.geos.coordseq</span></h2>
+      </div>
+      <div class="topnav">
+      
+        <p>
+        <a href="/">Home</a>:
+        <a class="uplink" href="../../../../../index.html">Contents</a>
+        </p>
+
+      </div>
+      <div class="content">
+        
+        
+  <h1>Source code for django.contrib.gis.geos.coordseq</h1><div class="highlight"><pre>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd"> This module houses the GEOSCoordSeq object, which is used internally</span>
+<span class="sd"> by GEOSGeometry to house the actual coordinates of the Point,</span>
+<span class="sd"> LineString, and LinearRing geometries.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">from</span> <span class="nn">ctypes</span> <span class="kn">import</span> <span class="n">c_double</span><span class="p">,</span> <span class="n">c_uint</span><span class="p">,</span> <span class="n">byref</span>
+<span class="kn">from</span> <span class="nn">django.contrib.gis.geos.base</span> <span class="kn">import</span> <span class="n">GEOSBase</span><span class="p">,</span> <span class="n">numpy</span>
+<span class="kn">from</span> <span class="nn">django.contrib.gis.geos.error</span> <span class="kn">import</span> <span class="n">GEOSException</span><span class="p">,</span> <span class="n">GEOSIndexError</span>
+<span class="kn">from</span> <span class="nn">django.contrib.gis.geos.libgeos</span> <span class="kn">import</span> <span class="n">CS_PTR</span>
+<span class="kn">from</span> <span class="nn">django.contrib.gis.geos</span> <span class="kn">import</span> <span class="n">prototypes</span> <span class="k">as</span> <span class="n">capi</span>
+
+<div class="viewcode-block" id="GEOSCoordSeq"><a class="viewcode-back" href="../../../../../django.contrib.gis.geos.html#django.contrib.gis.geos.coordseq.GEOSCoordSeq">[docs]</a><span class="k">class</span> <span class="nc">GEOSCoordSeq</span><span class="p">(</span><span class="n">GEOSBase</span><span class="p">):</span>
+    <span class="s">&quot;The internal representation of a list of coordinates inside a Geometry.&quot;</span>
+
+    <span class="n">ptr_type</span> <span class="o">=</span> <span class="n">CS_PTR</span>
+
+    <span class="c">#### Python &#39;magic&#39; routines ####</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ptr</span><span class="p">,</span> <span class="n">z</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+        <span class="s">&quot;Initializes from a GEOS pointer.&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">ptr</span><span class="p">,</span> <span class="n">CS_PTR</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s">&#39;Coordinate sequence should initialize with a CS_PTR.&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_ptr</span> <span class="o">=</span> <span class="n">ptr</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_z</span> <span class="o">=</span> <span class="n">z</span>
+
+    <span class="k">def</span> <span class="nf">__iter__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="s">&quot;Iterates over each point in the coordinate sequence.&quot;</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">xrange</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">size</span><span class="p">):</span>
+            <span class="k">yield</span> <span class="bp">self</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+
+    <span class="k">def</span> <span class="nf">__len__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="s">&quot;Returns the number of points in the coordinate sequence.&quot;</span>
+        <span class="k">return</span> <span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">size</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="s">&quot;Returns the string representation of the coordinate sequence.&quot;</span>
+        <span class="k">return</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tuple</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__getitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">index</span><span class="p">):</span>
+        <span class="s">&quot;Returns the coordinate sequence value at the given index.&quot;</span>
+        <span class="n">coords</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">getX</span><span class="p">(</span><span class="n">index</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">getY</span><span class="p">(</span><span class="n">index</span><span class="p">)]</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">dims</span> <span class="o">==</span> <span class="mi">3</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_z</span><span class="p">:</span>
+            <span class="n">coords</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">getZ</span><span class="p">(</span><span class="n">index</span><span class="p">))</span>
+        <span class="k">return</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">coords</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__setitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">index</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="s">&quot;Sets the coordinate sequence value at the given index.&quot;</span>
+        <span class="c"># Checking the input value</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="p">(</span><span class="nb">list</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">)):</span>
+            <span class="k">pass</span>
+        <span class="k">elif</span> <span class="n">numpy</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">numpy</span><span class="o">.</span><span class="n">ndarray</span><span class="p">):</span>
+            <span class="k">pass</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s">&#39;Must set coordinate with a sequence (list, tuple, or numpy array).&#39;</span><span class="p">)</span>
+        <span class="c"># Checking the dims of the input</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">dims</span> <span class="o">==</span> <span class="mi">3</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_z</span><span class="p">:</span>
+            <span class="n">n_args</span> <span class="o">=</span> <span class="mi">3</span>
+            <span class="n">set_3d</span> <span class="o">=</span> <span class="bp">True</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">n_args</span> <span class="o">=</span> <span class="mi">2</span>
+            <span class="n">set_3d</span> <span class="o">=</span> <span class="bp">False</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">value</span><span class="p">)</span> <span class="o">!=</span> <span class="n">n_args</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s">&#39;Dimension of value does not match.&#39;</span><span class="p">)</span>
+        <span class="c"># Setting the X, Y, Z</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">setX</span><span class="p">(</span><span class="n">index</span><span class="p">,</span> <span class="n">value</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">setY</span><span class="p">(</span><span class="n">index</span><span class="p">,</span> <span class="n">value</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+        <span class="k">if</span> <span class="n">set_3d</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">setZ</span><span class="p">(</span><span class="n">index</span><span class="p">,</span> <span class="n">value</span><span class="p">[</span><span class="mi">2</span><span class="p">])</span>
+
+    <span class="c">#### Internal Routines ####</span>
+    <span class="k">def</span> <span class="nf">_checkindex</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">index</span><span class="p">):</span>
+        <span class="s">&quot;Checks the given index.&quot;</span>
+        <span class="n">sz</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">size</span>
+        <span class="k">if</span> <span class="p">(</span><span class="n">sz</span> <span class="o">&lt;</span> <span class="mi">1</span><span class="p">)</span> <span class="ow">or</span> <span class="p">(</span><span class="n">index</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">)</span> <span class="ow">or</span> <span class="p">(</span><span class="n">index</span> <span class="o">&gt;=</span> <span class="n">sz</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="n">GEOSIndexError</span><span class="p">(</span><span class="s">&#39;invalid GEOS Geometry index: </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="nb">str</span><span class="p">(</span><span class="n">index</span><span class="p">))</span>
+
+    <span class="k">def</span> <span class="nf">_checkdim</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dim</span><span class="p">):</span>
+        <span class="s">&quot;Checks the given dimension.&quot;</span>
+        <span class="k">if</span> <span class="n">dim</span> <span class="o">&lt;</span> <span class="mi">0</span> <span class="ow">or</span> <span class="n">dim</span> <span class="o">&gt;</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">GEOSException</span><span class="p">(</span><span class="s">&#39;invalid ordinate dimension &quot;</span><span class="si">%d</span><span class="s">&quot;&#39;</span> <span class="o">%</span> <span class="n">dim</span><span class="p">)</span>
+
+    <span class="c">#### Ordinate getting and setting routines ####</span>
+<div class="viewcode-block" id="GEOSCoordSeq.getOrdinate"><a class="viewcode-back" href="../../../../../django.contrib.gis.geos.html#django.contrib.gis.geos.coordseq.GEOSCoordSeq.getOrdinate">[docs]</a>    <span class="k">def</span> <span class="nf">getOrdinate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dimension</span><span class="p">,</span> <span class="n">index</span><span class="p">):</span>
+        <span class="s">&quot;Returns the value for the given dimension and index.&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_checkindex</span><span class="p">(</span><span class="n">index</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_checkdim</span><span class="p">(</span><span class="n">dimension</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">capi</span><span class="o">.</span><span class="n">cs_getordinate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ptr</span><span class="p">,</span> <span class="n">index</span><span class="p">,</span> <span class="n">dimension</span><span class="p">,</span> <span class="n">byref</span><span class="p">(</span><span class="n">c_double</span><span class="p">()))</span>
+</div>
+<div class="viewcode-block" id="GEOSCoordSeq.setOrdinate"><a class="viewcode-back" href="../../../../../django.contrib.gis.geos.html#django.contrib.gis.geos.coordseq.GEOSCoordSeq.setOrdinate">[docs]</a>    <span class="k">def</span> <span class="nf">setOrdinate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dimension</span><span class="p">,</span> <span class="n">index</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="s">&quot;Sets the value for the given dimension and index.&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_checkindex</span><span class="p">(</span><span class="n">index</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_checkdim</span><span class="p">(</span><span class="n">dimension</span><span class="p">)</span>
+        <span class="n">capi</span><span class="o">.</span><span class="n">cs_setordinate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ptr</span><span class="p">,</span> <span class="n">index</span><span class="p">,</span> <span class="n">dimension</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="GEOSCoordSeq.getX"><a class="viewcode-back" href="../../../../../django.contrib.gis.geos.html#django.contrib.gis.geos.coordseq.GEOSCoordSeq.getX">[docs]</a>    <span class="k">def</span> <span class="nf">getX</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">index</span><span class="p">):</span>
+        <span class="s">&quot;Get the X value at the index.&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">getOrdinate</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">index</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="GEOSCoordSeq.setX"><a class="viewcode-back" href="../../../../../django.contrib.gis.geos.html#django.contrib.gis.geos.coordseq.GEOSCoordSeq.setX">[docs]</a>    <span class="k">def</span> <span class="nf">setX</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">index</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="s">&quot;Set X with the value at the given index.&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">setOrdinate</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">index</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="GEOSCoordSeq.getY"><a class="viewcode-back" href="../../../../../django.contrib.gis.geos.html#django.contrib.gis.geos.coordseq.GEOSCoordSeq.getY">[docs]</a>    <span class="k">def</span> <span class="nf">getY</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">index</span><span class="p">):</span>
+        <span class="s">&quot;Get the Y value at the given index.&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">getOrdinate</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">index</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="GEOSCoordSeq.setY"><a class="viewcode-back" href="../../../../../django.contrib.gis.geos.html#django.contrib.gis.geos.coordseq.GEOSCoordSeq.setY">[docs]</a>    <span class="k">def</span> <span class="nf">setY</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">index</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="s">&quot;Set Y with the value at the given index.&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">setOrdinate</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">index</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="GEOSCoordSeq.getZ"><a class="viewcode-back" href="../../../../../django.contrib.gis.geos.html#django.contrib.gis.geos.coordseq.GEOSCoordSeq.getZ">[docs]</a>    <span class="k">def</span> <span class="nf">getZ</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">index</span><span class="p">):</span>
+        <span class="s">&quot;Get Z with the value at the given index.&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">getOrdinate</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="n">index</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="GEOSCoordSeq.setZ"><a class="viewcode-back" href="../../../../../django.contrib.gis.geos.html#django.contrib.gis.geos.coordseq.GEOSCoordSeq.setZ">[docs]</a>    <span class="k">def</span> <span class="nf">setZ</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">index</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="s">&quot;Set Z with the value at the given index.&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">setOrdinate</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="n">index</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
+
+    <span class="c">### Dimensions ###</span></div>
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="GEOSCoordSeq.size"><a class="viewcode-back" href="../../../../../django.contrib.gis.geos.html#django.contrib.gis.geos.coordseq.GEOSCoordSeq.size">[docs]</a>    <span class="k">def</span> <span class="nf">size</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="s">&quot;Returns the size of this coordinate sequence.&quot;</span>
+        <span class="k">return</span> <span class="n">capi</span><span class="o">.</span><span class="n">cs_getsize</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ptr</span><span class="p">,</span> <span class="n">byref</span><span class="p">(</span><span class="n">c_uint</span><span class="p">()))</span>
+</div>
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="GEOSCoordSeq.dims"><a class="viewcode-back" href="../../../../../django.contrib.gis.geos.html#django.contrib.gis.geos.coordseq.GEOSCoordSeq.dims">[docs]</a>    <span class="k">def</span> <span class="nf">dims</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="s">&quot;Returns the dimensions of this coordinate sequence.&quot;</span>
+        <span class="k">return</span> <span class="n">capi</span><span class="o">.</span><span class="n">cs_getdims</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ptr</span><span class="p">,</span> <span class="n">byref</span><span class="p">(</span><span class="n">c_uint</span><span class="p">()))</span>
+</div>
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="GEOSCoordSeq.hasz"><a class="viewcode-back" href="../../../../../django.contrib.gis.geos.html#django.contrib.gis.geos.coordseq.GEOSCoordSeq.hasz">[docs]</a>    <span class="k">def</span> <span class="nf">hasz</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns whether this coordinate sequence is 3D.  This property value is</span>
+<span class="sd">        inherited from the parent Geometry.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_z</span>
+
+    <span class="c">### Other Methods ###</span></div>
+<div class="viewcode-block" id="GEOSCoordSeq.clone"><a class="viewcode-back" href="../../../../../django.contrib.gis.geos.html#django.contrib.gis.geos.coordseq.GEOSCoordSeq.clone">[docs]</a>    <span class="k">def</span> <span class="nf">clone</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="s">&quot;Clones this coordinate sequence.&quot;</span>
+        <span class="k">return</span> <span class="n">GEOSCoordSeq</span><span class="p">(</span><span class="n">capi</span><span class="o">.</span><span class="n">cs_clone</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ptr</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">hasz</span><span class="p">)</span>
+</div>
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="GEOSCoordSeq.kml"><a class="viewcode-back" href="../../../../../django.contrib.gis.geos.html#django.contrib.gis.geos.coordseq.GEOSCoordSeq.kml">[docs]</a>    <span class="k">def</span> <span class="nf">kml</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="s">&quot;Returns the KML representation for the coordinates.&quot;</span>
+        <span class="c"># Getting the substitution string depending on whether the coordinates have</span>
+        <span class="c">#  a Z dimension.</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">hasz</span><span class="p">:</span> <span class="n">substr</span> <span class="o">=</span> <span class="s">&#39;</span><span class="si">%s</span><span class="s">,</span><span class="si">%s</span><span class="s">,</span><span class="si">%s</span><span class="s"> &#39;</span>
+        <span class="k">else</span><span class="p">:</span> <span class="n">substr</span> <span class="o">=</span> <span class="s">&#39;</span><span class="si">%s</span><span class="s">,</span><span class="si">%s</span><span class="s">,0 &#39;</span>
+        <span class="k">return</span> <span class="s">&#39;&lt;coordinates&gt;</span><span class="si">%s</span><span class="s">&lt;/coordinates&gt;&#39;</span> <span class="o">%</span> \
+            <span class="s">&#39;&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="n">substr</span> <span class="o">%</span> <span class="bp">self</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">xrange</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="p">))])</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+</div>
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="GEOSCoordSeq.tuple"><a class="viewcode-back" href="../../../../../django.contrib.gis.geos.html#django.contrib.gis.geos.coordseq.GEOSCoordSeq.tuple">[docs]</a>    <span class="k">def</span> <span class="nf">tuple</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="s">&quot;Returns a tuple version of this coordinate sequence.&quot;</span>
+        <span class="n">n</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">size</span>
+        <span class="k">if</span> <span class="n">n</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span> <span class="k">return</span> <span class="bp">self</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span> <span class="k">return</span> <span class="nb">tuple</span><span class="p">([</span><span class="bp">self</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">xrange</span><span class="p">(</span><span class="n">n</span><span class="p">)])</span></div></div>
+</pre></div>
+
+      </div>
+      <div class="bottomnav">
+      
+        <p>
+        <a href="/">Home</a>:
+        <a class="uplink" href="../../../../../index.html">Contents</a>
+        </p>
+
+      </div>
+
+    <div class="footer">
+        &copy; Copyright 2012, HDKNR.COM.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.2pre.
+    </div>
+  </body>
+</html>

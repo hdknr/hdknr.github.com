@@ -7,6 +7,9 @@ django.contrib.localflavor.sk
 django.contrib.localflavor.sk
 =============================
 
+.. include:: cheat/django.contrib.localflavor.sk.rst
+
+
 .. automodule:: django.contrib.localflavor.sk
     :members:
 
@@ -15,6 +18,9 @@ django.contrib.localflavor.sk
 
 django.contrib.localflavor.sk.sk_districts
 ==========================================
+
+.. include:: cheat/django.contrib.localflavor.sk.sk_districts.rst
+
 .. automodule:: django.contrib.localflavor.sk.sk_districts
     :members:
 
@@ -22,6 +28,9 @@ django.contrib.localflavor.sk.sk_districts
 
 django.contrib.localflavor.sk.forms
 ===================================
+
+.. include:: cheat/django.contrib.localflavor.sk.forms.rst
+
 .. automodule:: django.contrib.localflavor.sk.forms
     :members:
 
@@ -29,6 +38,9 @@ django.contrib.localflavor.sk.forms
 
 django.contrib.localflavor.sk.sk_regions
 ========================================
+
+.. include:: cheat/django.contrib.localflavor.sk.sk_regions.rst
+
 .. automodule:: django.contrib.localflavor.sk.sk_regions
     :members:
 

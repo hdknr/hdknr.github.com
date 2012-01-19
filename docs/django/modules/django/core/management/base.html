@@ -1,0 +1,498 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>django.core.management.base &mdash; Django Cheat 1 documentation</title>
+    
+    <link rel="stylesheet" href="../../../../static/haiku.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../static/print.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../../',
+        VERSION:     '1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../../../static/jquery.js"></script>
+    <script type="text/javascript" src="../../../../static/underscore.js"></script>
+    <script type="text/javascript" src="../../../../static/doctools.js"></script>
+    <script type="text/javascript" src="../../../../static/theme_extras.js"></script>
+    <link rel="top" title="Django Cheat 1 documentation" href="../../../../index.html" />
+    <link rel="up" title="django.core.management" href="../management.html" /> 
+  </head>
+  <body>
+      <div class="header"><h1 class="heading"><a href="../../../../index.html">
+          <span>Django Cheat 1 documentation</span></a></h1>
+        <h2 class="heading"><span>django.core.management.base</span></h2>
+      </div>
+      <div class="topnav">
+      
+        <p>
+        <a href="/">Home</a>:
+        <a class="uplink" href="../../../../index.html">Contents</a>
+        </p>
+
+      </div>
+      <div class="content">
+        
+        
+  <h1>Source code for django.core.management.base</h1><div class="highlight"><pre>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Base classes for writing management commands (named commands which can</span>
+<span class="sd">be executed through ``django-admin.py`` or ``manage.py``).</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">sys</span>
+<span class="kn">from</span> <span class="nn">optparse</span> <span class="kn">import</span> <span class="n">make_option</span><span class="p">,</span> <span class="n">OptionParser</span>
+
+<span class="kn">import</span> <span class="nn">django</span>
+<span class="kn">from</span> <span class="nn">django.core.exceptions</span> <span class="kn">import</span> <span class="n">ImproperlyConfigured</span>
+<span class="kn">from</span> <span class="nn">django.core.management.color</span> <span class="kn">import</span> <span class="n">color_style</span>
+<span class="kn">from</span> <span class="nn">django.utils.encoding</span> <span class="kn">import</span> <span class="n">smart_str</span>
+
+<div class="viewcode-block" id="CommandError"><a class="viewcode-back" href="../../../../django.core.management.html#django.core.management.base.CommandError">[docs]</a><span class="k">class</span> <span class="nc">CommandError</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Exception class indicating a problem while executing a management</span>
+<span class="sd">    command.</span>
+
+<span class="sd">    If this exception is raised during the execution of a management</span>
+<span class="sd">    command, it will be caught and turned into a nicely-printed error</span>
+<span class="sd">    message to the appropriate output stream (i.e., stderr); as a</span>
+<span class="sd">    result, raising this exception (with a sensible description of the</span>
+<span class="sd">    error) is the preferred way to indicate that something has gone</span>
+<span class="sd">    wrong in the execution of a command.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">pass</span>
+</div>
+<div class="viewcode-block" id="handle_default_options"><a class="viewcode-back" href="../../../../django.core.management.html#django.core.management.base.handle_default_options">[docs]</a><span class="k">def</span> <span class="nf">handle_default_options</span><span class="p">(</span><span class="n">options</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Include any default options that all commands should accept here</span>
+<span class="sd">    so that ManagementUtility can handle them before searching for</span>
+<span class="sd">    user commands.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">options</span><span class="o">.</span><span class="n">settings</span><span class="p">:</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s">&#39;DJANGO_SETTINGS_MODULE&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">options</span><span class="o">.</span><span class="n">settings</span>
+    <span class="k">if</span> <span class="n">options</span><span class="o">.</span><span class="n">pythonpath</span><span class="p">:</span>
+        <span class="n">sys</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">insert</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">options</span><span class="o">.</span><span class="n">pythonpath</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="BaseCommand"><a class="viewcode-back" href="../../../../django.core.management.html#django.core.management.base.BaseCommand">[docs]</a><span class="k">class</span> <span class="nc">BaseCommand</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    The base class from which all management commands ultimately</span>
+<span class="sd">    derive.</span>
+
+<span class="sd">    Use this class if you want access to all of the mechanisms which</span>
+<span class="sd">    parse the command-line arguments and work out what code to call in</span>
+<span class="sd">    response; if you don&#39;t need to change any of that behavior,</span>
+<span class="sd">    consider using one of the subclasses defined in this file.</span>
+
+<span class="sd">    If you are interested in overriding/customizing various aspects of</span>
+<span class="sd">    the command-parsing and -execution behavior, the normal flow works</span>
+<span class="sd">    as follows:</span>
+
+<span class="sd">    1. ``django-admin.py`` or ``manage.py`` loads the command class</span>
+<span class="sd">       and calls its ``run_from_argv()`` method.</span>
+
+<span class="sd">    2. The ``run_from_argv()`` method calls ``create_parser()`` to get</span>
+<span class="sd">       an ``OptionParser`` for the arguments, parses them, performs</span>
+<span class="sd">       any environment changes requested by options like</span>
+<span class="sd">       ``pythonpath``, and then calls the ``execute()`` method,</span>
+<span class="sd">       passing the parsed arguments.</span>
+
+<span class="sd">    3. The ``execute()`` method attempts to carry out the command by</span>
+<span class="sd">       calling the ``handle()`` method with the parsed arguments; any</span>
+<span class="sd">       output produced by ``handle()`` will be printed to standard</span>
+<span class="sd">       output and, if the command is intended to produce a block of</span>
+<span class="sd">       SQL statements, will be wrapped in ``BEGIN`` and ``COMMIT``.</span>
+
+<span class="sd">    4. If ``handle()`` raised a ``CommandError``, ``execute()`` will</span>
+<span class="sd">       instead print an error message to ``stderr``.</span>
+
+<span class="sd">    Thus, the ``handle()`` method is typically the starting point for</span>
+<span class="sd">    subclasses; many built-in commands and command types either place</span>
+<span class="sd">    all of their logic in ``handle()``, or perform some additional</span>
+<span class="sd">    parsing work in ``handle()`` and then delegate from it to more</span>
+<span class="sd">    specialized methods as needed.</span>
+
+<span class="sd">    Several attributes affect behavior at various steps along the way:</span>
+
+<span class="sd">    ``args``</span>
+<span class="sd">        A string listing the arguments accepted by the command,</span>
+<span class="sd">        suitable for use in help messages; e.g., a command which takes</span>
+<span class="sd">        a list of application names might set this to &#39;&lt;appname</span>
+<span class="sd">        appname ...&gt;&#39;.</span>
+
+<span class="sd">    ``can_import_settings``</span>
+<span class="sd">        A boolean indicating whether the command needs to be able to</span>
+<span class="sd">        import Django settings; if ``True``, ``execute()`` will verify</span>
+<span class="sd">        that this is possible before proceeding. Default value is</span>
+<span class="sd">        ``True``.</span>
+
+<span class="sd">    ``help``</span>
+<span class="sd">        A short description of the command, which will be printed in</span>
+<span class="sd">        help messages.</span>
+
+<span class="sd">    ``option_list``</span>
+<span class="sd">        This is the list of ``optparse`` options which will be fed</span>
+<span class="sd">        into the command&#39;s ``OptionParser`` for parsing arguments.</span>
+
+<span class="sd">    ``output_transaction``</span>
+<span class="sd">        A boolean indicating whether the command outputs SQL</span>
+<span class="sd">        statements; if ``True``, the output will automatically be</span>
+<span class="sd">        wrapped with ``BEGIN;`` and ``COMMIT;``. Default value is</span>
+<span class="sd">        ``False``.</span>
+
+<span class="sd">    ``requires_model_validation``</span>
+<span class="sd">        A boolean; if ``True``, validation of installed models will be</span>
+<span class="sd">        performed prior to executing the command. Default value is</span>
+<span class="sd">        ``True``. To validate an individual application&#39;s models</span>
+<span class="sd">        rather than all applications&#39; models, call</span>
+<span class="sd">        ``self.validate(app)`` from ``handle()``, where ``app`` is the</span>
+<span class="sd">        application&#39;s Python module.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c"># Metadata about this command.</span>
+    <span class="n">option_list</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="n">make_option</span><span class="p">(</span><span class="s">&#39;-v&#39;</span><span class="p">,</span> <span class="s">&#39;--verbosity&#39;</span><span class="p">,</span> <span class="n">action</span><span class="o">=</span><span class="s">&#39;store&#39;</span><span class="p">,</span> <span class="n">dest</span><span class="o">=</span><span class="s">&#39;verbosity&#39;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="s">&#39;1&#39;</span><span class="p">,</span>
+            <span class="nb">type</span><span class="o">=</span><span class="s">&#39;choice&#39;</span><span class="p">,</span> <span class="n">choices</span><span class="o">=</span><span class="p">[</span><span class="s">&#39;0&#39;</span><span class="p">,</span> <span class="s">&#39;1&#39;</span><span class="p">,</span> <span class="s">&#39;2&#39;</span><span class="p">,</span> <span class="s">&#39;3&#39;</span><span class="p">],</span>
+            <span class="n">help</span><span class="o">=</span><span class="s">&#39;Verbosity level; 0=minimal output, 1=normal output, 2=all output&#39;</span><span class="p">),</span>
+        <span class="n">make_option</span><span class="p">(</span><span class="s">&#39;--settings&#39;</span><span class="p">,</span>
+            <span class="n">help</span><span class="o">=</span><span class="s">&#39;The Python path to a settings module, e.g. &quot;myproject.settings.main&quot;. If this isn</span><span class="se">\&#39;</span><span class="s">t provided, the DJANGO_SETTINGS_MODULE environment variable will be used.&#39;</span><span class="p">),</span>
+        <span class="n">make_option</span><span class="p">(</span><span class="s">&#39;--pythonpath&#39;</span><span class="p">,</span>
+            <span class="n">help</span><span class="o">=</span><span class="s">&#39;A directory to add to the Python path, e.g. &quot;/home/djangoprojects/myproject&quot;.&#39;</span><span class="p">),</span>
+        <span class="n">make_option</span><span class="p">(</span><span class="s">&#39;--traceback&#39;</span><span class="p">,</span> <span class="n">action</span><span class="o">=</span><span class="s">&#39;store_true&#39;</span><span class="p">,</span>
+            <span class="n">help</span><span class="o">=</span><span class="s">&#39;Print traceback on exception&#39;</span><span class="p">),</span>
+    <span class="p">)</span>
+    <span class="n">help</span> <span class="o">=</span> <span class="s">&#39;&#39;</span>
+    <span class="n">args</span> <span class="o">=</span> <span class="s">&#39;&#39;</span>
+
+    <span class="c"># Configuration shortcuts that alter various logic.</span>
+    <span class="n">can_import_settings</span> <span class="o">=</span> <span class="bp">True</span>
+    <span class="n">requires_model_validation</span> <span class="o">=</span> <span class="bp">True</span>
+    <span class="n">output_transaction</span> <span class="o">=</span> <span class="bp">False</span> <span class="c"># Whether to wrap the output in a &quot;BEGIN; COMMIT;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">style</span> <span class="o">=</span> <span class="n">color_style</span><span class="p">()</span>
+
+<div class="viewcode-block" id="BaseCommand.get_version"><a class="viewcode-back" href="../../../../django.core.management.html#django.core.management.base.BaseCommand.get_version">[docs]</a>    <span class="k">def</span> <span class="nf">get_version</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Return the Django version, which should be correct for all</span>
+<span class="sd">        built-in Django commands. User-supplied commands should</span>
+<span class="sd">        override this method.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">django</span><span class="o">.</span><span class="n">get_version</span><span class="p">()</span>
+</div>
+<div class="viewcode-block" id="BaseCommand.usage"><a class="viewcode-back" href="../../../../django.core.management.html#django.core.management.base.BaseCommand.usage">[docs]</a>    <span class="k">def</span> <span class="nf">usage</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">subcommand</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Return a brief description of how to use this command, by</span>
+<span class="sd">        default from the attribute ``self.help``.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">usage</span> <span class="o">=</span> <span class="s">&#39;</span><span class="si">%%</span><span class="s">prog </span><span class="si">%s</span><span class="s"> [options] </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">subcommand</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">help</span><span class="p">:</span>
+            <span class="k">return</span> <span class="s">&#39;</span><span class="si">%s</span><span class="se">\n\n</span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">usage</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">help</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">usage</span>
+</div>
+<div class="viewcode-block" id="BaseCommand.create_parser"><a class="viewcode-back" href="../../../../django.core.management.html#django.core.management.base.BaseCommand.create_parser">[docs]</a>    <span class="k">def</span> <span class="nf">create_parser</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">prog_name</span><span class="p">,</span> <span class="n">subcommand</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Create and return the ``OptionParser`` which will be used to</span>
+<span class="sd">        parse the arguments to this command.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">OptionParser</span><span class="p">(</span><span class="n">prog</span><span class="o">=</span><span class="n">prog_name</span><span class="p">,</span>
+                            <span class="n">usage</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">usage</span><span class="p">(</span><span class="n">subcommand</span><span class="p">),</span>
+                            <span class="n">version</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">get_version</span><span class="p">(),</span>
+                            <span class="n">option_list</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">option_list</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="BaseCommand.print_help"><a class="viewcode-back" href="../../../../django.core.management.html#django.core.management.base.BaseCommand.print_help">[docs]</a>    <span class="k">def</span> <span class="nf">print_help</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">prog_name</span><span class="p">,</span> <span class="n">subcommand</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Print the help message for this command, derived from</span>
+<span class="sd">        ``self.usage()``.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">parser</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">create_parser</span><span class="p">(</span><span class="n">prog_name</span><span class="p">,</span> <span class="n">subcommand</span><span class="p">)</span>
+        <span class="n">parser</span><span class="o">.</span><span class="n">print_help</span><span class="p">()</span>
+</div>
+<div class="viewcode-block" id="BaseCommand.run_from_argv"><a class="viewcode-back" href="../../../../django.core.management.html#django.core.management.base.BaseCommand.run_from_argv">[docs]</a>    <span class="k">def</span> <span class="nf">run_from_argv</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">argv</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Set up any environment changes requested (e.g., Python path</span>
+<span class="sd">        and Django settings), then run this command.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">parser</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">create_parser</span><span class="p">(</span><span class="n">argv</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">argv</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+        <span class="n">options</span><span class="p">,</span> <span class="n">args</span> <span class="o">=</span> <span class="n">parser</span><span class="o">.</span><span class="n">parse_args</span><span class="p">(</span><span class="n">argv</span><span class="p">[</span><span class="mi">2</span><span class="p">:])</span>
+        <span class="n">handle_default_options</span><span class="p">(</span><span class="n">options</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">options</span><span class="o">.</span><span class="n">__dict__</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="BaseCommand.execute"><a class="viewcode-back" href="../../../../django.core.management.html#django.core.management.base.BaseCommand.execute">[docs]</a>    <span class="k">def</span> <span class="nf">execute</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">options</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Try to execute this command, performing model validation if</span>
+<span class="sd">        needed (as controlled by the attribute</span>
+<span class="sd">        ``self.requires_model_validation``). If the command raises a</span>
+<span class="sd">        ``CommandError``, intercept it and print it sensibly to</span>
+<span class="sd">        stderr.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c"># Switch to English, because django-admin.py creates database content</span>
+        <span class="c"># like permissions, and those shouldn&#39;t contain any translations.</span>
+        <span class="c"># But only do this if we can assume we have a working settings file,</span>
+        <span class="c"># because django.utils.translation requires settings.</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">can_import_settings</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="kn">from</span> <span class="nn">django.utils</span> <span class="kn">import</span> <span class="n">translation</span>
+                <span class="n">translation</span><span class="o">.</span><span class="n">activate</span><span class="p">(</span><span class="s">&#39;en-us&#39;</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">ImportError</span><span class="p">,</span> <span class="n">e</span><span class="p">:</span>
+                <span class="c"># If settings should be available, but aren&#39;t,</span>
+                <span class="c"># raise the error and quit.</span>
+                <span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">smart_str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">style</span><span class="o">.</span><span class="n">ERROR</span><span class="p">(</span><span class="s">&#39;Error: </span><span class="si">%s</span><span class="se">\n</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">e</span><span class="p">)))</span>
+                <span class="n">sys</span><span class="o">.</span><span class="n">exit</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">stdout</span> <span class="o">=</span> <span class="n">options</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;stdout&#39;</span><span class="p">,</span> <span class="n">sys</span><span class="o">.</span><span class="n">stdout</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">stderr</span> <span class="o">=</span> <span class="n">options</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;stderr&#39;</span><span class="p">,</span> <span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="p">)</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">requires_model_validation</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">validate</span><span class="p">()</span>
+            <span class="n">output</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">handle</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">options</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">output</span><span class="p">:</span>
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">output_transaction</span><span class="p">:</span>
+                    <span class="c"># This needs to be imported here, because it relies on</span>
+                    <span class="c"># settings.</span>
+                    <span class="kn">from</span> <span class="nn">django.db</span> <span class="kn">import</span> <span class="n">connections</span><span class="p">,</span> <span class="n">DEFAULT_DB_ALIAS</span>
+                    <span class="n">connection</span> <span class="o">=</span> <span class="n">connections</span><span class="p">[</span><span class="n">options</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;database&#39;</span><span class="p">,</span> <span class="n">DEFAULT_DB_ALIAS</span><span class="p">)]</span>
+                    <span class="k">if</span> <span class="n">connection</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">start_transaction_sql</span><span class="p">():</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">style</span><span class="o">.</span><span class="n">SQL_KEYWORD</span><span class="p">(</span><span class="n">connection</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">start_transaction_sql</span><span class="p">())</span> <span class="o">+</span> <span class="s">&#39;</span><span class="se">\n</span><span class="s">&#39;</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">output</span><span class="p">)</span>
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">output_transaction</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s">&#39;</span><span class="se">\n</span><span class="s">&#39;</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">style</span><span class="o">.</span><span class="n">SQL_KEYWORD</span><span class="p">(</span><span class="s">&quot;COMMIT;&quot;</span><span class="p">)</span> <span class="o">+</span> <span class="s">&#39;</span><span class="se">\n</span><span class="s">&#39;</span><span class="p">)</span>
+        <span class="k">except</span> <span class="n">CommandError</span><span class="p">,</span> <span class="n">e</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">stderr</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">smart_str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">style</span><span class="o">.</span><span class="n">ERROR</span><span class="p">(</span><span class="s">&#39;Error: </span><span class="si">%s</span><span class="se">\n</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">e</span><span class="p">)))</span>
+            <span class="n">sys</span><span class="o">.</span><span class="n">exit</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="BaseCommand.validate"><a class="viewcode-back" href="../../../../django.core.management.html#django.core.management.base.BaseCommand.validate">[docs]</a>    <span class="k">def</span> <span class="nf">validate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">app</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">display_num_errors</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Validates the given app, raising CommandError for any errors.</span>
+
+<span class="sd">        If app is None, then this will validate all installed apps.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="kn">from</span> <span class="nn">django.core.management.validation</span> <span class="kn">import</span> <span class="n">get_validation_errors</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="kn">from</span> <span class="nn">cStringIO</span> <span class="kn">import</span> <span class="n">StringIO</span>
+        <span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
+            <span class="kn">from</span> <span class="nn">StringIO</span> <span class="kn">import</span> <span class="n">StringIO</span>
+        <span class="n">s</span> <span class="o">=</span> <span class="n">StringIO</span><span class="p">()</span>
+        <span class="n">num_errors</span> <span class="o">=</span> <span class="n">get_validation_errors</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">app</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">num_errors</span><span class="p">:</span>
+            <span class="n">s</span><span class="o">.</span><span class="n">seek</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+            <span class="n">error_text</span> <span class="o">=</span> <span class="n">s</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
+            <span class="k">raise</span> <span class="n">CommandError</span><span class="p">(</span><span class="s">&quot;One or more models did not validate:</span><span class="se">\n</span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">error_text</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">display_num_errors</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s">&quot;</span><span class="si">%s</span><span class="s"> error</span><span class="si">%s</span><span class="s"> found</span><span class="se">\n</span><span class="s">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">num_errors</span><span class="p">,</span> <span class="n">num_errors</span> <span class="o">!=</span> <span class="mi">1</span> <span class="ow">and</span> <span class="s">&#39;s&#39;</span> <span class="ow">or</span> <span class="s">&#39;&#39;</span><span class="p">))</span>
+</div>
+<div class="viewcode-block" id="BaseCommand.handle"><a class="viewcode-back" href="../../../../django.core.management.html#django.core.management.base.BaseCommand.handle">[docs]</a>    <span class="k">def</span> <span class="nf">handle</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">options</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        The actual logic of the command. Subclasses must implement</span>
+<span class="sd">        this method.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">()</span>
+</div></div>
+<div class="viewcode-block" id="AppCommand"><a class="viewcode-back" href="../../../../django.core.management.html#django.core.management.base.AppCommand">[docs]</a><span class="k">class</span> <span class="nc">AppCommand</span><span class="p">(</span><span class="n">BaseCommand</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    A management command which takes one or more installed application</span>
+<span class="sd">    names as arguments, and does something with each of them.</span>
+
+<span class="sd">    Rather than implementing ``handle()``, subclasses must implement</span>
+<span class="sd">    ``handle_app()``, which will be called once for each application.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">args</span> <span class="o">=</span> <span class="s">&#39;&lt;appname appname ...&gt;&#39;</span>
+
+    <span class="k">def</span> <span class="nf">handle</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">app_labels</span><span class="p">,</span> <span class="o">**</span><span class="n">options</span><span class="p">):</span>
+        <span class="kn">from</span> <span class="nn">django.db</span> <span class="kn">import</span> <span class="n">models</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">app_labels</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">CommandError</span><span class="p">(</span><span class="s">&#39;Enter at least one appname.&#39;</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">app_list</span> <span class="o">=</span> <span class="p">[</span><span class="n">models</span><span class="o">.</span><span class="n">get_app</span><span class="p">(</span><span class="n">app_label</span><span class="p">)</span> <span class="k">for</span> <span class="n">app_label</span> <span class="ow">in</span> <span class="n">app_labels</span><span class="p">]</span>
+        <span class="k">except</span> <span class="p">(</span><span class="n">ImproperlyConfigured</span><span class="p">,</span> <span class="ne">ImportError</span><span class="p">),</span> <span class="n">e</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">CommandError</span><span class="p">(</span><span class="s">&quot;</span><span class="si">%s</span><span class="s">. Are you sure your INSTALLED_APPS setting is correct?&quot;</span> <span class="o">%</span> <span class="n">e</span><span class="p">)</span>
+        <span class="n">output</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">app</span> <span class="ow">in</span> <span class="n">app_list</span><span class="p">:</span>
+            <span class="n">app_output</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">handle_app</span><span class="p">(</span><span class="n">app</span><span class="p">,</span> <span class="o">**</span><span class="n">options</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">app_output</span><span class="p">:</span>
+                <span class="n">output</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">app_output</span><span class="p">)</span>
+        <span class="k">return</span> <span class="s">&#39;</span><span class="se">\n</span><span class="s">&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">output</span><span class="p">)</span>
+
+<div class="viewcode-block" id="AppCommand.handle_app"><a class="viewcode-back" href="../../../../django.core.management.html#django.core.management.base.AppCommand.handle_app">[docs]</a>    <span class="k">def</span> <span class="nf">handle_app</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">app</span><span class="p">,</span> <span class="o">**</span><span class="n">options</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Perform the command&#39;s actions for ``app``, which will be the</span>
+<span class="sd">        Python module corresponding to an application name given on</span>
+<span class="sd">        the command line.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">()</span>
+</div></div>
+<div class="viewcode-block" id="LabelCommand"><a class="viewcode-back" href="../../../../django.core.management.html#django.core.management.base.LabelCommand">[docs]</a><span class="k">class</span> <span class="nc">LabelCommand</span><span class="p">(</span><span class="n">BaseCommand</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    A management command which takes one or more arbitrary arguments</span>
+<span class="sd">    (labels) on the command line, and does something with each of</span>
+<span class="sd">    them.</span>
+
+<span class="sd">    Rather than implementing ``handle()``, subclasses must implement</span>
+<span class="sd">    ``handle_label()``, which will be called once for each label.</span>
+
+<span class="sd">    If the arguments should be names of installed applications, use</span>
+<span class="sd">    ``AppCommand`` instead.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">args</span> <span class="o">=</span> <span class="s">&#39;&lt;label label ...&gt;&#39;</span>
+    <span class="n">label</span> <span class="o">=</span> <span class="s">&#39;label&#39;</span>
+
+    <span class="k">def</span> <span class="nf">handle</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">labels</span><span class="p">,</span> <span class="o">**</span><span class="n">options</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">labels</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">CommandError</span><span class="p">(</span><span class="s">&#39;Enter at least one </span><span class="si">%s</span><span class="s">.&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">label</span><span class="p">)</span>
+
+        <span class="n">output</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">label</span> <span class="ow">in</span> <span class="n">labels</span><span class="p">:</span>
+            <span class="n">label_output</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">handle_label</span><span class="p">(</span><span class="n">label</span><span class="p">,</span> <span class="o">**</span><span class="n">options</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">label_output</span><span class="p">:</span>
+                <span class="n">output</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">label_output</span><span class="p">)</span>
+        <span class="k">return</span> <span class="s">&#39;</span><span class="se">\n</span><span class="s">&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">output</span><span class="p">)</span>
+
+<div class="viewcode-block" id="LabelCommand.handle_label"><a class="viewcode-back" href="../../../../django.core.management.html#django.core.management.base.LabelCommand.handle_label">[docs]</a>    <span class="k">def</span> <span class="nf">handle_label</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">label</span><span class="p">,</span> <span class="o">**</span><span class="n">options</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Perform the command&#39;s actions for ``label``, which will be the</span>
+<span class="sd">        string as given on the command line.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">()</span>
+</div></div>
+<div class="viewcode-block" id="NoArgsCommand"><a class="viewcode-back" href="../../../../django.core.management.html#django.core.management.base.NoArgsCommand">[docs]</a><span class="k">class</span> <span class="nc">NoArgsCommand</span><span class="p">(</span><span class="n">BaseCommand</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    A command which takes no arguments on the command line.</span>
+
+<span class="sd">    Rather than implementing ``handle()``, subclasses must implement</span>
+<span class="sd">    ``handle_noargs()``; ``handle()`` itself is overridden to ensure</span>
+<span class="sd">    no arguments are passed to the command.</span>
+
+<span class="sd">    Attempting to pass arguments will raise ``CommandError``.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">args</span> <span class="o">=</span> <span class="s">&#39;&#39;</span>
+
+    <span class="k">def</span> <span class="nf">handle</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">options</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">args</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">CommandError</span><span class="p">(</span><span class="s">&quot;Command doesn&#39;t accept any arguments&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">handle_noargs</span><span class="p">(</span><span class="o">**</span><span class="n">options</span><span class="p">)</span>
+
+<div class="viewcode-block" id="NoArgsCommand.handle_noargs"><a class="viewcode-back" href="../../../../django.core.management.html#django.core.management.base.NoArgsCommand.handle_noargs">[docs]</a>    <span class="k">def</span> <span class="nf">handle_noargs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">options</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Perform this command&#39;s actions.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">()</span>
+</div></div>
+<div class="viewcode-block" id="copy_helper"><a class="viewcode-back" href="../../../../django.core.management.html#django.core.management.base.copy_helper">[docs]</a><span class="k">def</span> <span class="nf">copy_helper</span><span class="p">(</span><span class="n">style</span><span class="p">,</span> <span class="n">app_or_project</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">directory</span><span class="p">,</span> <span class="n">other_name</span><span class="o">=</span><span class="s">&#39;&#39;</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Copies either a Django application layout template or a Django project</span>
+<span class="sd">    layout template into the specified directory.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c"># style -- A color style object (see django.core.management.color).</span>
+    <span class="c"># app_or_project -- The string &#39;app&#39; or &#39;project&#39;.</span>
+    <span class="c"># name -- The name of the application or project.</span>
+    <span class="c"># directory -- The directory to which the layout template should be copied.</span>
+    <span class="c"># other_name -- When copying an application layout, this should be the name</span>
+    <span class="c">#               of the project.</span>
+    <span class="kn">import</span> <span class="nn">re</span>
+    <span class="kn">import</span> <span class="nn">shutil</span>
+    <span class="n">other</span> <span class="o">=</span> <span class="p">{</span><span class="s">&#39;project&#39;</span><span class="p">:</span> <span class="s">&#39;app&#39;</span><span class="p">,</span> <span class="s">&#39;app&#39;</span><span class="p">:</span> <span class="s">&#39;project&#39;</span><span class="p">}[</span><span class="n">app_or_project</span><span class="p">]</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">re</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="s">r&#39;^[_a-zA-Z]\w*$&#39;</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span> <span class="c"># If it&#39;s not a valid directory name.</span>
+        <span class="c"># Provide a smart error message, depending on the error.</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">re</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="s">r&#39;^[_a-zA-Z]&#39;</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
+            <span class="n">message</span> <span class="o">=</span> <span class="s">&#39;make sure the name begins with a letter or underscore&#39;</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">message</span> <span class="o">=</span> <span class="s">&#39;use only numbers, letters and underscores&#39;</span>
+        <span class="k">raise</span> <span class="n">CommandError</span><span class="p">(</span><span class="s">&quot;</span><span class="si">%r</span><span class="s"> is not a valid </span><span class="si">%s</span><span class="s"> name. Please </span><span class="si">%s</span><span class="s">.&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">app_or_project</span><span class="p">,</span> <span class="n">message</span><span class="p">))</span>
+    <span class="n">top_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">directory</span><span class="p">,</span> <span class="n">name</span><span class="p">)</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">top_dir</span><span class="p">)</span>
+    <span class="k">except</span> <span class="ne">OSError</span><span class="p">,</span> <span class="n">e</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">CommandError</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
+
+    <span class="c"># Determine where the app or project templates are. Use</span>
+    <span class="c"># django.__path__[0] because we don&#39;t know into which directory</span>
+    <span class="c"># django has been installed.</span>
+    <span class="n">template_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">django</span><span class="o">.</span><span class="n">__path__</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="s">&#39;conf&#39;</span><span class="p">,</span> <span class="s">&#39;</span><span class="si">%s</span><span class="s">_template&#39;</span> <span class="o">%</span> <span class="n">app_or_project</span><span class="p">)</span>
+
+    <span class="k">for</span> <span class="n">d</span><span class="p">,</span> <span class="n">subdirs</span><span class="p">,</span> <span class="n">files</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">walk</span><span class="p">(</span><span class="n">template_dir</span><span class="p">):</span>
+        <span class="n">relative_dir</span> <span class="o">=</span> <span class="n">d</span><span class="p">[</span><span class="nb">len</span><span class="p">(</span><span class="n">template_dir</span><span class="p">)</span><span class="o">+</span><span class="mi">1</span><span class="p">:]</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s">&#39;</span><span class="si">%s</span><span class="s">_name&#39;</span> <span class="o">%</span> <span class="n">app_or_project</span><span class="p">,</span> <span class="n">name</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">relative_dir</span><span class="p">:</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">top_dir</span><span class="p">,</span> <span class="n">relative_dir</span><span class="p">))</span>
+        <span class="k">for</span> <span class="n">subdir</span> <span class="ow">in</span> <span class="n">subdirs</span><span class="p">[:]:</span>
+            <span class="k">if</span> <span class="n">subdir</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s">&#39;.&#39;</span><span class="p">):</span>
+                <span class="n">subdirs</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">subdir</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">files</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">f</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s">&#39;.py&#39;</span><span class="p">):</span>
+                <span class="c"># Ignore .pyc, .pyo, .py.class etc, as they cause various</span>
+                <span class="c"># breakages.</span>
+                <span class="k">continue</span>
+            <span class="n">path_old</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">d</span><span class="p">,</span> <span class="n">f</span><span class="p">)</span>
+            <span class="n">path_new</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">top_dir</span><span class="p">,</span> <span class="n">relative_dir</span><span class="p">,</span> <span class="n">f</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s">&#39;</span><span class="si">%s</span><span class="s">_name&#39;</span> <span class="o">%</span> <span class="n">app_or_project</span><span class="p">,</span> <span class="n">name</span><span class="p">))</span>
+            <span class="n">fp_old</span> <span class="o">=</span> <span class="nb">open</span><span class="p">(</span><span class="n">path_old</span><span class="p">,</span> <span class="s">&#39;r&#39;</span><span class="p">)</span>
+            <span class="n">fp_new</span> <span class="o">=</span> <span class="nb">open</span><span class="p">(</span><span class="n">path_new</span><span class="p">,</span> <span class="s">&#39;w&#39;</span><span class="p">)</span>
+            <span class="n">fp_new</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">fp_old</span><span class="o">.</span><span class="n">read</span><span class="p">()</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s">&#39;{{ </span><span class="si">%s</span><span class="s">_name }}&#39;</span> <span class="o">%</span> <span class="n">app_or_project</span><span class="p">,</span> <span class="n">name</span><span class="p">)</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s">&#39;{{ </span><span class="si">%s</span><span class="s">_name }}&#39;</span> <span class="o">%</span> <span class="n">other</span><span class="p">,</span> <span class="n">other_name</span><span class="p">))</span>
+            <span class="n">fp_old</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+            <span class="n">fp_new</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">shutil</span><span class="o">.</span><span class="n">copymode</span><span class="p">(</span><span class="n">path_old</span><span class="p">,</span> <span class="n">path_new</span><span class="p">)</span>
+                <span class="n">_make_writeable</span><span class="p">(</span><span class="n">path_new</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">OSError</span><span class="p">:</span>
+                <span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">style</span><span class="o">.</span><span class="n">NOTICE</span><span class="p">(</span><span class="s">&quot;Notice: Couldn&#39;t set permission bits on </span><span class="si">%s</span><span class="s">. You&#39;re probably using an uncommon filesystem setup. No problem.</span><span class="se">\n</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">path_new</span><span class="p">))</span>
+</div>
+<span class="k">def</span> <span class="nf">_make_writeable</span><span class="p">(</span><span class="n">filename</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Make sure that the file is writeable. Useful if our source is</span>
+<span class="sd">    read-only.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="kn">import</span> <span class="nn">stat</span>
+    <span class="k">if</span> <span class="n">sys</span><span class="o">.</span><span class="n">platform</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s">&#39;java&#39;</span><span class="p">):</span>
+        <span class="c"># On Jython there is no os.access()</span>
+        <span class="k">return</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">access</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="n">os</span><span class="o">.</span><span class="n">W_OK</span><span class="p">):</span>
+        <span class="n">st</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">stat</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span>
+        <span class="n">new_permissions</span> <span class="o">=</span> <span class="n">stat</span><span class="o">.</span><span class="n">S_IMODE</span><span class="p">(</span><span class="n">st</span><span class="o">.</span><span class="n">st_mode</span><span class="p">)</span> <span class="o">|</span> <span class="n">stat</span><span class="o">.</span><span class="n">S_IWUSR</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">chmod</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="n">new_permissions</span><span class="p">)</span>
+</pre></div>
+
+      </div>
+      <div class="bottomnav">
+      
+        <p>
+        <a href="/">Home</a>:
+        <a class="uplink" href="../../../../index.html">Contents</a>
+        </p>
+
+      </div>
+
+    <div class="footer">
+        &copy; Copyright 2012, HDKNR.COM.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.2pre.
+    </div>
+  </body>
+</html>

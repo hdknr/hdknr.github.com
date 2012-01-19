@@ -7,6 +7,9 @@ django.views.decorators
 django.views.decorators
 =======================
 
+.. include:: cheat/django.views.decorators.rst
+
+
 .. automodule:: django.views.decorators
     :members:
 
@@ -15,6 +18,9 @@ django.views.decorators
 
 django.views.decorators.http
 ============================
+
+.. include:: cheat/django.views.decorators.http.rst
+
 .. automodule:: django.views.decorators.http
     :members:
 
@@ -22,6 +28,9 @@ django.views.decorators.http
 
 django.views.decorators.csrf
 ============================
+
+.. include:: cheat/django.views.decorators.csrf.rst
+
 .. automodule:: django.views.decorators.csrf
     :members:
 
@@ -29,6 +38,9 @@ django.views.decorators.csrf
 
 django.views.decorators.vary
 ============================
+
+.. include:: cheat/django.views.decorators.vary.rst
+
 .. automodule:: django.views.decorators.vary
     :members:
 
@@ -36,6 +48,9 @@ django.views.decorators.vary
 
 django.views.decorators.cache
 =============================
+
+.. include:: cheat/django.views.decorators.cache.rst
+
 .. automodule:: django.views.decorators.cache
     :members:
 
@@ -43,6 +58,9 @@ django.views.decorators.cache
 
 django.views.decorators.gzip
 ============================
+
+.. include:: cheat/django.views.decorators.gzip.rst
+
 .. automodule:: django.views.decorators.gzip
     :members:
 

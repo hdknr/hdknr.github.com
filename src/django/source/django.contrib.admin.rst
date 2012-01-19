@@ -7,6 +7,9 @@ django.contrib.admin
 django.contrib.admin
 ====================
 
+.. include:: cheat/django.contrib.admin.rst
+
+
 .. automodule:: django.contrib.admin
     :members:
 
@@ -22,6 +25,9 @@ Sub
 
 django.contrib.admin.forms
 ==========================
+
+.. include:: cheat/django.contrib.admin.forms.rst
+
 .. automodule:: django.contrib.admin.forms
     :members:
 
@@ -29,6 +35,9 @@ django.contrib.admin.forms
 
 django.contrib.admin.helpers
 ============================
+
+.. include:: cheat/django.contrib.admin.helpers.rst
+
 .. automodule:: django.contrib.admin.helpers
     :members:
 
@@ -36,6 +45,9 @@ django.contrib.admin.helpers
 
 django.contrib.admin.validation
 ===============================
+
+.. include:: cheat/django.contrib.admin.validation.rst
+
 .. automodule:: django.contrib.admin.validation
     :members:
 
@@ -43,6 +55,9 @@ django.contrib.admin.validation
 
 django.contrib.admin.util
 =========================
+
+.. include:: cheat/django.contrib.admin.util.rst
+
 .. automodule:: django.contrib.admin.util
     :members:
 
@@ -50,6 +65,9 @@ django.contrib.admin.util
 
 django.contrib.admin.options
 ============================
+
+.. include:: cheat/django.contrib.admin.options.rst
+
 .. automodule:: django.contrib.admin.options
     :members:
 
@@ -57,6 +75,9 @@ django.contrib.admin.options
 
 django.contrib.admin.models
 ===========================
+
+.. include:: cheat/django.contrib.admin.models.rst
+
 .. automodule:: django.contrib.admin.models
     :members:
 
@@ -64,6 +85,9 @@ django.contrib.admin.models
 
 django.contrib.admin.filterspecs
 ================================
+
+.. include:: cheat/django.contrib.admin.filterspecs.rst
+
 .. automodule:: django.contrib.admin.filterspecs
     :members:
 
@@ -71,6 +95,9 @@ django.contrib.admin.filterspecs
 
 django.contrib.admin.actions
 ============================
+
+.. include:: cheat/django.contrib.admin.actions.rst
+
 .. automodule:: django.contrib.admin.actions
     :members:
 
@@ -78,6 +105,9 @@ django.contrib.admin.actions
 
 django.contrib.admin.widgets
 ============================
+
+.. include:: cheat/django.contrib.admin.widgets.rst
+
 .. automodule:: django.contrib.admin.widgets
     :members:
 
@@ -85,6 +115,9 @@ django.contrib.admin.widgets
 
 django.contrib.admin.sites
 ==========================
+
+.. include:: cheat/django.contrib.admin.sites.rst
+
 .. automodule:: django.contrib.admin.sites
     :members:
 

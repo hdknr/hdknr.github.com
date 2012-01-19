@@ -7,6 +7,9 @@ django.db.backends
 django.db.backends
 ==================
 
+.. include:: cheat/django.db.backends.rst
+
+
 .. automodule:: django.db.backends
     :members:
 
@@ -30,6 +33,9 @@ Sub
 
 django.db.backends.util
 =======================
+
+.. include:: cheat/django.db.backends.util.rst
+
 .. automodule:: django.db.backends.util
     :members:
 
@@ -37,6 +43,9 @@ django.db.backends.util
 
 django.db.backends.creation
 ===========================
+
+.. include:: cheat/django.db.backends.creation.rst
+
 .. automodule:: django.db.backends.creation
     :members:
 
@@ -44,6 +53,9 @@ django.db.backends.creation
 
 django.db.backends.signals
 ==========================
+
+.. include:: cheat/django.db.backends.signals.rst
+
 .. automodule:: django.db.backends.signals
     :members:
 

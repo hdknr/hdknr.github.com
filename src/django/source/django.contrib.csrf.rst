@@ -7,6 +7,9 @@ django.contrib.csrf
 django.contrib.csrf
 ===================
 
+.. include:: cheat/django.contrib.csrf.rst
+
+
 .. automodule:: django.contrib.csrf
     :members:
 
@@ -15,6 +18,9 @@ django.contrib.csrf
 
 django.contrib.csrf.middleware
 ==============================
+
+.. include:: cheat/django.contrib.csrf.middleware.rst
+
 .. automodule:: django.contrib.csrf.middleware
     :members:
 

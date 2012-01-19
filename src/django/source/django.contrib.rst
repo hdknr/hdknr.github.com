@@ -7,6 +7,9 @@ django.contrib
 django.contrib
 ==============
 
+.. include:: cheat/django.contrib.rst
+
+
 .. automodule:: django.contrib
     :members:
 

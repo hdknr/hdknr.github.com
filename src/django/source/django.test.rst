@@ -7,6 +7,9 @@ django.test
 django.test
 ===========
 
+.. include:: cheat/django.test.rst
+
+
 .. automodule:: django.test
     :members:
 
@@ -15,6 +18,9 @@ django.test
 
 django.test.testcases
 =====================
+
+.. include:: cheat/django.test.testcases.rst
+
 .. automodule:: django.test.testcases
     :members:
 
@@ -22,6 +28,9 @@ django.test.testcases
 
 django.test.client
 ==================
+
+.. include:: cheat/django.test.client.rst
+
 .. automodule:: django.test.client
     :members:
 
@@ -29,6 +38,9 @@ django.test.client
 
 django.test.utils
 =================
+
+.. include:: cheat/django.test.utils.rst
+
 .. automodule:: django.test.utils
     :members:
 
@@ -36,6 +48,9 @@ django.test.utils
 
 django.test.simple
 ==================
+
+.. include:: cheat/django.test.simple.rst
+
 .. automodule:: django.test.simple
     :members:
 
@@ -43,6 +58,9 @@ django.test.simple
 
 django.test.signals
 ===================
+
+.. include:: cheat/django.test.signals.rst
+
 .. automodule:: django.test.signals
     :members:
 
@@ -50,6 +68,9 @@ django.test.signals
 
 django.test._doctest
 ====================
+
+.. include:: cheat/django.test._doctest.rst
+
 .. automodule:: django.test._doctest
     :members:
 

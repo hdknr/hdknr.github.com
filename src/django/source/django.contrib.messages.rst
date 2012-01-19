@@ -7,6 +7,9 @@ django.contrib.messages
 django.contrib.messages
 =======================
 
+.. include:: cheat/django.contrib.messages.rst
+
+
 .. automodule:: django.contrib.messages
     :members:
 
@@ -22,6 +25,9 @@ Sub
 
 django.contrib.messages.middleware
 ==================================
+
+.. include:: cheat/django.contrib.messages.middleware.rst
+
 .. automodule:: django.contrib.messages.middleware
     :members:
 
@@ -29,6 +35,9 @@ django.contrib.messages.middleware
 
 django.contrib.messages.utils
 =============================
+
+.. include:: cheat/django.contrib.messages.utils.rst
+
 .. automodule:: django.contrib.messages.utils
     :members:
 
@@ -36,6 +45,9 @@ django.contrib.messages.utils
 
 django.contrib.messages.api
 ===========================
+
+.. include:: cheat/django.contrib.messages.api.rst
+
 .. automodule:: django.contrib.messages.api
     :members:
 
@@ -43,6 +55,9 @@ django.contrib.messages.api
 
 django.contrib.messages.constants
 =================================
+
+.. include:: cheat/django.contrib.messages.constants.rst
+
 .. automodule:: django.contrib.messages.constants
     :members:
 
@@ -50,6 +65,9 @@ django.contrib.messages.constants
 
 django.contrib.messages.context_processors
 ==========================================
+
+.. include:: cheat/django.contrib.messages.context_processors.rst
+
 .. automodule:: django.contrib.messages.context_processors
     :members:
 
@@ -57,6 +75,9 @@ django.contrib.messages.context_processors
 
 django.contrib.messages.models
 ==============================
+
+.. include:: cheat/django.contrib.messages.models.rst
+
 .. automodule:: django.contrib.messages.models
     :members:
 

@@ -7,6 +7,9 @@ django.contrib.flatpages.templatetags
 django.contrib.flatpages.templatetags
 =====================================
 
+.. include:: cheat/django.contrib.flatpages.templatetags.rst
+
+
 .. automodule:: django.contrib.flatpages.templatetags
     :members:
 
@@ -15,6 +18,9 @@ django.contrib.flatpages.templatetags
 
 django.contrib.flatpages.templatetags.flatpages
 ===============================================
+
+.. include:: cheat/django.contrib.flatpages.templatetags.flatpages.rst
+
 .. automodule:: django.contrib.flatpages.templatetags.flatpages
     :members:
 

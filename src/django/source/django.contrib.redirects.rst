@@ -7,6 +7,9 @@ django.contrib.redirects
 django.contrib.redirects
 ========================
 
+.. include:: cheat/django.contrib.redirects.rst
+
+
 .. automodule:: django.contrib.redirects
     :members:
 
@@ -15,6 +18,9 @@ django.contrib.redirects
 
 django.contrib.redirects.middleware
 ===================================
+
+.. include:: cheat/django.contrib.redirects.middleware.rst
+
 .. automodule:: django.contrib.redirects.middleware
     :members:
 
@@ -22,6 +28,9 @@ django.contrib.redirects.middleware
 
 django.contrib.redirects.admin
 ==============================
+
+.. include:: cheat/django.contrib.redirects.admin.rst
+
 .. automodule:: django.contrib.redirects.admin
     :members:
 
@@ -29,6 +38,9 @@ django.contrib.redirects.admin
 
 django.contrib.redirects.models
 ===============================
+
+.. include:: cheat/django.contrib.redirects.models.rst
+
 .. automodule:: django.contrib.redirects.models
     :members:
 

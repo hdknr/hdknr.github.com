@@ -7,6 +7,9 @@ django.contrib.databrowse
 django.contrib.databrowse
 =========================
 
+.. include:: cheat/django.contrib.databrowse.rst
+
+
 .. automodule:: django.contrib.databrowse
     :members:
 
@@ -20,6 +23,9 @@ Sub
 
 django.contrib.databrowse.views
 ===============================
+
+.. include:: cheat/django.contrib.databrowse.views.rst
+
 .. automodule:: django.contrib.databrowse.views
     :members:
 
@@ -27,6 +33,9 @@ django.contrib.databrowse.views
 
 django.contrib.databrowse.datastructures
 ========================================
+
+.. include:: cheat/django.contrib.databrowse.datastructures.rst
+
 .. automodule:: django.contrib.databrowse.datastructures
     :members:
 
@@ -34,6 +43,9 @@ django.contrib.databrowse.datastructures
 
 django.contrib.databrowse.urls
 ==============================
+
+.. include:: cheat/django.contrib.databrowse.urls.rst
+
 .. automodule:: django.contrib.databrowse.urls
     :members:
 
@@ -41,6 +53,9 @@ django.contrib.databrowse.urls
 
 django.contrib.databrowse.sites
 ===============================
+
+.. include:: cheat/django.contrib.databrowse.sites.rst
+
 .. automodule:: django.contrib.databrowse.sites
     :members:
 

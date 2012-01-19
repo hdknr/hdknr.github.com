@@ -7,6 +7,9 @@ django.contrib.localflavor.it
 django.contrib.localflavor.it
 =============================
 
+.. include:: cheat/django.contrib.localflavor.it.rst
+
+
 .. automodule:: django.contrib.localflavor.it
     :members:
 
@@ -15,6 +18,9 @@ django.contrib.localflavor.it
 
 django.contrib.localflavor.it.it_province
 =========================================
+
+.. include:: cheat/django.contrib.localflavor.it.it_province.rst
+
 .. automodule:: django.contrib.localflavor.it.it_province
     :members:
 
@@ -22,6 +28,9 @@ django.contrib.localflavor.it.it_province
 
 django.contrib.localflavor.it.forms
 ===================================
+
+.. include:: cheat/django.contrib.localflavor.it.forms.rst
+
 .. automodule:: django.contrib.localflavor.it.forms
     :members:
 
@@ -29,6 +38,9 @@ django.contrib.localflavor.it.forms
 
 django.contrib.localflavor.it.util
 ==================================
+
+.. include:: cheat/django.contrib.localflavor.it.util.rst
+
 .. automodule:: django.contrib.localflavor.it.util
     :members:
 
@@ -36,6 +48,9 @@ django.contrib.localflavor.it.util
 
 django.contrib.localflavor.it.it_region
 =======================================
+
+.. include:: cheat/django.contrib.localflavor.it.it_region.rst
+
 .. automodule:: django.contrib.localflavor.it.it_region
     :members:
 

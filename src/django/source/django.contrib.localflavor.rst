@@ -7,6 +7,9 @@ django.contrib.localflavor
 django.contrib.localflavor
 ==========================
 
+.. include:: cheat/django.contrib.localflavor.rst
+
+
 .. automodule:: django.contrib.localflavor
     :members:
 

@@ -1,0 +1,505 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>django.core.management &mdash; Django Cheat 1 documentation</title>
+    
+    <link rel="stylesheet" href="../../../static/haiku.css" type="text/css" />
+    <link rel="stylesheet" href="../../../static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../../../static/print.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../',
+        VERSION:     '1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../../static/jquery.js"></script>
+    <script type="text/javascript" src="../../../static/underscore.js"></script>
+    <script type="text/javascript" src="../../../static/doctools.js"></script>
+    <script type="text/javascript" src="../../../static/theme_extras.js"></script>
+    <link rel="top" title="Django Cheat 1 documentation" href="../../../index.html" />
+    <link rel="up" title="Module code" href="../../index.html" /> 
+  </head>
+  <body>
+      <div class="header"><h1 class="heading"><a href="../../../index.html">
+          <span>Django Cheat 1 documentation</span></a></h1>
+        <h2 class="heading"><span>django.core.management</span></h2>
+      </div>
+      <div class="topnav">
+      
+        <p>
+        <a href="/">Home</a>:
+        <a class="uplink" href="../../../index.html">Contents</a>
+        </p>
+
+      </div>
+      <div class="content">
+        
+        
+  <h1>Source code for django.core.management</h1><div class="highlight"><pre>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">sys</span>
+<span class="kn">from</span> <span class="nn">optparse</span> <span class="kn">import</span> <span class="n">OptionParser</span><span class="p">,</span> <span class="n">NO_DEFAULT</span>
+<span class="kn">import</span> <span class="nn">imp</span>
+
+<span class="kn">import</span> <span class="nn">django</span>
+<span class="kn">from</span> <span class="nn">django.core.management.base</span> <span class="kn">import</span> <span class="n">BaseCommand</span><span class="p">,</span> <span class="n">CommandError</span><span class="p">,</span> <span class="n">handle_default_options</span>
+<span class="kn">from</span> <span class="nn">django.utils.importlib</span> <span class="kn">import</span> <span class="n">import_module</span>
+
+<span class="c"># For backwards compatibility: get_version() used to be in this module.</span>
+<span class="n">get_version</span> <span class="o">=</span> <span class="n">django</span><span class="o">.</span><span class="n">get_version</span>
+
+<span class="c"># A cache of loaded commands, so that call_command</span>
+<span class="c"># doesn&#39;t have to reload every time it&#39;s called.</span>
+<span class="n">_commands</span> <span class="o">=</span> <span class="bp">None</span>
+
+<div class="viewcode-block" id="find_commands"><a class="viewcode-back" href="../../../django.core.management.html#django.core.management.find_commands">[docs]</a><span class="k">def</span> <span class="nf">find_commands</span><span class="p">(</span><span class="n">management_dir</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Given a path to a management directory, returns a list of all the command</span>
+<span class="sd">    names that are available.</span>
+
+<span class="sd">    Returns an empty list if no commands are defined.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">command_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">management_dir</span><span class="p">,</span> <span class="s">&#39;commands&#39;</span><span class="p">)</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="k">return</span> <span class="p">[</span><span class="n">f</span><span class="p">[:</span><span class="o">-</span><span class="mi">3</span><span class="p">]</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">listdir</span><span class="p">(</span><span class="n">command_dir</span><span class="p">)</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">f</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s">&#39;_&#39;</span><span class="p">)</span> <span class="ow">and</span> <span class="n">f</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s">&#39;.py&#39;</span><span class="p">)]</span>
+    <span class="k">except</span> <span class="ne">OSError</span><span class="p">:</span>
+        <span class="k">return</span> <span class="p">[]</span>
+</div>
+<div class="viewcode-block" id="find_management_module"><a class="viewcode-back" href="../../../django.core.management.html#django.core.management.find_management_module">[docs]</a><span class="k">def</span> <span class="nf">find_management_module</span><span class="p">(</span><span class="n">app_name</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Determines the path to the management module for the given app_name,</span>
+<span class="sd">    without actually importing the application or the management module.</span>
+
+<span class="sd">    Raises ImportError if the management module cannot be found for any reason.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">parts</span> <span class="o">=</span> <span class="n">app_name</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&#39;.&#39;</span><span class="p">)</span>
+    <span class="n">parts</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s">&#39;management&#39;</span><span class="p">)</span>
+    <span class="n">parts</span><span class="o">.</span><span class="n">reverse</span><span class="p">()</span>
+    <span class="n">part</span> <span class="o">=</span> <span class="n">parts</span><span class="o">.</span><span class="n">pop</span><span class="p">()</span>
+    <span class="n">path</span> <span class="o">=</span> <span class="bp">None</span>
+
+    <span class="c"># When using manage.py, the project module is added to the path,</span>
+    <span class="c"># loaded, then removed from the path. This means that</span>
+    <span class="c"># testproject.testapp.models can be loaded in future, even if</span>
+    <span class="c"># testproject isn&#39;t in the path. When looking for the management</span>
+    <span class="c"># module, we need look for the case where the project name is part</span>
+    <span class="c"># of the app_name but the project directory itself isn&#39;t on the path.</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">f</span><span class="p">,</span> <span class="n">path</span><span class="p">,</span> <span class="n">descr</span> <span class="o">=</span> <span class="n">imp</span><span class="o">.</span><span class="n">find_module</span><span class="p">(</span><span class="n">part</span><span class="p">,</span><span class="n">path</span><span class="p">)</span>
+    <span class="k">except</span> <span class="ne">ImportError</span><span class="p">,</span><span class="n">e</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">getcwd</span><span class="p">())</span> <span class="o">!=</span> <span class="n">part</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">e</span>
+
+    <span class="k">while</span> <span class="n">parts</span><span class="p">:</span>
+        <span class="n">part</span> <span class="o">=</span> <span class="n">parts</span><span class="o">.</span><span class="n">pop</span><span class="p">()</span>
+        <span class="n">f</span><span class="p">,</span> <span class="n">path</span><span class="p">,</span> <span class="n">descr</span> <span class="o">=</span> <span class="n">imp</span><span class="o">.</span><span class="n">find_module</span><span class="p">(</span><span class="n">part</span><span class="p">,</span> <span class="n">path</span> <span class="ow">and</span> <span class="p">[</span><span class="n">path</span><span class="p">]</span> <span class="ow">or</span> <span class="bp">None</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">path</span>
+</div>
+<div class="viewcode-block" id="load_command_class"><a class="viewcode-back" href="../../../django.core.management.html#django.core.management.load_command_class">[docs]</a><span class="k">def</span> <span class="nf">load_command_class</span><span class="p">(</span><span class="n">app_name</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Given a command name and an application name, returns the Command</span>
+<span class="sd">    class instance. All errors raised by the import process</span>
+<span class="sd">    (ImportError, AttributeError) are allowed to propagate.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">module</span> <span class="o">=</span> <span class="n">import_module</span><span class="p">(</span><span class="s">&#39;</span><span class="si">%s</span><span class="s">.management.commands.</span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">app_name</span><span class="p">,</span> <span class="n">name</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">module</span><span class="o">.</span><span class="n">Command</span><span class="p">()</span>
+</div>
+<div class="viewcode-block" id="get_commands"><a class="viewcode-back" href="../../../django.core.management.html#django.core.management.get_commands">[docs]</a><span class="k">def</span> <span class="nf">get_commands</span><span class="p">():</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Returns a dictionary mapping command names to their callback applications.</span>
+
+<span class="sd">    This works by looking for a management.commands package in django.core, and</span>
+<span class="sd">    in each installed application -- if a commands package exists, all commands</span>
+<span class="sd">    in that package are registered.</span>
+
+<span class="sd">    Core commands are always included. If a settings module has been</span>
+<span class="sd">    specified, user-defined commands will also be included, the</span>
+<span class="sd">    startproject command will be disabled, and the startapp command</span>
+<span class="sd">    will be modified to use the directory in which the settings module appears.</span>
+
+<span class="sd">    The dictionary is in the format {command_name: app_name}. Key-value</span>
+<span class="sd">    pairs from this dictionary can then be used in calls to</span>
+<span class="sd">    load_command_class(app_name, command_name)</span>
+
+<span class="sd">    If a specific version of a command must be loaded (e.g., with the</span>
+<span class="sd">    startapp command), the instantiated module can be placed in the</span>
+<span class="sd">    dictionary in place of the application name.</span>
+
+<span class="sd">    The dictionary is cached on the first call and reused on subsequent</span>
+<span class="sd">    calls.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">global</span> <span class="n">_commands</span>
+    <span class="k">if</span> <span class="n">_commands</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+        <span class="n">_commands</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">([(</span><span class="n">name</span><span class="p">,</span> <span class="s">&#39;django.core&#39;</span><span class="p">)</span> <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">find_commands</span><span class="p">(</span><span class="n">__path__</span><span class="p">[</span><span class="mi">0</span><span class="p">])])</span>
+
+        <span class="c"># Find the installed apps</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="kn">from</span> <span class="nn">django.conf</span> <span class="kn">import</span> <span class="n">settings</span>
+            <span class="n">apps</span> <span class="o">=</span> <span class="n">settings</span><span class="o">.</span><span class="n">INSTALLED_APPS</span>
+        <span class="k">except</span> <span class="p">(</span><span class="ne">AttributeError</span><span class="p">,</span> <span class="ne">EnvironmentError</span><span class="p">,</span> <span class="ne">ImportError</span><span class="p">):</span>
+            <span class="n">apps</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="c"># Find the project directory</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="kn">from</span> <span class="nn">django.conf</span> <span class="kn">import</span> <span class="n">settings</span>
+            <span class="n">module</span> <span class="o">=</span> <span class="n">import_module</span><span class="p">(</span><span class="n">settings</span><span class="o">.</span><span class="n">SETTINGS_MODULE</span><span class="p">)</span>
+            <span class="n">project_directory</span> <span class="o">=</span> <span class="n">setup_environ</span><span class="p">(</span><span class="n">module</span><span class="p">,</span> <span class="n">settings</span><span class="o">.</span><span class="n">SETTINGS_MODULE</span><span class="p">)</span>
+        <span class="k">except</span> <span class="p">(</span><span class="ne">AttributeError</span><span class="p">,</span> <span class="ne">EnvironmentError</span><span class="p">,</span> <span class="ne">ImportError</span><span class="p">,</span> <span class="ne">KeyError</span><span class="p">):</span>
+            <span class="n">project_directory</span> <span class="o">=</span> <span class="bp">None</span>
+
+        <span class="c"># Find and load the management module for each installed app.</span>
+        <span class="k">for</span> <span class="n">app_name</span> <span class="ow">in</span> <span class="n">apps</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">path</span> <span class="o">=</span> <span class="n">find_management_module</span><span class="p">(</span><span class="n">app_name</span><span class="p">)</span>
+                <span class="n">_commands</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="nb">dict</span><span class="p">([(</span><span class="n">name</span><span class="p">,</span> <span class="n">app_name</span><span class="p">)</span>
+                                       <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">find_commands</span><span class="p">(</span><span class="n">path</span><span class="p">)]))</span>
+            <span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
+                <span class="k">pass</span> <span class="c"># No management module - ignore this app</span>
+
+        <span class="k">if</span> <span class="n">project_directory</span><span class="p">:</span>
+            <span class="c"># Remove the &quot;startproject&quot; command from self.commands, because</span>
+            <span class="c"># that&#39;s a django-admin.py command, not a manage.py command.</span>
+            <span class="k">del</span> <span class="n">_commands</span><span class="p">[</span><span class="s">&#39;startproject&#39;</span><span class="p">]</span>
+
+            <span class="c"># Override the startapp command so that it always uses the</span>
+            <span class="c"># project_directory, not the current working directory</span>
+            <span class="c"># (which is default).</span>
+            <span class="kn">from</span> <span class="nn">django.core.management.commands.startapp</span> <span class="kn">import</span> <span class="n">ProjectCommand</span>
+            <span class="n">_commands</span><span class="p">[</span><span class="s">&#39;startapp&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">ProjectCommand</span><span class="p">(</span><span class="n">project_directory</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">_commands</span>
+</div>
+<div class="viewcode-block" id="call_command"><a class="viewcode-back" href="../../../django.core.management.html#django.core.management.call_command">[docs]</a><span class="k">def</span> <span class="nf">call_command</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">options</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Calls the given command, with the given options and args/kwargs.</span>
+
+<span class="sd">    This is the primary API you should use for calling specific commands.</span>
+
+<span class="sd">    Some examples:</span>
+<span class="sd">        call_command(&#39;syncdb&#39;)</span>
+<span class="sd">        call_command(&#39;shell&#39;, plain=True)</span>
+<span class="sd">        call_command(&#39;sqlall&#39;, &#39;myapp&#39;)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c"># Load the command object.</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">app_name</span> <span class="o">=</span> <span class="n">get_commands</span><span class="p">()[</span><span class="n">name</span><span class="p">]</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">app_name</span><span class="p">,</span> <span class="n">BaseCommand</span><span class="p">):</span>
+            <span class="c"># If the command is already loaded, use it directly.</span>
+            <span class="n">klass</span> <span class="o">=</span> <span class="n">app_name</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">klass</span> <span class="o">=</span> <span class="n">load_command_class</span><span class="p">(</span><span class="n">app_name</span><span class="p">,</span> <span class="n">name</span><span class="p">)</span>
+    <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">CommandError</span><span class="p">(</span><span class="s">&quot;Unknown command: </span><span class="si">%r</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">name</span><span class="p">)</span>
+
+    <span class="c"># Grab out a list of defaults from the options. optparse does this for us</span>
+    <span class="c"># when the script runs from the command line, but since call_command can</span>
+    <span class="c"># be called programatically, we need to simulate the loading and handling</span>
+    <span class="c"># of defaults (see #10080 for details).</span>
+    <span class="n">defaults</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">([(</span><span class="n">o</span><span class="o">.</span><span class="n">dest</span><span class="p">,</span> <span class="n">o</span><span class="o">.</span><span class="n">default</span><span class="p">)</span>
+                     <span class="k">for</span> <span class="n">o</span> <span class="ow">in</span> <span class="n">klass</span><span class="o">.</span><span class="n">option_list</span>
+                     <span class="k">if</span> <span class="n">o</span><span class="o">.</span><span class="n">default</span> <span class="ow">is</span> <span class="ow">not</span> <span class="n">NO_DEFAULT</span><span class="p">])</span>
+    <span class="n">defaults</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">options</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">klass</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">defaults</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="LaxOptionParser"><a class="viewcode-back" href="../../../django.core.management.html#django.core.management.LaxOptionParser">[docs]</a><span class="k">class</span> <span class="nc">LaxOptionParser</span><span class="p">(</span><span class="n">OptionParser</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    An option parser that doesn&#39;t raise any errors on unknown options.</span>
+
+<span class="sd">    This is needed because the --settings and --pythonpath options affect</span>
+<span class="sd">    the commands (and thus the options) that are available to the user.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">error</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">msg</span><span class="p">):</span>
+        <span class="k">pass</span>
+
+<div class="viewcode-block" id="LaxOptionParser.print_help"><a class="viewcode-back" href="../../../django.core.management.html#django.core.management.LaxOptionParser.print_help">[docs]</a>    <span class="k">def</span> <span class="nf">print_help</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Output nothing.</span>
+
+<span class="sd">        The lax options are included in the normal option parser, so under</span>
+<span class="sd">        normal usage, we don&#39;t need to print the lax options.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">pass</span>
+</div>
+<div class="viewcode-block" id="LaxOptionParser.print_lax_help"><a class="viewcode-back" href="../../../django.core.management.html#django.core.management.LaxOptionParser.print_lax_help">[docs]</a>    <span class="k">def</span> <span class="nf">print_lax_help</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Output the basic options available to every command.</span>
+
+<span class="sd">        This just redirects to the default print_help() behaviour.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">OptionParser</span><span class="o">.</span><span class="n">print_help</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+</div>
+    <span class="k">def</span> <span class="nf">_process_args</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">largs</span><span class="p">,</span> <span class="n">rargs</span><span class="p">,</span> <span class="n">values</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Overrides OptionParser._process_args to exclusively handle default</span>
+<span class="sd">        options and ignore args and other options.</span>
+
+<span class="sd">        This overrides the behavior of the super class, which stop parsing</span>
+<span class="sd">        at the first unrecognized option.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">while</span> <span class="n">rargs</span><span class="p">:</span>
+            <span class="n">arg</span> <span class="o">=</span> <span class="n">rargs</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">arg</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="mi">2</span><span class="p">]</span> <span class="o">==</span> <span class="s">&quot;--&quot;</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">arg</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">2</span><span class="p">:</span>
+                    <span class="c"># process a single long option (possibly with value(s))</span>
+                    <span class="c"># the superclass code pops the arg off rargs</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_process_long_opt</span><span class="p">(</span><span class="n">rargs</span><span class="p">,</span> <span class="n">values</span><span class="p">)</span>
+                <span class="k">elif</span> <span class="n">arg</span><span class="p">[:</span><span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="s">&quot;-&quot;</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">arg</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+                    <span class="c"># process a cluster of short options (possibly with</span>
+                    <span class="c"># value(s) for the last one only)</span>
+                    <span class="c"># the superclass code pops the arg off rargs</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_process_short_opts</span><span class="p">(</span><span class="n">rargs</span><span class="p">,</span> <span class="n">values</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="c"># it&#39;s either a non-default option or an arg</span>
+                    <span class="c"># either way, add it to the args list so we can keep</span>
+                    <span class="c"># dealing with options</span>
+                    <span class="k">del</span> <span class="n">rargs</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+                    <span class="k">raise</span> <span class="ne">Exception</span>
+            <span class="k">except</span><span class="p">:</span>
+                <span class="n">largs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">arg</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="ManagementUtility"><a class="viewcode-back" href="../../../django.core.management.html#django.core.management.ManagementUtility">[docs]</a><span class="k">class</span> <span class="nc">ManagementUtility</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Encapsulates the logic of the django-admin.py and manage.py utilities.</span>
+
+<span class="sd">    A ManagementUtility has a number of commands, which can be manipulated</span>
+<span class="sd">    by editing the self.commands dictionary.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">argv</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">argv</span> <span class="o">=</span> <span class="n">argv</span> <span class="ow">or</span> <span class="n">sys</span><span class="o">.</span><span class="n">argv</span><span class="p">[:]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">prog_name</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">argv</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+
+<div class="viewcode-block" id="ManagementUtility.main_help_text"><a class="viewcode-back" href="../../../django.core.management.html#django.core.management.ManagementUtility.main_help_text">[docs]</a>    <span class="k">def</span> <span class="nf">main_help_text</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns the script&#39;s main help text, as a string.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">usage</span> <span class="o">=</span> <span class="p">[</span><span class="s">&#39;&#39;</span><span class="p">,</span><span class="s">&quot;Type &#39;</span><span class="si">%s</span><span class="s"> help &lt;subcommand&gt;&#39; for help on a specific subcommand.&quot;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">prog_name</span><span class="p">,</span><span class="s">&#39;&#39;</span><span class="p">]</span>
+        <span class="n">usage</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s">&#39;Available subcommands:&#39;</span><span class="p">)</span>
+        <span class="n">commands</span> <span class="o">=</span> <span class="n">get_commands</span><span class="p">()</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span>
+        <span class="n">commands</span><span class="o">.</span><span class="n">sort</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">cmd</span> <span class="ow">in</span> <span class="n">commands</span><span class="p">:</span>
+            <span class="n">usage</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s">&#39;  </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">cmd</span><span class="p">)</span>
+        <span class="k">return</span> <span class="s">&#39;</span><span class="se">\n</span><span class="s">&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">usage</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="ManagementUtility.fetch_command"><a class="viewcode-back" href="../../../django.core.management.html#django.core.management.ManagementUtility.fetch_command">[docs]</a>    <span class="k">def</span> <span class="nf">fetch_command</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">subcommand</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Tries to fetch the given subcommand, printing a message with the</span>
+<span class="sd">        appropriate command called from the command line (usually</span>
+<span class="sd">        &quot;django-admin.py&quot; or &quot;manage.py&quot;) if it can&#39;t be found.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">app_name</span> <span class="o">=</span> <span class="n">get_commands</span><span class="p">()[</span><span class="n">subcommand</span><span class="p">]</span>
+        <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+            <span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s">&quot;Unknown command: </span><span class="si">%r</span><span class="se">\n</span><span class="s">Type &#39;</span><span class="si">%s</span><span class="s"> help&#39; for usage.</span><span class="se">\n</span><span class="s">&quot;</span> <span class="o">%</span> \
+                <span class="p">(</span><span class="n">subcommand</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">prog_name</span><span class="p">))</span>
+            <span class="n">sys</span><span class="o">.</span><span class="n">exit</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">app_name</span><span class="p">,</span> <span class="n">BaseCommand</span><span class="p">):</span>
+            <span class="c"># If the command is already loaded, use it directly.</span>
+            <span class="n">klass</span> <span class="o">=</span> <span class="n">app_name</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">klass</span> <span class="o">=</span> <span class="n">load_command_class</span><span class="p">(</span><span class="n">app_name</span><span class="p">,</span> <span class="n">subcommand</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">klass</span>
+</div>
+<div class="viewcode-block" id="ManagementUtility.autocomplete"><a class="viewcode-back" href="../../../django.core.management.html#django.core.management.ManagementUtility.autocomplete">[docs]</a>    <span class="k">def</span> <span class="nf">autocomplete</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Output completion suggestions for BASH.</span>
+
+<span class="sd">        The output of this function is passed to BASH&#39;s `COMREPLY` variable and</span>
+<span class="sd">        treated as completion suggestions. `COMREPLY` expects a space</span>
+<span class="sd">        separated string as the result.</span>
+
+<span class="sd">        The `COMP_WORDS` and `COMP_CWORD` BASH environment variables are used</span>
+<span class="sd">        to get information about the cli input. Please refer to the BASH</span>
+<span class="sd">        man-page for more information about this variables.</span>
+
+<span class="sd">        Subcommand options are saved as pairs. A pair consists of</span>
+<span class="sd">        the long option string (e.g. &#39;--exclude&#39;) and a boolean</span>
+<span class="sd">        value indicating if the option requires arguments. When printing to</span>
+<span class="sd">        stdout, a equal sign is appended to options which require arguments.</span>
+
+<span class="sd">        Note: If debugging this function, it is recommended to write the debug</span>
+<span class="sd">        output in a separate file. Otherwise the debug output will be treated</span>
+<span class="sd">        and formatted as potential completion suggestions.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c"># Don&#39;t complete if user hasn&#39;t sourced bash_completion file.</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">has_key</span><span class="p">(</span><span class="s">&#39;DJANGO_AUTO_COMPLETE&#39;</span><span class="p">):</span>
+            <span class="k">return</span>
+
+        <span class="n">cwords</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s">&#39;COMP_WORDS&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">()[</span><span class="mi">1</span><span class="p">:]</span>
+        <span class="n">cword</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s">&#39;COMP_CWORD&#39;</span><span class="p">])</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">curr</span> <span class="o">=</span> <span class="n">cwords</span><span class="p">[</span><span class="n">cword</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+        <span class="k">except</span> <span class="ne">IndexError</span><span class="p">:</span>
+            <span class="n">curr</span> <span class="o">=</span> <span class="s">&#39;&#39;</span>
+
+        <span class="n">subcommands</span> <span class="o">=</span> <span class="n">get_commands</span><span class="p">()</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span> <span class="o">+</span> <span class="p">[</span><span class="s">&#39;help&#39;</span><span class="p">]</span>
+        <span class="n">options</span> <span class="o">=</span> <span class="p">[(</span><span class="s">&#39;--help&#39;</span><span class="p">,</span> <span class="bp">None</span><span class="p">)]</span>
+
+        <span class="c"># subcommand</span>
+        <span class="k">if</span> <span class="n">cword</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="k">print</span> <span class="s">&#39; &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">sorted</span><span class="p">(</span><span class="nb">filter</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="n">curr</span><span class="p">),</span> <span class="n">subcommands</span><span class="p">)))</span>
+        <span class="c"># subcommand options</span>
+        <span class="c"># special case: the &#39;help&#39; subcommand has no options</span>
+        <span class="k">elif</span> <span class="n">cwords</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="ow">in</span> <span class="n">subcommands</span> <span class="ow">and</span> <span class="n">cwords</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">!=</span> <span class="s">&#39;help&#39;</span><span class="p">:</span>
+            <span class="n">subcommand_cls</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">fetch_command</span><span class="p">(</span><span class="n">cwords</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+            <span class="c"># special case: &#39;runfcgi&#39; stores additional options as</span>
+            <span class="c"># &#39;key=value&#39; pairs</span>
+            <span class="k">if</span> <span class="n">cwords</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="s">&#39;runfcgi&#39;</span><span class="p">:</span>
+                <span class="kn">from</span> <span class="nn">django.core.servers.fastcgi</span> <span class="kn">import</span> <span class="n">FASTCGI_OPTIONS</span>
+                <span class="n">options</span> <span class="o">+=</span> <span class="p">[(</span><span class="n">k</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">FASTCGI_OPTIONS</span><span class="p">]</span>
+            <span class="c"># special case: add the names of installed apps to options</span>
+            <span class="k">elif</span> <span class="n">cwords</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="ow">in</span> <span class="p">(</span><span class="s">&#39;dumpdata&#39;</span><span class="p">,</span> <span class="s">&#39;reset&#39;</span><span class="p">,</span> <span class="s">&#39;sql&#39;</span><span class="p">,</span> <span class="s">&#39;sqlall&#39;</span><span class="p">,</span>
+                               <span class="s">&#39;sqlclear&#39;</span><span class="p">,</span> <span class="s">&#39;sqlcustom&#39;</span><span class="p">,</span> <span class="s">&#39;sqlindexes&#39;</span><span class="p">,</span>
+                               <span class="s">&#39;sqlreset&#39;</span><span class="p">,</span> <span class="s">&#39;sqlsequencereset&#39;</span><span class="p">,</span> <span class="s">&#39;test&#39;</span><span class="p">):</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="kn">from</span> <span class="nn">django.conf</span> <span class="kn">import</span> <span class="n">settings</span>
+                    <span class="c"># Get the last part of the dotted path as the app name.</span>
+                    <span class="n">options</span> <span class="o">+=</span> <span class="p">[(</span><span class="n">a</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&#39;.&#39;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="mi">0</span><span class="p">)</span> <span class="k">for</span> <span class="n">a</span> <span class="ow">in</span> <span class="n">settings</span><span class="o">.</span><span class="n">INSTALLED_APPS</span><span class="p">]</span>
+                <span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
+                    <span class="c"># Fail silently if DJANGO_SETTINGS_MODULE isn&#39;t set. The</span>
+                    <span class="c"># user will find out once they execute the command.</span>
+                    <span class="k">pass</span>
+            <span class="n">options</span> <span class="o">+=</span> <span class="p">[(</span><span class="n">s_opt</span><span class="o">.</span><span class="n">get_opt_string</span><span class="p">(),</span> <span class="n">s_opt</span><span class="o">.</span><span class="n">nargs</span><span class="p">)</span> <span class="k">for</span> <span class="n">s_opt</span> <span class="ow">in</span>
+                        <span class="n">subcommand_cls</span><span class="o">.</span><span class="n">option_list</span><span class="p">]</span>
+            <span class="c"># filter out previously specified options from available options</span>
+            <span class="n">prev_opts</span> <span class="o">=</span> <span class="p">[</span><span class="n">x</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&#39;=&#39;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">cwords</span><span class="p">[</span><span class="mi">1</span><span class="p">:</span><span class="n">cword</span><span class="o">-</span><span class="mi">1</span><span class="p">]]</span>
+            <span class="n">options</span> <span class="o">=</span> <span class="nb">filter</span><span class="p">(</span><span class="k">lambda</span> <span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">v</span><span class="p">):</span> <span class="n">x</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">prev_opts</span><span class="p">,</span> <span class="n">options</span><span class="p">)</span>
+
+            <span class="c"># filter options by current input</span>
+            <span class="n">options</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">([(</span><span class="n">k</span><span class="p">,</span> <span class="n">v</span><span class="p">)</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">options</span> <span class="k">if</span> <span class="n">k</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="n">curr</span><span class="p">)])</span>
+            <span class="k">for</span> <span class="n">option</span> <span class="ow">in</span> <span class="n">options</span><span class="p">:</span>
+                <span class="n">opt_label</span> <span class="o">=</span> <span class="n">option</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+                <span class="c"># append &#39;=&#39; to options which require args</span>
+                <span class="k">if</span> <span class="n">option</span><span class="p">[</span><span class="mi">1</span><span class="p">]:</span>
+                    <span class="n">opt_label</span> <span class="o">+=</span> <span class="s">&#39;=&#39;</span>
+                <span class="k">print</span> <span class="n">opt_label</span>
+        <span class="n">sys</span><span class="o">.</span><span class="n">exit</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="ManagementUtility.execute"><a class="viewcode-back" href="../../../django.core.management.html#django.core.management.ManagementUtility.execute">[docs]</a>    <span class="k">def</span> <span class="nf">execute</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Given the command-line arguments, this figures out which subcommand is</span>
+<span class="sd">        being run, creates a parser appropriate to that command, and runs it.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c"># Preprocess options to extract --settings and --pythonpath.</span>
+        <span class="c"># These options could affect the commands that are available, so they</span>
+        <span class="c"># must be processed early.</span>
+        <span class="n">parser</span> <span class="o">=</span> <span class="n">LaxOptionParser</span><span class="p">(</span><span class="n">usage</span><span class="o">=</span><span class="s">&quot;%prog subcommand [options] [args]&quot;</span><span class="p">,</span>
+                                 <span class="n">version</span><span class="o">=</span><span class="n">get_version</span><span class="p">(),</span>
+                                 <span class="n">option_list</span><span class="o">=</span><span class="n">BaseCommand</span><span class="o">.</span><span class="n">option_list</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">autocomplete</span><span class="p">()</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">options</span><span class="p">,</span> <span class="n">args</span> <span class="o">=</span> <span class="n">parser</span><span class="o">.</span><span class="n">parse_args</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">argv</span><span class="p">)</span>
+            <span class="n">handle_default_options</span><span class="p">(</span><span class="n">options</span><span class="p">)</span>
+        <span class="k">except</span><span class="p">:</span>
+            <span class="k">pass</span> <span class="c"># Ignore any option errors at this point.</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">subcommand</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">argv</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+        <span class="k">except</span> <span class="ne">IndexError</span><span class="p">:</span>
+            <span class="n">subcommand</span> <span class="o">=</span> <span class="s">&#39;help&#39;</span> <span class="c"># Display help if no arguments were given.</span>
+
+        <span class="k">if</span> <span class="n">subcommand</span> <span class="o">==</span> <span class="s">&#39;help&#39;</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">args</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">2</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">fetch_command</span><span class="p">(</span><span class="n">args</span><span class="p">[</span><span class="mi">2</span><span class="p">])</span><span class="o">.</span><span class="n">print_help</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">prog_name</span><span class="p">,</span> <span class="n">args</span><span class="p">[</span><span class="mi">2</span><span class="p">])</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">parser</span><span class="o">.</span><span class="n">print_lax_help</span><span class="p">()</span>
+                <span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">main_help_text</span><span class="p">()</span> <span class="o">+</span> <span class="s">&#39;</span><span class="se">\n</span><span class="s">&#39;</span><span class="p">)</span>
+                <span class="n">sys</span><span class="o">.</span><span class="n">exit</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+        <span class="c"># Special-cases: We want &#39;django-admin.py --version&#39; and</span>
+        <span class="c"># &#39;django-admin.py --help&#39; to work, for backwards compatibility.</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">argv</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span> <span class="o">==</span> <span class="p">[</span><span class="s">&#39;--version&#39;</span><span class="p">]:</span>
+            <span class="c"># LaxOptionParser already takes care of printing the version.</span>
+            <span class="k">pass</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">argv</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span> <span class="ow">in</span> <span class="p">([</span><span class="s">&#39;--help&#39;</span><span class="p">],</span> <span class="p">[</span><span class="s">&#39;-h&#39;</span><span class="p">]):</span>
+            <span class="n">parser</span><span class="o">.</span><span class="n">print_lax_help</span><span class="p">()</span>
+            <span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">main_help_text</span><span class="p">()</span> <span class="o">+</span> <span class="s">&#39;</span><span class="se">\n</span><span class="s">&#39;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">fetch_command</span><span class="p">(</span><span class="n">subcommand</span><span class="p">)</span><span class="o">.</span><span class="n">run_from_argv</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">argv</span><span class="p">)</span>
+</div></div>
+<div class="viewcode-block" id="setup_environ"><a class="viewcode-back" href="../../../django.core.management.html#django.core.management.setup_environ">[docs]</a><span class="k">def</span> <span class="nf">setup_environ</span><span class="p">(</span><span class="n">settings_mod</span><span class="p">,</span> <span class="n">original_settings_path</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Configures the runtime environment. This can also be used by external</span>
+<span class="sd">    scripts wanting to set up a similar environment to manage.py.</span>
+<span class="sd">    Returns the project directory (assuming the passed settings module is</span>
+<span class="sd">    directly in the project directory).</span>
+
+<span class="sd">    The &quot;original_settings_path&quot; parameter is optional, but recommended, since</span>
+<span class="sd">    trying to work out the original path from the module can be problematic.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c"># Add this project to sys.path so that it&#39;s importable in the conventional</span>
+    <span class="c"># way. For example, if this file (manage.py) lives in a directory</span>
+    <span class="c"># &quot;myproject&quot;, this code would add &quot;/path/to/myproject&quot; to sys.path.</span>
+    <span class="k">if</span> <span class="s">&#39;__init__.py&#39;</span> <span class="ow">in</span> <span class="n">settings_mod</span><span class="o">.</span><span class="n">__file__</span><span class="p">:</span>
+        <span class="n">p</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">settings_mod</span><span class="o">.</span><span class="n">__file__</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">p</span> <span class="o">=</span> <span class="n">settings_mod</span><span class="o">.</span><span class="n">__file__</span>
+    <span class="n">project_directory</span><span class="p">,</span> <span class="n">settings_filename</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">p</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">project_directory</span> <span class="o">==</span> <span class="n">os</span><span class="o">.</span><span class="n">curdir</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">project_directory</span><span class="p">:</span>
+        <span class="n">project_directory</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">getcwd</span><span class="p">()</span>
+    <span class="n">project_name</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="n">project_directory</span><span class="p">)</span>
+
+    <span class="c"># Strip filename suffix to get the module name.</span>
+    <span class="n">settings_name</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">splitext</span><span class="p">(</span><span class="n">settings_filename</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+
+    <span class="c"># Strip $py for Jython compiled files (like settings$py.class)</span>
+    <span class="k">if</span> <span class="n">settings_name</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s">&quot;$py&quot;</span><span class="p">):</span>
+        <span class="n">settings_name</span> <span class="o">=</span> <span class="n">settings_name</span><span class="p">[:</span><span class="o">-</span><span class="mi">3</span><span class="p">]</span>
+
+    <span class="c"># Set DJANGO_SETTINGS_MODULE appropriately.</span>
+    <span class="k">if</span> <span class="n">original_settings_path</span><span class="p">:</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s">&#39;DJANGO_SETTINGS_MODULE&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">original_settings_path</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s">&#39;DJANGO_SETTINGS_MODULE&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s">&#39;</span><span class="si">%s</span><span class="s">.</span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">project_name</span><span class="p">,</span> <span class="n">settings_name</span><span class="p">)</span>
+
+    <span class="c"># Import the project module. We add the parent directory to PYTHONPATH to</span>
+    <span class="c"># avoid some of the path errors new users can have.</span>
+    <span class="n">sys</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">project_directory</span><span class="p">,</span> <span class="n">os</span><span class="o">.</span><span class="n">pardir</span><span class="p">))</span>
+    <span class="n">project_module</span> <span class="o">=</span> <span class="n">import_module</span><span class="p">(</span><span class="n">project_name</span><span class="p">)</span>
+    <span class="n">sys</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">pop</span><span class="p">()</span>
+
+    <span class="k">return</span> <span class="n">project_directory</span>
+</div>
+<div class="viewcode-block" id="execute_from_command_line"><a class="viewcode-back" href="../../../django.core.management.html#django.core.management.execute_from_command_line">[docs]</a><span class="k">def</span> <span class="nf">execute_from_command_line</span><span class="p">(</span><span class="n">argv</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    A simple method that runs a ManagementUtility.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">utility</span> <span class="o">=</span> <span class="n">ManagementUtility</span><span class="p">(</span><span class="n">argv</span><span class="p">)</span>
+    <span class="n">utility</span><span class="o">.</span><span class="n">execute</span><span class="p">()</span>
+</div>
+<div class="viewcode-block" id="execute_manager"><a class="viewcode-back" href="../../../django.core.management.html#django.core.management.execute_manager">[docs]</a><span class="k">def</span> <span class="nf">execute_manager</span><span class="p">(</span><span class="n">settings_mod</span><span class="p">,</span> <span class="n">argv</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Like execute_from_command_line(), but for use by manage.py, a</span>
+<span class="sd">    project-specific django-admin.py utility.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">setup_environ</span><span class="p">(</span><span class="n">settings_mod</span><span class="p">)</span>
+    <span class="n">utility</span> <span class="o">=</span> <span class="n">ManagementUtility</span><span class="p">(</span><span class="n">argv</span><span class="p">)</span>
+    <span class="n">utility</span><span class="o">.</span><span class="n">execute</span><span class="p">()</span></div>
+</pre></div>
+
+      </div>
+      <div class="bottomnav">
+      
+        <p>
+        <a href="/">Home</a>:
+        <a class="uplink" href="../../../index.html">Contents</a>
+        </p>
+
+      </div>
+
+    <div class="footer">
+        &copy; Copyright 2012, HDKNR.COM.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.2pre.
+    </div>
+  </body>
+</html>
