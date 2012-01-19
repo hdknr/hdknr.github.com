@@ -6,19 +6,8 @@ django.core
 
 django.core
 =============
+
 .. automodule:: django.core
     :members:
 
-.. _django.core.serializers:
-
-django.core.serializers
---------------------------
-.. automodule:: django.core.serializers
-    :members:
-
-.. _django.core.serializers.json:
-
-django.core.serializers.json
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-.. automodule:: django.core.serializers.json
-    :members:
+- :doc:`core_serializers`

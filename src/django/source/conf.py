@@ -300,3 +300,6 @@ sys.path.insert(0, os.path.dirname(PRJ_PATH ))
 sys.path.insert(0, os.path.join(os.path.dirname(PRJ_PATH ),'app'))
 os.environ['DJANGO_SETTINGS_MODULE'] = 'app.settings'
 
+#
+import docutils
+docutils.parsers.rst.roles.DEFAULT_INTERPRETED_ROLE = 'title-reference'
