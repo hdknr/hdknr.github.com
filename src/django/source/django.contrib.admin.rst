@@ -2,6 +2,8 @@
 django.contrib.admin
 ====================
 
+.. contents:: django.contrib.admin
+
 .. _django.contrib.admin:
 
 django.contrib.admin
@@ -17,9 +19,29 @@ django.contrib.admin
 Sub
 ====
 
+- :doc:`django.contrib.admin.templatetags`
+
 - :doc:`django.contrib.admin.views`
 
-- :doc:`django.contrib.admin.templatetags`
+.. _django.contrib.admin.actions:
+
+django.contrib.admin.actions
+============================
+
+.. include:: cheat/django.contrib.admin.actions.rst
+
+.. automodule:: django.contrib.admin.actions
+    :members:
+
+.. _django.contrib.admin.filterspecs:
+
+django.contrib.admin.filterspecs
+================================
+
+.. include:: cheat/django.contrib.admin.filterspecs.rst
+
+.. automodule:: django.contrib.admin.filterspecs
+    :members:
 
 .. _django.contrib.admin.forms:
 
@@ -41,24 +63,14 @@ django.contrib.admin.helpers
 .. automodule:: django.contrib.admin.helpers
     :members:
 
-.. _django.contrib.admin.validation:
+.. _django.contrib.admin.models:
 
-django.contrib.admin.validation
-===============================
+django.contrib.admin.models
+===========================
 
-.. include:: cheat/django.contrib.admin.validation.rst
+.. include:: cheat/django.contrib.admin.models.rst
 
-.. automodule:: django.contrib.admin.validation
-    :members:
-
-.. _django.contrib.admin.util:
-
-django.contrib.admin.util
-=========================
-
-.. include:: cheat/django.contrib.admin.util.rst
-
-.. automodule:: django.contrib.admin.util
+.. automodule:: django.contrib.admin.models
     :members:
 
 .. _django.contrib.admin.options:
@@ -71,34 +83,34 @@ django.contrib.admin.options
 .. automodule:: django.contrib.admin.options
     :members:
 
-.. _django.contrib.admin.models:
+.. _django.contrib.admin.sites:
 
-django.contrib.admin.models
-===========================
+django.contrib.admin.sites
+==========================
 
-.. include:: cheat/django.contrib.admin.models.rst
+.. include:: cheat/django.contrib.admin.sites.rst
 
-.. automodule:: django.contrib.admin.models
+.. automodule:: django.contrib.admin.sites
     :members:
 
-.. _django.contrib.admin.filterspecs:
+.. _django.contrib.admin.util:
 
-django.contrib.admin.filterspecs
-================================
+django.contrib.admin.util
+=========================
 
-.. include:: cheat/django.contrib.admin.filterspecs.rst
+.. include:: cheat/django.contrib.admin.util.rst
 
-.. automodule:: django.contrib.admin.filterspecs
+.. automodule:: django.contrib.admin.util
     :members:
 
-.. _django.contrib.admin.actions:
+.. _django.contrib.admin.validation:
 
-django.contrib.admin.actions
-============================
+django.contrib.admin.validation
+===============================
 
-.. include:: cheat/django.contrib.admin.actions.rst
+.. include:: cheat/django.contrib.admin.validation.rst
 
-.. automodule:: django.contrib.admin.actions
+.. automodule:: django.contrib.admin.validation
     :members:
 
 .. _django.contrib.admin.widgets:
@@ -109,15 +121,5 @@ django.contrib.admin.widgets
 .. include:: cheat/django.contrib.admin.widgets.rst
 
 .. automodule:: django.contrib.admin.widgets
-    :members:
-
-.. _django.contrib.admin.sites:
-
-django.contrib.admin.sites
-==========================
-
-.. include:: cheat/django.contrib.admin.sites.rst
-
-.. automodule:: django.contrib.admin.sites
     :members:
 

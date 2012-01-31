@@ -2,6 +2,8 @@
 django.contrib.gis.tests.geogapp
 ================================
 
+.. contents:: django.contrib.gis.tests.geogapp
+
 .. _django.contrib.gis.tests.geogapp:
 
 django.contrib.gis.tests.geogapp

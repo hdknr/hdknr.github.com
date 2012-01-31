@@ -2,6 +2,8 @@
 django.views.generic
 ====================
 
+.. contents:: django.views.generic
+
 .. _django.views.generic:
 
 django.views.generic
@@ -24,14 +26,14 @@ django.views.generic.base
 .. automodule:: django.views.generic.base
     :members:
 
-.. _django.views.generic.list:
+.. _django.views.generic.create_update:
 
-django.views.generic.list
-=========================
+django.views.generic.create_update
+==================================
 
-.. include:: cheat/django.views.generic.list.rst
+.. include:: cheat/django.views.generic.create_update.rst
 
-.. automodule:: django.views.generic.list
+.. automodule:: django.views.generic.create_update
     :members:
 
 .. _django.views.generic.date_based:
@@ -42,16 +44,6 @@ django.views.generic.date_based
 .. include:: cheat/django.views.generic.date_based.rst
 
 .. automodule:: django.views.generic.date_based
-    :members:
-
-.. _django.views.generic.simple:
-
-django.views.generic.simple
-===========================
-
-.. include:: cheat/django.views.generic.simple.rst
-
-.. automodule:: django.views.generic.simple
     :members:
 
 .. _django.views.generic.dates:
@@ -74,6 +66,26 @@ django.views.generic.detail
 .. automodule:: django.views.generic.detail
     :members:
 
+.. _django.views.generic.edit:
+
+django.views.generic.edit
+=========================
+
+.. include:: cheat/django.views.generic.edit.rst
+
+.. automodule:: django.views.generic.edit
+    :members:
+
+.. _django.views.generic.list:
+
+django.views.generic.list
+=========================
+
+.. include:: cheat/django.views.generic.list.rst
+
+.. automodule:: django.views.generic.list
+    :members:
+
 .. _django.views.generic.list_detail:
 
 django.views.generic.list_detail
@@ -84,23 +96,13 @@ django.views.generic.list_detail
 .. automodule:: django.views.generic.list_detail
     :members:
 
-.. _django.views.generic.create_update:
+.. _django.views.generic.simple:
 
-django.views.generic.create_update
-==================================
+django.views.generic.simple
+===========================
 
-.. include:: cheat/django.views.generic.create_update.rst
+.. include:: cheat/django.views.generic.simple.rst
 
-.. automodule:: django.views.generic.create_update
-    :members:
-
-.. _django.views.generic.edit:
-
-django.views.generic.edit
-=========================
-
-.. include:: cheat/django.views.generic.edit.rst
-
-.. automodule:: django.views.generic.edit
+.. automodule:: django.views.generic.simple
     :members:
 

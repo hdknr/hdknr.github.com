@@ -2,6 +2,8 @@
 django.shortcuts
 ================
 
+.. contents:: django.shortcuts
+
 .. _django.shortcuts:
 
 django.shortcuts

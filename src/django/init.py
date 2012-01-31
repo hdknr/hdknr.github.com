@@ -16,8 +16,9 @@ for root, dirs, files in os.walk(top, topdown=True):
     rstfile = open( dst % rstname , "w")
     rstfile.write( "=" * len(rstname) + "\n")
     rstfile.write( rstname   + "\n")
-    rstfile.write( "=" * len(rstname)+ "\n" )
-    rstfile.write("\n"  )
+    rstfile.write( "=" * len(rstname)+ "\n\n" )
+    
+    rstfile.write(".. contents:: %s\n\n" % rstname )
 
     cheat_file = open(cheat % rstname, "a")
     cheat_file.write('')
@@ -40,12 +41,14 @@ for root, dirs, files in os.walk(top, topdown=True):
         rstfile.write( "Sub" +"\n")
         rstfile.write( "====" +"\n")
         rstfile.write( "" +"\n")
+        dirs.sort()
         for name in dirs:
             if os.path.isfile(root+'/%s/__init__.py' % name ) == False:
                 continue
             rstfile.write( "- :doc:`%s.%s`" % (rstname,name ) +"\n")
             rstfile.write("\n"  )
 
+    files.sort() 
     for name in files:
         base,ext = os.path.splitext(name)
         if ext != '.py' or base == '__init__' : 

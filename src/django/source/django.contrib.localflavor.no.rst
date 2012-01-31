@@ -2,6 +2,8 @@
 django.contrib.localflavor.no
 =============================
 
+.. contents:: django.contrib.localflavor.no
+
 .. _django.contrib.localflavor.no:
 
 django.contrib.localflavor.no

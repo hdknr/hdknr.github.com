@@ -2,6 +2,8 @@
 django.conf.locale.zh_TW
 ========================
 
+.. contents:: django.conf.locale.zh_TW
+
 .. _django.conf.locale.zh_TW:
 
 django.conf.locale.zh_TW

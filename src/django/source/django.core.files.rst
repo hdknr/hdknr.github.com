@@ -2,6 +2,8 @@
 django.core.files
 =================
 
+.. contents:: django.core.files
+
 .. _django.core.files:
 
 django.core.files
@@ -24,36 +26,6 @@ django.core.files.base
 .. automodule:: django.core.files.base
     :members:
 
-.. _django.core.files.locks:
-
-django.core.files.locks
-=======================
-
-.. include:: cheat/django.core.files.locks.rst
-
-.. automodule:: django.core.files.locks
-    :members:
-
-.. _django.core.files.utils:
-
-django.core.files.utils
-=======================
-
-.. include:: cheat/django.core.files.utils.rst
-
-.. automodule:: django.core.files.utils
-    :members:
-
-.. _django.core.files.uploadhandler:
-
-django.core.files.uploadhandler
-===============================
-
-.. include:: cheat/django.core.files.uploadhandler.rst
-
-.. automodule:: django.core.files.uploadhandler
-    :members:
-
 .. _django.core.files.images:
 
 django.core.files.images
@@ -64,14 +36,14 @@ django.core.files.images
 .. automodule:: django.core.files.images
     :members:
 
-.. _django.core.files.storage:
+.. _django.core.files.locks:
 
-django.core.files.storage
-=========================
+django.core.files.locks
+=======================
 
-.. include:: cheat/django.core.files.storage.rst
+.. include:: cheat/django.core.files.locks.rst
 
-.. automodule:: django.core.files.storage
+.. automodule:: django.core.files.locks
     :members:
 
 .. _django.core.files.move:
@@ -82,6 +54,16 @@ django.core.files.move
 .. include:: cheat/django.core.files.move.rst
 
 .. automodule:: django.core.files.move
+    :members:
+
+.. _django.core.files.storage:
+
+django.core.files.storage
+=========================
+
+.. include:: cheat/django.core.files.storage.rst
+
+.. automodule:: django.core.files.storage
     :members:
 
 .. _django.core.files.temp:
@@ -102,5 +84,25 @@ django.core.files.uploadedfile
 .. include:: cheat/django.core.files.uploadedfile.rst
 
 .. automodule:: django.core.files.uploadedfile
+    :members:
+
+.. _django.core.files.uploadhandler:
+
+django.core.files.uploadhandler
+===============================
+
+.. include:: cheat/django.core.files.uploadhandler.rst
+
+.. automodule:: django.core.files.uploadhandler
+    :members:
+
+.. _django.core.files.utils:
+
+django.core.files.utils
+=======================
+
+.. include:: cheat/django.core.files.utils.rst
+
+.. automodule:: django.core.files.utils
     :members:
 

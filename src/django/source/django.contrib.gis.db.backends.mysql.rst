@@ -2,6 +2,8 @@
 django.contrib.gis.db.backends.mysql
 ====================================
 
+.. contents:: django.contrib.gis.db.backends.mysql
+
 .. _django.contrib.gis.db.backends.mysql:
 
 django.contrib.gis.db.backends.mysql
@@ -24,16 +26,6 @@ django.contrib.gis.db.backends.mysql.base
 .. automodule:: django.contrib.gis.db.backends.mysql.base
     :members:
 
-.. _django.contrib.gis.db.backends.mysql.introspection:
-
-django.contrib.gis.db.backends.mysql.introspection
-==================================================
-
-.. include:: cheat/django.contrib.gis.db.backends.mysql.introspection.rst
-
-.. automodule:: django.contrib.gis.db.backends.mysql.introspection
-    :members:
-
 .. _django.contrib.gis.db.backends.mysql.creation:
 
 django.contrib.gis.db.backends.mysql.creation
@@ -42,6 +34,16 @@ django.contrib.gis.db.backends.mysql.creation
 .. include:: cheat/django.contrib.gis.db.backends.mysql.creation.rst
 
 .. automodule:: django.contrib.gis.db.backends.mysql.creation
+    :members:
+
+.. _django.contrib.gis.db.backends.mysql.introspection:
+
+django.contrib.gis.db.backends.mysql.introspection
+==================================================
+
+.. include:: cheat/django.contrib.gis.db.backends.mysql.introspection.rst
+
+.. automodule:: django.contrib.gis.db.backends.mysql.introspection
     :members:
 
 .. _django.contrib.gis.db.backends.mysql.operations:

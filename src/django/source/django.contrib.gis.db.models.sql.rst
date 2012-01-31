@@ -2,6 +2,8 @@
 django.contrib.gis.db.models.sql
 ================================
 
+.. contents:: django.contrib.gis.db.models.sql
+
 .. _django.contrib.gis.db.models.sql:
 
 django.contrib.gis.db.models.sql
@@ -24,6 +26,26 @@ django.contrib.gis.db.models.sql.aggregates
 .. automodule:: django.contrib.gis.db.models.sql.aggregates
     :members:
 
+.. _django.contrib.gis.db.models.sql.compiler:
+
+django.contrib.gis.db.models.sql.compiler
+=========================================
+
+.. include:: cheat/django.contrib.gis.db.models.sql.compiler.rst
+
+.. automodule:: django.contrib.gis.db.models.sql.compiler
+    :members:
+
+.. _django.contrib.gis.db.models.sql.conversion:
+
+django.contrib.gis.db.models.sql.conversion
+===========================================
+
+.. include:: cheat/django.contrib.gis.db.models.sql.conversion.rst
+
+.. automodule:: django.contrib.gis.db.models.sql.conversion
+    :members:
+
 .. _django.contrib.gis.db.models.sql.query:
 
 django.contrib.gis.db.models.sql.query
@@ -42,25 +64,5 @@ django.contrib.gis.db.models.sql.where
 .. include:: cheat/django.contrib.gis.db.models.sql.where.rst
 
 .. automodule:: django.contrib.gis.db.models.sql.where
-    :members:
-
-.. _django.contrib.gis.db.models.sql.conversion:
-
-django.contrib.gis.db.models.sql.conversion
-===========================================
-
-.. include:: cheat/django.contrib.gis.db.models.sql.conversion.rst
-
-.. automodule:: django.contrib.gis.db.models.sql.conversion
-    :members:
-
-.. _django.contrib.gis.db.models.sql.compiler:
-
-django.contrib.gis.db.models.sql.compiler
-=========================================
-
-.. include:: cheat/django.contrib.gis.db.models.sql.compiler.rst
-
-.. automodule:: django.contrib.gis.db.models.sql.compiler
     :members:
 

@@ -2,6 +2,8 @@
 django.db.backends.mysql
 ========================
 
+.. contents:: django.db.backends.mysql
+
 .. _django.db.backends.mysql:
 
 django.db.backends.mysql
@@ -34,24 +36,14 @@ django.db.backends.mysql.client
 .. automodule:: django.db.backends.mysql.client
     :members:
 
-.. _django.db.backends.mysql.validation:
+.. _django.db.backends.mysql.compiler:
 
-django.db.backends.mysql.validation
-===================================
+django.db.backends.mysql.compiler
+=================================
 
-.. include:: cheat/django.db.backends.mysql.validation.rst
+.. include:: cheat/django.db.backends.mysql.compiler.rst
 
-.. automodule:: django.db.backends.mysql.validation
-    :members:
-
-.. _django.db.backends.mysql.introspection:
-
-django.db.backends.mysql.introspection
-======================================
-
-.. include:: cheat/django.db.backends.mysql.introspection.rst
-
-.. automodule:: django.db.backends.mysql.introspection
+.. automodule:: django.db.backends.mysql.compiler
     :members:
 
 .. _django.db.backends.mysql.creation:
@@ -64,13 +56,23 @@ django.db.backends.mysql.creation
 .. automodule:: django.db.backends.mysql.creation
     :members:
 
-.. _django.db.backends.mysql.compiler:
+.. _django.db.backends.mysql.introspection:
 
-django.db.backends.mysql.compiler
-=================================
+django.db.backends.mysql.introspection
+======================================
 
-.. include:: cheat/django.db.backends.mysql.compiler.rst
+.. include:: cheat/django.db.backends.mysql.introspection.rst
 
-.. automodule:: django.db.backends.mysql.compiler
+.. automodule:: django.db.backends.mysql.introspection
+    :members:
+
+.. _django.db.backends.mysql.validation:
+
+django.db.backends.mysql.validation
+===================================
+
+.. include:: cheat/django.db.backends.mysql.validation.rst
+
+.. automodule:: django.db.backends.mysql.validation
     :members:
 

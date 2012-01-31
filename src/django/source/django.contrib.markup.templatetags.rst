@@ -2,6 +2,8 @@
 django.contrib.markup.templatetags
 ==================================
 
+.. contents:: django.contrib.markup.templatetags
+
 .. _django.contrib.markup.templatetags:
 
 django.contrib.markup.templatetags

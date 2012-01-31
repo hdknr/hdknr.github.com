@@ -2,6 +2,8 @@
 django.db.backends.oracle
 =========================
 
+.. contents:: django.db.backends.oracle
+
 .. _django.db.backends.oracle:
 
 django.db.backends.oracle
@@ -34,14 +36,14 @@ django.db.backends.oracle.client
 .. automodule:: django.db.backends.oracle.client
     :members:
 
-.. _django.db.backends.oracle.introspection:
+.. _django.db.backends.oracle.compiler:
 
-django.db.backends.oracle.introspection
-=======================================
+django.db.backends.oracle.compiler
+==================================
 
-.. include:: cheat/django.db.backends.oracle.introspection.rst
+.. include:: cheat/django.db.backends.oracle.compiler.rst
 
-.. automodule:: django.db.backends.oracle.introspection
+.. automodule:: django.db.backends.oracle.compiler
     :members:
 
 .. _django.db.backends.oracle.creation:
@@ -54,13 +56,13 @@ django.db.backends.oracle.creation
 .. automodule:: django.db.backends.oracle.creation
     :members:
 
-.. _django.db.backends.oracle.compiler:
+.. _django.db.backends.oracle.introspection:
 
-django.db.backends.oracle.compiler
-==================================
+django.db.backends.oracle.introspection
+=======================================
 
-.. include:: cheat/django.db.backends.oracle.compiler.rst
+.. include:: cheat/django.db.backends.oracle.introspection.rst
 
-.. automodule:: django.db.backends.oracle.compiler
+.. automodule:: django.db.backends.oracle.introspection
     :members:
 

@@ -2,6 +2,8 @@
 django.conf.locale.fi
 =====================
 
+.. contents:: django.conf.locale.fi
+
 .. _django.conf.locale.fi:
 
 django.conf.locale.fi

@@ -2,6 +2,8 @@
 django.conf.locale.ca
 =====================
 
+.. contents:: django.conf.locale.ca
+
 .. _django.conf.locale.ca:
 
 django.conf.locale.ca

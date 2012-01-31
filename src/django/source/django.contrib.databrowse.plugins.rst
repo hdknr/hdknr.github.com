@@ -2,6 +2,8 @@
 django.contrib.databrowse.plugins
 =================================
 
+.. contents:: django.contrib.databrowse.plugins
+
 .. _django.contrib.databrowse.plugins:
 
 django.contrib.databrowse.plugins

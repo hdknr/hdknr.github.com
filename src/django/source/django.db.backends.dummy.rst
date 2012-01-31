@@ -2,6 +2,8 @@
 django.db.backends.dummy
 ========================
 
+.. contents:: django.db.backends.dummy
+
 .. _django.db.backends.dummy:
 
 django.db.backends.dummy

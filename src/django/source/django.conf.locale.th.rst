@@ -2,6 +2,8 @@
 django.conf.locale.th
 =====================
 
+.. contents:: django.conf.locale.th
+
 .. _django.conf.locale.th:
 
 django.conf.locale.th

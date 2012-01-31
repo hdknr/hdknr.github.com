@@ -2,6 +2,8 @@
 django.contrib.flatpages.tests
 ==============================
 
+.. contents:: django.contrib.flatpages.tests
+
 .. _django.contrib.flatpages.tests:
 
 django.contrib.flatpages.tests
@@ -13,6 +15,16 @@ django.contrib.flatpages.tests
 .. automodule:: django.contrib.flatpages.tests
     :members:
 
+
+.. _django.contrib.flatpages.tests.csrf:
+
+django.contrib.flatpages.tests.csrf
+===================================
+
+.. include:: cheat/django.contrib.flatpages.tests.csrf.rst
+
+.. automodule:: django.contrib.flatpages.tests.csrf
+    :members:
 
 .. _django.contrib.flatpages.tests.forms:
 
@@ -34,26 +46,6 @@ django.contrib.flatpages.tests.middleware
 .. automodule:: django.contrib.flatpages.tests.middleware
     :members:
 
-.. _django.contrib.flatpages.tests.views:
-
-django.contrib.flatpages.tests.views
-====================================
-
-.. include:: cheat/django.contrib.flatpages.tests.views.rst
-
-.. automodule:: django.contrib.flatpages.tests.views
-    :members:
-
-.. _django.contrib.flatpages.tests.csrf:
-
-django.contrib.flatpages.tests.csrf
-===================================
-
-.. include:: cheat/django.contrib.flatpages.tests.csrf.rst
-
-.. automodule:: django.contrib.flatpages.tests.csrf
-    :members:
-
 .. _django.contrib.flatpages.tests.templatetags:
 
 django.contrib.flatpages.tests.templatetags
@@ -72,5 +64,15 @@ django.contrib.flatpages.tests.urls
 .. include:: cheat/django.contrib.flatpages.tests.urls.rst
 
 .. automodule:: django.contrib.flatpages.tests.urls
+    :members:
+
+.. _django.contrib.flatpages.tests.views:
+
+django.contrib.flatpages.tests.views
+====================================
+
+.. include:: cheat/django.contrib.flatpages.tests.views.rst
+
+.. automodule:: django.contrib.flatpages.tests.views
     :members:
 

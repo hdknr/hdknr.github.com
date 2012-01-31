@@ -2,6 +2,8 @@
 django.contrib.localflavor.id
 =============================
 
+.. contents:: django.contrib.localflavor.id
+
 .. _django.contrib.localflavor.id:
 
 django.contrib.localflavor.id

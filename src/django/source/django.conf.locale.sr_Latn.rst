@@ -2,6 +2,8 @@
 django.conf.locale.sr_Latn
 ==========================
 
+.. contents:: django.conf.locale.sr_Latn
+
 .. _django.conf.locale.sr_Latn:
 
 django.conf.locale.sr_Latn

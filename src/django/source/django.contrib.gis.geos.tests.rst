@@ -2,6 +2,8 @@
 django.contrib.gis.geos.tests
 =============================
 
+.. contents:: django.contrib.gis.geos.tests
+
 .. _django.contrib.gis.geos.tests:
 
 django.contrib.gis.geos.tests
@@ -14,14 +16,14 @@ django.contrib.gis.geos.tests
     :members:
 
 
-.. _django.contrib.gis.geos.tests.test_mutable_list:
+.. _django.contrib.gis.geos.tests.test_geos:
 
-django.contrib.gis.geos.tests.test_mutable_list
-===============================================
+django.contrib.gis.geos.tests.test_geos
+=======================================
 
-.. include:: cheat/django.contrib.gis.geos.tests.test_mutable_list.rst
+.. include:: cheat/django.contrib.gis.geos.tests.test_geos.rst
 
-.. automodule:: django.contrib.gis.geos.tests.test_mutable_list
+.. automodule:: django.contrib.gis.geos.tests.test_geos
     :members:
 
 .. _django.contrib.gis.geos.tests.test_geos_mutation:
@@ -44,13 +46,13 @@ django.contrib.gis.geos.tests.test_io
 .. automodule:: django.contrib.gis.geos.tests.test_io
     :members:
 
-.. _django.contrib.gis.geos.tests.test_geos:
+.. _django.contrib.gis.geos.tests.test_mutable_list:
 
-django.contrib.gis.geos.tests.test_geos
-=======================================
+django.contrib.gis.geos.tests.test_mutable_list
+===============================================
 
-.. include:: cheat/django.contrib.gis.geos.tests.test_geos.rst
+.. include:: cheat/django.contrib.gis.geos.tests.test_mutable_list.rst
 
-.. automodule:: django.contrib.gis.geos.tests.test_geos
+.. automodule:: django.contrib.gis.geos.tests.test_mutable_list
     :members:
 

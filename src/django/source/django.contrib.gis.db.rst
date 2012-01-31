@@ -2,6 +2,8 @@
 django.contrib.gis.db
 =====================
 
+.. contents:: django.contrib.gis.db
+
 .. _django.contrib.gis.db:
 
 django.contrib.gis.db

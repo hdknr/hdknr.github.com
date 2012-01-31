@@ -2,6 +2,8 @@
 django.contrib.auth.handlers
 ============================
 
+.. contents:: django.contrib.auth.handlers
+
 .. _django.contrib.auth.handlers:
 
 django.contrib.auth.handlers

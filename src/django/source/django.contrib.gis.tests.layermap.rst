@@ -2,6 +2,8 @@
 django.contrib.gis.tests.layermap
 =================================
 
+.. contents:: django.contrib.gis.tests.layermap
+
 .. _django.contrib.gis.tests.layermap:
 
 django.contrib.gis.tests.layermap

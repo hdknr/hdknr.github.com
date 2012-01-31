@@ -2,6 +2,8 @@
 django.contrib.localflavor.se
 =============================
 
+.. contents:: django.contrib.localflavor.se
+
 .. _django.contrib.localflavor.se:
 
 django.contrib.localflavor.se
@@ -24,16 +26,6 @@ django.contrib.localflavor.se.forms
 .. automodule:: django.contrib.localflavor.se.forms
     :members:
 
-.. _django.contrib.localflavor.se.utils:
-
-django.contrib.localflavor.se.utils
-===================================
-
-.. include:: cheat/django.contrib.localflavor.se.utils.rst
-
-.. automodule:: django.contrib.localflavor.se.utils
-    :members:
-
 .. _django.contrib.localflavor.se.se_counties:
 
 django.contrib.localflavor.se.se_counties
@@ -42,5 +34,15 @@ django.contrib.localflavor.se.se_counties
 .. include:: cheat/django.contrib.localflavor.se.se_counties.rst
 
 .. automodule:: django.contrib.localflavor.se.se_counties
+    :members:
+
+.. _django.contrib.localflavor.se.utils:
+
+django.contrib.localflavor.se.utils
+===================================
+
+.. include:: cheat/django.contrib.localflavor.se.utils.rst
+
+.. automodule:: django.contrib.localflavor.se.utils
     :members:
 

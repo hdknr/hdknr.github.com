@@ -12,6 +12,7 @@ Welcome to Note's documentation!
     x509
     git
     hg
+    bash
 
 Indices and tables
 ==================

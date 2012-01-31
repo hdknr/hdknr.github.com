@@ -2,6 +2,8 @@
 django.contrib.flatpages.templatetags
 =====================================
 
+.. contents:: django.contrib.flatpages.templatetags
+
 .. _django.contrib.flatpages.templatetags:
 
 django.contrib.flatpages.templatetags

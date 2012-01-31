@@ -2,6 +2,8 @@
 django.core.cache
 =================
 
+.. contents:: django.core.cache
+
 .. _django.core.cache:
 
 django.core.cache

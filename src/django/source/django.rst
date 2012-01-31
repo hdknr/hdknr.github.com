@@ -2,6 +2,8 @@
 django
 ======
 
+.. contents:: django
+
 .. _django:
 
 django
@@ -17,33 +19,33 @@ django
 Sub
 ====
 
-- :doc:`django.views`
-
-- :doc:`django.middleware`
-
-- :doc:`django.dispatch`
-
 - :doc:`django.bin`
-
-- :doc:`django.shortcuts`
-
-- :doc:`django.core`
-
-- :doc:`django.utils`
 
 - :doc:`django.conf`
 
-- :doc:`django.template`
+- :doc:`django.contrib`
+
+- :doc:`django.core`
+
+- :doc:`django.db`
+
+- :doc:`django.dispatch`
+
+- :doc:`django.forms`
 
 - :doc:`django.http`
+
+- :doc:`django.middleware`
+
+- :doc:`django.shortcuts`
+
+- :doc:`django.template`
 
 - :doc:`django.templatetags`
 
 - :doc:`django.test`
 
-- :doc:`django.forms`
+- :doc:`django.utils`
 
-- :doc:`django.contrib`
-
-- :doc:`django.db`
+- :doc:`django.views`
 

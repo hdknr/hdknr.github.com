@@ -2,6 +2,8 @@
 django.contrib.gis.forms
 ========================
 
+.. contents:: django.contrib.gis.forms
+
 .. _django.contrib.gis.forms:
 
 django.contrib.gis.forms

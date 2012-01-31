@@ -2,6 +2,8 @@
 django.contrib
 ==============
 
+.. contents:: django.contrib
+
 .. _django.contrib:
 
 django.contrib
@@ -17,45 +19,45 @@ django.contrib
 Sub
 ====
 
-- :doc:`django.contrib.redirects`
-
-- :doc:`django.contrib.sitemaps`
+- :doc:`django.contrib.admin`
 
 - :doc:`django.contrib.admindocs`
 
-- :doc:`django.contrib.contenttypes`
-
-- :doc:`django.contrib.databrowse`
-
-- :doc:`django.contrib.sites`
-
-- :doc:`django.contrib.humanize`
-
 - :doc:`django.contrib.auth`
-
-- :doc:`django.contrib.gis`
-
-- :doc:`django.contrib.syndication`
-
-- :doc:`django.contrib.markup`
-
-- :doc:`django.contrib.csrf`
-
-- :doc:`django.contrib.sessions`
-
-- :doc:`django.contrib.flatpages`
-
-- :doc:`django.contrib.admin`
-
-- :doc:`django.contrib.formtools`
-
-- :doc:`django.contrib.messages`
-
-- :doc:`django.contrib.localflavor`
 
 - :doc:`django.contrib.comments`
 
+- :doc:`django.contrib.contenttypes`
+
+- :doc:`django.contrib.csrf`
+
+- :doc:`django.contrib.databrowse`
+
+- :doc:`django.contrib.flatpages`
+
+- :doc:`django.contrib.formtools`
+
+- :doc:`django.contrib.gis`
+
+- :doc:`django.contrib.humanize`
+
+- :doc:`django.contrib.localflavor`
+
+- :doc:`django.contrib.markup`
+
+- :doc:`django.contrib.messages`
+
+- :doc:`django.contrib.redirects`
+
+- :doc:`django.contrib.sessions`
+
+- :doc:`django.contrib.sitemaps`
+
+- :doc:`django.contrib.sites`
+
 - :doc:`django.contrib.staticfiles`
+
+- :doc:`django.contrib.syndication`
 
 - :doc:`django.contrib.webdesign`
 

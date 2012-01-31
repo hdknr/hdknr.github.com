@@ -2,6 +2,8 @@
 django.conf.project_template
 ============================
 
+.. contents:: django.conf.project_template
+
 .. _django.conf.project_template:
 
 django.conf.project_template
@@ -24,16 +26,6 @@ django.conf.project_template.manage
 .. automodule:: django.conf.project_template.manage
     :members:
 
-.. _django.conf.project_template.urls:
-
-django.conf.project_template.urls
-=================================
-
-.. include:: cheat/django.conf.project_template.urls.rst
-
-.. automodule:: django.conf.project_template.urls
-    :members:
-
 .. _django.conf.project_template.settings:
 
 django.conf.project_template.settings
@@ -42,5 +34,15 @@ django.conf.project_template.settings
 .. include:: cheat/django.conf.project_template.settings.rst
 
 .. automodule:: django.conf.project_template.settings
+    :members:
+
+.. _django.conf.project_template.urls:
+
+django.conf.project_template.urls
+=================================
+
+.. include:: cheat/django.conf.project_template.urls.rst
+
+.. automodule:: django.conf.project_template.urls
     :members:
 

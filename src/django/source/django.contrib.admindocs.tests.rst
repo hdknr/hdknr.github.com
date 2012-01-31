@@ -2,6 +2,8 @@
 django.contrib.admindocs.tests
 ==============================
 
+.. contents:: django.contrib.admindocs.tests
+
 .. _django.contrib.admindocs.tests:
 
 django.contrib.admindocs.tests

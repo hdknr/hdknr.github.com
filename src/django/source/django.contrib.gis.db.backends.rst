@@ -2,6 +2,8 @@
 django.contrib.gis.db.backends
 ==============================
 
+.. contents:: django.contrib.gis.db.backends
+
 .. _django.contrib.gis.db.backends:
 
 django.contrib.gis.db.backends
@@ -17,13 +19,23 @@ django.contrib.gis.db.backends
 Sub
 ====
 
-- :doc:`django.contrib.gis.db.backends.spatialite`
-
-- :doc:`django.contrib.gis.db.backends.postgis`
-
 - :doc:`django.contrib.gis.db.backends.mysql`
 
 - :doc:`django.contrib.gis.db.backends.oracle`
+
+- :doc:`django.contrib.gis.db.backends.postgis`
+
+- :doc:`django.contrib.gis.db.backends.spatialite`
+
+.. _django.contrib.gis.db.backends.adapter:
+
+django.contrib.gis.db.backends.adapter
+======================================
+
+.. include:: cheat/django.contrib.gis.db.backends.adapter.rst
+
+.. automodule:: django.contrib.gis.db.backends.adapter
+    :members:
 
 .. _django.contrib.gis.db.backends.base:
 
@@ -43,15 +55,5 @@ django.contrib.gis.db.backends.util
 .. include:: cheat/django.contrib.gis.db.backends.util.rst
 
 .. automodule:: django.contrib.gis.db.backends.util
-    :members:
-
-.. _django.contrib.gis.db.backends.adapter:
-
-django.contrib.gis.db.backends.adapter
-======================================
-
-.. include:: cheat/django.contrib.gis.db.backends.adapter.rst
-
-.. automodule:: django.contrib.gis.db.backends.adapter
     :members:
 

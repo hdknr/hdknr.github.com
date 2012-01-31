@@ -2,6 +2,8 @@
 django.contrib.auth.management.commands
 =======================================
 
+.. contents:: django.contrib.auth.management.commands
+
 .. _django.contrib.auth.management.commands:
 
 django.contrib.auth.management.commands

@@ -2,6 +2,8 @@
 django.contrib.formtools.tests
 ==============================
 
+.. contents:: django.contrib.formtools.tests
+
 .. _django.contrib.formtools.tests:
 
 django.contrib.formtools.tests

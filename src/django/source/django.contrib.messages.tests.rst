@@ -2,6 +2,8 @@
 django.contrib.messages.tests
 =============================
 
+.. contents:: django.contrib.messages.tests
+
 .. _django.contrib.messages.tests:
 
 django.contrib.messages.tests
@@ -24,26 +26,6 @@ django.contrib.messages.tests.base
 .. automodule:: django.contrib.messages.tests.base
     :members:
 
-.. _django.contrib.messages.tests.middleware:
-
-django.contrib.messages.tests.middleware
-========================================
-
-.. include:: cheat/django.contrib.messages.tests.middleware.rst
-
-.. automodule:: django.contrib.messages.tests.middleware
-    :members:
-
-.. _django.contrib.messages.tests.user_messages:
-
-django.contrib.messages.tests.user_messages
-===========================================
-
-.. include:: cheat/django.contrib.messages.tests.user_messages.rst
-
-.. automodule:: django.contrib.messages.tests.user_messages
-    :members:
-
 .. _django.contrib.messages.tests.cookie:
 
 django.contrib.messages.tests.cookie
@@ -52,16 +34,6 @@ django.contrib.messages.tests.cookie
 .. include:: cheat/django.contrib.messages.tests.cookie.rst
 
 .. automodule:: django.contrib.messages.tests.cookie
-    :members:
-
-.. _django.contrib.messages.tests.session:
-
-django.contrib.messages.tests.session
-=====================================
-
-.. include:: cheat/django.contrib.messages.tests.session.rst
-
-.. automodule:: django.contrib.messages.tests.session
     :members:
 
 .. _django.contrib.messages.tests.fallback:
@@ -74,6 +46,26 @@ django.contrib.messages.tests.fallback
 .. automodule:: django.contrib.messages.tests.fallback
     :members:
 
+.. _django.contrib.messages.tests.middleware:
+
+django.contrib.messages.tests.middleware
+========================================
+
+.. include:: cheat/django.contrib.messages.tests.middleware.rst
+
+.. automodule:: django.contrib.messages.tests.middleware
+    :members:
+
+.. _django.contrib.messages.tests.session:
+
+django.contrib.messages.tests.session
+=====================================
+
+.. include:: cheat/django.contrib.messages.tests.session.rst
+
+.. automodule:: django.contrib.messages.tests.session
+    :members:
+
 .. _django.contrib.messages.tests.urls:
 
 django.contrib.messages.tests.urls
@@ -82,5 +74,15 @@ django.contrib.messages.tests.urls
 .. include:: cheat/django.contrib.messages.tests.urls.rst
 
 .. automodule:: django.contrib.messages.tests.urls
+    :members:
+
+.. _django.contrib.messages.tests.user_messages:
+
+django.contrib.messages.tests.user_messages
+===========================================
+
+.. include:: cheat/django.contrib.messages.tests.user_messages.rst
+
+.. automodule:: django.contrib.messages.tests.user_messages
     :members:
 

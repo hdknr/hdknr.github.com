@@ -2,6 +2,8 @@
 django.bin
 ==========
 
+.. contents:: django.bin
+
 .. _django.bin:
 
 django.bin

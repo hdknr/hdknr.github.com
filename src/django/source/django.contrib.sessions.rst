@@ -2,6 +2,8 @@
 django.contrib.sessions
 =======================
 
+.. contents:: django.contrib.sessions
+
 .. _django.contrib.sessions:
 
 django.contrib.sessions

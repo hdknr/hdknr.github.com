@@ -2,6 +2,8 @@
 django.core
 ===========
 
+.. contents:: django.core
+
 .. _django.core:
 
 django.core
@@ -17,19 +19,29 @@ django.core
 Sub
 ====
 
-- :doc:`django.core.serializers`
-
-- :doc:`django.core.management`
-
-- :doc:`django.core.mail`
-
 - :doc:`django.core.cache`
-
-- :doc:`django.core.servers`
 
 - :doc:`django.core.files`
 
 - :doc:`django.core.handlers`
+
+- :doc:`django.core.mail`
+
+- :doc:`django.core.management`
+
+- :doc:`django.core.serializers`
+
+- :doc:`django.core.servers`
+
+.. _django.core.context_processors:
+
+django.core.context_processors
+==============================
+
+.. include:: cheat/django.core.context_processors.rst
+
+.. automodule:: django.core.context_processors
+    :members:
 
 .. _django.core.exceptions:
 
@@ -41,44 +53,14 @@ django.core.exceptions
 .. automodule:: django.core.exceptions
     :members:
 
-.. _django.core.urlresolvers:
+.. _django.core.paginator:
 
-django.core.urlresolvers
-========================
+django.core.paginator
+=====================
 
-.. include:: cheat/django.core.urlresolvers.rst
+.. include:: cheat/django.core.paginator.rst
 
-.. automodule:: django.core.urlresolvers
-    :members:
-
-.. _django.core.xheaders:
-
-django.core.xheaders
-====================
-
-.. include:: cheat/django.core.xheaders.rst
-
-.. automodule:: django.core.xheaders
-    :members:
-
-.. _django.core.template_loader:
-
-django.core.template_loader
-===========================
-
-.. include:: cheat/django.core.template_loader.rst
-
-.. automodule:: django.core.template_loader
-    :members:
-
-.. _django.core.validators:
-
-django.core.validators
-======================
-
-.. include:: cheat/django.core.validators.rst
-
-.. automodule:: django.core.validators
+.. automodule:: django.core.paginator
     :members:
 
 .. _django.core.signals:
@@ -91,23 +73,43 @@ django.core.signals
 .. automodule:: django.core.signals
     :members:
 
-.. _django.core.context_processors:
+.. _django.core.template_loader:
 
-django.core.context_processors
-==============================
+django.core.template_loader
+===========================
 
-.. include:: cheat/django.core.context_processors.rst
+.. include:: cheat/django.core.template_loader.rst
 
-.. automodule:: django.core.context_processors
+.. automodule:: django.core.template_loader
     :members:
 
-.. _django.core.paginator:
+.. _django.core.urlresolvers:
 
-django.core.paginator
-=====================
+django.core.urlresolvers
+========================
 
-.. include:: cheat/django.core.paginator.rst
+.. include:: cheat/django.core.urlresolvers.rst
 
-.. automodule:: django.core.paginator
+.. automodule:: django.core.urlresolvers
+    :members:
+
+.. _django.core.validators:
+
+django.core.validators
+======================
+
+.. include:: cheat/django.core.validators.rst
+
+.. automodule:: django.core.validators
+    :members:
+
+.. _django.core.xheaders:
+
+django.core.xheaders
+====================
+
+.. include:: cheat/django.core.xheaders.rst
+
+.. automodule:: django.core.xheaders
     :members:
 

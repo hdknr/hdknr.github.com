@@ -2,6 +2,8 @@
 django.contrib.gis.management.commands
 ======================================
 
+.. contents:: django.contrib.gis.management.commands
+
 .. _django.contrib.gis.management.commands:
 
 django.contrib.gis.management.commands

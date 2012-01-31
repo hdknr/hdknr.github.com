@@ -2,6 +2,8 @@
 django.contrib.markup
 =====================
 
+.. contents:: django.contrib.markup
+
 .. _django.contrib.markup:
 
 django.contrib.markup

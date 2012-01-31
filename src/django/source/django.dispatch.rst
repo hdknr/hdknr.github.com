@@ -2,6 +2,8 @@
 django.dispatch
 ===============
 
+.. contents:: django.dispatch
+
 .. _django.dispatch:
 
 django.dispatch

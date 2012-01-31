@@ -2,6 +2,8 @@
 django.db.models.fields
 =======================
 
+.. contents:: django.db.models.fields
+
 .. _django.db.models.fields:
 
 django.db.models.fields
@@ -13,16 +15,6 @@ django.db.models.fields
 .. automodule:: django.db.models.fields
     :members:
 
-
-.. _django.db.models.fields.subclassing:
-
-django.db.models.fields.subclassing
-===================================
-
-.. include:: cheat/django.db.models.fields.subclassing.rst
-
-.. automodule:: django.db.models.fields.subclassing
-    :members:
 
 .. _django.db.models.fields.files:
 
@@ -52,5 +44,15 @@ django.db.models.fields.related
 .. include:: cheat/django.db.models.fields.related.rst
 
 .. automodule:: django.db.models.fields.related
+    :members:
+
+.. _django.db.models.fields.subclassing:
+
+django.db.models.fields.subclassing
+===================================
+
+.. include:: cheat/django.db.models.fields.subclassing.rst
+
+.. automodule:: django.db.models.fields.subclassing
     :members:
 

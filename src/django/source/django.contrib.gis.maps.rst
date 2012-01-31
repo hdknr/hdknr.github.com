@@ -2,6 +2,8 @@
 django.contrib.gis.maps
 =======================
 
+.. contents:: django.contrib.gis.maps
+
 .. _django.contrib.gis.maps:
 
 django.contrib.gis.maps

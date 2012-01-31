@@ -2,6 +2,8 @@
 django.contrib.csrf
 ===================
 
+.. contents:: django.contrib.csrf
+
 .. _django.contrib.csrf:
 
 django.contrib.csrf

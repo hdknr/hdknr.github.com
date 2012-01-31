@@ -2,6 +2,8 @@
 django.utils.translation
 ========================
 
+.. contents:: django.utils.translation
+
 .. _django.utils.translation:
 
 django.utils.translation

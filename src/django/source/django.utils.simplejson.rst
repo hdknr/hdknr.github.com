@@ -2,6 +2,8 @@
 django.utils.simplejson
 =======================
 
+.. contents:: django.utils.simplejson
+
 .. _django.utils.simplejson:
 
 django.utils.simplejson
@@ -13,16 +15,6 @@ django.utils.simplejson
 .. automodule:: django.utils.simplejson
     :members:
 
-
-.. _django.utils.simplejson.scanner:
-
-django.utils.simplejson.scanner
-===============================
-
-.. include:: cheat/django.utils.simplejson.scanner.rst
-
-.. automodule:: django.utils.simplejson.scanner
-    :members:
 
 .. _django.utils.simplejson.decoder:
 
@@ -42,6 +34,16 @@ django.utils.simplejson.encoder
 .. include:: cheat/django.utils.simplejson.encoder.rst
 
 .. automodule:: django.utils.simplejson.encoder
+    :members:
+
+.. _django.utils.simplejson.scanner:
+
+django.utils.simplejson.scanner
+===============================
+
+.. include:: cheat/django.utils.simplejson.scanner.rst
+
+.. automodule:: django.utils.simplejson.scanner
     :members:
 
 .. _django.utils.simplejson.tool:

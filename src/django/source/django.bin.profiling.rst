@@ -2,6 +2,8 @@
 django.bin.profiling
 ====================
 
+.. contents:: django.bin.profiling
+
 .. _django.bin.profiling:
 
 django.bin.profiling

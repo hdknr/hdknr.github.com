@@ -2,6 +2,8 @@
 django.forms
 ============
 
+.. contents:: django.forms
+
 .. _django.forms:
 
 django.forms
@@ -13,6 +15,16 @@ django.forms
 .. automodule:: django.forms
     :members:
 
+
+.. _django.forms.fields:
+
+django.forms.fields
+===================
+
+.. include:: cheat/django.forms.fields.rst
+
+.. automodule:: django.forms.fields
+    :members:
 
 .. _django.forms.forms:
 
@@ -34,16 +46,6 @@ django.forms.formsets
 .. automodule:: django.forms.formsets
     :members:
 
-.. _django.forms.util:
-
-django.forms.util
-=================
-
-.. include:: cheat/django.forms.util.rst
-
-.. automodule:: django.forms.util
-    :members:
-
 .. _django.forms.models:
 
 django.forms.models
@@ -54,14 +56,14 @@ django.forms.models
 .. automodule:: django.forms.models
     :members:
 
-.. _django.forms.fields:
+.. _django.forms.util:
 
-django.forms.fields
-===================
+django.forms.util
+=================
 
-.. include:: cheat/django.forms.fields.rst
+.. include:: cheat/django.forms.util.rst
 
-.. automodule:: django.forms.fields
+.. automodule:: django.forms.util
     :members:
 
 .. _django.forms.widgets:

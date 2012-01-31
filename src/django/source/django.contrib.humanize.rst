@@ -2,6 +2,8 @@
 django.contrib.humanize
 =======================
 
+.. contents:: django.contrib.humanize
+
 .. _django.contrib.humanize:
 
 django.contrib.humanize

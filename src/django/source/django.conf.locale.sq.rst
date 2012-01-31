@@ -2,6 +2,8 @@
 django.conf.locale.sq
 =====================
 
+.. contents:: django.conf.locale.sq
+
 .. _django.conf.locale.sq:
 
 django.conf.locale.sq

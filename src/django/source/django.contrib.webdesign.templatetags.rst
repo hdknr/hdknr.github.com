@@ -2,6 +2,8 @@
 django.contrib.webdesign.templatetags
 =====================================
 
+.. contents:: django.contrib.webdesign.templatetags
+
 .. _django.contrib.webdesign.templatetags:
 
 django.contrib.webdesign.templatetags

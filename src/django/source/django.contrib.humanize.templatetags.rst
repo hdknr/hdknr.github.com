@@ -2,6 +2,8 @@
 django.contrib.humanize.templatetags
 ====================================
 
+.. contents:: django.contrib.humanize.templatetags
+
 .. _django.contrib.humanize.templatetags:
 
 django.contrib.humanize.templatetags

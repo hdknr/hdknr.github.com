@@ -2,6 +2,8 @@
 django.contrib.comments.templatetags
 ====================================
 
+.. contents:: django.contrib.comments.templatetags
+
 .. _django.contrib.comments.templatetags:
 
 django.contrib.comments.templatetags

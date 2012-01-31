@@ -2,6 +2,8 @@
 django.contrib.localflavor.generic
 ==================================
 
+.. contents:: django.contrib.localflavor.generic
+
 .. _django.contrib.localflavor.generic:
 
 django.contrib.localflavor.generic

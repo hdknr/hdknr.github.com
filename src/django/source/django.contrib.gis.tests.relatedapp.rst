@@ -2,6 +2,8 @@
 django.contrib.gis.tests.relatedapp
 ===================================
 
+.. contents:: django.contrib.gis.tests.relatedapp
+
 .. _django.contrib.gis.tests.relatedapp:
 
 django.contrib.gis.tests.relatedapp

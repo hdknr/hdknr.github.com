@@ -2,6 +2,8 @@
 django.db.backends.postgresql_psycopg2
 ======================================
 
+.. contents:: django.db.backends.postgresql_psycopg2
+
 .. _django.db.backends.postgresql_psycopg2:
 
 django.db.backends.postgresql_psycopg2

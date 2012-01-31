@@ -2,6 +2,8 @@
 django.contrib.sitemaps.management
 ==================================
 
+.. contents:: django.contrib.sitemaps.management
+
 .. _django.contrib.sitemaps.management:
 
 django.contrib.sitemaps.management

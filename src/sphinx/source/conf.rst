@@ -3,6 +3,8 @@ conf.py
 ==========
 
 
+.. contents:: Configuration(conf.py)
+
 Django のdocstringを参照したい
 ==============================
 
@@ -56,5 +58,29 @@ conf.pyにDjanogのsysパスを設定します。
     
 .. automodule:: django.conf
     :members:
+
+
+intersphinx_mapping
+=====================
+
+    - :mod:`sphinx:sphinx.ext.intersphinx`
+
+
+
+マッピングの定義
+
+::
+
+    intersphinx_mapping = {'http://docs.python.org/': None,
+                        'sphinx': ('http://sphinx.pocoo.org/',None),
+                      }
+
+参照
+
+.. code-block:: rst
+
+     :ref:`comparison manual <python:comparisons>`
+
+とか。
 
 

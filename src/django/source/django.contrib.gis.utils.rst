@@ -2,6 +2,8 @@
 django.contrib.gis.utils
 ========================
 
+.. contents:: django.contrib.gis.utils
+
 .. _django.contrib.gis.utils:
 
 django.contrib.gis.utils
@@ -13,26 +15,6 @@ django.contrib.gis.utils
 .. automodule:: django.contrib.gis.utils
     :members:
 
-
-.. _django.contrib.gis.utils.ogrinfo:
-
-django.contrib.gis.utils.ogrinfo
-================================
-
-.. include:: cheat/django.contrib.gis.utils.ogrinfo.rst
-
-.. automodule:: django.contrib.gis.utils.ogrinfo
-    :members:
-
-.. _django.contrib.gis.utils.wkt:
-
-django.contrib.gis.utils.wkt
-============================
-
-.. include:: cheat/django.contrib.gis.utils.wkt.rst
-
-.. automodule:: django.contrib.gis.utils.wkt
-    :members:
 
 .. _django.contrib.gis.utils.geoip:
 
@@ -54,6 +36,16 @@ django.contrib.gis.utils.layermapping
 .. automodule:: django.contrib.gis.utils.layermapping
     :members:
 
+.. _django.contrib.gis.utils.ogrinfo:
+
+django.contrib.gis.utils.ogrinfo
+================================
+
+.. include:: cheat/django.contrib.gis.utils.ogrinfo.rst
+
+.. automodule:: django.contrib.gis.utils.ogrinfo
+    :members:
+
 .. _django.contrib.gis.utils.ogrinspect:
 
 django.contrib.gis.utils.ogrinspect
@@ -72,5 +64,15 @@ django.contrib.gis.utils.srs
 .. include:: cheat/django.contrib.gis.utils.srs.rst
 
 .. automodule:: django.contrib.gis.utils.srs
+    :members:
+
+.. _django.contrib.gis.utils.wkt:
+
+django.contrib.gis.utils.wkt
+============================
+
+.. include:: cheat/django.contrib.gis.utils.wkt.rst
+
+.. automodule:: django.contrib.gis.utils.wkt
     :members:
 

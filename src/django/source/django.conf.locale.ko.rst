@@ -2,6 +2,8 @@
 django.conf.locale.ko
 =====================
 
+.. contents:: django.conf.locale.ko
+
 .. _django.conf.locale.ko:
 
 django.conf.locale.ko

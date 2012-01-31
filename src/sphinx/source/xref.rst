@@ -111,6 +111,7 @@ Cross Reference
 Python シンボル
 ===============
 
+ - :ref:`ドメイン <sphinx:domains>`  参照。
 
 クラス (:py:class:)
 --------------------
@@ -120,4 +121,9 @@ Python シンボル
     :py:class:`django.conf.BaseSettings` 
 
 と記述すると、 :py:class:`django.conf.BaseSettings` に飛ぶ事ができます。
+
+
+:py:func:`django.core.serializers.serialize` 
+
+:py:mod:`django.core.serializers`
 

@@ -2,6 +2,8 @@
 django.conf
 ===========
 
+.. contents:: django.conf
+
 .. _django.conf:
 
 django.conf
@@ -17,13 +19,13 @@ django.conf
 Sub
 ====
 
-- :doc:`django.conf.project_template`
-
-- :doc:`django.conf.urls`
-
 - :doc:`django.conf.app_template`
 
 - :doc:`django.conf.locale`
+
+- :doc:`django.conf.project_template`
+
+- :doc:`django.conf.urls`
 
 .. _django.conf.global_settings:
 

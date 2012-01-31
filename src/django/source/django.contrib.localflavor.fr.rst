@@ -2,6 +2,8 @@
 django.contrib.localflavor.fr
 =============================
 
+.. contents:: django.contrib.localflavor.fr
+
 .. _django.contrib.localflavor.fr:
 
 django.contrib.localflavor.fr

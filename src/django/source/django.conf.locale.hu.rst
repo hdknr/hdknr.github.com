@@ -2,6 +2,8 @@
 django.conf.locale.hu
 =====================
 
+.. contents:: django.conf.locale.hu
+
 .. _django.conf.locale.hu:
 
 django.conf.locale.hu

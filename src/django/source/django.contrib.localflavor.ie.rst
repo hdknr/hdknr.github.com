@@ -2,6 +2,8 @@
 django.contrib.localflavor.ie
 =============================
 
+.. contents:: django.contrib.localflavor.ie
+
 .. _django.contrib.localflavor.ie:
 
 django.contrib.localflavor.ie

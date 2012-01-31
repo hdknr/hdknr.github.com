@@ -2,6 +2,8 @@
 django.conf.locale.cy
 =====================
 
+.. contents:: django.conf.locale.cy
+
 .. _django.conf.locale.cy:
 
 django.conf.locale.cy

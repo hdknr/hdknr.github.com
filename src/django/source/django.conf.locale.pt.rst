@@ -2,6 +2,8 @@
 django.conf.locale.pt
 =====================
 
+.. contents:: django.conf.locale.pt
+
 .. _django.conf.locale.pt:
 
 django.conf.locale.pt

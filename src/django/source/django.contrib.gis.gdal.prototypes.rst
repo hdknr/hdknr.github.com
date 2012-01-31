@@ -2,6 +2,8 @@
 django.contrib.gis.gdal.prototypes
 ==================================
 
+.. contents:: django.contrib.gis.gdal.prototypes
+
 .. _django.contrib.gis.gdal.prototypes:
 
 django.contrib.gis.gdal.prototypes
@@ -13,16 +15,6 @@ django.contrib.gis.gdal.prototypes
 .. automodule:: django.contrib.gis.gdal.prototypes
     :members:
 
-
-.. _django.contrib.gis.gdal.prototypes.geom:
-
-django.contrib.gis.gdal.prototypes.geom
-=======================================
-
-.. include:: cheat/django.contrib.gis.gdal.prototypes.geom.rst
-
-.. automodule:: django.contrib.gis.gdal.prototypes.geom
-    :members:
 
 .. _django.contrib.gis.gdal.prototypes.ds:
 
@@ -52,6 +44,16 @@ django.contrib.gis.gdal.prototypes.generation
 .. include:: cheat/django.contrib.gis.gdal.prototypes.generation.rst
 
 .. automodule:: django.contrib.gis.gdal.prototypes.generation
+    :members:
+
+.. _django.contrib.gis.gdal.prototypes.geom:
+
+django.contrib.gis.gdal.prototypes.geom
+=======================================
+
+.. include:: cheat/django.contrib.gis.gdal.prototypes.geom.rst
+
+.. automodule:: django.contrib.gis.gdal.prototypes.geom
     :members:
 
 .. _django.contrib.gis.gdal.prototypes.srs:

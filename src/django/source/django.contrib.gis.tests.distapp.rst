@@ -2,6 +2,8 @@
 django.contrib.gis.tests.distapp
 ================================
 
+.. contents:: django.contrib.gis.tests.distapp
+
 .. _django.contrib.gis.tests.distapp:
 
 django.contrib.gis.tests.distapp

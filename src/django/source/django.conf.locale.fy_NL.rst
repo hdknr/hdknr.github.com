@@ -2,6 +2,8 @@
 django.conf.locale.fy_NL
 ========================
 
+.. contents:: django.conf.locale.fy_NL
+
 .. _django.conf.locale.fy_NL:
 
 django.conf.locale.fy_NL

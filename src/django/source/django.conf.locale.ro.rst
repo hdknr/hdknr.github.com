@@ -2,6 +2,8 @@
 django.conf.locale.ro
 =====================
 
+.. contents:: django.conf.locale.ro
+
 .. _django.conf.locale.ro:
 
 django.conf.locale.ro

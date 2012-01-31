@@ -2,6 +2,8 @@
 django.forms.extras
 ===================
 
+.. contents:: django.forms.extras
+
 .. _django.forms.extras:
 
 django.forms.extras

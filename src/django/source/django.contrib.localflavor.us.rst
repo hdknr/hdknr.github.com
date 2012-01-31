@@ -2,6 +2,8 @@
 django.contrib.localflavor.us
 =============================
 
+.. contents:: django.contrib.localflavor.us
+
 .. _django.contrib.localflavor.us:
 
 django.contrib.localflavor.us
@@ -24,16 +26,6 @@ django.contrib.localflavor.us.forms
 .. automodule:: django.contrib.localflavor.us.forms
     :members:
 
-.. _django.contrib.localflavor.us.us_states:
-
-django.contrib.localflavor.us.us_states
-=======================================
-
-.. include:: cheat/django.contrib.localflavor.us.us_states.rst
-
-.. automodule:: django.contrib.localflavor.us.us_states
-    :members:
-
 .. _django.contrib.localflavor.us.models:
 
 django.contrib.localflavor.us.models
@@ -42,5 +34,15 @@ django.contrib.localflavor.us.models
 .. include:: cheat/django.contrib.localflavor.us.models.rst
 
 .. automodule:: django.contrib.localflavor.us.models
+    :members:
+
+.. _django.contrib.localflavor.us.us_states:
+
+django.contrib.localflavor.us.us_states
+=======================================
+
+.. include:: cheat/django.contrib.localflavor.us.us_states.rst
+
+.. automodule:: django.contrib.localflavor.us.us_states
     :members:
 

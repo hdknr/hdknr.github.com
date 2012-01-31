@@ -2,6 +2,8 @@
 django.contrib.localflavor.za
 =============================
 
+.. contents:: django.contrib.localflavor.za
+
 .. _django.contrib.localflavor.za:
 
 django.contrib.localflavor.za

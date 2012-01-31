@@ -2,6 +2,8 @@
 django.conf.locale.vi
 =====================
 
+.. contents:: django.conf.locale.vi
+
 .. _django.conf.locale.vi:
 
 django.conf.locale.vi

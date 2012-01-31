@@ -2,6 +2,8 @@
 django.contrib.sessions.backends
 ================================
 
+.. contents:: django.contrib.sessions.backends
+
 .. _django.contrib.sessions.backends:
 
 django.contrib.sessions.backends
@@ -22,16 +24,6 @@ django.contrib.sessions.backends.base
 .. include:: cheat/django.contrib.sessions.backends.base.rst
 
 .. automodule:: django.contrib.sessions.backends.base
-    :members:
-
-.. _django.contrib.sessions.backends.file:
-
-django.contrib.sessions.backends.file
-=====================================
-
-.. include:: cheat/django.contrib.sessions.backends.file.rst
-
-.. automodule:: django.contrib.sessions.backends.file
     :members:
 
 .. _django.contrib.sessions.backends.cache:
@@ -62,5 +54,15 @@ django.contrib.sessions.backends.db
 .. include:: cheat/django.contrib.sessions.backends.db.rst
 
 .. automodule:: django.contrib.sessions.backends.db
+    :members:
+
+.. _django.contrib.sessions.backends.file:
+
+django.contrib.sessions.backends.file
+=====================================
+
+.. include:: cheat/django.contrib.sessions.backends.file.rst
+
+.. automodule:: django.contrib.sessions.backends.file
     :members:
 

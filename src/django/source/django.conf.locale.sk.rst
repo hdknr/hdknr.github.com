@@ -2,6 +2,8 @@
 django.conf.locale.sk
 =====================
 
+.. contents:: django.conf.locale.sk
+
 .. _django.conf.locale.sk:
 
 django.conf.locale.sk

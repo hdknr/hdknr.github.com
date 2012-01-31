@@ -2,6 +2,8 @@
 django.contrib.gis.admin
 ========================
 
+.. contents:: django.contrib.gis.admin
+
 .. _django.contrib.gis.admin:
 
 django.contrib.gis.admin

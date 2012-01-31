@@ -2,6 +2,8 @@
 django.contrib.staticfiles.management
 =====================================
 
+.. contents:: django.contrib.staticfiles.management
+
 .. _django.contrib.staticfiles.management:
 
 django.contrib.staticfiles.management

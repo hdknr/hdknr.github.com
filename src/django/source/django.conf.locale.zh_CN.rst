@@ -2,6 +2,8 @@
 django.conf.locale.zh_CN
 ========================
 
+.. contents:: django.conf.locale.zh_CN
+
 .. _django.conf.locale.zh_CN:
 
 django.conf.locale.zh_CN

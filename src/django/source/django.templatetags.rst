@@ -2,6 +2,8 @@
 django.templatetags
 ===================
 
+.. contents:: django.templatetags
+
 .. _django.templatetags:
 
 django.templatetags
@@ -14,14 +16,14 @@ django.templatetags
     :members:
 
 
-.. _django.templatetags.static:
+.. _django.templatetags.cache:
 
-django.templatetags.static
-==========================
+django.templatetags.cache
+=========================
 
-.. include:: cheat/django.templatetags.static.rst
+.. include:: cheat/django.templatetags.cache.rst
 
-.. automodule:: django.templatetags.static
+.. automodule:: django.templatetags.cache
     :members:
 
 .. _django.templatetags.future:
@@ -34,6 +36,16 @@ django.templatetags.future
 .. automodule:: django.templatetags.future
     :members:
 
+.. _django.templatetags.i18n:
+
+django.templatetags.i18n
+========================
+
+.. include:: cheat/django.templatetags.i18n.rst
+
+.. automodule:: django.templatetags.i18n
+    :members:
+
 .. _django.templatetags.l10n:
 
 django.templatetags.l10n
@@ -44,23 +56,13 @@ django.templatetags.l10n
 .. automodule:: django.templatetags.l10n
     :members:
 
-.. _django.templatetags.cache:
+.. _django.templatetags.static:
 
-django.templatetags.cache
-=========================
+django.templatetags.static
+==========================
 
-.. include:: cheat/django.templatetags.cache.rst
+.. include:: cheat/django.templatetags.static.rst
 
-.. automodule:: django.templatetags.cache
-    :members:
-
-.. _django.templatetags.i18n:
-
-django.templatetags.i18n
-========================
-
-.. include:: cheat/django.templatetags.i18n.rst
-
-.. automodule:: django.templatetags.i18n
+.. automodule:: django.templatetags.static
     :members:
 

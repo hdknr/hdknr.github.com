@@ -2,6 +2,8 @@
 django.contrib.localflavor.kw
 =============================
 
+.. contents:: django.contrib.localflavor.kw
+
 .. _django.contrib.localflavor.kw:
 
 django.contrib.localflavor.kw

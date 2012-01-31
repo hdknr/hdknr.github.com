@@ -2,6 +2,8 @@
 django.contrib.gis.maps.openlayers
 ==================================
 
+.. contents:: django.contrib.gis.maps.openlayers
+
 .. _django.contrib.gis.maps.openlayers:
 
 django.contrib.gis.maps.openlayers

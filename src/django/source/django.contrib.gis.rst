@@ -2,6 +2,8 @@
 django.contrib.gis
 ==================
 
+.. contents:: django.contrib.gis
+
 .. _django.contrib.gis:
 
 django.contrib.gis
@@ -17,37 +19,27 @@ django.contrib.gis
 Sub
 ====
 
-- :doc:`django.contrib.gis.sitemaps`
+- :doc:`django.contrib.gis.admin`
 
-- :doc:`django.contrib.gis.management`
+- :doc:`django.contrib.gis.db`
 
-- :doc:`django.contrib.gis.geos`
-
-- :doc:`django.contrib.gis.utils`
+- :doc:`django.contrib.gis.forms`
 
 - :doc:`django.contrib.gis.gdal`
 
 - :doc:`django.contrib.gis.geometry`
 
+- :doc:`django.contrib.gis.geos`
+
+- :doc:`django.contrib.gis.management`
+
 - :doc:`django.contrib.gis.maps`
 
-- :doc:`django.contrib.gis.admin`
-
-- :doc:`django.contrib.gis.forms`
-
-- :doc:`django.contrib.gis.db`
+- :doc:`django.contrib.gis.sitemaps`
 
 - :doc:`django.contrib.gis.tests`
 
-.. _django.contrib.gis.shortcuts:
-
-django.contrib.gis.shortcuts
-============================
-
-.. include:: cheat/django.contrib.gis.shortcuts.rst
-
-.. automodule:: django.contrib.gis.shortcuts
-    :members:
+- :doc:`django.contrib.gis.utils`
 
 .. _django.contrib.gis.feeds:
 
@@ -77,5 +69,15 @@ django.contrib.gis.models
 .. include:: cheat/django.contrib.gis.models.rst
 
 .. automodule:: django.contrib.gis.models
+    :members:
+
+.. _django.contrib.gis.shortcuts:
+
+django.contrib.gis.shortcuts
+============================
+
+.. include:: cheat/django.contrib.gis.shortcuts.rst
+
+.. automodule:: django.contrib.gis.shortcuts
     :members:
 

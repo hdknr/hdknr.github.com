@@ -2,6 +2,8 @@
 django.db
 =========
 
+.. contents:: django.db
+
 .. _django.db:
 
 django.db

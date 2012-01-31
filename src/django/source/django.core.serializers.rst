@@ -2,6 +2,8 @@
 django.core.serializers
 =======================
 
+.. contents:: django.core.serializers
+
 .. _django.core.serializers:
 
 django.core.serializers
@@ -34,6 +36,16 @@ django.core.serializers.json
 .. automodule:: django.core.serializers.json
     :members:
 
+.. _django.core.serializers.python:
+
+django.core.serializers.python
+==============================
+
+.. include:: cheat/django.core.serializers.python.rst
+
+.. automodule:: django.core.serializers.python
+    :members:
+
 .. _django.core.serializers.pyyaml:
 
 django.core.serializers.pyyaml
@@ -52,15 +64,5 @@ django.core.serializers.xml_serializer
 .. include:: cheat/django.core.serializers.xml_serializer.rst
 
 .. automodule:: django.core.serializers.xml_serializer
-    :members:
-
-.. _django.core.serializers.python:
-
-django.core.serializers.python
-==============================
-
-.. include:: cheat/django.core.serializers.python.rst
-
-.. automodule:: django.core.serializers.python
     :members:
 
