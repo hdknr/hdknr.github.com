@@ -4,6 +4,7 @@ top='/home/hdknr/ve/main/lib/python2.6/site-packages/django'
 dst="tmp/%s.rst"
 cheat="tmp/cheat/%s.rst"
 index="tmp/files.rst"
+svn='https://code.djangoproject.com/browser/django/trunk/django'
 
 index_file = open(index,"w")
 for root, dirs, files in os.walk(top, topdown=True):
@@ -28,6 +29,8 @@ for root, dirs, files in os.walk(top, topdown=True):
     rstfile.write("\n"  )
     rstfile.write( rstname +"\n")
     rstfile.write( "="* len(rstname )+"\n" )
+
+    rstfile.write( "\n\n- `source <%s%s/__init__.py>`_ \n" % (svn,root.replace(top,'')) ) 
 
     rstfile.write( "\n.. include:: cheat/%s.rst" % rstname +"\n\n")
 
@@ -63,6 +66,8 @@ for root, dirs, files in os.walk(top, topdown=True):
         rstfile.write(""  +"\n")
         rstfile.write( modname+"\n" )
         rstfile.write( '=' * len(modname ) +"\n")
+
+        rstfile.write( "\n\n- `source <%s%s/%s>`_ \n" % (svn,root.replace(top,''),name) ) 
 
         rstfile.write( "\n.. include:: cheat/%s.rst" % modname +"\n\n")
         

@@ -13,6 +13,8 @@ Welcome to Note's documentation!
     git
     hg
     bash
+    css
+    swd
 
 Indices and tables
 ==================

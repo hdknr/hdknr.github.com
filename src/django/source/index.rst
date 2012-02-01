@@ -6,7 +6,19 @@
 Welcome to Django Cheat's documentation!
 ========================================
 
-Contents:
+Start
+--------
+
+.. toctree::
+
+    start_debian
+    start_project
+    start_test
+    start_docs
+    start_dev
+
+Reference
+-------------
 
 .. toctree::
     :maxdepth: 2

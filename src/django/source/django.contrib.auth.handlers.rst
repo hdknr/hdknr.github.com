@@ -9,6 +9,9 @@ django.contrib.auth.handlers
 django.contrib.auth.handlers
 ============================
 
+
+- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/auth/handlers/__init__.py>`_ 
+
 .. include:: cheat/django.contrib.auth.handlers.rst
 
 
@@ -20,6 +23,9 @@ django.contrib.auth.handlers
 
 django.contrib.auth.handlers.modpython
 ======================================
+
+
+- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/auth/handlers/modpython.py>`_ 
 
 .. include:: cheat/django.contrib.auth.handlers.modpython.rst
 
