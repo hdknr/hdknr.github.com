@@ -15,6 +15,7 @@ Welcome to Note's documentation!
     bash
     css
     swd
+    python
 
 Indices and tables
 ==================
