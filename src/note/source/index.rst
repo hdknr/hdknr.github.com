@@ -18,6 +18,8 @@ Welcome to Note's documentation!
     swd
     python
 
+    toc
+
 Indices and tables
 ==================
 
