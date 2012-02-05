@@ -13,6 +13,7 @@ Welcome to Note's documentation!
     git
     hg
     bash
+    bash_complete
     css
     swd
     python
