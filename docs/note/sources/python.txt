@@ -2,6 +2,21 @@
 Python
 ======================
 
+
+パスワード
+=============
+
+.. code-block:: python
+
+    import string,random
+
+    seed="".join([ string.letters for i in range(2)]) + \
+         string.printable[:-6].translate(string.maketrans("\\`'",'012'))
+    print "".join([ random.choice( seed )  for i in range(12)])
+
+- django-passwords : https://github.com/dstufft/django-passwords
+- Debian : `apg <http://harajuku-tech.posterous.com/debian-apg-generates-several-random-passwords>`_
+
 整数化
 =======
 
