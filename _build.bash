@@ -1,6 +1,7 @@
 #!/bin/bash
 
 BASE=`dirname $0`
+
 cat > $BASE/docs.html <<EOF
 <div id="sphinx-docs">
  <ul>
@@ -18,10 +19,13 @@ for i in $BASE/src/* ; do
     <li><a href="docs/$DOC/">$DOC</a></li>
 EOF
 done
+
 cat >> $BASE/docs.html <<EOF
   </ul>
 </div>
 EOF
+
+cp -r $BASE/docs/home/* .
 
 if [ "$1" == "push" ] ; then
     pushd .
