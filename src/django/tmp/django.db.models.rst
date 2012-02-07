@@ -1,0 +1,171 @@
+================
+django.db.models
+================
+
+.. contents:: django.db.models
+
+.. _django.db.models:
+
+django.db.models
+================
+
+
+- `source <https://code.djangoproject.com/browser/django/trunk/django/db/models/__init__.py>`_ 
+
+.. include:: cheat/django.db.models.rst
+
+
+.. automodule:: django.db.models
+    :members:
+
+
+Sub
+====
+
+- :doc:`django.db.models.fields`
+
+- :doc:`django.db.models.sql`
+
+.. _django.db.models.aggregates:
+
+django.db.models.aggregates
+===========================
+
+
+- `source <https://code.djangoproject.com/browser/django/trunk/django/db/models/aggregates.py>`_ 
+
+.. include:: cheat/django.db.models.aggregates.rst
+
+.. automodule:: django.db.models.aggregates
+    :members:
+
+.. _django.db.models.base:
+
+django.db.models.base
+=====================
+
+
+- `source <https://code.djangoproject.com/browser/django/trunk/django/db/models/base.py>`_ 
+
+.. include:: cheat/django.db.models.base.rst
+
+.. automodule:: django.db.models.base
+    :members:
+
+.. _django.db.models.deletion:
+
+django.db.models.deletion
+=========================
+
+
+- `source <https://code.djangoproject.com/browser/django/trunk/django/db/models/deletion.py>`_ 
+
+.. include:: cheat/django.db.models.deletion.rst
+
+.. automodule:: django.db.models.deletion
+    :members:
+
+.. _django.db.models.expressions:
+
+django.db.models.expressions
+============================
+
+
+- `source <https://code.djangoproject.com/browser/django/trunk/django/db/models/expressions.py>`_ 
+
+.. include:: cheat/django.db.models.expressions.rst
+
+.. automodule:: django.db.models.expressions
+    :members:
+
+.. _django.db.models.loading:
+
+django.db.models.loading
+========================
+
+
+- `source <https://code.djangoproject.com/browser/django/trunk/django/db/models/loading.py>`_ 
+
+.. include:: cheat/django.db.models.loading.rst
+
+.. automodule:: django.db.models.loading
+    :members:
+
+.. _django.db.models.manager:
+
+django.db.models.manager
+========================
+
+
+- `source <https://code.djangoproject.com/browser/django/trunk/django/db/models/manager.py>`_ 
+
+.. include:: cheat/django.db.models.manager.rst
+
+.. automodule:: django.db.models.manager
+    :members:
+
+.. _django.db.models.options:
+
+django.db.models.options
+========================
+
+
+- `source <https://code.djangoproject.com/browser/django/trunk/django/db/models/options.py>`_ 
+
+.. include:: cheat/django.db.models.options.rst
+
+.. automodule:: django.db.models.options
+    :members:
+
+.. _django.db.models.query:
+
+django.db.models.query
+======================
+
+
+- `source <https://code.djangoproject.com/browser/django/trunk/django/db/models/query.py>`_ 
+
+.. include:: cheat/django.db.models.query.rst
+
+.. automodule:: django.db.models.query
+    :members:
+
+.. _django.db.models.query_utils:
+
+django.db.models.query_utils
+============================
+
+
+- `source <https://code.djangoproject.com/browser/django/trunk/django/db/models/query_utils.py>`_ 
+
+.. include:: cheat/django.db.models.query_utils.rst
+
+.. automodule:: django.db.models.query_utils
+    :members:
+
+.. _django.db.models.related:
+
+django.db.models.related
+========================
+
+
+- `source <https://code.djangoproject.com/browser/django/trunk/django/db/models/related.py>`_ 
+
+.. include:: cheat/django.db.models.related.rst
+
+.. automodule:: django.db.models.related
+    :members:
+
+.. _django.db.models.signals:
+
+django.db.models.signals
+========================
+
+
+- `source <https://code.djangoproject.com/browser/django/trunk/django/db/models/signals.py>`_ 
+
+.. include:: cheat/django.db.models.signals.rst
+
+.. automodule:: django.db.models.signals
+    :members:
+

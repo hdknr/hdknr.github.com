@@ -25,6 +25,7 @@ Start Django
 
     start_python
     start_views
+    cheat
 
 Reference
 -------------

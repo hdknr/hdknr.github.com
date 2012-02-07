@@ -1,0 +1,120 @@
+.. This is sample documentation file for sphinxjp.themes.impressjs.
+
+======================================================
+OpenID Connect
+======================================================
+
+.. impressjs:: title
+   :data-x: 0
+   :data-y: 0
+   :data-z: -1000
+   :data-rotate-x: -90
+   :data-scale: 4
+
+    *OpenID Connect*
+
+
+    .. container:: memo
+
+        <hit space to proceed, or use arrows>
+
+.. impressjs:: Specs
+   :data-x: 1000
+   :data-y: 800
+   :data-rotate: 180
+   :data-rotate-y: -270
+   :data-scale: 5
+
+    *Specs*
+
+    .. container:: bigitems
+
+        * Basic_
+            - Light-weight simple no-frills version for a simple Relying Party.
+
+        * Standard_
+            - Full version of a HTTP binding. References Messages.
+
+        * Messages_
+            - Lists all the messages that are used in OpenID Connect. 
+            - You can use this to create a new Bindings of the Connect, such as OpenID Connect for XMPP.
+
+        * Registration_
+            - (Optional) Defines how clients register with OpenID Providers.
+
+        * Discovery_
+            - (Optional) Defines how user and server endpoints are discovered.
+
+        * Session_
+            - (Optional) Defines how to manage sessions for OpenID Connect.
+
+
+.. impressjs:: Based on OAuth 
+   :data-x: -1000
+   :data-y: -800
+   :data-rotate-y: -300
+   :data-scale: 1
+
+    *Based on OAuth:*
+
+    .. container:: bigitems
+
+        * OAuth_
+            - Resource Endpoint Access Authorization Protocol
+
+        * `OAuth Assertion`_ 
+            - use of assertions as client credentials and/or authorization grants
+
+        * `OAuth Bearer`_
+            - use of bearer token
+
+        * `OAuth Multi Response`_ 
+            - encoding rule for  **response type** that includes space characters.
+
+        * `OAuth Threats`_
+            - security considerations
+
+            
+.. impressjs:: Security Tokens
+   :data-x: -1000
+   :data-y: -800
+   :data-rotate-y: -30
+   :data-scale: 1
+
+    *Security Tokens:*
+
+    .. container:: bigitems
+
+        * JWT_ 
+            -  JSON Based Tokens
+            -  `JWT Bearer`_ for OAuth 
+
+        * JOSE_ : Javascript Object Signing and Encryption
+            - JWS_ : Signature
+            - JWE_ : Encryption
+            - JWK_ : Public Keys
+            - JWA_ : Algorithms
+             
+
+.. _Basic: http://openid.bitbucket.org/openid-connect-basic-1_0.html 
+.. _Standard: http://openid.bitbucket.org/openid-connect-standard-1_0.html
+.. _Messages: http://openid.bitbucket.org/openid-connect-messages-1_0.html
+.. _Registration:  http://openid.net/specs/openid-connect-registration-1_0.html
+.. _Discovery: http://openid.bitbucket.org/openid-connect-discovery-1_0.html
+.. _Session: http://openid.net/specs/openid-connect-session-1_0.html
+
+.. _OAuth: http://tools.ietf.org/html/draft-ietf-oauth-v2-23
+.. _`OAuth Assertion`: http://tools.ietf.org/html/draft-ietf-oauth-assertions-01
+.. _`OAuth Bearer`: http://tools.ietf.org/html/draft-ietf-oauth-v2-bearer-15   
+.. _`OAuth Multi Response`: http://openid.bitbucket.org/oauth-v2-multiple-response-types-1_0.html 
+.. _`OAuth Threats`: http://tools.ietf.org/html/draft-ietf-oauth-v2-threatmodel-01
+
+.. _JOSE: http://www.ietf.org/mail-archive/web/jose/current/maillist.html
+.. _JWT: http://self-issued.info/docs/draft-jones-json-web-token.html
+.. _JWS: http://self-issued.info/docs/draft-ietf-jose-json-web-signature-00.html 
+.. _JWE: http://self-issued.info/docs/draft-ietf-jose-json-web-encryption-00.html
+.. _JWK: http://self-issued.info/docs/draft-ietf-jose-json-web-key-00.html
+.. _JWA: http://self-issued.info/docs/draft-ietf-jose-json-web-algorithms-00.html
+.. _`JWT Bearer`: http://self-issued.info/docs/draft-jones-oauth-jwt-bearer-02.txt
+
+.. END

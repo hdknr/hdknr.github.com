@@ -1,0 +1,294 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>django.db.models.loading &mdash; Django Cheat 1 documentation</title>
+    
+    <link rel="stylesheet" href="../../../../static/haiku.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../static/print.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../../',
+        VERSION:     '1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../../../static/jquery.js"></script>
+    <script type="text/javascript" src="../../../../static/underscore.js"></script>
+    <script type="text/javascript" src="../../../../static/doctools.js"></script>
+    <script type="text/javascript" src="../../../../static/theme_extras.js"></script>
+    <link rel="top" title="Django Cheat 1 documentation" href="../../../../index.html" />
+    <link rel="up" title="django.db.models" href="../models.html" /> 
+  </head>
+  <body>
+      <div class="header"><h1 class="heading"><a href="../../../../index.html">
+          <span>Django Cheat 1 documentation</span></a></h1>
+        <h2 class="heading"><span>django.db.models.loading</span></h2>
+      </div>
+      <div class="topnav">
+      
+        <p>
+        <a href="/">Home</a>:
+        <a class="uplink" href="../../../../index.html">Contents</a>
+        </p>
+
+      </div>
+      <div class="content">
+        
+        
+  <h1>Source code for django.db.models.loading</h1><div class="highlight"><pre>
+<span class="s">&quot;Utilities for loading models and the modules that contain them.&quot;</span>
+
+<span class="kn">from</span> <span class="nn">django.conf</span> <span class="kn">import</span> <span class="n">settings</span>
+<span class="kn">from</span> <span class="nn">django.core.exceptions</span> <span class="kn">import</span> <span class="n">ImproperlyConfigured</span>
+<span class="kn">from</span> <span class="nn">django.utils.datastructures</span> <span class="kn">import</span> <span class="n">SortedDict</span>
+<span class="kn">from</span> <span class="nn">django.utils.importlib</span> <span class="kn">import</span> <span class="n">import_module</span>
+<span class="kn">from</span> <span class="nn">django.utils.module_loading</span> <span class="kn">import</span> <span class="n">module_has_submodule</span>
+
+<span class="kn">import</span> <span class="nn">imp</span>
+<span class="kn">import</span> <span class="nn">sys</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">threading</span>
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">(</span><span class="s">&#39;get_apps&#39;</span><span class="p">,</span> <span class="s">&#39;get_app&#39;</span><span class="p">,</span> <span class="s">&#39;get_models&#39;</span><span class="p">,</span> <span class="s">&#39;get_model&#39;</span><span class="p">,</span> <span class="s">&#39;register_models&#39;</span><span class="p">,</span>
+        <span class="s">&#39;load_app&#39;</span><span class="p">,</span> <span class="s">&#39;app_cache_ready&#39;</span><span class="p">)</span>
+
+<span class="k">class</span> <span class="nc">AppCache</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    A cache that stores installed applications and their models. Used to</span>
+<span class="sd">    provide reverse-relations and for app introspection (e.g. admin).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c"># Use the Borg pattern to share state between all instances. Details at</span>
+    <span class="c"># http://aspn.activestate.com/ASPN/Cookbook/Python/Recipe/66531.</span>
+    <span class="n">__shared_state</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span>
+        <span class="c"># Keys of app_store are the model modules for each application.</span>
+        <span class="n">app_store</span> <span class="o">=</span> <span class="n">SortedDict</span><span class="p">(),</span>
+
+        <span class="c"># Mapping of app_labels to a dictionary of model names to model code.</span>
+        <span class="n">app_models</span> <span class="o">=</span> <span class="n">SortedDict</span><span class="p">(),</span>
+
+        <span class="c"># Mapping of app_labels to errors raised when trying to import the app.</span>
+        <span class="n">app_errors</span> <span class="o">=</span> <span class="p">{},</span>
+
+        <span class="c"># -- Everything below here is only used when populating the cache --</span>
+        <span class="n">loaded</span> <span class="o">=</span> <span class="bp">False</span><span class="p">,</span>
+        <span class="n">handled</span> <span class="o">=</span> <span class="p">{},</span>
+        <span class="n">postponed</span> <span class="o">=</span> <span class="p">[],</span>
+        <span class="n">nesting_level</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
+        <span class="n">write_lock</span> <span class="o">=</span> <span class="n">threading</span><span class="o">.</span><span class="n">RLock</span><span class="p">(),</span>
+        <span class="n">_get_models_cache</span> <span class="o">=</span> <span class="p">{},</span>
+    <span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__dict__</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__shared_state</span>
+
+    <span class="k">def</span> <span class="nf">_populate</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Fill in all the cache information. This method is threadsafe, in the</span>
+<span class="sd">        sense that every caller will see the same state upon return, and if the</span>
+<span class="sd">        cache is already initialised, it does no work.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">loaded</span><span class="p">:</span>
+            <span class="k">return</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">write_lock</span><span class="o">.</span><span class="n">acquire</span><span class="p">()</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">loaded</span><span class="p">:</span>
+                <span class="k">return</span>
+            <span class="k">for</span> <span class="n">app_name</span> <span class="ow">in</span> <span class="n">settings</span><span class="o">.</span><span class="n">INSTALLED_APPS</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">app_name</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">handled</span><span class="p">:</span>
+                    <span class="k">continue</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">load_app</span><span class="p">(</span><span class="n">app_name</span><span class="p">,</span> <span class="bp">True</span><span class="p">)</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">nesting_level</span><span class="p">:</span>
+                <span class="k">for</span> <span class="n">app_name</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">postponed</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">load_app</span><span class="p">(</span><span class="n">app_name</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">loaded</span> <span class="o">=</span> <span class="bp">True</span>
+        <span class="k">finally</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">write_lock</span><span class="o">.</span><span class="n">release</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">load_app</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">app_name</span><span class="p">,</span> <span class="n">can_postpone</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Loads the app with the provided fully qualified name, and returns the</span>
+<span class="sd">        model module.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">handled</span><span class="p">[</span><span class="n">app_name</span><span class="p">]</span> <span class="o">=</span> <span class="bp">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">nesting_level</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="n">app_module</span> <span class="o">=</span> <span class="n">import_module</span><span class="p">(</span><span class="n">app_name</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">models</span> <span class="o">=</span> <span class="n">import_module</span><span class="p">(</span><span class="s">&#39;.models&#39;</span><span class="p">,</span> <span class="n">app_name</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">nesting_level</span> <span class="o">-=</span> <span class="mi">1</span>
+            <span class="c"># If the app doesn&#39;t have a models module, we can just ignore the</span>
+            <span class="c"># ImportError and return no models for it.</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">module_has_submodule</span><span class="p">(</span><span class="n">app_module</span><span class="p">,</span> <span class="s">&#39;models&#39;</span><span class="p">):</span>
+                <span class="k">return</span> <span class="bp">None</span>
+            <span class="c"># But if the app does have a models module, we need to figure out</span>
+            <span class="c"># whether to suppress or propagate the error. If can_postpone is</span>
+            <span class="c"># True then it may be that the package is still being imported by</span>
+            <span class="c"># Python and the models module isn&#39;t available yet. So we add the</span>
+            <span class="c"># app to the postponed list and we&#39;ll try it again after all the</span>
+            <span class="c"># recursion has finished (in populate). If can_postpone is False</span>
+            <span class="c"># then it&#39;s time to raise the ImportError.</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">can_postpone</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">postponed</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">app_name</span><span class="p">)</span>
+                    <span class="k">return</span> <span class="bp">None</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="k">raise</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">nesting_level</span> <span class="o">-=</span> <span class="mi">1</span>
+        <span class="k">if</span> <span class="n">models</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">app_store</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">app_store</span><span class="p">[</span><span class="n">models</span><span class="p">]</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">app_store</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">models</span>
+
+    <span class="k">def</span> <span class="nf">app_cache_ready</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns true if the model cache is fully populated.</span>
+
+<span class="sd">        Useful for code that wants to cache the results of get_models() for</span>
+<span class="sd">        themselves once it is safe to do so.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">loaded</span>
+
+    <span class="k">def</span> <span class="nf">get_apps</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="s">&quot;Returns a list of all installed modules that contain models.&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_populate</span><span class="p">()</span>
+
+        <span class="c"># Ensure the returned list is always in the same order (with new apps</span>
+        <span class="c"># added at the end). This avoids unstable ordering on the admin app</span>
+        <span class="c"># list page, for example.</span>
+        <span class="n">apps</span> <span class="o">=</span> <span class="p">[(</span><span class="n">v</span><span class="p">,</span> <span class="n">k</span><span class="p">)</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">app_store</span><span class="o">.</span><span class="n">items</span><span class="p">()]</span>
+        <span class="n">apps</span><span class="o">.</span><span class="n">sort</span><span class="p">()</span>
+        <span class="k">return</span> <span class="p">[</span><span class="n">elt</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="k">for</span> <span class="n">elt</span> <span class="ow">in</span> <span class="n">apps</span><span class="p">]</span>
+
+    <span class="k">def</span> <span class="nf">get_app</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">app_label</span><span class="p">,</span> <span class="n">emptyOK</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns the module containing the models for the given app_label. If</span>
+<span class="sd">        the app has no models in it and &#39;emptyOK&#39; is True, returns None.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_populate</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">write_lock</span><span class="o">.</span><span class="n">acquire</span><span class="p">()</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">app_name</span> <span class="ow">in</span> <span class="n">settings</span><span class="o">.</span><span class="n">INSTALLED_APPS</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">app_label</span> <span class="o">==</span> <span class="n">app_name</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&#39;.&#39;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]:</span>
+                    <span class="n">mod</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">load_app</span><span class="p">(</span><span class="n">app_name</span><span class="p">,</span> <span class="bp">False</span><span class="p">)</span>
+                    <span class="k">if</span> <span class="n">mod</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+                        <span class="k">if</span> <span class="n">emptyOK</span><span class="p">:</span>
+                            <span class="k">return</span> <span class="bp">None</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="k">return</span> <span class="n">mod</span>
+            <span class="k">raise</span> <span class="n">ImproperlyConfigured</span><span class="p">(</span><span class="s">&quot;App with label </span><span class="si">%s</span><span class="s"> could not be found&quot;</span> <span class="o">%</span> <span class="n">app_label</span><span class="p">)</span>
+        <span class="k">finally</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">write_lock</span><span class="o">.</span><span class="n">release</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">get_app_errors</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="s">&quot;Returns the map of known problems with the INSTALLED_APPS.&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_populate</span><span class="p">()</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">app_errors</span>
+
+    <span class="k">def</span> <span class="nf">get_models</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">app_mod</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">include_auto_created</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">include_deferred</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Given a module containing models, returns a list of the models.</span>
+<span class="sd">        Otherwise returns a list of all installed models.</span>
+
+<span class="sd">        By default, auto-created models (i.e., m2m models without an</span>
+<span class="sd">        explicit intermediate table) are not included. However, if you</span>
+<span class="sd">        specify include_auto_created=True, they will be.</span>
+
+<span class="sd">        By default, models created to satisfy deferred attribute</span>
+<span class="sd">        queries are *not* included in the list of models. However, if</span>
+<span class="sd">        you specify include_deferred, they will be.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">cache_key</span> <span class="o">=</span> <span class="p">(</span><span class="n">app_mod</span><span class="p">,</span> <span class="n">include_auto_created</span><span class="p">,</span> <span class="n">include_deferred</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_models_cache</span><span class="p">[</span><span class="n">cache_key</span><span class="p">]</span>
+        <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+            <span class="k">pass</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_populate</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">app_mod</span><span class="p">:</span>
+            <span class="n">app_list</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">app_models</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">app_mod</span><span class="o">.</span><span class="n">__name__</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&#39;.&#39;</span><span class="p">)[</span><span class="o">-</span><span class="mi">2</span><span class="p">],</span> <span class="n">SortedDict</span><span class="p">())]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">app_list</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">app_models</span><span class="o">.</span><span class="n">itervalues</span><span class="p">()</span>
+        <span class="n">model_list</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">app</span> <span class="ow">in</span> <span class="n">app_list</span><span class="p">:</span>
+            <span class="n">model_list</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span>
+                <span class="n">model</span> <span class="k">for</span> <span class="n">model</span> <span class="ow">in</span> <span class="n">app</span><span class="o">.</span><span class="n">values</span><span class="p">()</span>
+                <span class="k">if</span> <span class="p">((</span><span class="ow">not</span> <span class="n">model</span><span class="o">.</span><span class="n">_deferred</span> <span class="ow">or</span> <span class="n">include_deferred</span><span class="p">)</span>
+                    <span class="ow">and</span> <span class="p">(</span><span class="ow">not</span> <span class="n">model</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">auto_created</span> <span class="ow">or</span> <span class="n">include_auto_created</span><span class="p">))</span>
+            <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_get_models_cache</span><span class="p">[</span><span class="n">cache_key</span><span class="p">]</span> <span class="o">=</span> <span class="n">model_list</span>
+        <span class="k">return</span> <span class="n">model_list</span>
+
+    <span class="k">def</span> <span class="nf">get_model</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">app_label</span><span class="p">,</span> <span class="n">model_name</span><span class="p">,</span> <span class="n">seed_cache</span><span class="o">=</span><span class="bp">True</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns the model matching the given app_label and case-insensitive</span>
+<span class="sd">        model_name.</span>
+
+<span class="sd">        Returns None if no model is found.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">seed_cache</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_populate</span><span class="p">()</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">app_models</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">app_label</span><span class="p">,</span> <span class="n">SortedDict</span><span class="p">())</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">model_name</span><span class="o">.</span><span class="n">lower</span><span class="p">())</span>
+
+    <span class="k">def</span> <span class="nf">register_models</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">app_label</span><span class="p">,</span> <span class="o">*</span><span class="n">models</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Register a set of models as belonging to an app.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">model</span> <span class="ow">in</span> <span class="n">models</span><span class="p">:</span>
+            <span class="c"># Store as &#39;name: model&#39; pair in a dictionary</span>
+            <span class="c"># in the app_models dictionary</span>
+            <span class="n">model_name</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">object_name</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
+            <span class="n">model_dict</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">app_models</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="n">app_label</span><span class="p">,</span> <span class="n">SortedDict</span><span class="p">())</span>
+            <span class="k">if</span> <span class="n">model_name</span> <span class="ow">in</span> <span class="n">model_dict</span><span class="p">:</span>
+                <span class="c"># The same model may be imported via different paths (e.g.</span>
+                <span class="c"># appname.models and project.appname.models). We use the source</span>
+                <span class="c"># filename as a means to detect identity.</span>
+                <span class="n">fname1</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="n">sys</span><span class="o">.</span><span class="n">modules</span><span class="p">[</span><span class="n">model</span><span class="o">.</span><span class="n">__module__</span><span class="p">]</span><span class="o">.</span><span class="n">__file__</span><span class="p">)</span>
+                <span class="n">fname2</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="n">sys</span><span class="o">.</span><span class="n">modules</span><span class="p">[</span><span class="n">model_dict</span><span class="p">[</span><span class="n">model_name</span><span class="p">]</span><span class="o">.</span><span class="n">__module__</span><span class="p">]</span><span class="o">.</span><span class="n">__file__</span><span class="p">)</span>
+                <span class="c"># Since the filename extension could be .py the first time and</span>
+                <span class="c"># .pyc or .pyo the second time, ignore the extension when</span>
+                <span class="c"># comparing.</span>
+                <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">splitext</span><span class="p">(</span><span class="n">fname1</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">splitext</span><span class="p">(</span><span class="n">fname2</span><span class="p">)[</span><span class="mi">0</span><span class="p">]:</span>
+                    <span class="k">continue</span>
+            <span class="n">model_dict</span><span class="p">[</span><span class="n">model_name</span><span class="p">]</span> <span class="o">=</span> <span class="n">model</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_get_models_cache</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
+
+<span class="n">cache</span> <span class="o">=</span> <span class="n">AppCache</span><span class="p">()</span>
+
+<span class="c"># These methods were always module level, so are kept that way for backwards</span>
+<span class="c"># compatibility.</span>
+<span class="n">get_apps</span> <span class="o">=</span> <span class="n">cache</span><span class="o">.</span><span class="n">get_apps</span>
+<span class="n">get_app</span> <span class="o">=</span> <span class="n">cache</span><span class="o">.</span><span class="n">get_app</span>
+<span class="n">get_app_errors</span> <span class="o">=</span> <span class="n">cache</span><span class="o">.</span><span class="n">get_app_errors</span>
+<span class="n">get_models</span> <span class="o">=</span> <span class="n">cache</span><span class="o">.</span><span class="n">get_models</span>               <span class="c">#:get_models</span>
+<span class="n">get_model</span> <span class="o">=</span> <span class="n">cache</span><span class="o">.</span><span class="n">get_model</span>                 <span class="c">#:get_model </span>
+<span class="n">register_models</span> <span class="o">=</span> <span class="n">cache</span><span class="o">.</span><span class="n">register_models</span>
+<span class="n">load_app</span> <span class="o">=</span> <span class="n">cache</span><span class="o">.</span><span class="n">load_app</span>
+<span class="n">app_cache_ready</span> <span class="o">=</span> <span class="n">cache</span><span class="o">.</span><span class="n">app_cache_ready</span>
+</pre></div>
+
+      </div>
+      <div class="bottomnav">
+      
+        <p>
+        <a href="/">Home</a>:
+        <a class="uplink" href="../../../../index.html">Contents</a>
+        </p>
+
+      </div>
+
+    <div class="footer">
+        &copy; Copyright 2012, HDKNR.COM.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.2pre.
+    </div>
+  </body>
+</html>

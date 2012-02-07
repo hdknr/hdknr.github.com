@@ -1,5 +1,9 @@
+.. _cheat.django.core.serializers:
+
 Cheat
 -------------------------------
+
+.. _cheat.django.core.serializers.deserialize:
 
 JSONからモデルを復元するには？
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
