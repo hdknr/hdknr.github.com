@@ -3,22 +3,32 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Welcome to Note's documentation!
+Note
 ================================
+
+Misc
 
 .. toctree::
     :maxdepth: 2
 
     x509
+    css
+    swd
+    python
+    mysql
+
+
+Linux Commands:
+
+.. toctree::
+    :maxdepth: 2
+
+    diff
     git
     hg
     bash
     bash_complete
-    css
-    swd
-    python
 
-    toc
 
 Indices and tables
 ==================
