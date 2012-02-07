@@ -25,11 +25,10 @@ cat >> $BASE/docs.html <<EOF
 </div>
 EOF
 
-cp -r $BASE/docs/home/* .
-
 if [ "$1" == "push" ] ; then
     pushd .
     cd $BASE
+    cp -r docs/home/* .
     git commit -a -m "Updates...."
     git push 
     popd

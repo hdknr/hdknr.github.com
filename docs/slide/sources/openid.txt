@@ -74,6 +74,8 @@ OpenID Connect
         * `OAuth Threats`_
             - security considerations
 
+        * `OAuth Token Revocation`_
+            - an additional endpoint for authorization servers to revoke tokens.
             
 .. impressjs:: Security Tokens
    :data-x: -1000
@@ -108,6 +110,7 @@ OpenID Connect
 .. _`OAuth Bearer`: http://tools.ietf.org/html/draft-ietf-oauth-v2-bearer-15   
 .. _`OAuth Multi Response`: http://openid.bitbucket.org/oauth-v2-multiple-response-types-1_0.html 
 .. _`OAuth Threats`: http://tools.ietf.org/html/draft-ietf-oauth-v2-threatmodel-01
+.. _`OAuth Token Revocation`: http://tools.ietf.org/html/draft-lodderstedt-oauth-revocation-03 
 
 .. _JOSE: http://www.ietf.org/mail-archive/web/jose/current/maillist.html
 .. _JWT: http://self-issued.info/docs/draft-jones-json-web-token.html
