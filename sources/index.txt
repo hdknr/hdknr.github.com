@@ -19,7 +19,7 @@ HDKNR.COM HOME
 
 
 .. impressjs:: Bits
-   :data-x: 400
+   :data-x: 800
    :data-y: 800
    :data-rotate: -180
    :data-rotate-y: 30
@@ -34,8 +34,8 @@ HDKNR.COM HOME
 
 
 .. impressjs:: Me
-   :data-x: 800
-   :data-y: 1200
+   :data-x: 1600
+   :data-y: 1600
    :data-rotate: -10
    :data-rotate-y: 300
    :data-scale: 1
@@ -49,8 +49,8 @@ HDKNR.COM HOME
     
 
 .. impressjs:: Django 
-   :data-x: 1200
-   :data-y: 1600
+   :data-x: 2400
+   :data-y: 2400
    :data-rotate: -45
    :data-rotate-y: -400
    :data-scale: 2
@@ -66,8 +66,8 @@ HDKNR.COM HOME
         - Anyone who can understand Japanese enough to cope with us are welcome!
 
 .. impressjs:: Captures
-   :data-x: 1600
-   :data-y: 2000
+   :data-x: 3200
+   :data-y: 3200
    :data-rotate: 80
    :data-rotate-y: -10
    :data-scale: 2
@@ -77,16 +77,14 @@ HDKNR.COM HOME
     .. raw:: html
 
         <div style="margin: 0 auto; text-align: center;">
-        <a href="http://flickriver.com/photos/hdknr/popular-interesting/">
-        <img src="http://flickriver.com/badge/user/all/interesting/shuffle/medium-4x3/ffffff/333333/20958118@N06.jpg" 
-        border="0" alt="hidelafoglia - View my most interesting photos on Flickriver" title="hidelafoglia - View my most interesting photos on Flickriver"/></a>
+            <a href="http://flickriver.com/photos/hdknr/popular-interesting/">
+            <img 
+            src="http://flickriver.com/badge/user/all/interesting/shuffle/medium-4x3/ffffff/333333/20958118@N06.jpg" 
+            border="0" alt="hidelafoglia - View my most interesting photos on Flickriver" 
+            title="hidelafoglia - View my most interesting photos on Flickriver"/>
+            </a>
         </div>
 
-.. impressjs:: overview
-   :data-x: 0
-   :data-y: 0
-   :data-scale: 3
-
-   .. content
+    
 
 .. END
