@@ -85,6 +85,17 @@ HDKNR.COM HOME
             </a>
         </div>
 
-    
+.. impressjs:: Feeds
+   :data-x: 4000
+   :data-y: 4000
+   :data-rotate: -20
+   :data-rotate-y: 20
+   :data-scale: 2
 
+    *Feeds*
+
+    .. raw:: html
+
+        <script type="text/javascript" src="http://friendfeed.com/embed/widget/hdknr?v=3"></script><noscript><a href="http://friendfeed.com/hdknr"><img alt="View my FriendFeed" style="border:0;" src="http://friendfeed.com/embed/widget/hdknr?v=3&amp;format=png"/></a></noscript>
+    
 .. END
