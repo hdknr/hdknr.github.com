@@ -295,7 +295,8 @@ extensions.append('yummy.spx')  #: yummy
 html_theme = 'mybasic'
 html_theme_path = ['../../../themes',]
 #
-exclude_patterns = ['cheat/*.rst',]
+exclude_patterns = ['cheat/*.rst',
+                    'python/*.rst',]
 #
 PRJ_PATH= os.path.dirname( os.path.abspath(__file__))
 sys.path.insert(0, os.path.dirname(PRJ_PATH ))
