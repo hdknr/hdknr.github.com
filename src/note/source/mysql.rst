@@ -23,6 +23,16 @@ management
 
 - Debianでは /var/log/mysql/mysql.log がデフォルトのようです。 
 
+特権ユーザ−
+--------------
+
+.. code-block:: mysql
+
+    REVOKE ALL PRIVILEGES ON * . * FROM  'prospects'@'localhost';
+    
+    GRANT ALL PRIVILEGES ON * . * TO  'prospects'@'localhost' WITH GRANT OPTION MAX_QUERIES_PER_HOUR 0 MAX_CONNECTIONS_PER_HOUR 0 MAX_UPDATES_PER_HOUR 0 MAX_USER_CONNECTIONS 0 ;
+    
+
 SQL
 =====
 
@@ -94,6 +104,7 @@ Fixture用にMySQLダンプを作る
 - **complete-insert**  オプションでdump を作成する。
 
 ::
+
     $ mysqldump -u $ROOT --password=$PWD --no-create-info --complete-insert  $APP_DB > ../dump.sql 
 
 
@@ -101,6 +112,7 @@ Fixture用にMySQLダンプを作る
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 ::
+
     $ mysqldump -c --order-by-primary --skip-extended-insert -u root --password=password mydb
 
 
@@ -109,6 +121,7 @@ Fixture用にMySQLダンプを作る
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 ::
+
     $ mysqldump -u ユーザ名 -p -t データベース名 テーブル1 テーブル2...> ファイル名
 
 
@@ -116,6 +129,7 @@ DDL分のみ
 ^^^^^^^^^^^
 
 ::
+
     --no-data, -d 
 
 
@@ -125,6 +139,7 @@ Trouble
 - PHPで確認
 
 ::
+
       $link = mysql_connect($host_url,$user,$pass) or  die('Could not connect: ' . mysql_error());
 
 

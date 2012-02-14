@@ -1,0 +1,60 @@
+:orphan:
+
+  +-------------+-------------+----------------------------------------------------------------------------------------------+
+  | Member      | Type        | Description                                                                                  |
+  +=============+=============+==============================================================================================+
+  | user_id     | string      | Identifier for the user at the issuer.                                                       |
+  +-------------+-------------+----------------------------------------------------------------------------------------------+
+  | name        | string      | User's full name in displayable form including all name parts,                               |
+  |             |             | ordered according to user's locale and preferences.                                          |
+  +-------------+-------------+----------------------------------------------------------------------------------------------+
+  | given_name  | string      | Given name or first name of the user.                                                        |
+  +-------------+-------------+----------------------------------------------------------------------------------------------+
+  | family_name | string      | Surname or last name of the user.                                                            |
+  +-------------+-------------+----------------------------------------------------------------------------------------------+
+  | middle_name | string      | Middle name of the user.                                                                     | 
+  +-------------+-------------+----------------------------------------------------------------------------------------------+
+  | nickname    | string      | Casual name of the user that may or may not be the same as the given_name.                   |
+  |             |             | For instance, a nickname value of Mike might be returned alongside                           |
+  |             |             | a given_name value of Michael.                                                               |
+  +-------------+-------------+----------------------------------------------------------------------------------------------+
+  | profile     | string      | URL of user's profile page.                                                                  | 
+  +-------------+-------------+----------------------------------------------------------------------------------------------+
+  | picture     | string      | URL of the user's profile picture.                                                           |
+  +-------------+-------------+----------------------------------------------------------------------------------------------+
+  | website     | string      | URL of user's web page or blog.                                                              |
+  +-------------+-------------+----------------------------------------------------------------------------------------------+
+  | email       | string      | The user's preferred e-mail address.                                                         |
+  +-------------+-------------+----------------------------------------------------------------------------------------------+
+  | verified    | boolean     | True if the user's e-mail address has been verified; otherwise false.                        |
+  +-------------+-------------+----------------------------------------------------------------------------------------------+
+  | gender      | string      | The user's gender: female or male.                                                           |
+  +-------------+-------------+----------------------------------------------------------------------------------------------+
+  | birthday    | string      | The user's birthday, represented as a date string in MM/DD/YYYY format. The year MAY be 0000,|
+  |             |             | indicating that it is omitted.                                                               |
+  +-------------+-------------+----------------------------------------------------------------------------------------------+
+  | zoneinfo    | string      | String from zoneinfo [zoneinfo] timezone database. For example, Europe/Paris or              |
+  |             |             | America/Los_Angeles.                                                                         |
+  +-------------+-------------+----------------------------------------------------------------------------------------------+
+  | locale      | string      | The user's locale, represented as an RFC 5646 [RFC5646] language tag. This is typically      |
+  |             |             | an ISO 639-1 Alpha-2 [ISO639‑1] language code in lowercase and an ISO 3166-1 Alpha-2         | 
+  |             |             | [ISO3166‑1] country code in uppercase, separated by a dash. For example, en-US or fr-CA.     |
+  |             |             | As a compatibility note, some implementations have used an underscore as the separator       |
+  |             |             | rather than a dash, for example, en_US; Implementations MAY choose to accept this locale     |
+  |             |             | syntax as well.                                                                              | 
+  +-------------+-------------+----------------------------------------------------------------------------------------------+
+  | phone_number| string      | The user's preferred telephone number. For example, +1 (425) 555-1212 or +56 (2) 687 2400.   |
+  +-------------+-------------+----------------------------------------------------------------------------------------------+
+  | address     | JSON object | The user's preferred address. The value of the address member is a JSON [RFC4627] structure  |
+  |             |             | containing some or all of these string-valued fields: formatted, street_address, locality,   |
+  |             |             | region, postal_code, and country.                                                            |
+  |             |             | The street_address field MAY contain multiple lines if the address representation requires   |
+  |             |             | it. Implementations MAY return only a subset of the fields of an address, depending upon     |
+  |             |             | the information available and the user's privacy preferences.                                |
+  |             |             | For example, the country and region might be returned without returning more fine-grained    |
+  |             |             | address information.                                                                         |
+  +-------------+-------------+----------------------------------------------------------------------------------------------+
+  | updated_time| string      | Time the user's information was last updated, represented as a RFC 3339 [RFC3339] datetime.  | 
+  |             |             | For example, 2011-01-03T23:58:42+0000.                                                       |
+  +-------------+-------------+----------------------------------------------------------------------------------------------+
+

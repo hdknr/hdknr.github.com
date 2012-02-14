@@ -2,6 +2,80 @@
 Python
 ======================
 
+プロパティ
+===============
+
+setterを定義しないとread-only
+---------------------------------
+
+.. code-block:: python
+
+
+    class Hoge(object):
+        def __init__(self):
+            self._name=''
+        @property
+        def fullname(self):
+            return self._name
+    
+    
+    h=Hoge()
+    h._name='aaa'
+    print h.fullname
+    h.fullname= 'xxx'
+    print h.fullname
+
+    (main)hdknr@sqg:~$ python x.py 
+    aaa
+    Traceback (most recent call last):
+      File "x.py", line 13, in <module>
+        h.fullname= 'xxx'
+    AttributeError: can't set attribute
+
+ただし、object から派生させること！
+    
+.. code-block:: python
+
+
+    class Hoge:
+        def __init__(self):
+            self._name=''
+        @property
+        def fullname(self):
+            return self._name
+
+    (main)hdknr@sqg:~$ python x.py 
+    aaa
+    xxx
+
+
+配列の初期化
+===============
+
+.. code-block:: python
+
+    >>> [1]*3
+    [1, 1, 1]
+    >>> [1,2]*3
+    [1, 2, 1, 2, 1, 2]
+    >>> [[1,2]]*3
+    [[1, 2], [1, 2], [1, 2]]
+
+
+カナ:半角->全角
+==================
+
+- jcconv
+
+:: 
+    
+    $ pip install jcconv
+
+.. code-block:: python
+
+    >>> import jcconv
+    >>> print jcconv.half2kata('ああああｳｴｽﾄｺｰﾄ1234')
+    ああああウエストコｰト1234
 
 パスワード
 =============

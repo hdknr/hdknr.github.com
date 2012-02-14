@@ -27,6 +27,7 @@ HDKNR.COM HOME
 
     *Documents*
 
+    - `Digital Identity <http://hdknr.github.com/docs/identity/>`_
     - `Django Cheat <http://hdknr.github.com/docs/django/>`_
     - `Sphinx Cheat <http://hdknr.github.com/docs/sphinx/>`_
     - `Note <http://hdknr.github.com/docs/note/>`_ 

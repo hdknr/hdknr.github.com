@@ -1,0 +1,160 @@
+3.3.  Host-AM: Ask for Requester Access Token Status
+---------------------------------------------------------------------------------------------------------
+
+In this specification, 
+the only access token type that is mandatory to implement is ":term:`artifact`" 
+(see :ref:`Section 1.5 <uma_core.1.5>`).  
+On receiving a :term:`requester access token` of this type in an access attempt, 
+the :term:`host` MUST ask the AM for that token's status.  
+If it has a cached token status description available that has not expired yet, 
+it MAY use it instead.  
+Profiles defining alternate token types MAY require, allow, 
+or prohibit the token status request-response interaction as appropriate.
+
+.. note::
+    - host goes to AM to check tokens' status (:term:`Token Status Endpoint`)
+    - host may use the cached status if it has not been expired.
+
+In order to request the AM for a token's status, 
+the :term:`host` makes the request to the :term:`AM` with a **POST** request 
+to the AM's :term:`token status endpoint`.  
+The body of the HTTP request message contains a JSON document 
+providing the :term:`requester access token` and the IP address of the :term:`requester`'s request.  
+The :term:`host` MAY, at its discretion, instead supply the originating IP address indicated 
+in the :term:`requester`'s **X-Forwarded-For:** header value.  
+The IP address or :term:`originating IP address` is advisory only; 
+the AM MAY ignore it for purposes of its own token validation process.
+
+.. note::
+   -  Token Status Request (JSON)
+        
+        - requester access token
+        - requester IP address / originating IP address ( X-Forwarded-For: )
+
+The :term:`host` gains access to the :term:`token status endpoint` 
+by presenting its own :term:`host access token` in the request.
+
+.. note::
+    - Token Status Endpoint Authentication
+    
+        - host access token  
+
+Note that 
+although the :term:`host`'s request is a safe operation, 
+which normally would use the GET operation, 
+this specification dictates the use of **POST** 
+because it is advantageous for security in cases 
+where the requester access token is a bearer token.  
+Since the host provides its own :term:`host access token` 
+in the :term:`authorization header` of the request, 
+the requester's access token appears in the request body.  
+A GET operation would expose the message to being recorded in AM access logs.  
+The ":term:`artifact`" token type, 
+which is mandatory for AMs to implement, is a type of :term:`bearer token`.
+
+.. note::
+    - artifact token = bearer token
+
+Example of a request to the token validation endpoint 
+that provides the host access token in the header:
+
+.. note::
+
+    - Request
+    - token validation endpoint = :term:`token status endpoint`
+
+::
+
+   POST /token_status HTTP/1.1
+   Host: am.example.com
+   Authorization: Bearer vF9dft4qmT
+   Content-Type: application/json
+   ...
+
+   {
+     "token": "sbjsbhs(/SSJHBSUSSJHVhjsgvhsgvshgsv",
+     "resource_set_id": "112210f47de98100",
+     "host_id": "photoz.example.com",
+     "ipaddr": "192.168.1.1"
+   }
+
+The AM returns the token's status in an HTTP response 
+using the 200 OK status code, 
+containing a JSON document supplying the :term:`token status description`.  
+The :term:`token status description` 
+either contains all of the :term:`permissions` that are currently valid 
+for this :term:`requester access token` at the :term:`host` in question 
+(and thus for the requesting party on whose behalf it is acting), 
+or indicates that the token is invalid (see :ref:`Section 1.4 <uma_core.1.4>`).  
+The AM MAY set a :term:`cache period` for the returned :term:`token status description` 
+that allows the :term:`host` to reuse it over some period of time 
+when it later sees the same :term:`requester access token`.
+
+.. note::
+    - Response
+    - token status description
+    - cache period for the same requester access token
+
+The :term:`token status description` for a valid access token is 
+a JSON array of zero or more :term:`permission objects`, 
+each with the following properties:
+
+.. glossary::
+
+   resource_set_id  
+      REQUIRED.  A string that uniquely identifies the
+      resource set, access to which has been granted to this requester
+      on behalf of this requesting party.  The identifier MUST
+      correspond to a resource set that was previously registered as
+      protected.
+
+   scopes  
+      REQUIRED.  An array referencing one or more URIs of scopes to
+      which access was granted for this resource set.  Each scope MUST
+      correspond to a scope that was registered by this host for the
+      referenced resource set.
+
+   exp  
+      REQUIRED.  An integer representing the expiration time on or
+      after which the permission MUST NOT be accepted for authorized
+      access.  The processing of the exp property requires that the
+      current date/time MUST be before the expiration date/time listed
+      in the exp claim.  Host implementers MAY provide for some small
+      leeway, usually no more than a few minutes, to account for clock
+      skew.
+
+Example:
+
+::
+
+   HTTP/1.1 200 OK
+   Content-Type: application/uma-token-status+json
+   Cache-Control: no-store
+   ...
+
+   [
+     {
+       "resource_set_id": "112210f47de98100",
+       "scopes": [
+         "http://photoz.example.com/dev/actions/view",
+         "http://photoz.example.com/dev/actions/all"
+       ],
+       "exp": 1300819380
+     }
+   ]
+
+The :term:`token status description` for an invalid access token is a JSON structure, 
+as follows.
+
+::
+
+   HTTP/1.1 200 OK
+   Content-Type: application/uma-token-status+json
+   ...
+
+   {
+     "token_status": "invalid"
+   }
+
+
+(draft 03)
