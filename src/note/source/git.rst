@@ -18,6 +18,11 @@ Git
 
     $ git checkout docs
 
+リビジョンを指定して戻す
+
+::
+
+    $ git checkout -l 2a6ac3f60426d4ce4604f387033446f750911d8f source/jose.rst
 
 Cheat
 ======

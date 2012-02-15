@@ -2,7 +2,9 @@
 JSON Web Encryption (JWE)
 ============================
 
-Based on draft-jones-json-web-encryption-02( http://self-issued.info/docs/draft-jones-json-web-encryption.html)
+Based on draft-jones-json-web-encryption-02( 
+http://self-issued.info/docs/draft-jones-json-web-encryption-02.html
+)
 
 .. todo::
 
@@ -43,13 +45,29 @@ Based on draft-jones-json-web-encryption-02( http://self-issued.info/docs/draft-
 
 .. include:: jwe/7.rst
 
+.. _jwe.7.1:
+
+.. include:: jwe/7.1.rst
+
 .. _jwe.7.2:
 
 .. include:: jwe/7.2.rst
 
+.. _jwe.8:
+
+.. include:: jwe/8.rst
+
 .. _jwe.9:
 
 .. include:: jwe/9.rst
+
+.. _jwe.9.1:
+
+.. include:: jwe/9.1.rst
+
+.. _jwe.9.2:
+
+.. include:: jwe/9.2.rst
 
 .. _jwe.13:
 
