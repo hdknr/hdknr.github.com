@@ -45,8 +45,8 @@ UMA
     uma_core
     uma_trust
 
-Related
----------------
+JOSE and JWT
+----------------
 
 .. toctree::
     :maxdepth: 1
@@ -56,6 +56,14 @@ Related
     jws_hok
     jwe
     jwk
+    jwa
+
+Related
+---------------
+
+.. toctree::
+    :maxdepth: 1
+
     swd
     revoke
 

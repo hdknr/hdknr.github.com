@@ -71,7 +71,9 @@ Connect
         (TBD)
 
     Authentication Context Class Reference
-        (TBD)( :ref:`messages_1_1` )
+    Authentication Context Class References
+        `Supported SAML Authentication Context Classes and Strengths
+        <http://technohidelic.posterous.com/supported-saml-authentication-context-classes>`_
 
     Entity Authentication Assurance Level
         (TBD)( :ref:`messages_1_1` )
@@ -1043,4 +1045,74 @@ UMA
 
     Requesting Parties
         (TBD) :term:`Requester` ?
+
+
+JWT
+====
+
+.. glossary::
+
+    Cryptographic Hash Function
+        (TBD)
+    
+    ECDSA
+        (TBD)
+    
+    HMAC SHA-256
+        (TBD)
+    
+    HMAC SHA-384
+        (TBD)
+    
+    HMAC SHA-512
+        (TBD)
+    
+    Iana JSON Web Encryption Algorithms
+        (TBD)
+    
+    Iana JSON Web Signature Algorithms
+        (TBD)
+    
+    JWS Secured Input
+        (TBD)
+    
+    Mac
+        (TBD)
+    
+    P-256
+        (TBD)
+    
+    PKCS#1
+        (TBD)
+    
+    RSA-PKCS1-1.5
+        (TBD)
+    
+    RSASSA-PKCS1-V1_5
+        (TBD)
+    
+    SHA-256
+        (TBD)
+    
+    SHA-384
+        (TBD)
+    
+    SHA-512
+        (TBD)
+    
+    Shared Key
+        (TBD)
+    
+    White Space
+        (TBD)
+    
+    alg
+        (TBD)
+    
+    enc
+        (TBD)
+    
+    typ
+        (TBD)
+
 

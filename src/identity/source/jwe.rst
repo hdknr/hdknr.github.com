@@ -4,8 +4,9 @@ JSON Web Encryption (JWE)
 
 Based on draft-jones-json-web-encryption-02( http://self-issued.info/docs/draft-jones-json-web-encryption.html)
 
+.. todo::
 
-(December 13, 2011)
+    (December 13, 2011)
 
 
 .. _jwe.abstract:
@@ -14,6 +15,10 @@ Based on draft-jones-json-web-encryption-02( http://self-issued.info/docs/draft-
 
 .. contents:: Table of Contents
 
+.. _jwe.1:
+
+.. include:: jwe/1.rst
+
 .. _jwe.2:
 
 .. include:: jwe/2.rst
@@ -21,6 +26,10 @@ Based on draft-jones-json-web-encryption-02( http://self-issued.info/docs/draft-
 .. _jwe.3:
 
 .. include:: jwe/3.rst
+
+.. _jwe.3.1:
+
+.. include:: jwe/3.1.rst
 
 .. _jwe.4:
 
