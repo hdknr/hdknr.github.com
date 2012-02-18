@@ -277,15 +277,26 @@ intersphinx_mapping = {'http://docs.python.org/': None}
 #########
 
 todo_include_todos = True
-exclude_patterns = ['oauth/*.rst','session/*.rst','standard/*.rst',
-                    'basic/*.rst','poco/*.rst','messages/*.rst',
-                    'jwt/*.rst','jwe/*.rst','jws/*.rst','jwk/*.rst',
+exclude_patterns = ['oauth/*.rst',
+                    'session/*.rst',
+                    'standard/*.rst',
+                    'basic/*.rst',
+                    'poco/*.rst',
+                    'messages/*.rst',
+                    'jwt/*.rst',
+                    'jwe/*.rst',
+                    'jws/*.rst',
+                    'jwk/*.rst',
+                    'jwa/*.rst',
                     'nist-sp-800-63/*.rst',
                     'oauth_*/*.rst',
                     'reg/*.rst',
                     'uma_core/*.rst',
                     'uma_trust/*.rst',
-                    'discovery/*.rst','bearer/*.rst','oauth_responses/*.rst','locale',]
+                    'discovery/*.rst',
+                    'bearer/*.rst',
+                    'oauth_responses/*.rst',
+                    'locale',]
 #
 # GETTEXT
 locale_dirs = ["locale"]

@@ -184,6 +184,42 @@ Connect
     Unicode Code Points
         (TBD)
 
+    Authenticated User Session
+        (TBD)
+
+    Authorization Http Header
+        (TBD)
+
+    Fourth Party Web Sites
+        (TBD)
+
+    Fragment Parameter
+        (TBD)
+
+    Id Token
+        (TBD)
+
+    Implicit Grant Flow
+        (TBD)
+
+    Query Fragment
+        (TBD)
+
+    Query Parameter
+        (TBD)
+
+    Refresh Session Endpoint
+        (TBD)
+
+    Requested Resources
+        (TBD)
+
+    Sign In Session
+        (TBD)
+
+    User-Agent
+        (TBD)
+
 OAuth
 ==========
 
@@ -353,7 +389,7 @@ JSON Something
         ( TBD ) ( :ref:`jwt.5` )    
 
     JWE Header Parameters
-        ( TBD ) ( :ref:`jwt.5` )    
+        See ref:`jwe.4` ( :ref:`jwt.5` )    
 
 SAML
 ======
@@ -1115,4 +1151,6 @@ JWT
     typ
         (TBD)
 
+    GCM
+        Galois/Counter Mode, as defined in [:term:`FIPS‑197`] and [:term:`NIST‑800‑38D`]
 
