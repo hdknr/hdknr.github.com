@@ -91,7 +91,7 @@ Others
     :maxdepth: 1
 
     todo
-
+    resource
 
 Indices and tables
 ==================
