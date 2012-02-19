@@ -83,8 +83,8 @@ syncdb
 :: 
 
     (main)hdknr@sqg:~/remote$ python manage.py schemamigration  membership --initial
-    Creating migrations directory at '/home/hdknr/ve/main/src/cms/nr_sitecast/remote/membership/migrations'...
-    Creating __init__.py in '/home/hdknr/ve/main/src/cms/nr_sitecast/remote/membership/migrations'...
+    Creating migrations directory at '/home/hdknr/ve/main/src/remote/membership/migrations'...
+    Creating __init__.py in '/home/hdknr/ve/main/src/remote/membership/migrations'...
      + Added model membership.Member
      + Added model membership.Prospect
      + Added model membership.Service
@@ -102,7 +102,7 @@ syncdb
     (main)hdknr@sqg:~/ve/main/src/c
     }}}
     {{{
-    (main)hdknr@sqg:~/ve/main/src/cms/nr_sitecast/remote$ tree membership/migrations/
+    (main)hdknr@sqg:~/ve/main/src/remote$ tree membership/migrations/
     membership/migrations/
     ├── 0001_initial.py
     ├── __init__.py
@@ -112,7 +112,7 @@ syncdb
 
 ::
 
-    (main)hdknr@sqg:~/ve/main/src/cms/nr_sitecast/remote$ wc membership/migrations/*.py
+    (main)hdknr@sqg:~/ve/main/src/remote$ wc membership/migrations/*.py
       301  1175 24811 membership/migrations/0001_initial.py
         0     0     0 membership/migrations/__init__.py
       301  1175 24811 合計
