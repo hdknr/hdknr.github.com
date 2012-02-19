@@ -17,8 +17,9 @@ OAuth
     oauth_assertion
     oauth_responses
     oauth_threat
-    bearer
+    oauth_bearer
     oauth_jwt_bearer
+    oauth_saml2_bearer
 
 OpenID/Connect
 ---------------
