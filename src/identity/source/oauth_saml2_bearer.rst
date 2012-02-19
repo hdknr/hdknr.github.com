@@ -18,3 +18,29 @@ based on http://tools.ietf.org/html/draft-ietf-oauth-saml2-bearer-10
 
 .. include:: oauth_saml2_bearer/1.rst
 
+.. _oauth_saml2_bearer.2:
+
+.. include:: oauth_saml2_bearer/2.rst
+
+.. _oauth_saml2_bearer.2.1:
+
+.. include:: oauth_saml2_bearer/2.1.rst
+
+.. _oauth_saml2_bearer.2.2:
+
+.. include:: oauth_saml2_bearer/2.2.rst
+
+.. _oauth_saml2_bearer.3:
+
+.. include:: oauth_saml2_bearer/3.rst
+
+.. _oauth_saml2_bearer.3.1:
+
+.. include:: oauth_saml2_bearer/3.1.rst
+
+.. _oauth_saml2_bearer.3.2:
+
+.. include:: oauth_saml2_bearer/3.2.rst
+
+
+
