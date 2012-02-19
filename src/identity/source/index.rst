@@ -20,6 +20,7 @@ OAuth
     oauth_bearer
     oauth_jwt_bearer
     oauth_saml2_bearer
+    oauth_mac
 
 OpenID/Connect
 ---------------

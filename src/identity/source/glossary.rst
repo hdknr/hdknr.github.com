@@ -1155,3 +1155,23 @@ JWT
         Galois/Counter Mode, as defined in [:term:`FIPS‑197`] and [:term:`NIST‑800‑38D`]
 
     
+
+MAC Scheme
+===========
+
+.. glossary::
+
+    
+    HTTP MAC access authentication scheme
+    MAC scheme
+        :ref:`oauth_mac.1` 
+
+    HTTP Basic access authentication scheme
+    Basic scheme
+        :rfc:`2617` / :ref:`oauth_mac.1` 
+
+    HTTP Digest authentication scheme
+    Digest scheme
+        (TDB)
+        
+
