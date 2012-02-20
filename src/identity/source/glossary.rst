@@ -969,6 +969,7 @@ TBD
     Userinfo Data
         (TBD)
 
+
 UMA
 ======
 
@@ -1082,6 +1083,54 @@ UMA
     Requesting Parties
         (TBD) :term:`Requester` ?
 
+
+    A User Authorization Process
+        (TBD)
+
+    am_uri
+        (TBD)
+
+    authorization_code
+        :term:`host_grant_types_supported` 
+
+    Cache Period
+        :ref:`uma_core.3.3`
+
+    callback URL
+        :ref:`uma_core.3.5`
+
+    client_credentials
+        :term:`host_grant_types_supported` 
+        
+    extension grant type
+        :term:`host_grant_types_supported` . (TBD)
+
+    OAuth Grant Types
+        :term:`Grant Type` in :term:`OAuth`
+
+    object
+        (TBD)
+
+    originating IP address
+        (TBD) :ref:`uma_core.3.3`
+
+    permission objects
+        :ref:`uma_core.3.3`
+
+    policies
+        :ref:`uma_core.3.5`
+
+    redirect URL
+        :ref:`uma_core.3.5`
+
+    Token Status
+        :ref:`uma_core.3.3`
+
+    Token Status Description
+        :ref:`uma_core.3.3`
+        
+    Token Status Request
+        :ref:`uma_core.3.3`
 
 JWT
 ====
