@@ -16,6 +16,7 @@ Misc
     swd
     python
     mysql
+    cookie
 
 
 Linux Commands:

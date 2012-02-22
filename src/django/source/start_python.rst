@@ -20,3 +20,9 @@ urllib2
 ================================
 
 .. include:: python/urllib2.rst
+
+
+その他
+========
+
+.. include:: python/os.rst

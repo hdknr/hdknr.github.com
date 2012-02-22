@@ -22,3 +22,11 @@ JSONからモデルを復元するには？
             except Exception,e:   
                 print e
 
+Unicode エスケープシーケンスじゃなくて可読できるようにするには、ensure_ascii=Falseにします。
+indent指定するといいでしょう。
+
+::
+
+    serializers.serialize("json",[self], ensure_ascii=False,indent=indent)
+
+

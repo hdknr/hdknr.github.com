@@ -294,3 +294,7 @@ todo_include_todos = True
 html_theme = 'mybasic' # HDKNR
 html_theme_path = ['../../../themes',] #HDKNR
 #
+# -seqdiag
+extensions.append('sphinxcontrib.seqdiag')
+seqdiag_fontpath = '/usr/share/fonts/truetype/ipafont/ipagp.ttf'
+

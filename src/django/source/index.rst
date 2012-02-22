@@ -34,7 +34,9 @@ Advanced
     :maxdepth: 2
 
     tools
+    advanced
     ref
+    
 
 Indices and tables
 ==================

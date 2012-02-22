@@ -19,7 +19,14 @@ QuerySet API
 
     [{'subcode': u''}, {'subcode': u'\uff21\u68df'}, ...(remaining elements truncated)...']
 
+Others
+=======
+
+.. include:: cheat/django.core.serializers.rst
+
 チート
 ======
+
 - :ref:`cheat.django.db.models.list_models`
 - :ref:`cheat.django.core.serializers.deserialize`
+

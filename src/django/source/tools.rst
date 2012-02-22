@@ -10,4 +10,12 @@ Models
 
     tools_south
     tools_mandb
+    
 
+HTTP
+============================
+
+.. toctree::
+       :maxdepth: 2
+
+    tools_requests
