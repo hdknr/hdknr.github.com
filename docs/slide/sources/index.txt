@@ -26,6 +26,7 @@ HDKNR.COM スライド
 
     - :doc:`impressjs`
     - :doc:`openid`
+    - :doc:`identity`
 
 
 .. impressjs:: contents
@@ -38,6 +39,7 @@ HDKNR.COM スライド
 
       impressjs
       openid
+      identity
 
 
 .. impressjs:: overview

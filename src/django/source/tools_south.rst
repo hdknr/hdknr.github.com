@@ -99,9 +99,7 @@ syncdb
     (main)hdknr@sqg:~/remote$ svn status
     M       settings.py
     ?       membership/migrations
-    (main)hdknr@sqg:~/ve/main/src/c
-    }}}
-    {{{
+
     (main)hdknr@sqg:~/ve/main/src/remote$ tree membership/migrations/
     membership/migrations/
     ├── 0001_initial.py
@@ -184,7 +182,7 @@ syncdb
 
 - マイグレーション
 
-:: 
+.. code-block:: mysql
 
     (main)hdknr@sqg:~/remote$ python manage.py migrate membership
     Running migrations for membership:
@@ -196,7 +194,7 @@ syncdb
 
 - テーブルに追加されている (:doc:`tools_mandb` )
 
-::
+.. code-block:: mysql
 
     (main)hdknr@sqg:~/remote$ python manage.py db --c ddl --t membership_member;
     
@@ -207,7 +205,6 @@ syncdb
       `has_error` tinyint(1) NOT NULL,
       PRIMARY KEY (`id`)
     ) ENGINE=InnoDB AUTO_INCREMENT=304 DEFAULT CHARSET=utf8;
-    }}}
 
 - ヒストリ 確認
 
@@ -215,7 +212,7 @@ syncdb
 
     (main)hdknr@sqg:~/remote$ python manage.py db --c data --t south_migrationhistory > membership/migrations/hsitory.sql
 
-::
+.. code-block:: mysql
 
     (main)hdknr@sqg:~/remote$ grep INSERT membership/migrations/history.sql 
 
@@ -224,3 +221,15 @@ syncdb
     VALUES 
     (1,'membership','0001_initial','2012-02-19 19:50:53'),
     (2,'membership','0002_auto__add_field_member_has_error','2012-02-19 19:52:52');
+
+
+その他
+=========
+
+- test ランナー動かす時には、 south をオフったほうがよい？
+
+.. code-block:: python
+
+    if 'test' not in sys.argv:
+        INSTALLED_APPS +=('south',)  #: for Model Migration
+

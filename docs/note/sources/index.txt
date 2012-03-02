@@ -24,11 +24,15 @@ Linux Commands:
 .. toctree::
     :maxdepth: 2
 
+    bash
+    bash_complete
     diff
     git
     hg
-    bash
-    bash_complete
+    ssh
+
+    memo
+
 
 
 Indices and tables

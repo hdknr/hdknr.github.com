@@ -93,8 +93,10 @@ Others
 .. toctree::
     :maxdepth: 1
 
+    active_directory
     todo
     resource
+    discussion
 
 Indices and tables
 ==================

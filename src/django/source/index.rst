@@ -36,6 +36,7 @@ Advanced
     tools
     advanced
     ref
+    memo
     
 
 Indices and tables
