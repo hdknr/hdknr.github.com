@@ -10,6 +10,7 @@ Models
 
     tools_south
     tools_mandb
+    tools_others
     
 
 HTTP
