@@ -105,6 +105,7 @@ RFC
 .. toctree::
     :maxdepth: 1
 
+    rfc5785
     rfc5988
 
 Indices and tables
