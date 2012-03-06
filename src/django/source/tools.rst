@@ -9,8 +9,8 @@ Models
        :maxdepth: 2
 
     tools_south
+    tools_django_extensions
     tools_mandb
-    
 
 HTTP
 ============================
