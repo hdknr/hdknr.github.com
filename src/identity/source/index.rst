@@ -98,6 +98,15 @@ Others
     resource
     discussion
 
+RFC
+------------
+
+
+.. toctree::
+    :maxdepth: 1
+
+    rfc5988
+
 Indices and tables
 ==================
 
