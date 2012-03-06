@@ -11,6 +11,7 @@ Models
     tools_south
     tools_django_extensions
     tools_mandb
+    tools_others
 
 HTTP
 ============================
