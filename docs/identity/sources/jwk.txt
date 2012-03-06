@@ -1,8 +1,14 @@
 =====================
 JSON Web Key (JWK)
 =====================
+Based on draft-ietf-jose-json-web-key-00
 
-Based on Mike Jones' `draft-jones-json-web-key-03  <http://self-issued.info/docs/draft-jones-json-web-key.html>`_ .
+- http://self-issued.info/docs/draft-ietf-jose-json-web-key-00.html
+- January 16, 2012
+
+.. note::
+    Moved to JOSE 
+
 (December 13, 2011)
 
 .. _jwk.abstract:

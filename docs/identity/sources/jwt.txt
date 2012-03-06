@@ -5,7 +5,6 @@ JSON Web Token(JWT)
 `JSON Web Token (JWT) draft-jones-json-web-token-06 <http://self-issued.info/docs/draft-jones-json-web-token.html>`_ 
 (October 30, 2011 )
 
-
 .. todo::
     Now draft is 07 (December 13, 2011)
     ( http://self-issued.info/docs/draft-jones-json-web-token.html )
