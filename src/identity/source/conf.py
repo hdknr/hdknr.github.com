@@ -306,7 +306,7 @@ language="en"
 #
 # -seqdiag
 extensions.append('sphinxcontrib.seqdiag')
-seqdiag_fontpath = '/usr/share/fonts/truetype/ipafont/ipagp.ttf'
+seqdiag_fontpath = '/usr/share/fonts/opentype/ipafont/ipagp.ttf'
 
 # - github
 extensions.append('sphinxtogithub')  #:GITHUB by HDKNR

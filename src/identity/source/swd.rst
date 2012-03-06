@@ -5,6 +5,12 @@ Simple Web Discovery (SWD)
 Based on Mike Jones' `draft-jones-simple-web-discovery-01 <http://self-issued.info/docs/draft-jones-simple-web-discovery.html>`_ .
 
 
+.. note::
+
+    John Bradley's proposal to extend multiple issuer support at the same server.
+
+        - http://hg.openid.net/connect/issue/513/basic-12-messages-814-discovery-31-32
+
 Abstract
 ===========
 
