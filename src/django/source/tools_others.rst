@@ -36,3 +36,7 @@ you_module.py
 
 
 
+Runtime Dynamic Model
+========================================
+
+- http://dynamic-models.readthedocs.org/en/latest/index.html
