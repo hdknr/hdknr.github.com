@@ -125,13 +125,19 @@ Fixture用にMySQLダンプを作る
     $ mysqldump -u ユーザ名 -p -t データベース名 テーブル1 テーブル2...> ファイル名
 
 
-DDL分のみ
+DDL文のみ
 ^^^^^^^^^^^
 
 ::
 
     --no-data, -d 
 
+データのみ
+^^^^^^^^^^^
+
+::
+
+    --no-create-info    , -t 
 
 Trouble
 ===========
