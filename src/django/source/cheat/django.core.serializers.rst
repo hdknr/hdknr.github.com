@@ -10,7 +10,7 @@ JSONからモデルを復元するには？
 
 :py:func:`django.core.serializers.deserialize`  を使います。
 
-.. code-bock:: Python
+.. code-block:: Python
 
     def models_from_json(filename):
         ''' JSONからモデルを復元する

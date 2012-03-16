@@ -2,6 +2,9 @@
 bash
 ======
 
+.. contents:: bash 
+
+
 $(コマンド)
 ============
 
@@ -156,4 +159,26 @@ for
 
 for コマンドでワイルドカード指定する場合、マッチするファイルがないとワイルドカード指定自体が対象となってしまう
 
+
+
+
+ログインシェル変更
+===================
+
+sudo usermod(管理者)
+-----------------------------------
+
+::
+
+    system@squeeze02:~$ sudo usermod -s /bin/bash cms
+    [sudo] password for system: 
+    system@squeeze02:~$ grep cms /etc/passwd
+    cms:x:1001:1001::/home/cms:/bin/bash
+
+chsh (自分で変える)
+----------------------------
+
+::
+
+    $ chsh -s /bin/bash
 

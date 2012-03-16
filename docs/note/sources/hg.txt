@@ -52,6 +52,21 @@ Bitbucket
    
 
 
+.hgrc
+=======
+
+- 設定
+- $HOME/.hgrc
+- `man hgrc <http://linux.die.net/man/5/hgrc>`_ 
+
+-  ユーザ−名
+
+::
+    
+    [ui]
+    username=hdknr
+
+
 
 Git/Mercurial
 ======================

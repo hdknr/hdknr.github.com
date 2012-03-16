@@ -2,6 +2,7 @@
 Start Python
 ======================
 
+.. contents:: Start Python
 
 ソースコードで日本を使う
 ===========================
@@ -13,6 +14,13 @@ Start Python
     # -*- coding: utf-8 -*-
 
 とか。
+
+.. _python.builtins:
+
+ビルトイン
+=============
+
+.. include:: python/builtins.rst
 
 .. _python.urllib2:
 
