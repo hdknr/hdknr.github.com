@@ -296,6 +296,7 @@ exclude_patterns = ['oauth/*.rst',
                     'discovery/*.rst',
                     'bearer/*.rst',
                     'oauth_responses/*.rst',
+                    'discussion/*.rst',
                     'locale',]
 #
 # GETTEXT
