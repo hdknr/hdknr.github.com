@@ -1,5 +1,8 @@
 #-*- coding: utf-8 -*-
 
+'''  See  :ref:`<django:logging>`
+'''
+
 # - configure logging
 
 def config(LOGGING):
@@ -9,6 +12,9 @@ def config(LOGGING):
 
     >>> import applogs
     >>> applogs.config(LOGGING)
+
+        - level : 
+
     '''
     #: custom formatter
     if not LOGGING.has_key('formatters') : 
@@ -34,15 +40,15 @@ def config(LOGGING):
         'filename': 'app.log',
     }
 
-    #  customer logger (app)
-    LOGGING['loggers']['app'] = { 
+    #  customer logger (dev)
+    LOGGING['loggers']['dev'] = { 
         'handlers': ['console'],
         'level':    'DEBUG', 
         'propagete':    True,
     }
 
-    #  customer logger (sys)
-    LOGGING['loggers']['sys'] = { 
+    #  customer logger (live)
+    LOGGING['loggers']['live'] = { 
         'handlers': ['file'],
         'level':    'DEBUG', 
         'propagete':    True,
@@ -53,11 +59,21 @@ def get_logger():
 
     >>> import applogs
     >>> logger = applogs.get_logger()
-    >>> logger.debug('An exception is raised')
+    >>> logger.warn('waning!!!')
+    waning!!!
+    >>> logger.debug('just debug.remove later')
+    just debug.remove later
+    >>> logger.fatal('alert to engineer')
+    alert to engineer
+    >>> logger.critical('alert to you boss')
+    alert to you boss
+    >>> logger.error('something wrong')
+    something wrong
     '''
+
     # - logging api 
     import logging,os
-    return  logging.getLogger(os.environ.get('APP_LOGGER','app'))
+    return  logging.getLogger(os.environ.get('APP_LOGGER','dev'))
 
 def sample_request_handler(request):
     '''  サンプルリクエストハンドラ

@@ -305,3 +305,7 @@ os.environ['DJANGO_SETTINGS_MODULE'] = 'app.settings'
 #
 import docutils
 docutils.parsers.rst.roles.DEFAULT_INTERPRETED_ROLE = 'title-reference'
+#
+intersphinx_mapping.update({
+    'django': ('https://docs.djangoproject.com/en/1.3/',None),
+})
