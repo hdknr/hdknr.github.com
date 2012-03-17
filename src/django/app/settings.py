@@ -145,3 +145,9 @@ LOGGING = {
         },
     }
 }
+####
+
+# - MyLogging
+import applogs
+applogs.config(LOGGING)
+

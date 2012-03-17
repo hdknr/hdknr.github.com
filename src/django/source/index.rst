@@ -27,6 +27,14 @@ Start Django
     start_views
     start_models
 
+More Django
+---------------------
+
+.. toctree::
+    :maxdepth: 2
+
+    more_logging
+
 Advanced
 ---------------------
 
