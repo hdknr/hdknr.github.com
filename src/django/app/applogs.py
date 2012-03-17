@@ -50,6 +50,10 @@ def config(LOGGING):
 
 def get_logger():
     ''' 環境変数 APP_LOGGER から logger を読み取って loggingを返します。
+
+    >>> import applogs
+    >>> logger = applogs.get_logger()
+    >>> logger.debug('An exception is raised')
     '''
     # - logging api 
     import logging,os
