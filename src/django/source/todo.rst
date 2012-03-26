@@ -6,8 +6,6 @@ TBD
 .. todolist::
 
 
-.. tood::
-    - django.views.generice をもう少し読む　
+.. tod::
     - request.user.is_superuser に関してメモる
-
 
