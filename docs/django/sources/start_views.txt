@@ -25,3 +25,37 @@ Start Views
             ).render( template.RequestContext(request,{'id':id}) )
         )   
 
+
+Class Based Generic View
+===============================
+
+- :py:mod:`django.views.generic.base`
+- :py:mod:`django.views.generic.edit`
+- :py:mod:`django.views.generic.list`
+
+
+エラーページ
+================
+
+エラーテンプレート
+------------------------------
+
+- TEMPLATE_DIRS のルートにエラーページを置く
+    
+    - 500.html
+    - 400.html
+    - 403.html
+
+- `contrib/admin/templates/admin/ <https://code.djangoproject.com/browser/django/trunk/django/contrib/admin/templates/admin/>`_
+
+デフォルトのエラー処理
+----------------------------
+
+- 400   :py:func:`django.views.defaults.page_not_found`
+- 500   :py:func:`django.views.defaults.server_error`
+
+- urls.py で定義するとデフォルトをオーバーライドできます。 ( :py:mod:`django.conf.urls.defaults` )
+ 
+.. automodule:: django.conf.urls.defaults
+    :members:
+ 
