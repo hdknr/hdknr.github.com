@@ -206,7 +206,19 @@ syncdb
       PRIMARY KEY (`id`)
     ) ENGINE=InnoDB AUTO_INCREMENT=304 DEFAULT CHARSET=utf8;
 
-- ヒストリ 確認
+ ヒストリ 確認
+-------------------------
+
+- migrate --list
+
+::
+
+    (main)hdknr@sqg:website$ python manage.py migrate gmo --list
+
+     gmo
+      (*) 0001_initial
+      (*) 0002_auto__del_accountshop__del_unique_accountshop_account_shop__del_check_
+      (*) 0003_auto__add_field_history_auth
 
 ::
 
