@@ -29,3 +29,4 @@ Development
        :maxdepth: 2
 
     tools_bdd
+    tools_ci
