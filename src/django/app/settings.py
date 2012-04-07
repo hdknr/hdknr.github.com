@@ -121,6 +121,7 @@ INSTALLED_APPS = (
     'django.contrib.admindocs',
     #
     'boa',  #:Samples for Python
+    'rels', # Samples for Relations
 )
 
 # A sample logging configuration. The only tangible logging
