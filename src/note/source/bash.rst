@@ -182,3 +182,8 @@ chsh (自分で変える)
 
     $ chsh -s /bin/bash
 
+
+Link
+=======
+
+- 色( http://spiral.world.coocan.jp/tips/computer/lscolor.html )
