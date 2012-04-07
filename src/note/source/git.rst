@@ -153,10 +153,21 @@ experimental の状態確認。
     # Untracked files:
     #   (use "git add <file>..." to include in what will be committed)
     #
-    #       note/source/.git.rst.swp
     #       note/source/debian.rst
 
+もう一回戻って、コミットする。
 
+::
+
+    $ git checkout master
+
+    M       src/note/source/git.rst
+    M       src/note/source/index.rst
+    Switched to branch 'master'
+
+    (docs)hdknr@cats:~/ve/docs/src/hdknr.github.com/src$ git commit -a -m "gitメモ更新"
+    [master bc3cca5] gitメモ更新
+     2 files changed, 350 insertions(+), 0 deletions(-)
 
 
 .. _remote_branch:
