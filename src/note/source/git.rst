@@ -165,6 +165,8 @@ experimental の状態確認。
     M       src/note/source/index.rst
     Switched to branch 'master'
 
+    $  git add note/source/debian.rst
+
     (docs)hdknr@cats:~/ve/docs/src/hdknr.github.com/src$ git commit -a -m "gitメモ更新"
     [master bc3cca5] gitメモ更新
      2 files changed, 350 insertions(+), 0 deletions(-)
