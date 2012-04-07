@@ -31,6 +31,9 @@ Linux Commands:
     git
     hg
     ssh
+    user
+    debian
+    sudo
 
     memo
 
