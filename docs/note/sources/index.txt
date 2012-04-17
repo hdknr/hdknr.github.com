@@ -17,6 +17,7 @@ Misc
     python
     mysql
     cookie
+    aws
 
 
 Linux Commands:

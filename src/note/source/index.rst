@@ -38,6 +38,12 @@ Linux Commands:
     memo
 
 
+Windows:
+
+.. toctree::
+    :maxdepth: 2
+
+    activedirectory
 
 Indices and tables
 ==================
