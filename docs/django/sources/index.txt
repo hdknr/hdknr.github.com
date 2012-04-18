@@ -46,6 +46,13 @@ Advanced
     ref
     memo
     
+Others
+----------
+
+.. toctree::
+    :maxdepth: 2
+
+    todo
 
 Indices and tables
 ==================

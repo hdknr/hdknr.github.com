@@ -4,6 +4,14 @@ Start Python
 
 .. contents:: Start Python
 
+始めに
+======
+
+:ref:`python:tutorial-index`
+----------------------------------------
+
+- :ref:`python:tut-structures`
+
 ソースコードで日本を使う
 ===========================
 
