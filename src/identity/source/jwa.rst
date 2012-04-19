@@ -7,6 +7,11 @@ Based on draft-ietf-jose-json-web-algorithms-00
 - http://self-issued.info/docs/draft-ietf-jose-json-web-algorithms-00.html
 - January 16, 2012
 
+.. note::
+
+    - Now http://self-issued.info/docs/draft-ietf-jose-json-web-algorithms-01.html
+
+
 .. _jwa.abstract:
 
 .. include:: jwa/abstract.rst
