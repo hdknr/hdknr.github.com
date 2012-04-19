@@ -60,7 +60,8 @@ JOSE and JWT
     jwe
     jwk
     jwa
-
+    jws_js
+    jwe_js
 Related
 ---------------
 
