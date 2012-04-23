@@ -6,8 +6,8 @@ JSON Web Token(JWT)
 (October 30, 2011 )
 
 .. todo::
-    Now draft is 07 (December 13, 2011)
-    ( http://self-issued.info/docs/draft-jones-json-web-token.html )
+    Now draft is 08 ( March 12, 2012 ) 
+    ( http://self-issued.info/docs/draft-jones-json-web-token.html ) 
 
 .. _jwt.abstract:
 

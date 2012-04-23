@@ -7,7 +7,7 @@ Based on `OpenID Connect Messages 1.0 - draft 07 <http://openid.bitbucket.org/op
 
 .. todo::
 
-    Check Draft 8, February 27, 2012
+    Check Draft 9, March 15, 2012
 
 .. _messages_abstract:
 
@@ -192,6 +192,14 @@ Based on `OpenID Connect Messages 1.0 - draft 07 <http://openid.bitbucket.org/op
 .. _messages_5_5:
 
 .. include:: messages/5_5.rst
+
+.. _messages_5_6:
+
+.. include:: messages/5_6.rst
+
+.. _messages_5_7:
+
+.. include:: messages/5_7.rst
 
 .. _messages_6:
 
