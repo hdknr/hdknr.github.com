@@ -19,6 +19,14 @@ Misc
     cookie
     aws
 
+Tools:
+
+.. toctree::
+    :maxdepth: 2
+
+    git
+    hg
+    tmux
 
 Linux Commands:
 
@@ -28,8 +36,6 @@ Linux Commands:
     bash
     bash_complete
     diff
-    git
-    hg
     ssh
     user
     debian
@@ -37,13 +43,20 @@ Linux Commands:
 
     memo
 
+Mac:
+
+.. toctree::
+    :maxdepth: 2
+
+    brew
+    xcode
 
 Windows:
 
 .. toctree::
     :maxdepth: 2
 
-    activedirectory
+    active_directory
 
 Indices and tables
 ==================
