@@ -2,6 +2,8 @@
 Mercurial
 ==========
 
+.. contents:: Mercurial
+
 Cheat
 ======
 
@@ -96,3 +98,60 @@ Git/Mercurial
       - hg pull -u
 
 .. [#] hg up, hg checkout, hg co 等でも良い
+
+
+
+オリジナルから更新を反映
+------------------------------
+
+hg
+^^^^
+
+取り込み予定のリモートの変更内容::
+
+    hg incoming https://bitbucket.org/birkenfeld/sphinx
+
+リモートに対する自分の変更点の内容確認::
+
+     hg outgoing https://bitbucket.org/birkenfeld/sphinx
+
+必要であれば、各チェンジセットの内容をみる ::
+
+    hg diff -c 3536:660be19d7963
+
+リモートから取り込む ::
+
+    hg pull https://bitbucket.org/birkenfeld/sphinx
+
+マージする ::
+
+    hg merge
+
+コミット::
+
+    hg commit -m "Merged latest original updates "
+
+自分のリモートにpush ::
+
+     hg push --new-branch
+
+
+- http://note.harajuku-tech.org/mercurial-sphinx-devfork
+- http://note.harajuku-tech.org/-bitbucket-atlassian-japan-confluence
+
+git
+^^^
+
+mankyd というリモートを追加して、それを自分のmasterにpullする。
+
+::
+
+    git remote add mankyd https://github.com/mankyd/jinjatag.git
+    git pull mankyd master
+
+チェンジセットの変更内容をみる
+------------------------------------
+
+:: 
+    
+    hg diff -c 3536:660be19d7963

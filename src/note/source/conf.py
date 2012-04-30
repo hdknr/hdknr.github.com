@@ -296,5 +296,8 @@ html_theme_path = ['../../../themes',] #HDKNR
 #
 # -seqdiag
 extensions.append('sphinxcontrib.seqdiag')
-seqdiag_fontpath = '/usr/share/fonts/truetype/ipafont/ipagp.ttf'
+if os.uname()[0]=='Darwin':
+    seqdiag_fontpath = '/Library/Fonts/Osaka.ttf'
+else:
+    seqdiag_fontpath = '/usr/share/fonts/truetype/ipafont/ipagp.ttf'
 
