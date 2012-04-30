@@ -22,7 +22,7 @@ Install
 
 ::
 
-    wget -O - http://trac.hdknr.com/wiki/Debian/Install?format=txt | sed -n 's/^setup\$\s\+\(.\+\)/\1/p' |tr -d "\r" | bash
+    wget -O - http://hdknr.github.com/docs/note/sources/debian.txt | sed -n 's/^setup\$\s\+\(.\+\)/\1/p' |tr -d "\r" | bash
 
 ::
 
