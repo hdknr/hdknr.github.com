@@ -107,6 +107,8 @@ Fixture用にMySQLダンプを作る
 
     $ mysqldump -u $ROOT --password=$PWD --no-create-info --complete-insert  $APP_DB > ../dump.sql 
 
+    --complete-insert  , -c (小文字のc)
+    --no-create-info   , -t 
 
 1行1SQLで落とす ( --skip-extended-insert )
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

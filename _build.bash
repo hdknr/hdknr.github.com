@@ -9,10 +9,11 @@ EOF
 
 for i in $BASE/src/* ; do
     DOC=`basename $i`;
-    echo "$i > $BASE/docs/`basename $i`";
+    echo "**** $i > $BASE/docs/`basename $i`";
     if [ ! -d $BASE/docs/$DOC ] ; then
         mkdir -p $BASE/docs/$DOC ;
     fi;
+    echo "cp -r $i/build/html/* $BASE/docs/$DOC";
     cp -r $i/build/html/* $BASE/docs/$DOC;
     git add $BASE/docs/$DOC ;
     cat >> $BASE/docs.html << EOF
