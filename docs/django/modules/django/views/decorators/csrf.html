@@ -28,7 +28,7 @@
     <script type="text/javascript" src="../../../../static/doctools.js"></script>
     <script type="text/javascript" src="../../../../static/theme_extras.js"></script>
     <link rel="top" title="Django Cheat 1 documentation" href="../../../../index.html" />
-    <link rel="up" title="Module code" href="../../../index.html" /> 
+    <link rel="up" title="django" href="../../../django.html" /> 
   </head>
   <body>
       <div class="header"><h1 class="heading"><a href="../../../../index.html">
@@ -47,13 +47,11 @@
         
         
   <h1>Source code for django.views.decorators.csrf</h1><div class="highlight"><pre>
-<span class="kn">from</span> <span class="nn">django.middleware.csrf</span> <span class="kn">import</span> <span class="n">CsrfViewMiddleware</span>
-<span class="kn">from</span> <span class="nn">django.utils.decorators</span> <span class="kn">import</span> <span class="n">decorator_from_middleware</span><span class="p">,</span> <span class="n">available_attrs</span>
+<span class="kn">import</span> <span class="nn">warnings</span>
 
-<span class="k">try</span><span class="p">:</span>
-    <span class="kn">from</span> <span class="nn">functools</span> <span class="kn">import</span> <span class="n">wraps</span>
-<span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
-    <span class="kn">from</span> <span class="nn">django.utils.functional</span> <span class="kn">import</span> <span class="n">wraps</span>  <span class="c"># Python 2.4 fallback.</span>
+<span class="kn">from</span> <span class="nn">django.middleware.csrf</span> <span class="kn">import</span> <span class="n">CsrfViewMiddleware</span><span class="p">,</span> <span class="n">get_token</span>
+<span class="kn">from</span> <span class="nn">django.utils.decorators</span> <span class="kn">import</span> <span class="n">decorator_from_middleware</span><span class="p">,</span> <span class="n">available_attrs</span>
+<span class="kn">from</span> <span class="nn">functools</span> <span class="kn">import</span> <span class="n">wraps</span>
 
 <span class="n">csrf_protect</span> <span class="o">=</span> <span class="n">decorator_from_middleware</span><span class="p">(</span><span class="n">CsrfViewMiddleware</span><span class="p">)</span>
 <span class="n">csrf_protect</span><span class="o">.</span><span class="n">__name__</span> <span class="o">=</span> <span class="s">&quot;csrf_protect&quot;</span>
@@ -79,20 +77,47 @@
 <span class="s">enforces.</span>
 <span class="s">&quot;&quot;&quot;</span>
 
+
+<span class="k">class</span> <span class="nc">_EnsureCsrfCookie</span><span class="p">(</span><span class="n">CsrfViewMiddleware</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">_reject</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">request</span><span class="p">,</span> <span class="n">reason</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">None</span>
+
+    <span class="k">def</span> <span class="nf">process_view</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">request</span><span class="p">,</span> <span class="n">callback</span><span class="p">,</span> <span class="n">callback_args</span><span class="p">,</span> <span class="n">callback_kwargs</span><span class="p">):</span>
+        <span class="n">retval</span> <span class="o">=</span> <span class="nb">super</span><span class="p">(</span><span class="n">_EnsureCsrfCookie</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">process_view</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="n">callback</span><span class="p">,</span> <span class="n">callback_args</span><span class="p">,</span> <span class="n">callback_kwargs</span><span class="p">)</span>
+        <span class="c"># Forces process_response to send the cookie</span>
+        <span class="n">get_token</span><span class="p">(</span><span class="n">request</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">retval</span>
+
+
+<span class="n">ensure_csrf_cookie</span> <span class="o">=</span> <span class="n">decorator_from_middleware</span><span class="p">(</span><span class="n">_EnsureCsrfCookie</span><span class="p">)</span>
+<span class="n">ensure_csrf_cookie</span><span class="o">.</span><span class="n">__name__</span> <span class="o">=</span> <span class="s">&#39;ensure_csrf_cookie&#39;</span>
+<span class="n">ensure_csrf_cookie</span><span class="o">.</span><span class="n">__doc__</span> <span class="o">=</span> <span class="s">&quot;&quot;&quot;</span>
+<span class="s">Use this decorator to ensure that a view sets a CSRF cookie, whether or not it</span>
+<span class="s">uses the csrf_token template tag, or the CsrfViewMiddleware is used.</span>
+<span class="s">&quot;&quot;&quot;</span>
+
+
 <div class="viewcode-block" id="csrf_response_exempt"><a class="viewcode-back" href="../../../../django.views.decorators.html#django.views.decorators.csrf.csrf_response_exempt">[docs]</a><span class="k">def</span> <span class="nf">csrf_response_exempt</span><span class="p">(</span><span class="n">view_func</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Modifies a view function so that its response is exempt</span>
 <span class="sd">    from the post-processing of the CSRF middleware.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">def</span> <span class="nf">wrapped_view</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
-        <span class="n">resp</span> <span class="o">=</span> <span class="n">view_func</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
-        <span class="n">resp</span><span class="o">.</span><span class="n">csrf_exempt</span> <span class="o">=</span> <span class="bp">True</span>
-        <span class="k">return</span> <span class="n">resp</span>
-    <span class="k">return</span> <span class="n">wraps</span><span class="p">(</span><span class="n">view_func</span><span class="p">,</span> <span class="n">assigned</span><span class="o">=</span><span class="n">available_attrs</span><span class="p">(</span><span class="n">view_func</span><span class="p">))(</span><span class="n">wrapped_view</span><span class="p">)</span>
+    <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s">&quot;csrf_response_exempt is deprecated. It no longer performs a &quot;</span>
+                  <span class="s">&quot;function, and calls to it can be removed.&quot;</span><span class="p">,</span>
+                  <span class="ne">PendingDeprecationWarning</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">view_func</span>
 </div>
 <div class="viewcode-block" id="csrf_view_exempt"><a class="viewcode-back" href="../../../../django.views.decorators.html#django.views.decorators.csrf.csrf_view_exempt">[docs]</a><span class="k">def</span> <span class="nf">csrf_view_exempt</span><span class="p">(</span><span class="n">view_func</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Marks a view function as being exempt from CSRF view protection.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s">&quot;csrf_view_exempt is deprecated. Use csrf_exempt instead.&quot;</span><span class="p">,</span>
+                  <span class="ne">PendingDeprecationWarning</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">csrf_exempt</span><span class="p">(</span><span class="n">view_func</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="csrf_exempt"><a class="viewcode-back" href="../../../../django.views.decorators.html#django.views.decorators.csrf.csrf_exempt">[docs]</a><span class="k">def</span> <span class="nf">csrf_exempt</span><span class="p">(</span><span class="n">view_func</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Marks a view function as being exempt from the CSRF view protection.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="c"># We could just do view_func.csrf_exempt = True, but decorators</span>
     <span class="c"># are nicer if they don&#39;t have side-effects, so we return a new</span>
@@ -100,17 +125,7 @@
     <span class="k">def</span> <span class="nf">wrapped_view</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
         <span class="k">return</span> <span class="n">view_func</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
     <span class="n">wrapped_view</span><span class="o">.</span><span class="n">csrf_exempt</span> <span class="o">=</span> <span class="bp">True</span>
-    <span class="k">return</span> <span class="n">wraps</span><span class="p">(</span><span class="n">view_func</span><span class="p">,</span> <span class="n">assigned</span><span class="o">=</span><span class="n">available_attrs</span><span class="p">(</span><span class="n">view_func</span><span class="p">))(</span><span class="n">wrapped_view</span><span class="p">)</span>
-</div>
-<div class="viewcode-block" id="csrf_exempt"><a class="viewcode-back" href="../../../../django.views.decorators.html#django.views.decorators.csrf.csrf_exempt">[docs]</a><span class="k">def</span> <span class="nf">csrf_exempt</span><span class="p">(</span><span class="n">view_func</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Marks a view function as being exempt from the CSRF checks</span>
-<span class="sd">    and post processing.</span>
-
-<span class="sd">    This is the same as using both the csrf_view_exempt and</span>
-<span class="sd">    csrf_response_exempt decorators.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">return</span> <span class="n">csrf_response_exempt</span><span class="p">(</span><span class="n">csrf_view_exempt</span><span class="p">(</span><span class="n">view_func</span><span class="p">))</span></div>
+    <span class="k">return</span> <span class="n">wraps</span><span class="p">(</span><span class="n">view_func</span><span class="p">,</span> <span class="n">assigned</span><span class="o">=</span><span class="n">available_attrs</span><span class="p">(</span><span class="n">view_func</span><span class="p">))(</span><span class="n">wrapped_view</span><span class="p">)</span></div>
 </pre></div>
 
       </div>
@@ -125,7 +140,7 @@
 
     <div class="footer">
         &copy; Copyright 2012, HDKNR.COM.
-      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.2pre/660be19d7963.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.2pre/3c28de26aac2.
     </div>
   </body>
 </html>

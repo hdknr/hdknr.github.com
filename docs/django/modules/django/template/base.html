@@ -47,28 +47,39 @@
         
         
   <h1>Source code for django.template.base</h1><div class="highlight"><pre>
-<span class="kn">import</span> <span class="nn">imp</span>
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">absolute_import</span>
+
 <span class="kn">import</span> <span class="nn">re</span>
+<span class="kn">from</span> <span class="nn">functools</span> <span class="kn">import</span> <span class="n">partial</span>
 <span class="kn">from</span> <span class="nn">inspect</span> <span class="kn">import</span> <span class="n">getargspec</span>
 
 <span class="kn">from</span> <span class="nn">django.conf</span> <span class="kn">import</span> <span class="n">settings</span>
-<span class="kn">from</span> <span class="nn">django.template.context</span> <span class="kn">import</span> <span class="n">Context</span><span class="p">,</span> <span class="n">RequestContext</span><span class="p">,</span> <span class="n">ContextPopException</span>
+<span class="kn">from</span> <span class="nn">django.template.context</span> <span class="kn">import</span> <span class="p">(</span><span class="n">Context</span><span class="p">,</span> <span class="n">RequestContext</span><span class="p">,</span>
+    <span class="n">ContextPopException</span><span class="p">)</span>
 <span class="kn">from</span> <span class="nn">django.utils.importlib</span> <span class="kn">import</span> <span class="n">import_module</span>
 <span class="kn">from</span> <span class="nn">django.utils.itercompat</span> <span class="kn">import</span> <span class="n">is_iterable</span>
-<span class="kn">from</span> <span class="nn">django.utils.functional</span> <span class="kn">import</span> <span class="n">curry</span><span class="p">,</span> <span class="n">Promise</span>
-<span class="kn">from</span> <span class="nn">django.utils.text</span> <span class="kn">import</span> <span class="n">smart_split</span><span class="p">,</span> <span class="n">unescape_string_literal</span><span class="p">,</span> <span class="n">get_text_list</span>
+<span class="kn">from</span> <span class="nn">django.utils.text</span> <span class="kn">import</span> <span class="p">(</span><span class="n">smart_split</span><span class="p">,</span> <span class="n">unescape_string_literal</span><span class="p">,</span>
+    <span class="n">get_text_list</span><span class="p">)</span>
 <span class="kn">from</span> <span class="nn">django.utils.encoding</span> <span class="kn">import</span> <span class="n">smart_unicode</span><span class="p">,</span> <span class="n">force_unicode</span><span class="p">,</span> <span class="n">smart_str</span>
-<span class="kn">from</span> <span class="nn">django.utils.translation</span> <span class="kn">import</span> <span class="n">ugettext_lazy</span>
-<span class="kn">from</span> <span class="nn">django.utils.safestring</span> <span class="kn">import</span> <span class="n">SafeData</span><span class="p">,</span> <span class="n">EscapeData</span><span class="p">,</span> <span class="n">mark_safe</span><span class="p">,</span> <span class="n">mark_for_escaping</span>
+<span class="kn">from</span> <span class="nn">django.utils.translation</span> <span class="kn">import</span> <span class="n">ugettext_lazy</span><span class="p">,</span> <span class="n">pgettext_lazy</span>
+<span class="kn">from</span> <span class="nn">django.utils.safestring</span> <span class="kn">import</span> <span class="p">(</span><span class="n">SafeData</span><span class="p">,</span> <span class="n">EscapeData</span><span class="p">,</span> <span class="n">mark_safe</span><span class="p">,</span>
+    <span class="n">mark_for_escaping</span><span class="p">)</span>
 <span class="kn">from</span> <span class="nn">django.utils.formats</span> <span class="kn">import</span> <span class="n">localize</span>
 <span class="kn">from</span> <span class="nn">django.utils.html</span> <span class="kn">import</span> <span class="n">escape</span>
 <span class="kn">from</span> <span class="nn">django.utils.module_loading</span> <span class="kn">import</span> <span class="n">module_has_submodule</span>
+<span class="kn">from</span> <span class="nn">django.utils.timezone</span> <span class="kn">import</span> <span class="n">localtime</span>
 
 
 <span class="n">TOKEN_TEXT</span> <span class="o">=</span> <span class="mi">0</span>
 <span class="n">TOKEN_VAR</span> <span class="o">=</span> <span class="mi">1</span>
 <span class="n">TOKEN_BLOCK</span> <span class="o">=</span> <span class="mi">2</span>
 <span class="n">TOKEN_COMMENT</span> <span class="o">=</span> <span class="mi">3</span>
+<span class="n">TOKEN_MAPPING</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="n">TOKEN_TEXT</span><span class="p">:</span> <span class="s">&#39;Text&#39;</span><span class="p">,</span>
+    <span class="n">TOKEN_VAR</span><span class="p">:</span> <span class="s">&#39;Var&#39;</span><span class="p">,</span>
+    <span class="n">TOKEN_BLOCK</span><span class="p">:</span> <span class="s">&#39;Block&#39;</span><span class="p">,</span>
+    <span class="n">TOKEN_COMMENT</span><span class="p">:</span> <span class="s">&#39;Comment&#39;</span><span class="p">,</span>
+<span class="p">}</span>
 
 <span class="c"># template syntax constants</span>
 <span class="n">FILTER_SEPARATOR</span> <span class="o">=</span> <span class="s">&#39;|&#39;</span>
@@ -84,16 +95,19 @@
 <span class="n">SINGLE_BRACE_START</span> <span class="o">=</span> <span class="s">&#39;{&#39;</span>
 <span class="n">SINGLE_BRACE_END</span> <span class="o">=</span> <span class="s">&#39;}&#39;</span>
 
-<span class="n">ALLOWED_VARIABLE_CHARS</span> <span class="o">=</span> <span class="s">&#39;abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_.&#39;</span>
+<span class="n">ALLOWED_VARIABLE_CHARS</span> <span class="o">=</span> <span class="p">(</span><span class="s">&#39;abcdefghijklmnopqrstuvwxyz&#39;</span>
+                         <span class="s">&#39;ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_.&#39;</span><span class="p">)</span>
 
 <span class="c"># what to report as the origin for templates that come from non-loader sources</span>
 <span class="c"># (e.g. strings)</span>
 <span class="n">UNKNOWN_SOURCE</span> <span class="o">=</span> <span class="s">&#39;&lt;unknown source&gt;&#39;</span>
 
-<span class="c"># match a variable or block tag and capture the entire tag, including start/end delimiters</span>
-<span class="n">tag_re</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="s">&#39;(</span><span class="si">%s</span><span class="s">.*?</span><span class="si">%s</span><span class="s">|</span><span class="si">%s</span><span class="s">.*?</span><span class="si">%s</span><span class="s">|</span><span class="si">%s</span><span class="s">.*?</span><span class="si">%s</span><span class="s">)&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">re</span><span class="o">.</span><span class="n">escape</span><span class="p">(</span><span class="n">BLOCK_TAG_START</span><span class="p">),</span> <span class="n">re</span><span class="o">.</span><span class="n">escape</span><span class="p">(</span><span class="n">BLOCK_TAG_END</span><span class="p">),</span>
-                                          <span class="n">re</span><span class="o">.</span><span class="n">escape</span><span class="p">(</span><span class="n">VARIABLE_TAG_START</span><span class="p">),</span> <span class="n">re</span><span class="o">.</span><span class="n">escape</span><span class="p">(</span><span class="n">VARIABLE_TAG_END</span><span class="p">),</span>
-                                          <span class="n">re</span><span class="o">.</span><span class="n">escape</span><span class="p">(</span><span class="n">COMMENT_TAG_START</span><span class="p">),</span> <span class="n">re</span><span class="o">.</span><span class="n">escape</span><span class="p">(</span><span class="n">COMMENT_TAG_END</span><span class="p">)))</span>
+<span class="c"># match a variable or block tag and capture the entire tag, including start/end</span>
+<span class="c"># delimiters</span>
+<span class="n">tag_re</span> <span class="o">=</span> <span class="p">(</span><span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="s">&#39;(</span><span class="si">%s</span><span class="s">.*?</span><span class="si">%s</span><span class="s">|</span><span class="si">%s</span><span class="s">.*?</span><span class="si">%s</span><span class="s">|</span><span class="si">%s</span><span class="s">.*?</span><span class="si">%s</span><span class="s">)&#39;</span> <span class="o">%</span>
+          <span class="p">(</span><span class="n">re</span><span class="o">.</span><span class="n">escape</span><span class="p">(</span><span class="n">BLOCK_TAG_START</span><span class="p">),</span> <span class="n">re</span><span class="o">.</span><span class="n">escape</span><span class="p">(</span><span class="n">BLOCK_TAG_END</span><span class="p">),</span>
+           <span class="n">re</span><span class="o">.</span><span class="n">escape</span><span class="p">(</span><span class="n">VARIABLE_TAG_START</span><span class="p">),</span> <span class="n">re</span><span class="o">.</span><span class="n">escape</span><span class="p">(</span><span class="n">VARIABLE_TAG_END</span><span class="p">),</span>
+           <span class="n">re</span><span class="o">.</span><span class="n">escape</span><span class="p">(</span><span class="n">COMMENT_TAG_START</span><span class="p">),</span> <span class="n">re</span><span class="o">.</span><span class="n">escape</span><span class="p">(</span><span class="n">COMMENT_TAG_END</span><span class="p">))))</span>
 
 <span class="c"># global dictionary of libraries that have been loaded using get_library</span>
 <span class="n">libraries</span> <span class="o">=</span> <span class="p">{}</span>
@@ -123,7 +137,8 @@
         <span class="k">return</span> <span class="nb">unicode</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s">&#39;utf-8&#39;</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">__unicode__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">msg</span> <span class="o">%</span> <span class="nb">tuple</span><span class="p">([</span><span class="n">force_unicode</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">errors</span><span class="o">=</span><span class="s">&#39;replace&#39;</span><span class="p">)</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">])</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">msg</span> <span class="o">%</span> <span class="nb">tuple</span><span class="p">([</span><span class="n">force_unicode</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">errors</span><span class="o">=</span><span class="s">&#39;replace&#39;</span><span class="p">)</span>
+                                 <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">])</span>
 
 <span class="k">class</span> <span class="nc">InvalidTemplateLibrary</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
     <span class="k">pass</span>
@@ -147,11 +162,13 @@
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">source</span>
 
 <span class="k">class</span> <span class="nc">Template</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
-    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">template_string</span><span class="p">,</span> <span class="n">origin</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s">&#39;&lt;Unknown Template&gt;&#39;</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">template_string</span><span class="p">,</span> <span class="n">origin</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+                 <span class="n">name</span><span class="o">=</span><span class="s">&#39;&lt;Unknown Template&gt;&#39;</span><span class="p">):</span>
         <span class="k">try</span><span class="p">:</span>
             <span class="n">template_string</span> <span class="o">=</span> <span class="n">smart_unicode</span><span class="p">(</span><span class="n">template_string</span><span class="p">)</span>
         <span class="k">except</span> <span class="ne">UnicodeDecodeError</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="n">TemplateEncodingError</span><span class="p">(</span><span class="s">&quot;Templates can only be constructed from unicode or UTF-8 strings.&quot;</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="n">TemplateEncodingError</span><span class="p">(</span><span class="s">&quot;Templates can only be constructed &quot;</span>
+                                        <span class="s">&quot;from unicode or UTF-8 strings.&quot;</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">settings</span><span class="o">.</span><span class="n">TEMPLATE_DEBUG</span> <span class="ow">and</span> <span class="n">origin</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
             <span class="n">origin</span> <span class="o">=</span> <span class="n">StringOrigin</span><span class="p">(</span><span class="n">template_string</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">nodelist</span> <span class="o">=</span> <span class="n">compile_string</span><span class="p">(</span><span class="n">template_string</span><span class="p">,</span> <span class="n">origin</span><span class="p">)</span>
@@ -176,7 +193,7 @@
 <div class="viewcode-block" id="compile_string"><a class="viewcode-back" href="../../../django.template.html#django.template.base.compile_string">[docs]</a><span class="k">def</span> <span class="nf">compile_string</span><span class="p">(</span><span class="n">template_string</span><span class="p">,</span> <span class="n">origin</span><span class="p">):</span>
     <span class="s">&quot;Compiles template_string into NodeList ready for rendering&quot;</span>
     <span class="k">if</span> <span class="n">settings</span><span class="o">.</span><span class="n">TEMPLATE_DEBUG</span><span class="p">:</span>
-        <span class="kn">from</span> <span class="nn">debug</span> <span class="kn">import</span> <span class="n">DebugLexer</span><span class="p">,</span> <span class="n">DebugParser</span>
+        <span class="kn">from</span> <span class="nn">django.template.debug</span> <span class="kn">import</span> <span class="n">DebugLexer</span><span class="p">,</span> <span class="n">DebugParser</span>
         <span class="n">lexer_class</span><span class="p">,</span> <span class="n">parser_class</span> <span class="o">=</span> <span class="n">DebugLexer</span><span class="p">,</span> <span class="n">DebugParser</span>
     <span class="k">else</span><span class="p">:</span>
         <span class="n">lexer_class</span><span class="p">,</span> <span class="n">parser_class</span> <span class="o">=</span> <span class="n">Lexer</span><span class="p">,</span> <span class="n">Parser</span>
@@ -186,14 +203,15 @@
 </div>
 <span class="k">class</span> <span class="nc">Token</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">token_type</span><span class="p">,</span> <span class="n">contents</span><span class="p">):</span>
-        <span class="c"># token_type must be TOKEN_TEXT, TOKEN_VAR, TOKEN_BLOCK or TOKEN_COMMENT.</span>
+        <span class="c"># token_type must be TOKEN_TEXT, TOKEN_VAR, TOKEN_BLOCK or</span>
+        <span class="c"># TOKEN_COMMENT.</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">token_type</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">contents</span> <span class="o">=</span> <span class="n">token_type</span><span class="p">,</span> <span class="n">contents</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">lineno</span> <span class="o">=</span> <span class="bp">None</span>
 
     <span class="k">def</span> <span class="nf">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="k">return</span> <span class="s">&#39;&lt;</span><span class="si">%s</span><span class="s"> token: &quot;</span><span class="si">%s</span><span class="s">...&quot;&gt;&#39;</span> <span class="o">%</span> \
-            <span class="p">({</span><span class="n">TOKEN_TEXT</span><span class="p">:</span> <span class="s">&#39;Text&#39;</span><span class="p">,</span> <span class="n">TOKEN_VAR</span><span class="p">:</span> <span class="s">&#39;Var&#39;</span><span class="p">,</span> <span class="n">TOKEN_BLOCK</span><span class="p">:</span> <span class="s">&#39;Block&#39;</span><span class="p">,</span> <span class="n">TOKEN_COMMENT</span><span class="p">:</span> <span class="s">&#39;Comment&#39;</span><span class="p">}[</span><span class="bp">self</span><span class="o">.</span><span class="n">token_type</span><span class="p">],</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">contents</span><span class="p">[:</span><span class="mi">20</span><span class="p">]</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s">&#39;</span><span class="se">\n</span><span class="s">&#39;</span><span class="p">,</span> <span class="s">&#39;&#39;</span><span class="p">))</span>
+        <span class="n">token_name</span> <span class="o">=</span> <span class="n">TOKEN_MAPPING</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">token_type</span><span class="p">]</span>
+        <span class="k">return</span> <span class="p">(</span><span class="s">&#39;&lt;</span><span class="si">%s</span><span class="s"> token: &quot;</span><span class="si">%s</span><span class="s">...&quot;&gt;&#39;</span> <span class="o">%</span>
+                <span class="p">(</span><span class="n">token_name</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">contents</span><span class="p">[:</span><span class="mi">20</span><span class="p">]</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s">&#39;</span><span class="se">\n</span><span class="s">&#39;</span><span class="p">,</span> <span class="s">&#39;&#39;</span><span class="p">)))</span>
 
     <span class="k">def</span> <span class="nf">split_contents</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="n">split</span> <span class="o">=</span> <span class="p">[]</span>
@@ -217,7 +235,9 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">lineno</span> <span class="o">=</span> <span class="mi">1</span>
 
     <span class="k">def</span> <span class="nf">tokenize</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="s">&quot;Return a list of tokens from a given template_string.&quot;</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Return a list of tokens from a given template_string.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">in_tag</span> <span class="o">=</span> <span class="bp">False</span>
         <span class="n">result</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="k">for</span> <span class="n">bit</span> <span class="ow">in</span> <span class="n">tag_re</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">template_string</span><span class="p">):</span>
@@ -233,14 +253,18 @@
 <span class="sd">        otherwise it should be treated as a literal string.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="n">in_tag</span><span class="p">:</span>
+            <span class="c"># The [2:-2] ranges below strip off *_TAG_START and *_TAG_END.</span>
+            <span class="c"># We could do len(BLOCK_TAG_START) to be more &quot;correct&quot;, but we&#39;ve</span>
+            <span class="c"># hard-coded the 2s here for performance. And it&#39;s not like</span>
+            <span class="c"># the TAG_START values are going to change anytime, anyway.</span>
             <span class="k">if</span> <span class="n">token_string</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="n">VARIABLE_TAG_START</span><span class="p">):</span>
-                <span class="n">token</span> <span class="o">=</span> <span class="n">Token</span><span class="p">(</span><span class="n">TOKEN_VAR</span><span class="p">,</span> <span class="n">token_string</span><span class="p">[</span><span class="nb">len</span><span class="p">(</span><span class="n">VARIABLE_TAG_START</span><span class="p">):</span><span class="o">-</span><span class="nb">len</span><span class="p">(</span><span class="n">VARIABLE_TAG_END</span><span class="p">)]</span><span class="o">.</span><span class="n">strip</span><span class="p">())</span>
+                <span class="n">token</span> <span class="o">=</span> <span class="n">Token</span><span class="p">(</span><span class="n">TOKEN_VAR</span><span class="p">,</span> <span class="n">token_string</span><span class="p">[</span><span class="mi">2</span><span class="p">:</span><span class="o">-</span><span class="mi">2</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">())</span>
             <span class="k">elif</span> <span class="n">token_string</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="n">BLOCK_TAG_START</span><span class="p">):</span>
-                <span class="n">token</span> <span class="o">=</span> <span class="n">Token</span><span class="p">(</span><span class="n">TOKEN_BLOCK</span><span class="p">,</span> <span class="n">token_string</span><span class="p">[</span><span class="nb">len</span><span class="p">(</span><span class="n">BLOCK_TAG_START</span><span class="p">):</span><span class="o">-</span><span class="nb">len</span><span class="p">(</span><span class="n">BLOCK_TAG_END</span><span class="p">)]</span><span class="o">.</span><span class="n">strip</span><span class="p">())</span>
+                <span class="n">token</span> <span class="o">=</span> <span class="n">Token</span><span class="p">(</span><span class="n">TOKEN_BLOCK</span><span class="p">,</span> <span class="n">token_string</span><span class="p">[</span><span class="mi">2</span><span class="p">:</span><span class="o">-</span><span class="mi">2</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">())</span>
             <span class="k">elif</span> <span class="n">token_string</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="n">COMMENT_TAG_START</span><span class="p">):</span>
                 <span class="n">content</span> <span class="o">=</span> <span class="s">&#39;&#39;</span>
                 <span class="k">if</span> <span class="n">token_string</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="n">TRANSLATOR_COMMENT_MARK</span><span class="p">):</span>
-                    <span class="n">content</span> <span class="o">=</span> <span class="n">token_string</span><span class="p">[</span><span class="nb">len</span><span class="p">(</span><span class="n">COMMENT_TAG_START</span><span class="p">):</span><span class="o">-</span><span class="nb">len</span><span class="p">(</span><span class="n">COMMENT_TAG_END</span><span class="p">)]</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+                    <span class="n">content</span> <span class="o">=</span> <span class="n">token_string</span><span class="p">[</span><span class="mi">2</span><span class="p">:</span><span class="o">-</span><span class="mi">2</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
                 <span class="n">token</span> <span class="o">=</span> <span class="n">Token</span><span class="p">(</span><span class="n">TOKEN_COMMENT</span><span class="p">,</span> <span class="n">content</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="n">token</span> <span class="o">=</span> <span class="n">Token</span><span class="p">(</span><span class="n">TOKEN_TEXT</span><span class="p">,</span> <span class="n">token_string</span><span class="p">)</span>
@@ -257,28 +281,32 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">add_library</span><span class="p">(</span><span class="n">lib</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">parse</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">parse_until</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
-        <span class="k">if</span> <span class="n">parse_until</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span> <span class="n">parse_until</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">if</span> <span class="n">parse_until</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="n">parse_until</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="n">nodelist</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">create_nodelist</span><span class="p">()</span>
         <span class="k">while</span> <span class="bp">self</span><span class="o">.</span><span class="n">tokens</span><span class="p">:</span>
             <span class="n">token</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">next_token</span><span class="p">()</span>
-            <span class="k">if</span> <span class="n">token</span><span class="o">.</span><span class="n">token_type</span> <span class="o">==</span> <span class="n">TOKEN_TEXT</span><span class="p">:</span>
+            <span class="c"># Use the raw values here for TOKEN_* for a tiny performance boost.</span>
+            <span class="k">if</span> <span class="n">token</span><span class="o">.</span><span class="n">token_type</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span> <span class="c"># TOKEN_TEXT</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">extend_nodelist</span><span class="p">(</span><span class="n">nodelist</span><span class="p">,</span> <span class="n">TextNode</span><span class="p">(</span><span class="n">token</span><span class="o">.</span><span class="n">contents</span><span class="p">),</span> <span class="n">token</span><span class="p">)</span>
-            <span class="k">elif</span> <span class="n">token</span><span class="o">.</span><span class="n">token_type</span> <span class="o">==</span> <span class="n">TOKEN_VAR</span><span class="p">:</span>
+            <span class="k">elif</span> <span class="n">token</span><span class="o">.</span><span class="n">token_type</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span> <span class="c"># TOKEN_VAR</span>
                 <span class="k">if</span> <span class="ow">not</span> <span class="n">token</span><span class="o">.</span><span class="n">contents</span><span class="p">:</span>
                     <span class="bp">self</span><span class="o">.</span><span class="n">empty_variable</span><span class="p">(</span><span class="n">token</span><span class="p">)</span>
                 <span class="n">filter_expression</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">compile_filter</span><span class="p">(</span><span class="n">token</span><span class="o">.</span><span class="n">contents</span><span class="p">)</span>
                 <span class="n">var_node</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">create_variable_node</span><span class="p">(</span><span class="n">filter_expression</span><span class="p">)</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">extend_nodelist</span><span class="p">(</span><span class="n">nodelist</span><span class="p">,</span> <span class="n">var_node</span><span class="p">,</span><span class="n">token</span><span class="p">)</span>
-            <span class="k">elif</span> <span class="n">token</span><span class="o">.</span><span class="n">token_type</span> <span class="o">==</span> <span class="n">TOKEN_BLOCK</span><span class="p">:</span>
-                <span class="k">if</span> <span class="n">token</span><span class="o">.</span><span class="n">contents</span> <span class="ow">in</span> <span class="n">parse_until</span><span class="p">:</span>
-                    <span class="c"># put token back on token list so calling code knows why it terminated</span>
-                    <span class="bp">self</span><span class="o">.</span><span class="n">prepend_token</span><span class="p">(</span><span class="n">token</span><span class="p">)</span>
-                    <span class="k">return</span> <span class="n">nodelist</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">extend_nodelist</span><span class="p">(</span><span class="n">nodelist</span><span class="p">,</span> <span class="n">var_node</span><span class="p">,</span> <span class="n">token</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="n">token</span><span class="o">.</span><span class="n">token_type</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span> <span class="c"># TOKEN_BLOCK</span>
                 <span class="k">try</span><span class="p">:</span>
                     <span class="n">command</span> <span class="o">=</span> <span class="n">token</span><span class="o">.</span><span class="n">contents</span><span class="o">.</span><span class="n">split</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span>
                 <span class="k">except</span> <span class="ne">IndexError</span><span class="p">:</span>
                     <span class="bp">self</span><span class="o">.</span><span class="n">empty_block_tag</span><span class="p">(</span><span class="n">token</span><span class="p">)</span>
-                <span class="c"># execute callback function for this tag and append resulting node</span>
+                <span class="k">if</span> <span class="n">command</span> <span class="ow">in</span> <span class="n">parse_until</span><span class="p">:</span>
+                    <span class="c"># put token back on token list so calling</span>
+                    <span class="c"># code knows why it terminated</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">prepend_token</span><span class="p">(</span><span class="n">token</span><span class="p">)</span>
+                    <span class="k">return</span> <span class="n">nodelist</span>
+                <span class="c"># execute callback function for this tag and append</span>
+                <span class="c"># resulting node</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">enter_command</span><span class="p">(</span><span class="n">command</span><span class="p">,</span> <span class="n">token</span><span class="p">)</span>
                 <span class="k">try</span><span class="p">:</span>
                     <span class="n">compile_func</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tags</span><span class="p">[</span><span class="n">command</span><span class="p">]</span>
@@ -314,7 +342,8 @@
                 <span class="k">if</span> <span class="n">nodelist</span><span class="o">.</span><span class="n">contains_nontext</span><span class="p">:</span>
                     <span class="k">raise</span> <span class="ne">AttributeError</span>
             <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>
-                <span class="k">raise</span> <span class="n">TemplateSyntaxError</span><span class="p">(</span><span class="s">&quot;</span><span class="si">%r</span><span class="s"> must be the first tag in the template.&quot;</span> <span class="o">%</span> <span class="n">node</span><span class="p">)</span>
+                <span class="k">raise</span> <span class="n">TemplateSyntaxError</span><span class="p">(</span><span class="s">&quot;</span><span class="si">%r</span><span class="s"> must be the first tag &quot;</span>
+                                          <span class="s">&quot;in the template.&quot;</span> <span class="o">%</span> <span class="n">node</span><span class="p">)</span>
         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">nodelist</span><span class="p">,</span> <span class="n">NodeList</span><span class="p">)</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">node</span><span class="p">,</span> <span class="n">TextNode</span><span class="p">):</span>
             <span class="n">nodelist</span><span class="o">.</span><span class="n">contains_nontext</span> <span class="o">=</span> <span class="bp">True</span>
         <span class="n">nodelist</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">node</span><span class="p">)</span>
@@ -336,11 +365,12 @@
 
     <span class="k">def</span> <span class="nf">invalid_block_tag</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">token</span><span class="p">,</span> <span class="n">command</span><span class="p">,</span> <span class="n">parse_until</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
         <span class="k">if</span> <span class="n">parse_until</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="bp">self</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">token</span><span class="p">,</span> <span class="s">&quot;Invalid block tag: &#39;</span><span class="si">%s</span><span class="s">&#39;, expected </span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">command</span><span class="p">,</span> <span class="n">get_text_list</span><span class="p">([</span><span class="s">&quot;&#39;</span><span class="si">%s</span><span class="s">&#39;&quot;</span> <span class="o">%</span> <span class="n">p</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">parse_until</span><span class="p">])))</span>
+            <span class="k">raise</span> <span class="bp">self</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">token</span><span class="p">,</span> <span class="s">&quot;Invalid block tag: &#39;</span><span class="si">%s</span><span class="s">&#39;, expected </span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span>
+                <span class="p">(</span><span class="n">command</span><span class="p">,</span> <span class="n">get_text_list</span><span class="p">([</span><span class="s">&quot;&#39;</span><span class="si">%s</span><span class="s">&#39;&quot;</span> <span class="o">%</span> <span class="n">p</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">parse_until</span><span class="p">])))</span>
         <span class="k">raise</span> <span class="bp">self</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">token</span><span class="p">,</span> <span class="s">&quot;Invalid block tag: &#39;</span><span class="si">%s</span><span class="s">&#39;&quot;</span> <span class="o">%</span> <span class="n">command</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">unclosed_block_tag</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">parse_until</span><span class="p">):</span>
-        <span class="k">raise</span> <span class="bp">self</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="bp">None</span><span class="p">,</span> <span class="s">&quot;Unclosed tags: </span><span class="si">%s</span><span class="s"> &quot;</span> <span class="o">%</span>  <span class="s">&#39;, &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">parse_until</span><span class="p">))</span>
+        <span class="k">raise</span> <span class="bp">self</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="bp">None</span><span class="p">,</span> <span class="s">&quot;Unclosed tags: </span><span class="si">%s</span><span class="s"> &quot;</span> <span class="o">%</span> <span class="s">&#39;, &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">parse_until</span><span class="p">))</span>
 
     <span class="k">def</span> <span class="nf">compile_function_error</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">token</span><span class="p">,</span> <span class="n">e</span><span class="p">):</span>
         <span class="k">pass</span>
@@ -359,7 +389,9 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">filters</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">lib</span><span class="o">.</span><span class="n">filters</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">compile_filter</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">token</span><span class="p">):</span>
-        <span class="s">&quot;Convenient wrapper for FilterExpression&quot;</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Convenient wrapper for FilterExpression</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="n">FilterExpression</span><span class="p">(</span><span class="n">token</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">find_filter</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">filter_name</span><span class="p">):</span>
@@ -370,8 +402,9 @@
 
 <div class="viewcode-block" id="TokenParser"><a class="viewcode-back" href="../../../django.template.html#django.template.base.TokenParser">[docs]</a><span class="k">class</span> <span class="nc">TokenParser</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Subclass this and implement the top() method to parse a template line. When</span>
-<span class="sd">    instantiating the parser, pass in the line from the Django template parser.</span>
+<span class="sd">    Subclass this and implement the top() method to parse a template line.</span>
+<span class="sd">    When instantiating the parser, pass in the line from the Django template</span>
+<span class="sd">    parser.</span>
 
 <span class="sd">    The parser&#39;s &quot;tagname&quot; instance-variable stores the name of the tag that</span>
 <span class="sd">    the filter was called with.</span>
@@ -383,25 +416,35 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">tagname</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tag</span><span class="p">()</span>
 
 <div class="viewcode-block" id="TokenParser.top"><a class="viewcode-back" href="../../../django.template.html#django.template.base.TokenParser.top">[docs]</a>    <span class="k">def</span> <span class="nf">top</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="s">&quot;Overload this method to do the actual parsing and return the result.&quot;</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Overload this method to do the actual parsing and return the result.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">()</span>
 </div>
 <div class="viewcode-block" id="TokenParser.more"><a class="viewcode-back" href="../../../django.template.html#django.template.base.TokenParser.more">[docs]</a>    <span class="k">def</span> <span class="nf">more</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="s">&quot;Returns True if there is more stuff in the tag.&quot;</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns True if there is more stuff in the tag.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">pointer</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">subject</span><span class="p">)</span>
 </div>
 <div class="viewcode-block" id="TokenParser.back"><a class="viewcode-back" href="../../../django.template.html#django.template.base.TokenParser.back">[docs]</a>    <span class="k">def</span> <span class="nf">back</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="s">&quot;Undoes the last microparser. Use this for lookahead and backtracking.&quot;</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Undoes the last microparser. Use this for lookahead and backtracking.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">backout</span><span class="p">):</span>
-            <span class="k">raise</span> <span class="n">TemplateSyntaxError</span><span class="p">(</span><span class="s">&quot;back called without some previous parsing&quot;</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="n">TemplateSyntaxError</span><span class="p">(</span><span class="s">&quot;back called without some previous &quot;</span>
+                                      <span class="s">&quot;parsing&quot;</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">pointer</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">backout</span><span class="o">.</span><span class="n">pop</span><span class="p">()</span>
 </div>
 <div class="viewcode-block" id="TokenParser.tag"><a class="viewcode-back" href="../../../django.template.html#django.template.base.TokenParser.tag">[docs]</a>    <span class="k">def</span> <span class="nf">tag</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="s">&quot;A microparser that just returns the next tag from the line.&quot;</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        A microparser that just returns the next tag from the line.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">subject</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">subject</span>
         <span class="n">i</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pointer</span>
         <span class="k">if</span> <span class="n">i</span> <span class="o">&gt;=</span> <span class="nb">len</span><span class="p">(</span><span class="n">subject</span><span class="p">):</span>
-            <span class="k">raise</span> <span class="n">TemplateSyntaxError</span><span class="p">(</span><span class="s">&quot;expected another tag, found end of string: </span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">subject</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="n">TemplateSyntaxError</span><span class="p">(</span><span class="s">&quot;expected another tag, found &quot;</span>
+                                      <span class="s">&quot;end of string: </span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">subject</span><span class="p">)</span>
         <span class="n">p</span> <span class="o">=</span> <span class="n">i</span>
         <span class="k">while</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">subject</span><span class="p">)</span> <span class="ow">and</span> <span class="n">subject</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">(</span><span class="s">&#39; &#39;</span><span class="p">,</span> <span class="s">&#39;</span><span class="se">\t</span><span class="s">&#39;</span><span class="p">):</span>
             <span class="n">i</span> <span class="o">+=</span> <span class="mi">1</span>
@@ -413,12 +456,18 @@
         <span class="k">return</span> <span class="n">s</span>
 </div>
 <div class="viewcode-block" id="TokenParser.value"><a class="viewcode-back" href="../../../django.template.html#django.template.base.TokenParser.value">[docs]</a>    <span class="k">def</span> <span class="nf">value</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="s">&quot;A microparser that parses for a value: some string constant or variable name.&quot;</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        A microparser that parses for a value: some string constant or</span>
+<span class="sd">        variable name.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">subject</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">subject</span>
         <span class="n">i</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pointer</span>
 
         <span class="k">def</span> <span class="nf">next_space_index</span><span class="p">(</span><span class="n">subject</span><span class="p">,</span> <span class="n">i</span><span class="p">):</span>
-            <span class="s">&quot;Increment pointer until a real space (i.e. a space not within quotes) is encountered&quot;</span>
+            <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">            Increment pointer until a real space (i.e. a space not within</span>
+<span class="sd">            quotes) is encountered</span>
+<span class="sd">            &quot;&quot;&quot;</span>
             <span class="k">while</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">subject</span><span class="p">)</span> <span class="ow">and</span> <span class="n">subject</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">(</span><span class="s">&#39; &#39;</span><span class="p">,</span> <span class="s">&#39;</span><span class="se">\t</span><span class="s">&#39;</span><span class="p">):</span>
                 <span class="k">if</span> <span class="n">subject</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="ow">in</span> <span class="p">(</span><span class="s">&#39;&quot;&#39;</span><span class="p">,</span> <span class="s">&quot;&#39;&quot;</span><span class="p">):</span>
                     <span class="n">c</span> <span class="o">=</span> <span class="n">subject</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
@@ -426,22 +475,29 @@
                     <span class="k">while</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">subject</span><span class="p">)</span> <span class="ow">and</span> <span class="n">subject</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">!=</span> <span class="n">c</span><span class="p">:</span>
                         <span class="n">i</span> <span class="o">+=</span> <span class="mi">1</span>
                     <span class="k">if</span> <span class="n">i</span> <span class="o">&gt;=</span> <span class="nb">len</span><span class="p">(</span><span class="n">subject</span><span class="p">):</span>
-                        <span class="k">raise</span> <span class="n">TemplateSyntaxError</span><span class="p">(</span><span class="s">&quot;Searching for value. Unexpected end of string in column </span><span class="si">%d</span><span class="s">: </span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">subject</span><span class="p">))</span>
+                        <span class="k">raise</span> <span class="n">TemplateSyntaxError</span><span class="p">(</span><span class="s">&quot;Searching for value. &quot;</span>
+                            <span class="s">&quot;Unexpected end of string in column </span><span class="si">%d</span><span class="s">: </span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span>
+                            <span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">subject</span><span class="p">))</span>
                 <span class="n">i</span> <span class="o">+=</span> <span class="mi">1</span>
             <span class="k">return</span> <span class="n">i</span>
 
         <span class="k">if</span> <span class="n">i</span> <span class="o">&gt;=</span> <span class="nb">len</span><span class="p">(</span><span class="n">subject</span><span class="p">):</span>
-            <span class="k">raise</span> <span class="n">TemplateSyntaxError</span><span class="p">(</span><span class="s">&quot;Searching for value. Expected another value but found end of string: </span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">subject</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="n">TemplateSyntaxError</span><span class="p">(</span><span class="s">&quot;Searching for value. Expected another &quot;</span>
+                                      <span class="s">&quot;value but found end of string: </span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span>
+                                      <span class="n">subject</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">subject</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="ow">in</span> <span class="p">(</span><span class="s">&#39;&quot;&#39;</span><span class="p">,</span> <span class="s">&quot;&#39;&quot;</span><span class="p">):</span>
             <span class="n">p</span> <span class="o">=</span> <span class="n">i</span>
             <span class="n">i</span> <span class="o">+=</span> <span class="mi">1</span>
             <span class="k">while</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">subject</span><span class="p">)</span> <span class="ow">and</span> <span class="n">subject</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">!=</span> <span class="n">subject</span><span class="p">[</span><span class="n">p</span><span class="p">]:</span>
                 <span class="n">i</span> <span class="o">+=</span> <span class="mi">1</span>
             <span class="k">if</span> <span class="n">i</span> <span class="o">&gt;=</span> <span class="nb">len</span><span class="p">(</span><span class="n">subject</span><span class="p">):</span>
-                <span class="k">raise</span> <span class="n">TemplateSyntaxError</span><span class="p">(</span><span class="s">&quot;Searching for value. Unexpected end of string in column </span><span class="si">%d</span><span class="s">: </span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">subject</span><span class="p">))</span>
+                <span class="k">raise</span> <span class="n">TemplateSyntaxError</span><span class="p">(</span><span class="s">&quot;Searching for value. Unexpected &quot;</span>
+                                          <span class="s">&quot;end of string in column </span><span class="si">%d</span><span class="s">: </span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span>
+                                          <span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">subject</span><span class="p">))</span>
             <span class="n">i</span> <span class="o">+=</span> <span class="mi">1</span>
 
-            <span class="c"># Continue parsing until next &quot;real&quot; space, so that filters are also included</span>
+            <span class="c"># Continue parsing until next &quot;real&quot; space,</span>
+            <span class="c"># so that filters are also included</span>
             <span class="n">i</span> <span class="o">=</span> <span class="n">next_space_index</span><span class="p">(</span><span class="n">subject</span><span class="p">,</span> <span class="n">i</span><span class="p">)</span>
 
             <span class="n">res</span> <span class="o">=</span> <span class="n">subject</span><span class="p">[</span><span class="n">p</span><span class="p">:</span><span class="n">i</span><span class="p">]</span>
@@ -469,10 +525,10 @@
 <span class="si">%(strdq)s</span><span class="s">|</span>
 <span class="si">%(strsq)s</span><span class="s">)</span>
 <span class="s">&quot;&quot;&quot;</span> <span class="o">%</span> <span class="p">{</span>
-    <span class="s">&#39;strdq&#39;</span><span class="p">:</span> <span class="s">r&#39;&quot;[^&quot;</span><span class="se">\\</span><span class="s">]*(?:</span><span class="se">\\</span><span class="s">.[^&quot;</span><span class="se">\\</span><span class="s">]*)*&quot;&#39;</span><span class="p">,</span> <span class="c"># double-quoted string</span>
-    <span class="s">&#39;strsq&#39;</span><span class="p">:</span> <span class="s">r&quot;&#39;[^&#39;</span><span class="se">\\</span><span class="s">]*(?:</span><span class="se">\\</span><span class="s">.[^&#39;</span><span class="se">\\</span><span class="s">]*)*&#39;&quot;</span><span class="p">,</span> <span class="c"># single-quoted string</span>
-    <span class="s">&#39;i18n_open&#39;</span> <span class="p">:</span> <span class="n">re</span><span class="o">.</span><span class="n">escape</span><span class="p">(</span><span class="s">&quot;_(&quot;</span><span class="p">),</span>
-    <span class="s">&#39;i18n_close&#39;</span> <span class="p">:</span> <span class="n">re</span><span class="o">.</span><span class="n">escape</span><span class="p">(</span><span class="s">&quot;)&quot;</span><span class="p">),</span>
+    <span class="s">&#39;strdq&#39;</span><span class="p">:</span> <span class="s">r&#39;&quot;[^&quot;</span><span class="se">\\</span><span class="s">]*(?:</span><span class="se">\\</span><span class="s">.[^&quot;</span><span class="se">\\</span><span class="s">]*)*&quot;&#39;</span><span class="p">,</span>  <span class="c"># double-quoted string</span>
+    <span class="s">&#39;strsq&#39;</span><span class="p">:</span> <span class="s">r&quot;&#39;[^&#39;</span><span class="se">\\</span><span class="s">]*(?:</span><span class="se">\\</span><span class="s">.[^&#39;</span><span class="se">\\</span><span class="s">]*)*&#39;&quot;</span><span class="p">,</span>  <span class="c"># single-quoted string</span>
+    <span class="s">&#39;i18n_open&#39;</span><span class="p">:</span> <span class="n">re</span><span class="o">.</span><span class="n">escape</span><span class="p">(</span><span class="s">&quot;_(&quot;</span><span class="p">),</span>
+    <span class="s">&#39;i18n_close&#39;</span><span class="p">:</span> <span class="n">re</span><span class="o">.</span><span class="n">escape</span><span class="p">(</span><span class="s">&quot;)&quot;</span><span class="p">),</span>
     <span class="p">}</span>
 <span class="n">constant_string</span> <span class="o">=</span> <span class="n">constant_string</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s">&quot;</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span> <span class="s">&quot;&quot;</span><span class="p">)</span>
 
@@ -490,18 +546,19 @@
 <span class="s"> )&quot;&quot;&quot;</span> <span class="o">%</span> <span class="p">{</span>
     <span class="s">&#39;constant&#39;</span><span class="p">:</span> <span class="n">constant_string</span><span class="p">,</span>
     <span class="s">&#39;num&#39;</span><span class="p">:</span> <span class="s">r&#39;[-+\.]?\d[\d\.e]*&#39;</span><span class="p">,</span>
-    <span class="s">&#39;var_chars&#39;</span><span class="p">:</span> <span class="s">&quot;\w\.&quot;</span> <span class="p">,</span>
+    <span class="s">&#39;var_chars&#39;</span><span class="p">:</span> <span class="s">&quot;\w\.&quot;</span><span class="p">,</span>
     <span class="s">&#39;filter_sep&#39;</span><span class="p">:</span> <span class="n">re</span><span class="o">.</span><span class="n">escape</span><span class="p">(</span><span class="n">FILTER_SEPARATOR</span><span class="p">),</span>
     <span class="s">&#39;arg_sep&#39;</span><span class="p">:</span> <span class="n">re</span><span class="o">.</span><span class="n">escape</span><span class="p">(</span><span class="n">FILTER_ARGUMENT_SEPARATOR</span><span class="p">),</span>
   <span class="p">}</span>
 
-<span class="n">filter_re</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="n">filter_raw_string</span><span class="p">,</span> <span class="n">re</span><span class="o">.</span><span class="n">UNICODE</span><span class="o">|</span><span class="n">re</span><span class="o">.</span><span class="n">VERBOSE</span><span class="p">)</span>
+<span class="n">filter_re</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="n">filter_raw_string</span><span class="p">,</span> <span class="n">re</span><span class="o">.</span><span class="n">UNICODE</span> <span class="o">|</span> <span class="n">re</span><span class="o">.</span><span class="n">VERBOSE</span><span class="p">)</span>
 
 <div class="viewcode-block" id="FilterExpression"><a class="viewcode-back" href="../../../django.template.html#django.template.base.FilterExpression">[docs]</a><span class="k">class</span> <span class="nc">FilterExpression</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
-    <span class="sd">r&quot;&quot;&quot;</span>
+    <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Parses a variable token and its optional filters (all as a single string),</span>
 <span class="sd">    and return a list of tuples of the filter name and arguments.</span>
-<span class="sd">    Sample:</span>
+<span class="sd">    Sample::</span>
+
 <span class="sd">        &gt;&gt;&gt; token = &#39;variable|default:&quot;Default value&quot;|date:&quot;Y-m-d&quot;&#39;</span>
 <span class="sd">        &gt;&gt;&gt; p = Parser(&#39;&#39;)</span>
 <span class="sd">        &gt;&gt;&gt; fe = FilterExpression(token, p)</span>
@@ -522,8 +579,10 @@
         <span class="k">for</span> <span class="n">match</span> <span class="ow">in</span> <span class="n">matches</span><span class="p">:</span>
             <span class="n">start</span> <span class="o">=</span> <span class="n">match</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
             <span class="k">if</span> <span class="n">upto</span> <span class="o">!=</span> <span class="n">start</span><span class="p">:</span>
-                <span class="k">raise</span> <span class="n">TemplateSyntaxError</span><span class="p">(</span><span class="s">&quot;Could not parse some characters: </span><span class="si">%s</span><span class="s">|</span><span class="si">%s</span><span class="s">|</span><span class="si">%s</span><span class="s">&quot;</span>  <span class="o">%</span> \
-                        <span class="p">(</span><span class="n">token</span><span class="p">[:</span><span class="n">upto</span><span class="p">],</span> <span class="n">token</span><span class="p">[</span><span class="n">upto</span><span class="p">:</span><span class="n">start</span><span class="p">],</span> <span class="n">token</span><span class="p">[</span><span class="n">start</span><span class="p">:]))</span>
+                <span class="k">raise</span> <span class="n">TemplateSyntaxError</span><span class="p">(</span><span class="s">&quot;Could not parse some characters: &quot;</span>
+                                          <span class="s">&quot;</span><span class="si">%s</span><span class="s">|</span><span class="si">%s</span><span class="s">|</span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span>
+                                          <span class="p">(</span><span class="n">token</span><span class="p">[:</span><span class="n">upto</span><span class="p">],</span> <span class="n">token</span><span class="p">[</span><span class="n">upto</span><span class="p">:</span><span class="n">start</span><span class="p">],</span>
+                                           <span class="n">token</span><span class="p">[</span><span class="n">start</span><span class="p">:]))</span>
             <span class="k">if</span> <span class="n">var_obj</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
                 <span class="n">var</span><span class="p">,</span> <span class="n">constant</span> <span class="o">=</span> <span class="n">match</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="s">&quot;var&quot;</span><span class="p">,</span> <span class="s">&quot;constant&quot;</span><span class="p">)</span>
                 <span class="k">if</span> <span class="n">constant</span><span class="p">:</span>
@@ -532,7 +591,8 @@
                     <span class="k">except</span> <span class="n">VariableDoesNotExist</span><span class="p">:</span>
                         <span class="n">var_obj</span> <span class="o">=</span> <span class="bp">None</span>
                 <span class="k">elif</span> <span class="n">var</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
-                    <span class="k">raise</span> <span class="n">TemplateSyntaxError</span><span class="p">(</span><span class="s">&quot;Could not find variable at start of </span><span class="si">%s</span><span class="s">.&quot;</span> <span class="o">%</span> <span class="n">token</span><span class="p">)</span>
+                    <span class="k">raise</span> <span class="n">TemplateSyntaxError</span><span class="p">(</span><span class="s">&quot;Could not find variable at &quot;</span>
+                                              <span class="s">&quot;start of </span><span class="si">%s</span><span class="s">.&quot;</span> <span class="o">%</span> <span class="n">token</span><span class="p">)</span>
                 <span class="k">else</span><span class="p">:</span>
                     <span class="n">var_obj</span> <span class="o">=</span> <span class="n">Variable</span><span class="p">(</span><span class="n">var</span><span class="p">)</span>
             <span class="k">else</span><span class="p">:</span>
@@ -548,7 +608,8 @@
                 <span class="n">filters</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">filter_func</span><span class="p">,</span> <span class="n">args</span><span class="p">))</span>
             <span class="n">upto</span> <span class="o">=</span> <span class="n">match</span><span class="o">.</span><span class="n">end</span><span class="p">()</span>
         <span class="k">if</span> <span class="n">upto</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="n">token</span><span class="p">):</span>
-            <span class="k">raise</span> <span class="n">TemplateSyntaxError</span><span class="p">(</span><span class="s">&quot;Could not parse the remainder: &#39;</span><span class="si">%s</span><span class="s">&#39; from &#39;</span><span class="si">%s</span><span class="s">&#39;&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">token</span><span class="p">[</span><span class="n">upto</span><span class="p">:],</span> <span class="n">token</span><span class="p">))</span>
+            <span class="k">raise</span> <span class="n">TemplateSyntaxError</span><span class="p">(</span><span class="s">&quot;Could not parse the remainder: &#39;</span><span class="si">%s</span><span class="s">&#39; &quot;</span>
+                                      <span class="s">&quot;from &#39;</span><span class="si">%s</span><span class="s">&#39;&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">token</span><span class="p">[</span><span class="n">upto</span><span class="p">:],</span> <span class="n">token</span><span class="p">))</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">filters</span> <span class="o">=</span> <span class="n">filters</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">var</span> <span class="o">=</span> <span class="n">var_obj</span>
@@ -579,6 +640,8 @@
                     <span class="n">arg_vals</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">mark_safe</span><span class="p">(</span><span class="n">arg</span><span class="p">))</span>
                 <span class="k">else</span><span class="p">:</span>
                     <span class="n">arg_vals</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">arg</span><span class="o">.</span><span class="n">resolve</span><span class="p">(</span><span class="n">context</span><span class="p">))</span>
+            <span class="k">if</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">func</span><span class="p">,</span> <span class="s">&#39;expects_localtime&#39;</span><span class="p">,</span> <span class="bp">False</span><span class="p">):</span>
+                <span class="n">obj</span> <span class="o">=</span> <span class="n">localtime</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">context</span><span class="o">.</span><span class="n">use_tz</span><span class="p">)</span>
             <span class="k">if</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">func</span><span class="p">,</span> <span class="s">&#39;needs_autoescape&#39;</span><span class="p">,</span> <span class="bp">False</span><span class="p">):</span>
                 <span class="n">new_obj</span> <span class="o">=</span> <span class="n">func</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">autoescape</span><span class="o">=</span><span class="n">context</span><span class="o">.</span><span class="n">autoescape</span><span class="p">,</span> <span class="o">*</span><span class="n">arg_vals</span><span class="p">)</span>
             <span class="k">else</span><span class="p">:</span>
@@ -609,7 +672,8 @@
                 <span class="n">provided</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
         <span class="k">except</span> <span class="ne">IndexError</span><span class="p">:</span>
             <span class="c"># Not enough</span>
-            <span class="k">raise</span> <span class="n">TemplateSyntaxError</span><span class="p">(</span><span class="s">&quot;</span><span class="si">%s</span><span class="s"> requires </span><span class="si">%d</span><span class="s"> arguments, </span><span class="si">%d</span><span class="s"> provided&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">nondefs</span><span class="p">),</span> <span class="n">plen</span><span class="p">))</span>
+            <span class="k">raise</span> <span class="n">TemplateSyntaxError</span><span class="p">(</span><span class="s">&quot;</span><span class="si">%s</span><span class="s"> requires </span><span class="si">%d</span><span class="s"> arguments, </span><span class="si">%d</span><span class="s"> provided&quot;</span> <span class="o">%</span>
+                                      <span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">nondefs</span><span class="p">),</span> <span class="n">plen</span><span class="p">))</span>
 
         <span class="c"># Defaults can be overridden.</span>
         <span class="n">defaults</span> <span class="o">=</span> <span class="n">defaults</span> <span class="ow">and</span> <span class="nb">list</span><span class="p">(</span><span class="n">defaults</span><span class="p">)</span> <span class="ow">or</span> <span class="p">[]</span>
@@ -618,7 +682,8 @@
                 <span class="n">defaults</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
         <span class="k">except</span> <span class="ne">IndexError</span><span class="p">:</span>
             <span class="c"># Too many.</span>
-            <span class="k">raise</span> <span class="n">TemplateSyntaxError</span><span class="p">(</span><span class="s">&quot;</span><span class="si">%s</span><span class="s"> requires </span><span class="si">%d</span><span class="s"> arguments, </span><span class="si">%d</span><span class="s"> provided&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">nondefs</span><span class="p">),</span> <span class="n">plen</span><span class="p">))</span>
+            <span class="k">raise</span> <span class="n">TemplateSyntaxError</span><span class="p">(</span><span class="s">&quot;</span><span class="si">%s</span><span class="s"> requires </span><span class="si">%d</span><span class="s"> arguments, </span><span class="si">%d</span><span class="s"> provided&quot;</span> <span class="o">%</span>
+                                      <span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">nondefs</span><span class="p">),</span> <span class="n">plen</span><span class="p">))</span>
 
         <span class="k">return</span> <span class="bp">True</span>
     <span class="n">args_check</span> <span class="o">=</span> <span class="nb">staticmethod</span><span class="p">(</span><span class="n">args_check</span><span class="p">)</span>
@@ -636,9 +701,9 @@
     <span class="k">return</span> <span class="n">Variable</span><span class="p">(</span><span class="n">path</span><span class="p">)</span><span class="o">.</span><span class="n">resolve</span><span class="p">(</span><span class="n">context</span><span class="p">)</span>
 </div>
 <div class="viewcode-block" id="Variable"><a class="viewcode-back" href="../../../django.template.html#django.template.base.Variable">[docs]</a><span class="k">class</span> <span class="nc">Variable</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
-    <span class="sd">r&quot;&quot;&quot;</span>
-<span class="sd">    A template variable, resolvable against a given context. The variable may be</span>
-<span class="sd">    a hard-coded string (if it begins and ends with single or double quote</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    A template variable, resolvable against a given context. The variable may</span>
+<span class="sd">    be a hard-coded string (if it begins and ends with single or double quote</span>
 <span class="sd">    marks)::</span>
 
 <span class="sd">        &gt;&gt;&gt; c = {&#39;article&#39;: {&#39;section&#39;:u&#39;News&#39;}}</span>
@@ -659,6 +724,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">literal</span> <span class="o">=</span> <span class="bp">None</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">lookups</span> <span class="o">=</span> <span class="bp">None</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">translate</span> <span class="o">=</span> <span class="bp">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">message_context</span> <span class="o">=</span> <span class="bp">None</span>
 
         <span class="k">try</span><span class="p">:</span>
             <span class="c"># First try to treat this variable as a number.</span>
@@ -692,7 +758,9 @@
                 <span class="c"># Otherwise we&#39;ll set self.lookups so that resolve() knows we&#39;re</span>
                 <span class="c"># dealing with a bonafide variable</span>
                 <span class="k">if</span> <span class="n">var</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="n">VARIABLE_ATTRIBUTE_SEPARATOR</span> <span class="o">+</span> <span class="s">&#39;_&#39;</span><span class="p">)</span> <span class="o">&gt;</span> <span class="o">-</span><span class="mi">1</span> <span class="ow">or</span> <span class="n">var</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="s">&#39;_&#39;</span><span class="p">:</span>
-                    <span class="k">raise</span> <span class="n">TemplateSyntaxError</span><span class="p">(</span><span class="s">&quot;Variables and attributes may not begin with underscores: &#39;</span><span class="si">%s</span><span class="s">&#39;&quot;</span> <span class="o">%</span> <span class="n">var</span><span class="p">)</span>
+                    <span class="k">raise</span> <span class="n">TemplateSyntaxError</span><span class="p">(</span><span class="s">&quot;Variables and attributes may &quot;</span>
+                                              <span class="s">&quot;not begin with underscores: &#39;</span><span class="si">%s</span><span class="s">&#39;&quot;</span> <span class="o">%</span>
+                                              <span class="n">var</span><span class="p">)</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">lookups</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">var</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">VARIABLE_ATTRIBUTE_SEPARATOR</span><span class="p">))</span>
 
 <div class="viewcode-block" id="Variable.resolve"><a class="viewcode-back" href="../../../django.template.html#django.template.base.Variable.resolve">[docs]</a>    <span class="k">def</span> <span class="nf">resolve</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">context</span><span class="p">):</span>
@@ -704,7 +772,10 @@
             <span class="c"># We&#39;re dealing with a literal, so it&#39;s already been &quot;resolved&quot;</span>
             <span class="n">value</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">literal</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">translate</span><span class="p">:</span>
-            <span class="k">return</span> <span class="n">ugettext_lazy</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">message_context</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">pgettext_lazy</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">message_context</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">ugettext_lazy</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">value</span>
 </div>
     <span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
@@ -723,24 +794,27 @@
 <span class="sd">        instead.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">current</span> <span class="o">=</span> <span class="n">context</span>
-        <span class="k">try</span><span class="p">:</span> <span class="c"># catch-all for silent variable failures</span>
+        <span class="k">try</span><span class="p">:</span>  <span class="c"># catch-all for silent variable failures</span>
             <span class="k">for</span> <span class="n">bit</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">lookups</span><span class="p">:</span>
-                <span class="k">try</span><span class="p">:</span> <span class="c"># dictionary lookup</span>
+                <span class="k">try</span><span class="p">:</span>  <span class="c"># dictionary lookup</span>
                     <span class="n">current</span> <span class="o">=</span> <span class="n">current</span><span class="p">[</span><span class="n">bit</span><span class="p">]</span>
                 <span class="k">except</span> <span class="p">(</span><span class="ne">TypeError</span><span class="p">,</span> <span class="ne">AttributeError</span><span class="p">,</span> <span class="ne">KeyError</span><span class="p">):</span>
-                    <span class="k">try</span><span class="p">:</span> <span class="c"># attribute lookup</span>
+                    <span class="k">try</span><span class="p">:</span>  <span class="c"># attribute lookup</span>
                         <span class="n">current</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">current</span><span class="p">,</span> <span class="n">bit</span><span class="p">)</span>
                     <span class="k">except</span> <span class="p">(</span><span class="ne">TypeError</span><span class="p">,</span> <span class="ne">AttributeError</span><span class="p">):</span>
-                        <span class="k">try</span><span class="p">:</span> <span class="c"># list-index lookup</span>
+                        <span class="k">try</span><span class="p">:</span>  <span class="c"># list-index lookup</span>
                             <span class="n">current</span> <span class="o">=</span> <span class="n">current</span><span class="p">[</span><span class="nb">int</span><span class="p">(</span><span class="n">bit</span><span class="p">)]</span>
-                        <span class="k">except</span> <span class="p">(</span><span class="ne">IndexError</span><span class="p">,</span> <span class="c"># list index out of range</span>
-                                <span class="ne">ValueError</span><span class="p">,</span> <span class="c"># invalid literal for int()</span>
-                                <span class="ne">KeyError</span><span class="p">,</span>   <span class="c"># current is a dict without `int(bit)` key</span>
-                                <span class="ne">TypeError</span><span class="p">,</span>  <span class="c"># unsubscriptable object</span>
-                                <span class="p">):</span>
-                            <span class="k">raise</span> <span class="n">VariableDoesNotExist</span><span class="p">(</span><span class="s">&quot;Failed lookup for key [</span><span class="si">%s</span><span class="s">] in </span><span class="si">%r</span><span class="s">&quot;</span><span class="p">,</span> <span class="p">(</span><span class="n">bit</span><span class="p">,</span> <span class="n">current</span><span class="p">))</span> <span class="c"># missing attribute</span>
+                        <span class="k">except</span> <span class="p">(</span><span class="ne">IndexError</span><span class="p">,</span>  <span class="c"># list index out of range</span>
+                                <span class="ne">ValueError</span><span class="p">,</span>  <span class="c"># invalid literal for int()</span>
+                                <span class="ne">KeyError</span><span class="p">,</span>    <span class="c"># current is a dict without `int(bit)` key</span>
+                                <span class="ne">TypeError</span><span class="p">):</span>  <span class="c"># unsubscriptable object</span>
+                            <span class="k">raise</span> <span class="n">VariableDoesNotExist</span><span class="p">(</span><span class="s">&quot;Failed lookup for key &quot;</span>
+                                                       <span class="s">&quot;[</span><span class="si">%s</span><span class="s">] in </span><span class="si">%r</span><span class="s">&quot;</span><span class="p">,</span>
+                                                       <span class="p">(</span><span class="n">bit</span><span class="p">,</span> <span class="n">current</span><span class="p">))</span>  <span class="c"># missing attribute</span>
                 <span class="k">if</span> <span class="nb">callable</span><span class="p">(</span><span class="n">current</span><span class="p">):</span>
-                    <span class="k">if</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">current</span><span class="p">,</span> <span class="s">&#39;alters_data&#39;</span><span class="p">,</span> <span class="bp">False</span><span class="p">):</span>
+                    <span class="k">if</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">current</span><span class="p">,</span> <span class="s">&#39;do_not_call_in_templates&#39;</span><span class="p">,</span> <span class="bp">False</span><span class="p">):</span>
+                        <span class="k">pass</span>
+                    <span class="k">elif</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">current</span><span class="p">,</span> <span class="s">&#39;alters_data&#39;</span><span class="p">,</span> <span class="bp">False</span><span class="p">):</span>
                         <span class="n">current</span> <span class="o">=</span> <span class="n">settings</span><span class="o">.</span><span class="n">TEMPLATE_STRING_IF_INVALID</span>
                     <span class="k">else</span><span class="p">:</span>
                         <span class="k">try</span><span class="p">:</span> <span class="c"># method call (assuming no args required)</span>
@@ -748,7 +822,7 @@
                         <span class="k">except</span> <span class="ne">TypeError</span><span class="p">:</span> <span class="c"># arguments *were* required</span>
                             <span class="c"># GOTCHA: This will also catch any TypeError</span>
                             <span class="c"># raised in the function itself.</span>
-                            <span class="n">current</span> <span class="o">=</span> <span class="n">settings</span><span class="o">.</span><span class="n">TEMPLATE_STRING_IF_INVALID</span> <span class="c"># invalid method call</span>
+                            <span class="n">current</span> <span class="o">=</span> <span class="n">settings</span><span class="o">.</span><span class="n">TEMPLATE_STRING_IF_INVALID</span>  <span class="c"># invalid method call</span>
         <span class="k">except</span> <span class="ne">Exception</span><span class="p">,</span> <span class="n">e</span><span class="p">:</span>
             <span class="k">if</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">e</span><span class="p">,</span> <span class="s">&#39;silent_variable_failure&#39;</span><span class="p">,</span> <span class="bp">False</span><span class="p">):</span>
                 <span class="n">current</span> <span class="o">=</span> <span class="n">settings</span><span class="o">.</span><span class="n">TEMPLATE_STRING_IF_INVALID</span>
@@ -764,14 +838,19 @@
     <span class="n">child_nodelists</span> <span class="o">=</span> <span class="p">(</span><span class="s">&#39;nodelist&#39;</span><span class="p">,)</span>
 
     <span class="k">def</span> <span class="nf">render</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">context</span><span class="p">):</span>
-        <span class="s">&quot;Return the node rendered as a string&quot;</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Return the node rendered as a string.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">pass</span>
 
     <span class="k">def</span> <span class="nf">__iter__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">yield</span> <span class="bp">self</span>
 
     <span class="k">def</span> <span class="nf">get_nodes_by_type</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">nodetype</span><span class="p">):</span>
-        <span class="s">&quot;Return a list of all nodes (within this node and its nodelist) of the given type&quot;</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Return a list of all nodes (within this node and its nodelist)</span>
+<span class="sd">        of the given type</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">nodes</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">nodetype</span><span class="p">):</span>
             <span class="n">nodes</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
@@ -790,10 +869,11 @@
         <span class="n">bits</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="bp">self</span><span class="p">:</span>
             <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">node</span><span class="p">,</span> <span class="n">Node</span><span class="p">):</span>
-                <span class="n">bits</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">render_node</span><span class="p">(</span><span class="n">node</span><span class="p">,</span> <span class="n">context</span><span class="p">))</span>
+                <span class="n">bit</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">render_node</span><span class="p">(</span><span class="n">node</span><span class="p">,</span> <span class="n">context</span><span class="p">)</span>
             <span class="k">else</span><span class="p">:</span>
-                <span class="n">bits</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">node</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">mark_safe</span><span class="p">(</span><span class="s">&#39;&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="n">force_unicode</span><span class="p">(</span><span class="n">b</span><span class="p">)</span> <span class="k">for</span> <span class="n">b</span> <span class="ow">in</span> <span class="n">bits</span><span class="p">]))</span>
+                <span class="n">bit</span> <span class="o">=</span> <span class="n">node</span>
+            <span class="n">bits</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">force_unicode</span><span class="p">(</span><span class="n">bit</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">mark_safe</span><span class="p">(</span><span class="s">u&#39;&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">bits</span><span class="p">))</span>
 
     <span class="k">def</span> <span class="nf">get_nodes_by_type</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">nodetype</span><span class="p">):</span>
         <span class="s">&quot;Return a list of all nodes of the given type&quot;</span>
@@ -822,9 +902,11 @@
 <span class="sd">    means escaping, if required, and conversion to a unicode object. If value</span>
 <span class="sd">    is a string, it is expected to have already been translated.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">value</span> <span class="o">=</span> <span class="n">localtime</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">use_tz</span><span class="o">=</span><span class="n">context</span><span class="o">.</span><span class="n">use_tz</span><span class="p">)</span>
     <span class="n">value</span> <span class="o">=</span> <span class="n">localize</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">use_l10n</span><span class="o">=</span><span class="n">context</span><span class="o">.</span><span class="n">use_l10n</span><span class="p">)</span>
     <span class="n">value</span> <span class="o">=</span> <span class="n">force_unicode</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
-    <span class="k">if</span> <span class="p">(</span><span class="n">context</span><span class="o">.</span><span class="n">autoescape</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">SafeData</span><span class="p">))</span> <span class="ow">or</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">EscapeData</span><span class="p">):</span>
+    <span class="k">if</span> <span class="p">((</span><span class="n">context</span><span class="o">.</span><span class="n">autoescape</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">SafeData</span><span class="p">))</span> <span class="ow">or</span>
+            <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">EscapeData</span><span class="p">)):</span>
         <span class="k">return</span> <span class="n">escape</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
     <span class="k">else</span><span class="p">:</span>
         <span class="k">return</span> <span class="n">value</span>
@@ -841,23 +923,159 @@
             <span class="n">output</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">filter_expression</span><span class="o">.</span><span class="n">resolve</span><span class="p">(</span><span class="n">context</span><span class="p">)</span>
         <span class="k">except</span> <span class="ne">UnicodeDecodeError</span><span class="p">:</span>
             <span class="c"># Unicode conversion can fail sometimes for reasons out of our</span>
-            <span class="c"># control (e.g. exception rendering). In that case, we fail quietly.</span>
+            <span class="c"># control (e.g. exception rendering). In that case, we fail</span>
+            <span class="c"># quietly.</span>
             <span class="k">return</span> <span class="s">&#39;&#39;</span>
         <span class="k">return</span> <span class="n">_render_value_in_context</span><span class="p">(</span><span class="n">output</span><span class="p">,</span> <span class="n">context</span><span class="p">)</span>
 
-<div class="viewcode-block" id="generic_tag_compiler"><a class="viewcode-back" href="../../../django.template.html#django.template.base.generic_tag_compiler">[docs]</a><span class="k">def</span> <span class="nf">generic_tag_compiler</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="n">defaults</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">node_class</span><span class="p">,</span> <span class="n">parser</span><span class="p">,</span> <span class="n">token</span><span class="p">):</span>
-    <span class="s">&quot;Returns a template.Node subclass.&quot;</span>
-    <span class="n">bits</span> <span class="o">=</span> <span class="n">token</span><span class="o">.</span><span class="n">split_contents</span><span class="p">()[</span><span class="mi">1</span><span class="p">:]</span>
-    <span class="n">bmax</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">params</span><span class="p">)</span>
-    <span class="n">def_len</span> <span class="o">=</span> <span class="n">defaults</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">defaults</span><span class="p">)</span> <span class="ow">or</span> <span class="mi">0</span>
-    <span class="n">bmin</span> <span class="o">=</span> <span class="n">bmax</span> <span class="o">-</span> <span class="n">def_len</span>
-    <span class="k">if</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">bits</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">bmin</span> <span class="ow">or</span> <span class="nb">len</span><span class="p">(</span><span class="n">bits</span><span class="p">)</span> <span class="o">&gt;</span> <span class="n">bmax</span><span class="p">):</span>
-        <span class="k">if</span> <span class="n">bmin</span> <span class="o">==</span> <span class="n">bmax</span><span class="p">:</span>
-            <span class="n">message</span> <span class="o">=</span> <span class="s">&quot;</span><span class="si">%s</span><span class="s"> takes </span><span class="si">%s</span><span class="s"> arguments&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">bmin</span><span class="p">)</span>
+<span class="c"># Regex for token keyword arguments</span>
+<span class="n">kwarg_re</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="s">r&quot;(?:(\w+)=)?(.+)&quot;</span><span class="p">)</span>
+
+<div class="viewcode-block" id="token_kwargs"><a class="viewcode-back" href="../../../django.template.html#django.template.base.token_kwargs">[docs]</a><span class="k">def</span> <span class="nf">token_kwargs</span><span class="p">(</span><span class="n">bits</span><span class="p">,</span> <span class="n">parser</span><span class="p">,</span> <span class="n">support_legacy</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    A utility method for parsing token keyword arguments.</span>
+
+<span class="sd">    :param bits: A list containing remainder of the token (split by spaces)</span>
+<span class="sd">        that is to be checked for arguments. Valid arguments will be removed</span>
+<span class="sd">        from this list.</span>
+
+<span class="sd">    :param support_legacy: If set to true ``True``, the legacy format</span>
+<span class="sd">        ``1 as foo`` will be accepted. Otherwise, only the standard ``foo=1``</span>
+<span class="sd">        format is allowed.</span>
+
+<span class="sd">    :returns: A dictionary of the arguments retrieved from the ``bits`` token</span>
+<span class="sd">        list.</span>
+
+<span class="sd">    There is no requirement for all remaining token ``bits`` to be keyword</span>
+<span class="sd">    arguments, so the dictionary will be returned as soon as an invalid</span>
+<span class="sd">    argument format is reached.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">bits</span><span class="p">:</span>
+        <span class="k">return</span> <span class="p">{}</span>
+    <span class="n">match</span> <span class="o">=</span> <span class="n">kwarg_re</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="n">bits</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+    <span class="n">kwarg_format</span> <span class="o">=</span> <span class="n">match</span> <span class="ow">and</span> <span class="n">match</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">kwarg_format</span><span class="p">:</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">support_legacy</span><span class="p">:</span>
+            <span class="k">return</span> <span class="p">{}</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">bits</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">3</span> <span class="ow">or</span> <span class="n">bits</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">!=</span> <span class="s">&#39;as&#39;</span><span class="p">:</span>
+            <span class="k">return</span> <span class="p">{}</span>
+
+    <span class="n">kwargs</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">while</span> <span class="n">bits</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">kwarg_format</span><span class="p">:</span>
+            <span class="n">match</span> <span class="o">=</span> <span class="n">kwarg_re</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="n">bits</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">match</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">match</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">1</span><span class="p">):</span>
+                <span class="k">return</span> <span class="n">kwargs</span>
+            <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="o">=</span> <span class="n">match</span><span class="o">.</span><span class="n">groups</span><span class="p">()</span>
+            <span class="k">del</span> <span class="n">bits</span><span class="p">[:</span><span class="mi">1</span><span class="p">]</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="n">message</span> <span class="o">=</span> <span class="s">&quot;</span><span class="si">%s</span><span class="s"> takes between </span><span class="si">%s</span><span class="s"> and </span><span class="si">%s</span><span class="s"> arguments&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">bmin</span><span class="p">,</span> <span class="n">bmax</span><span class="p">)</span>
-        <span class="k">raise</span> <span class="n">TemplateSyntaxError</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
-    <span class="k">return</span> <span class="n">node_class</span><span class="p">(</span><span class="n">bits</span><span class="p">)</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">bits</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">3</span> <span class="ow">or</span> <span class="n">bits</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">!=</span> <span class="s">&#39;as&#39;</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">kwargs</span>
+            <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="o">=</span> <span class="n">bits</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span> <span class="n">bits</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="k">del</span> <span class="n">bits</span><span class="p">[:</span><span class="mi">3</span><span class="p">]</span>
+        <span class="n">kwargs</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">parser</span><span class="o">.</span><span class="n">compile_filter</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">bits</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">kwarg_format</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">bits</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">!=</span> <span class="s">&#39;and&#39;</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">kwargs</span>
+            <span class="k">del</span> <span class="n">bits</span><span class="p">[:</span><span class="mi">1</span><span class="p">]</span>
+    <span class="k">return</span> <span class="n">kwargs</span>
+</div>
+<div class="viewcode-block" id="parse_bits"><a class="viewcode-back" href="../../../django.template.html#django.template.base.parse_bits">[docs]</a><span class="k">def</span> <span class="nf">parse_bits</span><span class="p">(</span><span class="n">parser</span><span class="p">,</span> <span class="n">bits</span><span class="p">,</span> <span class="n">params</span><span class="p">,</span> <span class="n">varargs</span><span class="p">,</span> <span class="n">varkw</span><span class="p">,</span> <span class="n">defaults</span><span class="p">,</span>
+               <span class="n">takes_context</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Parses bits for template tag helpers (simple_tag, include_tag and</span>
+<span class="sd">    assignment_tag), in particular by detecting syntax errors and by</span>
+<span class="sd">    extracting positional and keyword arguments.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">takes_context</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">params</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="s">&#39;context&#39;</span><span class="p">:</span>
+            <span class="n">params</span> <span class="o">=</span> <span class="n">params</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">TemplateSyntaxError</span><span class="p">(</span>
+                <span class="s">&quot;&#39;</span><span class="si">%s</span><span class="s">&#39; is decorated with takes_context=True so it must &quot;</span>
+                <span class="s">&quot;have a first argument of &#39;context&#39;&quot;</span> <span class="o">%</span> <span class="n">name</span><span class="p">)</span>
+    <span class="n">args</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">kwargs</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="n">unhandled_params</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">params</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">bit</span> <span class="ow">in</span> <span class="n">bits</span><span class="p">:</span>
+        <span class="c"># First we try to extract a potential kwarg from the bit</span>
+        <span class="n">kwarg</span> <span class="o">=</span> <span class="n">token_kwargs</span><span class="p">([</span><span class="n">bit</span><span class="p">],</span> <span class="n">parser</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">kwarg</span><span class="p">:</span>
+            <span class="c"># The kwarg was successfully extracted</span>
+            <span class="n">param</span><span class="p">,</span> <span class="n">value</span> <span class="o">=</span> <span class="n">kwarg</span><span class="o">.</span><span class="n">items</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="k">if</span> <span class="n">param</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">params</span> <span class="ow">and</span> <span class="n">varkw</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+                <span class="c"># An unexpected keyword argument was supplied</span>
+                <span class="k">raise</span> <span class="n">TemplateSyntaxError</span><span class="p">(</span>
+                    <span class="s">&quot;&#39;</span><span class="si">%s</span><span class="s">&#39; received unexpected keyword argument &#39;</span><span class="si">%s</span><span class="s">&#39;&quot;</span> <span class="o">%</span>
+                    <span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">param</span><span class="p">))</span>
+            <span class="k">elif</span> <span class="n">param</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="p">:</span>
+                <span class="c"># The keyword argument has already been supplied once</span>
+                <span class="k">raise</span> <span class="n">TemplateSyntaxError</span><span class="p">(</span>
+                    <span class="s">&quot;&#39;</span><span class="si">%s</span><span class="s">&#39; received multiple values for keyword argument &#39;</span><span class="si">%s</span><span class="s">&#39;&quot;</span> <span class="o">%</span>
+                    <span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">param</span><span class="p">))</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="c"># All good, record the keyword argument</span>
+                <span class="n">kwargs</span><span class="p">[</span><span class="nb">str</span><span class="p">(</span><span class="n">param</span><span class="p">)]</span> <span class="o">=</span> <span class="n">value</span>
+                <span class="k">if</span> <span class="n">param</span> <span class="ow">in</span> <span class="n">unhandled_params</span><span class="p">:</span>
+                    <span class="c"># If using the keyword syntax for a positional arg, then</span>
+                    <span class="c"># consume it.</span>
+                    <span class="n">unhandled_params</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">param</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">kwargs</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">TemplateSyntaxError</span><span class="p">(</span>
+                    <span class="s">&quot;&#39;</span><span class="si">%s</span><span class="s">&#39; received some positional argument(s) after some &quot;</span>
+                    <span class="s">&quot;keyword argument(s)&quot;</span> <span class="o">%</span> <span class="n">name</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="c"># Record the positional argument</span>
+                <span class="n">args</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">parser</span><span class="o">.</span><span class="n">compile_filter</span><span class="p">(</span><span class="n">bit</span><span class="p">))</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="c"># Consume from the list of expected positional arguments</span>
+                    <span class="n">unhandled_params</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+                <span class="k">except</span> <span class="ne">IndexError</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="n">varargs</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+                        <span class="k">raise</span> <span class="n">TemplateSyntaxError</span><span class="p">(</span>
+                            <span class="s">&quot;&#39;</span><span class="si">%s</span><span class="s">&#39; received too many positional arguments&quot;</span> <span class="o">%</span>
+                            <span class="n">name</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">defaults</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+        <span class="c"># Consider the last n params handled, where n is the</span>
+        <span class="c"># number of defaults.</span>
+        <span class="n">unhandled_params</span> <span class="o">=</span> <span class="n">unhandled_params</span><span class="p">[:</span><span class="o">-</span><span class="nb">len</span><span class="p">(</span><span class="n">defaults</span><span class="p">)]</span>
+    <span class="k">if</span> <span class="n">unhandled_params</span><span class="p">:</span>
+        <span class="c"># Some positional arguments were not supplied</span>
+        <span class="k">raise</span> <span class="n">TemplateSyntaxError</span><span class="p">(</span>
+            <span class="s">u&quot;&#39;</span><span class="si">%s</span><span class="s">&#39; did not receive value(s) for the argument(s): </span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span>
+            <span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="s">u&quot;, &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="s">u&quot;&#39;</span><span class="si">%s</span><span class="s">&#39;&quot;</span> <span class="o">%</span> <span class="n">p</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">unhandled_params</span><span class="p">])))</span>
+    <span class="k">return</span> <span class="n">args</span><span class="p">,</span> <span class="n">kwargs</span>
+</div>
+<div class="viewcode-block" id="generic_tag_compiler"><a class="viewcode-back" href="../../../django.template.html#django.template.base.generic_tag_compiler">[docs]</a><span class="k">def</span> <span class="nf">generic_tag_compiler</span><span class="p">(</span><span class="n">parser</span><span class="p">,</span> <span class="n">token</span><span class="p">,</span> <span class="n">params</span><span class="p">,</span> <span class="n">varargs</span><span class="p">,</span> <span class="n">varkw</span><span class="p">,</span> <span class="n">defaults</span><span class="p">,</span>
+                         <span class="n">name</span><span class="p">,</span> <span class="n">takes_context</span><span class="p">,</span> <span class="n">node_class</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Returns a template.Node subclass.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">bits</span> <span class="o">=</span> <span class="n">token</span><span class="o">.</span><span class="n">split_contents</span><span class="p">()[</span><span class="mi">1</span><span class="p">:]</span>
+    <span class="n">args</span><span class="p">,</span> <span class="n">kwargs</span> <span class="o">=</span> <span class="n">parse_bits</span><span class="p">(</span><span class="n">parser</span><span class="p">,</span> <span class="n">bits</span><span class="p">,</span> <span class="n">params</span><span class="p">,</span> <span class="n">varargs</span><span class="p">,</span> <span class="n">varkw</span><span class="p">,</span>
+                              <span class="n">defaults</span><span class="p">,</span> <span class="n">takes_context</span><span class="p">,</span> <span class="n">name</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">node_class</span><span class="p">(</span><span class="n">takes_context</span><span class="p">,</span> <span class="n">args</span><span class="p">,</span> <span class="n">kwargs</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="TagHelperNode"><a class="viewcode-back" href="../../../django.template.html#django.template.base.TagHelperNode">[docs]</a><span class="k">class</span> <span class="nc">TagHelperNode</span><span class="p">(</span><span class="n">Node</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Base class for tag helper nodes such as SimpleNode, InclusionNode and</span>
+<span class="sd">    AssignmentNode. Manages the positional and keyword arguments to be passed</span>
+<span class="sd">    to the decorated function.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">takes_context</span><span class="p">,</span> <span class="n">args</span><span class="p">,</span> <span class="n">kwargs</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">takes_context</span> <span class="o">=</span> <span class="n">takes_context</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">args</span> <span class="o">=</span> <span class="n">args</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">kwargs</span> <span class="o">=</span> <span class="n">kwargs</span>
+
+    <span class="k">def</span> <span class="nf">get_resolved_arguments</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">context</span><span class="p">):</span>
+        <span class="n">resolved_args</span> <span class="o">=</span> <span class="p">[</span><span class="n">var</span><span class="o">.</span><span class="n">resolve</span><span class="p">(</span><span class="n">context</span><span class="p">)</span> <span class="k">for</span> <span class="n">var</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="p">]</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">takes_context</span><span class="p">:</span>
+            <span class="n">resolved_args</span> <span class="o">=</span> <span class="p">[</span><span class="n">context</span><span class="p">]</span> <span class="o">+</span> <span class="n">resolved_args</span>
+        <span class="n">resolved_kwargs</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">((</span><span class="n">k</span><span class="p">,</span> <span class="n">v</span><span class="o">.</span><span class="n">resolve</span><span class="p">(</span><span class="n">context</span><span class="p">))</span>
+                                <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">kwargs</span><span class="o">.</span><span class="n">items</span><span class="p">())</span>
+        <span class="k">return</span> <span class="n">resolved_args</span><span class="p">,</span> <span class="n">resolved_kwargs</span>
 </div>
 <span class="k">class</span> <span class="nc">Library</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
@@ -865,11 +1083,11 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">tags</span> <span class="o">=</span> <span class="p">{}</span>
 
     <span class="k">def</span> <span class="nf">tag</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">compile_function</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
-        <span class="k">if</span> <span class="n">name</span> <span class="o">==</span> <span class="bp">None</span> <span class="ow">and</span> <span class="n">compile_function</span> <span class="o">==</span> <span class="bp">None</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">name</span> <span class="ow">is</span> <span class="bp">None</span> <span class="ow">and</span> <span class="n">compile_function</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
             <span class="c"># @register.tag()</span>
             <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">tag_function</span>
-        <span class="k">elif</span> <span class="n">name</span> <span class="o">!=</span> <span class="bp">None</span> <span class="ow">and</span> <span class="n">compile_function</span> <span class="o">==</span> <span class="bp">None</span><span class="p">:</span>
-            <span class="k">if</span><span class="p">(</span><span class="nb">callable</span><span class="p">(</span><span class="n">name</span><span class="p">)):</span>
+        <span class="k">elif</span> <span class="n">name</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span> <span class="ow">and</span> <span class="n">compile_function</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">callable</span><span class="p">(</span><span class="n">name</span><span class="p">):</span>
                 <span class="c"># @register.tag</span>
                 <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">tag_function</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
             <span class="k">else</span><span class="p">:</span>
@@ -877,65 +1095,74 @@
                 <span class="k">def</span> <span class="nf">dec</span><span class="p">(</span><span class="n">func</span><span class="p">):</span>
                     <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">tag</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">func</span><span class="p">)</span>
                 <span class="k">return</span> <span class="n">dec</span>
-        <span class="k">elif</span> <span class="n">name</span> <span class="o">!=</span> <span class="bp">None</span> <span class="ow">and</span> <span class="n">compile_function</span> <span class="o">!=</span> <span class="bp">None</span><span class="p">:</span>
+        <span class="k">elif</span> <span class="n">name</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span> <span class="ow">and</span> <span class="n">compile_function</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
             <span class="c"># register.tag(&#39;somename&#39;, somefunc)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">tags</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">compile_function</span>
             <span class="k">return</span> <span class="n">compile_function</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="n">InvalidTemplateLibrary</span><span class="p">(</span><span class="s">&quot;Unsupported arguments to Library.tag: (</span><span class="si">%r</span><span class="s">, </span><span class="si">%r</span><span class="s">)&quot;</span><span class="p">,</span> <span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">compile_function</span><span class="p">))</span>
+            <span class="k">raise</span> <span class="n">InvalidTemplateLibrary</span><span class="p">(</span><span class="s">&quot;Unsupported arguments to &quot;</span>
+                <span class="s">&quot;Library.tag: (</span><span class="si">%r</span><span class="s">, </span><span class="si">%r</span><span class="s">)&quot;</span><span class="p">,</span> <span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">compile_function</span><span class="p">))</span>
 
-    <span class="k">def</span> <span class="nf">tag_function</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">func</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">tag_function</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">func</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">tags</span><span class="p">[</span><span class="nb">getattr</span><span class="p">(</span><span class="n">func</span><span class="p">,</span> <span class="s">&quot;_decorated_function&quot;</span><span class="p">,</span> <span class="n">func</span><span class="p">)</span><span class="o">.</span><span class="n">__name__</span><span class="p">]</span> <span class="o">=</span> <span class="n">func</span>
         <span class="k">return</span> <span class="n">func</span>
 
-    <span class="k">def</span> <span class="nf">filter</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">filter_func</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
-        <span class="k">if</span> <span class="n">name</span> <span class="o">==</span> <span class="bp">None</span> <span class="ow">and</span> <span class="n">filter_func</span> <span class="o">==</span> <span class="bp">None</span><span class="p">:</span>
+    <span class="k">def</span> <span class="nf">filter</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">filter_func</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="o">**</span><span class="n">flags</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">name</span> <span class="ow">is</span> <span class="bp">None</span> <span class="ow">and</span> <span class="n">filter_func</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
             <span class="c"># @register.filter()</span>
-            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">filter_function</span>
-        <span class="k">elif</span> <span class="n">filter_func</span> <span class="o">==</span> <span class="bp">None</span><span class="p">:</span>
-            <span class="k">if</span><span class="p">(</span><span class="nb">callable</span><span class="p">(</span><span class="n">name</span><span class="p">)):</span>
+            <span class="k">def</span> <span class="nf">dec</span><span class="p">(</span><span class="n">func</span><span class="p">):</span>
+                <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">filter_function</span><span class="p">(</span><span class="n">func</span><span class="p">,</span> <span class="o">**</span><span class="n">flags</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">dec</span>
+
+        <span class="k">elif</span> <span class="n">name</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span> <span class="ow">and</span> <span class="n">filter_func</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">callable</span><span class="p">(</span><span class="n">name</span><span class="p">):</span>
                 <span class="c"># @register.filter</span>
-                <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">filter_function</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+                <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">filter_function</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="o">**</span><span class="n">flags</span><span class="p">)</span>
             <span class="k">else</span><span class="p">:</span>
                 <span class="c"># @register.filter(&#39;somename&#39;) or @register.filter(name=&#39;somename&#39;)</span>
                 <span class="k">def</span> <span class="nf">dec</span><span class="p">(</span><span class="n">func</span><span class="p">):</span>
-                    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">func</span><span class="p">)</span>
+                    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">func</span><span class="p">,</span> <span class="o">**</span><span class="n">flags</span><span class="p">)</span>
                 <span class="k">return</span> <span class="n">dec</span>
-        <span class="k">elif</span> <span class="n">name</span> <span class="o">!=</span> <span class="bp">None</span> <span class="ow">and</span> <span class="n">filter_func</span> <span class="o">!=</span> <span class="bp">None</span><span class="p">:</span>
+
+        <span class="k">elif</span> <span class="n">name</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span> <span class="ow">and</span> <span class="n">filter_func</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
             <span class="c"># register.filter(&#39;somename&#39;, somefunc)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">filters</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">filter_func</span>
+            <span class="k">for</span> <span class="n">attr</span> <span class="ow">in</span> <span class="p">(</span><span class="s">&#39;expects_localtime&#39;</span><span class="p">,</span> <span class="s">&#39;is_safe&#39;</span><span class="p">,</span> <span class="s">&#39;needs_autoescape&#39;</span><span class="p">):</span>
+                <span class="k">if</span> <span class="n">attr</span> <span class="ow">in</span> <span class="n">flags</span><span class="p">:</span>
+                    <span class="n">value</span> <span class="o">=</span> <span class="n">flags</span><span class="p">[</span><span class="n">attr</span><span class="p">]</span>
+                    <span class="c"># set the flag on the filter for FilterExpression.resolve</span>
+                    <span class="nb">setattr</span><span class="p">(</span><span class="n">filter_func</span><span class="p">,</span> <span class="n">attr</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
+                    <span class="c"># set the flag on the innermost decorated function</span>
+                    <span class="c"># for decorators that need it e.g. stringfilter</span>
+                    <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">filter_func</span><span class="p">,</span> <span class="s">&quot;_decorated_function&quot;</span><span class="p">):</span>
+                        <span class="nb">setattr</span><span class="p">(</span><span class="n">filter_func</span><span class="o">.</span><span class="n">_decorated_function</span><span class="p">,</span> <span class="n">attr</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
             <span class="k">return</span> <span class="n">filter_func</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="n">InvalidTemplateLibrary</span><span class="p">(</span><span class="s">&quot;Unsupported arguments to Library.filter: (</span><span class="si">%r</span><span class="s">, </span><span class="si">%r</span><span class="s">)&quot;</span><span class="p">,</span> <span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">filter_func</span><span class="p">))</span>
+            <span class="k">raise</span> <span class="n">InvalidTemplateLibrary</span><span class="p">(</span><span class="s">&quot;Unsupported arguments to &quot;</span>
+                <span class="s">&quot;Library.filter: (</span><span class="si">%r</span><span class="s">, </span><span class="si">%r</span><span class="s">)&quot;</span><span class="p">,</span> <span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">filter_func</span><span class="p">))</span>
 
-    <span class="k">def</span> <span class="nf">filter_function</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">func</span><span class="p">):</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">filters</span><span class="p">[</span><span class="nb">getattr</span><span class="p">(</span><span class="n">func</span><span class="p">,</span> <span class="s">&quot;_decorated_function&quot;</span><span class="p">,</span> <span class="n">func</span><span class="p">)</span><span class="o">.</span><span class="n">__name__</span><span class="p">]</span> <span class="o">=</span> <span class="n">func</span>
-        <span class="k">return</span> <span class="n">func</span>
+    <span class="k">def</span> <span class="nf">filter_function</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">func</span><span class="p">,</span> <span class="o">**</span><span class="n">flags</span><span class="p">):</span>
+        <span class="n">name</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">func</span><span class="p">,</span> <span class="s">&quot;_decorated_function&quot;</span><span class="p">,</span> <span class="n">func</span><span class="p">)</span><span class="o">.</span><span class="n">__name__</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">func</span><span class="p">,</span> <span class="o">**</span><span class="n">flags</span><span class="p">)</span>
 
-    <span class="k">def</span> <span class="nf">simple_tag</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">func</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">takes_context</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">simple_tag</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">func</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">takes_context</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
         <span class="k">def</span> <span class="nf">dec</span><span class="p">(</span><span class="n">func</span><span class="p">):</span>
-            <span class="n">params</span><span class="p">,</span> <span class="n">xx</span><span class="p">,</span> <span class="n">xxx</span><span class="p">,</span> <span class="n">defaults</span> <span class="o">=</span> <span class="n">getargspec</span><span class="p">(</span><span class="n">func</span><span class="p">)</span>
-            <span class="k">if</span> <span class="n">takes_context</span><span class="p">:</span>
-                <span class="k">if</span> <span class="n">params</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="s">&#39;context&#39;</span><span class="p">:</span>
-                    <span class="n">params</span> <span class="o">=</span> <span class="n">params</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span>
-                <span class="k">else</span><span class="p">:</span>
-                    <span class="k">raise</span> <span class="n">TemplateSyntaxError</span><span class="p">(</span><span class="s">&quot;Any tag function decorated with takes_context=True must have a first argument of &#39;context&#39;&quot;</span><span class="p">)</span>
+            <span class="n">params</span><span class="p">,</span> <span class="n">varargs</span><span class="p">,</span> <span class="n">varkw</span><span class="p">,</span> <span class="n">defaults</span> <span class="o">=</span> <span class="n">getargspec</span><span class="p">(</span><span class="n">func</span><span class="p">)</span>
 
-            <span class="k">class</span> <span class="nc">SimpleNode</span><span class="p">(</span><span class="n">Node</span><span class="p">):</span>
-                <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">vars_to_resolve</span><span class="p">):</span>
-                    <span class="bp">self</span><span class="o">.</span><span class="n">vars_to_resolve</span> <span class="o">=</span> <span class="nb">map</span><span class="p">(</span><span class="n">Variable</span><span class="p">,</span> <span class="n">vars_to_resolve</span><span class="p">)</span>
+            <span class="k">class</span> <span class="nc">SimpleNode</span><span class="p">(</span><span class="n">TagHelperNode</span><span class="p">):</span>
 
                 <span class="k">def</span> <span class="nf">render</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">context</span><span class="p">):</span>
-                    <span class="n">resolved_vars</span> <span class="o">=</span> <span class="p">[</span><span class="n">var</span><span class="o">.</span><span class="n">resolve</span><span class="p">(</span><span class="n">context</span><span class="p">)</span> <span class="k">for</span> <span class="n">var</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">vars_to_resolve</span><span class="p">]</span>
-                    <span class="k">if</span> <span class="n">takes_context</span><span class="p">:</span>
-                        <span class="n">func_args</span> <span class="o">=</span> <span class="p">[</span><span class="n">context</span><span class="p">]</span> <span class="o">+</span> <span class="n">resolved_vars</span>
-                    <span class="k">else</span><span class="p">:</span>
-                        <span class="n">func_args</span> <span class="o">=</span> <span class="n">resolved_vars</span>
-                    <span class="k">return</span> <span class="n">func</span><span class="p">(</span><span class="o">*</span><span class="n">func_args</span><span class="p">)</span>
+                    <span class="n">resolved_args</span><span class="p">,</span> <span class="n">resolved_kwargs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_resolved_arguments</span><span class="p">(</span><span class="n">context</span><span class="p">)</span>
+                    <span class="k">return</span> <span class="n">func</span><span class="p">(</span><span class="o">*</span><span class="n">resolved_args</span><span class="p">,</span> <span class="o">**</span><span class="n">resolved_kwargs</span><span class="p">)</span>
 
-            <span class="n">compile_func</span> <span class="o">=</span> <span class="n">curry</span><span class="p">(</span><span class="n">generic_tag_compiler</span><span class="p">,</span> <span class="n">params</span><span class="p">,</span> <span class="n">defaults</span><span class="p">,</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">func</span><span class="p">,</span> <span class="s">&quot;_decorated_function&quot;</span><span class="p">,</span> <span class="n">func</span><span class="p">)</span><span class="o">.</span><span class="n">__name__</span><span class="p">,</span> <span class="n">SimpleNode</span><span class="p">)</span>
+            <span class="n">function_name</span> <span class="o">=</span> <span class="p">(</span><span class="n">name</span> <span class="ow">or</span>
+                <span class="nb">getattr</span><span class="p">(</span><span class="n">func</span><span class="p">,</span> <span class="s">&#39;_decorated_function&#39;</span><span class="p">,</span> <span class="n">func</span><span class="p">)</span><span class="o">.</span><span class="n">__name__</span><span class="p">)</span>
+            <span class="n">compile_func</span> <span class="o">=</span> <span class="n">partial</span><span class="p">(</span><span class="n">generic_tag_compiler</span><span class="p">,</span>
+                <span class="n">params</span><span class="o">=</span><span class="n">params</span><span class="p">,</span> <span class="n">varargs</span><span class="o">=</span><span class="n">varargs</span><span class="p">,</span> <span class="n">varkw</span><span class="o">=</span><span class="n">varkw</span><span class="p">,</span>
+                <span class="n">defaults</span><span class="o">=</span><span class="n">defaults</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="n">function_name</span><span class="p">,</span>
+                <span class="n">takes_context</span><span class="o">=</span><span class="n">takes_context</span><span class="p">,</span> <span class="n">node_class</span><span class="o">=</span><span class="n">SimpleNode</span><span class="p">)</span>
             <span class="n">compile_func</span><span class="o">.</span><span class="n">__doc__</span> <span class="o">=</span> <span class="n">func</span><span class="o">.</span><span class="n">__doc__</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">tag</span><span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="n">func</span><span class="p">,</span> <span class="s">&quot;_decorated_function&quot;</span><span class="p">,</span> <span class="n">func</span><span class="p">)</span><span class="o">.</span><span class="n">__name__</span><span class="p">,</span> <span class="n">compile_func</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">tag</span><span class="p">(</span><span class="n">function_name</span><span class="p">,</span> <span class="n">compile_func</span><span class="p">)</span>
             <span class="k">return</span> <span class="n">func</span>
 
         <span class="k">if</span> <span class="n">func</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
@@ -947,84 +1174,149 @@
         <span class="k">else</span><span class="p">:</span>
             <span class="k">raise</span> <span class="n">TemplateSyntaxError</span><span class="p">(</span><span class="s">&quot;Invalid arguments provided to simple_tag&quot;</span><span class="p">)</span>
 
-    <span class="k">def</span> <span class="nf">inclusion_tag</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">file_name</span><span class="p">,</span> <span class="n">context_class</span><span class="o">=</span><span class="n">Context</span><span class="p">,</span> <span class="n">takes_context</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">assignment_tag</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">func</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">takes_context</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
         <span class="k">def</span> <span class="nf">dec</span><span class="p">(</span><span class="n">func</span><span class="p">):</span>
-            <span class="n">params</span><span class="p">,</span> <span class="n">xx</span><span class="p">,</span> <span class="n">xxx</span><span class="p">,</span> <span class="n">defaults</span> <span class="o">=</span> <span class="n">getargspec</span><span class="p">(</span><span class="n">func</span><span class="p">)</span>
-            <span class="k">if</span> <span class="n">takes_context</span><span class="p">:</span>
-                <span class="k">if</span> <span class="n">params</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="s">&#39;context&#39;</span><span class="p">:</span>
-                    <span class="n">params</span> <span class="o">=</span> <span class="n">params</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span>
-                <span class="k">else</span><span class="p">:</span>
-                    <span class="k">raise</span> <span class="n">TemplateSyntaxError</span><span class="p">(</span><span class="s">&quot;Any tag function decorated with takes_context=True must have a first argument of &#39;context&#39;&quot;</span><span class="p">)</span>
+            <span class="n">params</span><span class="p">,</span> <span class="n">varargs</span><span class="p">,</span> <span class="n">varkw</span><span class="p">,</span> <span class="n">defaults</span> <span class="o">=</span> <span class="n">getargspec</span><span class="p">(</span><span class="n">func</span><span class="p">)</span>
 
-            <span class="k">class</span> <span class="nc">InclusionNode</span><span class="p">(</span><span class="n">Node</span><span class="p">):</span>
-                <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">vars_to_resolve</span><span class="p">):</span>
-                    <span class="bp">self</span><span class="o">.</span><span class="n">vars_to_resolve</span> <span class="o">=</span> <span class="nb">map</span><span class="p">(</span><span class="n">Variable</span><span class="p">,</span> <span class="n">vars_to_resolve</span><span class="p">)</span>
+            <span class="k">class</span> <span class="nc">AssignmentNode</span><span class="p">(</span><span class="n">TagHelperNode</span><span class="p">):</span>
+                <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">takes_context</span><span class="p">,</span> <span class="n">args</span><span class="p">,</span> <span class="n">kwargs</span><span class="p">,</span> <span class="n">target_var</span><span class="p">):</span>
+                    <span class="nb">super</span><span class="p">(</span><span class="n">AssignmentNode</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="n">takes_context</span><span class="p">,</span> <span class="n">args</span><span class="p">,</span> <span class="n">kwargs</span><span class="p">)</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">target_var</span> <span class="o">=</span> <span class="n">target_var</span>
 
                 <span class="k">def</span> <span class="nf">render</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">context</span><span class="p">):</span>
-                    <span class="n">resolved_vars</span> <span class="o">=</span> <span class="p">[</span><span class="n">var</span><span class="o">.</span><span class="n">resolve</span><span class="p">(</span><span class="n">context</span><span class="p">)</span> <span class="k">for</span> <span class="n">var</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">vars_to_resolve</span><span class="p">]</span>
-                    <span class="k">if</span> <span class="n">takes_context</span><span class="p">:</span>
-                        <span class="n">args</span> <span class="o">=</span> <span class="p">[</span><span class="n">context</span><span class="p">]</span> <span class="o">+</span> <span class="n">resolved_vars</span>
-                    <span class="k">else</span><span class="p">:</span>
-                        <span class="n">args</span> <span class="o">=</span> <span class="n">resolved_vars</span>
+                    <span class="n">resolved_args</span><span class="p">,</span> <span class="n">resolved_kwargs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_resolved_arguments</span><span class="p">(</span><span class="n">context</span><span class="p">)</span>
+                    <span class="n">context</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">target_var</span><span class="p">]</span> <span class="o">=</span> <span class="n">func</span><span class="p">(</span><span class="o">*</span><span class="n">resolved_args</span><span class="p">,</span> <span class="o">**</span><span class="n">resolved_kwargs</span><span class="p">)</span>
+                    <span class="k">return</span> <span class="s">&#39;&#39;</span>
 
-                    <span class="nb">dict</span> <span class="o">=</span> <span class="n">func</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">)</span>
+            <span class="n">function_name</span> <span class="o">=</span> <span class="p">(</span><span class="n">name</span> <span class="ow">or</span>
+                <span class="nb">getattr</span><span class="p">(</span><span class="n">func</span><span class="p">,</span> <span class="s">&#39;_decorated_function&#39;</span><span class="p">,</span> <span class="n">func</span><span class="p">)</span><span class="o">.</span><span class="n">__name__</span><span class="p">)</span>
+
+            <span class="k">def</span> <span class="nf">compile_func</span><span class="p">(</span><span class="n">parser</span><span class="p">,</span> <span class="n">token</span><span class="p">):</span>
+                <span class="n">bits</span> <span class="o">=</span> <span class="n">token</span><span class="o">.</span><span class="n">split_contents</span><span class="p">()[</span><span class="mi">1</span><span class="p">:]</span>
+                <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">bits</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">2</span> <span class="ow">or</span> <span class="n">bits</span><span class="p">[</span><span class="o">-</span><span class="mi">2</span><span class="p">]</span> <span class="o">!=</span> <span class="s">&#39;as&#39;</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="n">TemplateSyntaxError</span><span class="p">(</span>
+                        <span class="s">&quot;&#39;</span><span class="si">%s</span><span class="s">&#39; tag takes at least 2 arguments and the &quot;</span>
+                        <span class="s">&quot;second last argument must be &#39;as&#39;&quot;</span> <span class="o">%</span> <span class="n">function_name</span><span class="p">)</span>
+                <span class="n">target_var</span> <span class="o">=</span> <span class="n">bits</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+                <span class="n">bits</span> <span class="o">=</span> <span class="n">bits</span><span class="p">[:</span><span class="o">-</span><span class="mi">2</span><span class="p">]</span>
+                <span class="n">args</span><span class="p">,</span> <span class="n">kwargs</span> <span class="o">=</span> <span class="n">parse_bits</span><span class="p">(</span><span class="n">parser</span><span class="p">,</span> <span class="n">bits</span><span class="p">,</span> <span class="n">params</span><span class="p">,</span>
+                    <span class="n">varargs</span><span class="p">,</span> <span class="n">varkw</span><span class="p">,</span> <span class="n">defaults</span><span class="p">,</span> <span class="n">takes_context</span><span class="p">,</span> <span class="n">function_name</span><span class="p">)</span>
+                <span class="k">return</span> <span class="n">AssignmentNode</span><span class="p">(</span><span class="n">takes_context</span><span class="p">,</span> <span class="n">args</span><span class="p">,</span> <span class="n">kwargs</span><span class="p">,</span> <span class="n">target_var</span><span class="p">)</span>
+
+            <span class="n">compile_func</span><span class="o">.</span><span class="n">__doc__</span> <span class="o">=</span> <span class="n">func</span><span class="o">.</span><span class="n">__doc__</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">tag</span><span class="p">(</span><span class="n">function_name</span><span class="p">,</span> <span class="n">compile_func</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">func</span>
+
+        <span class="k">if</span> <span class="n">func</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="c"># @register.assignment_tag(...)</span>
+            <span class="k">return</span> <span class="n">dec</span>
+        <span class="k">elif</span> <span class="nb">callable</span><span class="p">(</span><span class="n">func</span><span class="p">):</span>
+            <span class="c"># @register.assignment_tag</span>
+            <span class="k">return</span> <span class="n">dec</span><span class="p">(</span><span class="n">func</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">TemplateSyntaxError</span><span class="p">(</span><span class="s">&quot;Invalid arguments provided to assignment_tag&quot;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">inclusion_tag</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">file_name</span><span class="p">,</span> <span class="n">context_class</span><span class="o">=</span><span class="n">Context</span><span class="p">,</span> <span class="n">takes_context</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="k">def</span> <span class="nf">dec</span><span class="p">(</span><span class="n">func</span><span class="p">):</span>
+            <span class="n">params</span><span class="p">,</span> <span class="n">varargs</span><span class="p">,</span> <span class="n">varkw</span><span class="p">,</span> <span class="n">defaults</span> <span class="o">=</span> <span class="n">getargspec</span><span class="p">(</span><span class="n">func</span><span class="p">)</span>
+
+            <span class="k">class</span> <span class="nc">InclusionNode</span><span class="p">(</span><span class="n">TagHelperNode</span><span class="p">):</span>
+
+                <span class="k">def</span> <span class="nf">render</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">context</span><span class="p">):</span>
+                    <span class="n">resolved_args</span><span class="p">,</span> <span class="n">resolved_kwargs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_resolved_arguments</span><span class="p">(</span><span class="n">context</span><span class="p">)</span>
+                    <span class="n">_dict</span> <span class="o">=</span> <span class="n">func</span><span class="p">(</span><span class="o">*</span><span class="n">resolved_args</span><span class="p">,</span> <span class="o">**</span><span class="n">resolved_kwargs</span><span class="p">)</span>
 
                     <span class="k">if</span> <span class="ow">not</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s">&#39;nodelist&#39;</span><span class="p">,</span> <span class="bp">False</span><span class="p">):</span>
                         <span class="kn">from</span> <span class="nn">django.template.loader</span> <span class="kn">import</span> <span class="n">get_template</span><span class="p">,</span> <span class="n">select_template</span>
-                        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">file_name</span><span class="p">,</span> <span class="nb">basestring</span><span class="p">)</span> <span class="ow">and</span> <span class="n">is_iterable</span><span class="p">(</span><span class="n">file_name</span><span class="p">):</span>
+                        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">file_name</span><span class="p">,</span> <span class="n">Template</span><span class="p">):</span>
+                            <span class="n">t</span> <span class="o">=</span> <span class="n">file_name</span>
+                        <span class="k">elif</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">file_name</span><span class="p">,</span> <span class="nb">basestring</span><span class="p">)</span> <span class="ow">and</span> <span class="n">is_iterable</span><span class="p">(</span><span class="n">file_name</span><span class="p">):</span>
                             <span class="n">t</span> <span class="o">=</span> <span class="n">select_template</span><span class="p">(</span><span class="n">file_name</span><span class="p">)</span>
                         <span class="k">else</span><span class="p">:</span>
                             <span class="n">t</span> <span class="o">=</span> <span class="n">get_template</span><span class="p">(</span><span class="n">file_name</span><span class="p">)</span>
                         <span class="bp">self</span><span class="o">.</span><span class="n">nodelist</span> <span class="o">=</span> <span class="n">t</span><span class="o">.</span><span class="n">nodelist</span>
-                    <span class="n">new_context</span> <span class="o">=</span> <span class="n">context_class</span><span class="p">(</span><span class="nb">dict</span><span class="p">,</span> <span class="n">autoescape</span><span class="o">=</span><span class="n">context</span><span class="o">.</span><span class="n">autoescape</span><span class="p">)</span>
-                    <span class="c"># Copy across the CSRF token, if present, because inclusion</span>
-                    <span class="c"># tags are often used for forms, and we need instructions</span>
-                    <span class="c"># for using CSRF protection to be as simple as possible.</span>
+                    <span class="n">new_context</span> <span class="o">=</span> <span class="n">context_class</span><span class="p">(</span><span class="n">_dict</span><span class="p">,</span> <span class="o">**</span><span class="p">{</span>
+                        <span class="s">&#39;autoescape&#39;</span><span class="p">:</span> <span class="n">context</span><span class="o">.</span><span class="n">autoescape</span><span class="p">,</span>
+                        <span class="s">&#39;current_app&#39;</span><span class="p">:</span> <span class="n">context</span><span class="o">.</span><span class="n">current_app</span><span class="p">,</span>
+                        <span class="s">&#39;use_l10n&#39;</span><span class="p">:</span> <span class="n">context</span><span class="o">.</span><span class="n">use_l10n</span><span class="p">,</span>
+                        <span class="s">&#39;use_tz&#39;</span><span class="p">:</span> <span class="n">context</span><span class="o">.</span><span class="n">use_tz</span><span class="p">,</span>
+                    <span class="p">})</span>
+                    <span class="c"># Copy across the CSRF token, if present, because</span>
+                    <span class="c"># inclusion tags are often used for forms, and we need</span>
+                    <span class="c"># instructions for using CSRF protection to be as simple</span>
+                    <span class="c"># as possible.</span>
                     <span class="n">csrf_token</span> <span class="o">=</span> <span class="n">context</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;csrf_token&#39;</span><span class="p">,</span> <span class="bp">None</span><span class="p">)</span>
                     <span class="k">if</span> <span class="n">csrf_token</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
                         <span class="n">new_context</span><span class="p">[</span><span class="s">&#39;csrf_token&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">csrf_token</span>
                     <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">nodelist</span><span class="o">.</span><span class="n">render</span><span class="p">(</span><span class="n">new_context</span><span class="p">)</span>
 
-            <span class="n">compile_func</span> <span class="o">=</span> <span class="n">curry</span><span class="p">(</span><span class="n">generic_tag_compiler</span><span class="p">,</span> <span class="n">params</span><span class="p">,</span> <span class="n">defaults</span><span class="p">,</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">func</span><span class="p">,</span> <span class="s">&quot;_decorated_function&quot;</span><span class="p">,</span> <span class="n">func</span><span class="p">)</span><span class="o">.</span><span class="n">__name__</span><span class="p">,</span> <span class="n">InclusionNode</span><span class="p">)</span>
+            <span class="n">function_name</span> <span class="o">=</span> <span class="p">(</span><span class="n">name</span> <span class="ow">or</span>
+                <span class="nb">getattr</span><span class="p">(</span><span class="n">func</span><span class="p">,</span> <span class="s">&#39;_decorated_function&#39;</span><span class="p">,</span> <span class="n">func</span><span class="p">)</span><span class="o">.</span><span class="n">__name__</span><span class="p">)</span>
+            <span class="n">compile_func</span> <span class="o">=</span> <span class="n">partial</span><span class="p">(</span><span class="n">generic_tag_compiler</span><span class="p">,</span>
+                <span class="n">params</span><span class="o">=</span><span class="n">params</span><span class="p">,</span> <span class="n">varargs</span><span class="o">=</span><span class="n">varargs</span><span class="p">,</span> <span class="n">varkw</span><span class="o">=</span><span class="n">varkw</span><span class="p">,</span>
+                <span class="n">defaults</span><span class="o">=</span><span class="n">defaults</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="n">function_name</span><span class="p">,</span>
+                <span class="n">takes_context</span><span class="o">=</span><span class="n">takes_context</span><span class="p">,</span> <span class="n">node_class</span><span class="o">=</span><span class="n">InclusionNode</span><span class="p">)</span>
             <span class="n">compile_func</span><span class="o">.</span><span class="n">__doc__</span> <span class="o">=</span> <span class="n">func</span><span class="o">.</span><span class="n">__doc__</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">tag</span><span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="n">func</span><span class="p">,</span> <span class="s">&quot;_decorated_function&quot;</span><span class="p">,</span> <span class="n">func</span><span class="p">)</span><span class="o">.</span><span class="n">__name__</span><span class="p">,</span> <span class="n">compile_func</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">tag</span><span class="p">(</span><span class="n">function_name</span><span class="p">,</span> <span class="n">compile_func</span><span class="p">)</span>
             <span class="k">return</span> <span class="n">func</span>
         <span class="k">return</span> <span class="n">dec</span>
 
+<div class="viewcode-block" id="is_library_missing"><a class="viewcode-back" href="../../../django.template.html#django.template.base.is_library_missing">[docs]</a><span class="k">def</span> <span class="nf">is_library_missing</span><span class="p">(</span><span class="n">name</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Check if library that failed to load cannot be found under any</span>
+<span class="sd">    templatetags directory or does exist but fails to import.</span>
+
+<span class="sd">    Non-existing condition is checked recursively for each subpackage in cases</span>
+<span class="sd">    like &lt;appdir&gt;/templatetags/subpackage/package/module.py.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c"># Don&#39;t bother to check if &#39;.&#39; is in name since any name will be prefixed</span>
+    <span class="c"># with some template root.</span>
+    <span class="n">path</span><span class="p">,</span> <span class="n">module</span> <span class="o">=</span> <span class="n">name</span><span class="o">.</span><span class="n">rsplit</span><span class="p">(</span><span class="s">&#39;.&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">package</span> <span class="o">=</span> <span class="n">import_module</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+        <span class="k">return</span> <span class="ow">not</span> <span class="n">module_has_submodule</span><span class="p">(</span><span class="n">package</span><span class="p">,</span> <span class="n">module</span><span class="p">)</span>
+    <span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">is_library_missing</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+</div>
 <div class="viewcode-block" id="import_library"><a class="viewcode-back" href="../../../django.template.html#django.template.base.import_library">[docs]</a><span class="k">def</span> <span class="nf">import_library</span><span class="p">(</span><span class="n">taglib_module</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;Load a template tag library module.</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Load a template tag library module.</span>
 
 <span class="sd">    Verifies that the library contains a &#39;register&#39; attribute, and</span>
 <span class="sd">    returns that attribute as the representation of the library</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="n">app_path</span><span class="p">,</span> <span class="n">taglib</span> <span class="o">=</span> <span class="n">taglib_module</span><span class="o">.</span><span class="n">rsplit</span><span class="p">(</span><span class="s">&#39;.&#39;</span><span class="p">,</span><span class="mi">1</span><span class="p">)</span>
-    <span class="n">app_module</span> <span class="o">=</span> <span class="n">import_module</span><span class="p">(</span><span class="n">app_path</span><span class="p">)</span>
     <span class="k">try</span><span class="p">:</span>
         <span class="n">mod</span> <span class="o">=</span> <span class="n">import_module</span><span class="p">(</span><span class="n">taglib_module</span><span class="p">)</span>
     <span class="k">except</span> <span class="ne">ImportError</span><span class="p">,</span> <span class="n">e</span><span class="p">:</span>
-        <span class="c"># If the ImportError is because the taglib submodule does not exist, that&#39;s not</span>
-        <span class="c"># an error that should be raised. If the submodule exists and raised an ImportError</span>
-        <span class="c"># on the attempt to load it, that we want to raise.</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">module_has_submodule</span><span class="p">(</span><span class="n">app_module</span><span class="p">,</span> <span class="n">taglib</span><span class="p">):</span>
+        <span class="c"># If the ImportError is because the taglib submodule does not exist,</span>
+        <span class="c"># that&#39;s not an error that should be raised. If the submodule exists</span>
+        <span class="c"># and raised an ImportError on the attempt to load it, that we want</span>
+        <span class="c"># to raise.</span>
+        <span class="k">if</span> <span class="n">is_library_missing</span><span class="p">(</span><span class="n">taglib_module</span><span class="p">):</span>
             <span class="k">return</span> <span class="bp">None</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="n">InvalidTemplateLibrary</span><span class="p">(</span><span class="s">&quot;ImportError raised loading </span><span class="si">%s</span><span class="s">: </span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">taglib_module</span><span class="p">,</span> <span class="n">e</span><span class="p">))</span>
+            <span class="k">raise</span> <span class="n">InvalidTemplateLibrary</span><span class="p">(</span><span class="s">&quot;ImportError raised loading </span><span class="si">%s</span><span class="s">: </span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span>
+                                         <span class="p">(</span><span class="n">taglib_module</span><span class="p">,</span> <span class="n">e</span><span class="p">))</span>
     <span class="k">try</span><span class="p">:</span>
         <span class="k">return</span> <span class="n">mod</span><span class="o">.</span><span class="n">register</span>
     <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>
-        <span class="k">raise</span> <span class="n">InvalidTemplateLibrary</span><span class="p">(</span><span class="s">&quot;Template library </span><span class="si">%s</span><span class="s"> does not have a variable named &#39;register&#39;&quot;</span> <span class="o">%</span> <span class="n">taglib_module</span><span class="p">)</span>
+        <span class="k">raise</span> <span class="n">InvalidTemplateLibrary</span><span class="p">(</span><span class="s">&quot;Template library </span><span class="si">%s</span><span class="s"> does not have &quot;</span>
+                                     <span class="s">&quot;a variable named &#39;register&#39;&quot;</span> <span class="o">%</span>
+                                     <span class="n">taglib_module</span><span class="p">)</span>
 </div>
 <span class="n">templatetags_modules</span> <span class="o">=</span> <span class="p">[]</span>
 
 <div class="viewcode-block" id="get_templatetags_modules"><a class="viewcode-back" href="../../../django.template.html#django.template.base.get_templatetags_modules">[docs]</a><span class="k">def</span> <span class="nf">get_templatetags_modules</span><span class="p">():</span>
-    <span class="sd">&quot;&quot;&quot;Return the list of all available template tag modules.</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Return the list of all available template tag modules.</span>
 
 <span class="sd">    Caches the result for faster access.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">global</span> <span class="n">templatetags_modules</span>
     <span class="k">if</span> <span class="ow">not</span> <span class="n">templatetags_modules</span><span class="p">:</span>
         <span class="n">_templatetags_modules</span> <span class="o">=</span> <span class="p">[]</span>
-        <span class="c"># Populate list once per thread.</span>
+        <span class="c"># Populate list once per process. Mutate the local list first, and</span>
+        <span class="c"># then assign it to the global name to ensure there are no cases where</span>
+        <span class="c"># two threads try to populate it simultaneously.</span>
         <span class="k">for</span> <span class="n">app_module</span> <span class="ow">in</span> <span class="p">[</span><span class="s">&#39;django&#39;</span><span class="p">]</span> <span class="o">+</span> <span class="nb">list</span><span class="p">(</span><span class="n">settings</span><span class="o">.</span><span class="n">INSTALLED_APPS</span><span class="p">):</span>
             <span class="k">try</span><span class="p">:</span>
                 <span class="n">templatetag_module</span> <span class="o">=</span> <span class="s">&#39;</span><span class="si">%s</span><span class="s">.templatetags&#39;</span> <span class="o">%</span> <span class="n">app_module</span>
@@ -1039,12 +1331,13 @@
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Load the template library module with the given name.</span>
 
-<span class="sd">    If library is not already loaded loop over all templatetags modules to locate it.</span>
+<span class="sd">    If library is not already loaded loop over all templatetags modules</span>
+<span class="sd">    to locate it.</span>
 
 <span class="sd">    {% load somelib %} and {% load someotherlib %} loops twice.</span>
 
-<span class="sd">    Subsequent loads eg. {% load somelib %} in the same process will grab the cached</span>
-<span class="sd">    module from libraries.</span>
+<span class="sd">    Subsequent loads eg. {% load somelib %} in the same process will grab</span>
+<span class="sd">    the cached module from libraries.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">lib</span> <span class="o">=</span> <span class="n">libraries</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">library_name</span><span class="p">,</span> <span class="bp">None</span><span class="p">)</span>
     <span class="k">if</span> <span class="ow">not</span> <span class="n">lib</span><span class="p">:</span>
@@ -1058,11 +1351,16 @@
                 <span class="n">libraries</span><span class="p">[</span><span class="n">library_name</span><span class="p">]</span> <span class="o">=</span> <span class="n">lib</span>
                 <span class="k">break</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="n">lib</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="n">InvalidTemplateLibrary</span><span class="p">(</span><span class="s">&quot;Template library </span><span class="si">%s</span><span class="s"> not found, tried </span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">library_name</span><span class="p">,</span> <span class="s">&#39;,&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">tried_modules</span><span class="p">)))</span>
+            <span class="k">raise</span> <span class="n">InvalidTemplateLibrary</span><span class="p">(</span><span class="s">&quot;Template library </span><span class="si">%s</span><span class="s"> not found, &quot;</span>
+                                         <span class="s">&quot;tried </span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span>
+                                         <span class="p">(</span><span class="n">library_name</span><span class="p">,</span>
+                                          <span class="s">&#39;,&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">tried_modules</span><span class="p">)))</span>
     <span class="k">return</span> <span class="n">lib</span>
+
 </div>
 <span class="k">def</span> <span class="nf">add_to_builtins</span><span class="p">(</span><span class="n">module</span><span class="p">):</span>
     <span class="n">builtins</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">import_library</span><span class="p">(</span><span class="n">module</span><span class="p">))</span>
+
 
 <span class="n">add_to_builtins</span><span class="p">(</span><span class="s">&#39;django.template.defaulttags&#39;</span><span class="p">)</span>
 <span class="n">add_to_builtins</span><span class="p">(</span><span class="s">&#39;django.template.defaultfilters&#39;</span><span class="p">)</span>
@@ -1080,7 +1378,7 @@
 
     <div class="footer">
         &copy; Copyright 2012, HDKNR.COM.
-      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.2pre/660be19d7963.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.2pre/3c28de26aac2.
     </div>
   </body>
 </html>

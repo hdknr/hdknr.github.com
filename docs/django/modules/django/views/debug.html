@@ -28,7 +28,7 @@
     <script type="text/javascript" src="../../../static/doctools.js"></script>
     <script type="text/javascript" src="../../../static/theme_extras.js"></script>
     <link rel="top" title="Django Cheat 1 documentation" href="../../../index.html" />
-    <link rel="up" title="Module code" href="../../index.html" /> 
+    <link rel="up" title="django" href="../../django.html" /> 
   </head>
   <body>
       <div class="header"><h1 class="heading"><a href="../../../index.html">
@@ -54,15 +54,18 @@
 <span class="kn">import</span> <span class="nn">types</span>
 
 <span class="kn">from</span> <span class="nn">django.conf</span> <span class="kn">import</span> <span class="n">settings</span>
-<span class="kn">from</span> <span class="nn">django.http</span> <span class="kn">import</span> <span class="n">HttpResponse</span><span class="p">,</span> <span class="n">HttpResponseServerError</span><span class="p">,</span> <span class="n">HttpResponseNotFound</span>
-<span class="kn">from</span> <span class="nn">django.template</span> <span class="kn">import</span> <span class="p">(</span><span class="n">Template</span><span class="p">,</span> <span class="n">Context</span><span class="p">,</span> <span class="n">TemplateDoesNotExist</span><span class="p">,</span>
-    <span class="n">TemplateSyntaxError</span><span class="p">)</span>
+<span class="kn">from</span> <span class="nn">django.core.exceptions</span> <span class="kn">import</span> <span class="n">ImproperlyConfigured</span>
+<span class="kn">from</span> <span class="nn">django.http</span> <span class="kn">import</span> <span class="p">(</span><span class="n">HttpResponse</span><span class="p">,</span> <span class="n">HttpResponseServerError</span><span class="p">,</span>
+    <span class="n">HttpResponseNotFound</span><span class="p">,</span> <span class="n">HttpRequest</span><span class="p">,</span> <span class="n">build_request_repr</span><span class="p">)</span>
+<span class="kn">from</span> <span class="nn">django.template</span> <span class="kn">import</span> <span class="n">Template</span><span class="p">,</span> <span class="n">Context</span><span class="p">,</span> <span class="n">TemplateDoesNotExist</span>
 <span class="kn">from</span> <span class="nn">django.template.defaultfilters</span> <span class="kn">import</span> <span class="n">force_escape</span><span class="p">,</span> <span class="n">pprint</span>
 <span class="kn">from</span> <span class="nn">django.utils.html</span> <span class="kn">import</span> <span class="n">escape</span>
 <span class="kn">from</span> <span class="nn">django.utils.importlib</span> <span class="kn">import</span> <span class="n">import_module</span>
 <span class="kn">from</span> <span class="nn">django.utils.encoding</span> <span class="kn">import</span> <span class="n">smart_unicode</span><span class="p">,</span> <span class="n">smart_str</span>
 
-<span class="n">HIDDEN_SETTINGS</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="s">&#39;SECRET|PASSWORD|PROFANITIES_LIST|SIGNATURE&#39;</span><span class="p">)</span>
+<span class="n">HIDDEN_SETTINGS</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="s">&#39;API|TOKEN|KEY|SECRET|PASS|PROFANITIES_LIST|SIGNATURE&#39;</span><span class="p">)</span>
+
+<span class="n">CLEANSED_SUBSTITUTE</span> <span class="o">=</span> <span class="s">u&#39;********************&#39;</span>
 
 <span class="k">def</span> <span class="nf">linebreak_iter</span><span class="p">(</span><span class="n">template_source</span><span class="p">):</span>
     <span class="k">yield</span> <span class="mi">0</span>
@@ -80,7 +83,7 @@
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">try</span><span class="p">:</span>
         <span class="k">if</span> <span class="n">HIDDEN_SETTINGS</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="n">key</span><span class="p">):</span>
-            <span class="n">cleansed</span> <span class="o">=</span> <span class="s">&#39;********************&#39;</span>
+            <span class="n">cleansed</span> <span class="o">=</span> <span class="n">CLEANSED_SUBSTITUTE</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
                 <span class="n">cleansed</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">((</span><span class="n">k</span><span class="p">,</span> <span class="n">cleanse_setting</span><span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="n">v</span><span class="p">))</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span><span class="n">v</span> <span class="ow">in</span> <span class="n">value</span><span class="o">.</span><span class="n">items</span><span class="p">())</span>
@@ -105,15 +108,138 @@
 <span class="sd">    the values returned from sys.exc_info() and friends.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">reporter</span> <span class="o">=</span> <span class="n">ExceptionReporter</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="n">exc_type</span><span class="p">,</span> <span class="n">exc_value</span><span class="p">,</span> <span class="n">tb</span><span class="p">)</span>
-    <span class="n">html</span> <span class="o">=</span> <span class="n">reporter</span><span class="o">.</span><span class="n">get_traceback_html</span><span class="p">()</span>
-    <span class="k">return</span> <span class="n">HttpResponseServerError</span><span class="p">(</span><span class="n">html</span><span class="p">,</span> <span class="n">mimetype</span><span class="o">=</span><span class="s">&#39;text/html&#39;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">request</span><span class="o">.</span><span class="n">is_ajax</span><span class="p">():</span>
+        <span class="n">text</span> <span class="o">=</span> <span class="n">reporter</span><span class="o">.</span><span class="n">get_traceback_text</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">HttpResponseServerError</span><span class="p">(</span><span class="n">text</span><span class="p">,</span> <span class="n">mimetype</span><span class="o">=</span><span class="s">&#39;text/plain&#39;</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">html</span> <span class="o">=</span> <span class="n">reporter</span><span class="o">.</span><span class="n">get_traceback_html</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">HttpResponseServerError</span><span class="p">(</span><span class="n">html</span><span class="p">,</span> <span class="n">mimetype</span><span class="o">=</span><span class="s">&#39;text/html&#39;</span><span class="p">)</span>
+
+<span class="c"># Cache for the default exception reporter filter instance.</span></div>
+<span class="n">default_exception_reporter_filter</span> <span class="o">=</span> <span class="bp">None</span>
+
+<span class="k">def</span> <span class="nf">get_exception_reporter_filter</span><span class="p">(</span><span class="n">request</span><span class="p">):</span>
+    <span class="k">global</span> <span class="n">default_exception_reporter_filter</span>
+    <span class="k">if</span> <span class="n">default_exception_reporter_filter</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+        <span class="c"># Load the default filter for the first time and cache it.</span>
+        <span class="n">modpath</span> <span class="o">=</span> <span class="n">settings</span><span class="o">.</span><span class="n">DEFAULT_EXCEPTION_REPORTER_FILTER</span>
+        <span class="n">modname</span><span class="p">,</span> <span class="n">classname</span> <span class="o">=</span> <span class="n">modpath</span><span class="o">.</span><span class="n">rsplit</span><span class="p">(</span><span class="s">&#39;.&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">mod</span> <span class="o">=</span> <span class="n">import_module</span><span class="p">(</span><span class="n">modname</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">ImportError</span><span class="p">,</span> <span class="n">e</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">ImproperlyConfigured</span><span class="p">(</span>
+            <span class="s">&#39;Error importing default exception reporter filter </span><span class="si">%s</span><span class="s">: &quot;</span><span class="si">%s</span><span class="s">&quot;&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">modpath</span><span class="p">,</span> <span class="n">e</span><span class="p">))</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">default_exception_reporter_filter</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">mod</span><span class="p">,</span> <span class="n">classname</span><span class="p">)()</span>
+        <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">ImproperlyConfigured</span><span class="p">(</span><span class="s">&#39;Default exception reporter filter module &quot;</span><span class="si">%s</span><span class="s">&quot; does not define a &quot;</span><span class="si">%s</span><span class="s">&quot; class&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">modname</span><span class="p">,</span> <span class="n">classname</span><span class="p">))</span>
+    <span class="k">if</span> <span class="n">request</span><span class="p">:</span>
+        <span class="k">return</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="s">&#39;exception_reporter_filter&#39;</span><span class="p">,</span> <span class="n">default_exception_reporter_filter</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">default_exception_reporter_filter</span>
+
+<div class="viewcode-block" id="ExceptionReporterFilter"><a class="viewcode-back" href="../../../django.views.html#django.views.debug.ExceptionReporterFilter">[docs]</a><span class="k">class</span> <span class="nc">ExceptionReporterFilter</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Base for all exception reporter filter classes. All overridable hooks</span>
+<span class="sd">    contain lenient default behaviors.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">get_request_repr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">request</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">request</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="nb">repr</span><span class="p">(</span><span class="bp">None</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">build_request_repr</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="n">POST_override</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">get_post_parameters</span><span class="p">(</span><span class="n">request</span><span class="p">))</span>
+
+    <span class="k">def</span> <span class="nf">get_post_parameters</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">request</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">request</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="p">{}</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">request</span><span class="o">.</span><span class="n">POST</span>
+
+    <span class="k">def</span> <span class="nf">get_traceback_frame_variables</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">request</span><span class="p">,</span> <span class="n">tb_frame</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">tb_frame</span><span class="o">.</span><span class="n">f_locals</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
 </div>
+<div class="viewcode-block" id="SafeExceptionReporterFilter"><a class="viewcode-back" href="../../../django.views.html#django.views.debug.SafeExceptionReporterFilter">[docs]</a><span class="k">class</span> <span class="nc">SafeExceptionReporterFilter</span><span class="p">(</span><span class="n">ExceptionReporterFilter</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Use annotations made by the sensitive_post_parameters and</span>
+<span class="sd">    sensitive_variables decorators to filter out sensitive information.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="SafeExceptionReporterFilter.is_active"><a class="viewcode-back" href="../../../django.views.html#django.views.debug.SafeExceptionReporterFilter.is_active">[docs]</a>    <span class="k">def</span> <span class="nf">is_active</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">request</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        This filter is to add safety in production environments (i.e. DEBUG</span>
+<span class="sd">        is False). If DEBUG is True then your site is not safe anyway.</span>
+<span class="sd">        This hook is provided as a convenience to easily activate or</span>
+<span class="sd">        deactivate the filter on a per request basis.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">settings</span><span class="o">.</span><span class="n">DEBUG</span> <span class="ow">is</span> <span class="bp">False</span>
+</div>
+<div class="viewcode-block" id="SafeExceptionReporterFilter.get_post_parameters"><a class="viewcode-back" href="../../../django.views.html#django.views.debug.SafeExceptionReporterFilter.get_post_parameters">[docs]</a>    <span class="k">def</span> <span class="nf">get_post_parameters</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">request</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Replaces the values of POST parameters marked as sensitive with</span>
+<span class="sd">        stars (*********).</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">request</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="p">{}</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">sensitive_post_parameters</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="s">&#39;sensitive_post_parameters&#39;</span><span class="p">,</span> <span class="p">[])</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_active</span><span class="p">(</span><span class="n">request</span><span class="p">)</span> <span class="ow">and</span> <span class="n">sensitive_post_parameters</span><span class="p">:</span>
+                <span class="n">cleansed</span> <span class="o">=</span> <span class="n">request</span><span class="o">.</span><span class="n">POST</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+                <span class="k">if</span> <span class="n">sensitive_post_parameters</span> <span class="o">==</span> <span class="s">&#39;__ALL__&#39;</span><span class="p">:</span>
+                    <span class="c"># Cleanse all parameters.</span>
+                    <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">cleansed</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                        <span class="n">cleansed</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">CLEANSED_SUBSTITUTE</span>
+                    <span class="k">return</span> <span class="n">cleansed</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="c"># Cleanse only the specified parameters.</span>
+                    <span class="k">for</span> <span class="n">param</span> <span class="ow">in</span> <span class="n">sensitive_post_parameters</span><span class="p">:</span>
+                        <span class="k">if</span> <span class="n">param</span> <span class="ow">in</span> <span class="n">cleansed</span><span class="p">:</span>
+                            <span class="n">cleansed</span><span class="p">[</span><span class="n">param</span><span class="p">]</span> <span class="o">=</span> <span class="n">CLEANSED_SUBSTITUTE</span>
+                    <span class="k">return</span> <span class="n">cleansed</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">request</span><span class="o">.</span><span class="n">POST</span>
+</div>
+<div class="viewcode-block" id="SafeExceptionReporterFilter.get_traceback_frame_variables"><a class="viewcode-back" href="../../../django.views.html#django.views.debug.SafeExceptionReporterFilter.get_traceback_frame_variables">[docs]</a>    <span class="k">def</span> <span class="nf">get_traceback_frame_variables</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">request</span><span class="p">,</span> <span class="n">tb_frame</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Replaces the values of variables marked as sensitive with</span>
+<span class="sd">        stars (*********).</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">func_name</span> <span class="o">=</span> <span class="n">tb_frame</span><span class="o">.</span><span class="n">f_code</span><span class="o">.</span><span class="n">co_name</span>
+        <span class="n">func</span> <span class="o">=</span> <span class="n">tb_frame</span><span class="o">.</span><span class="n">f_globals</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">func_name</span><span class="p">)</span>
+        <span class="n">sensitive_variables</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">func</span><span class="p">,</span> <span class="s">&#39;sensitive_variables&#39;</span><span class="p">,</span> <span class="p">[])</span>
+        <span class="n">cleansed</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_active</span><span class="p">(</span><span class="n">request</span><span class="p">)</span> <span class="ow">and</span> <span class="n">sensitive_variables</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">sensitive_variables</span> <span class="o">==</span> <span class="s">&#39;__ALL__&#39;</span><span class="p">:</span>
+                <span class="c"># Cleanse all variables</span>
+                <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">tb_frame</span><span class="o">.</span><span class="n">f_locals</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                    <span class="n">cleansed</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">name</span><span class="p">,</span> <span class="n">CLEANSED_SUBSTITUTE</span><span class="p">))</span>
+                <span class="k">return</span> <span class="n">cleansed</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="c"># Cleanse specified variables</span>
+                <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">tb_frame</span><span class="o">.</span><span class="n">f_locals</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                    <span class="k">if</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">sensitive_variables</span><span class="p">:</span>
+                        <span class="n">value</span> <span class="o">=</span> <span class="n">CLEANSED_SUBSTITUTE</span>
+                    <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">HttpRequest</span><span class="p">):</span>
+                        <span class="c"># Cleanse the request&#39;s POST parameters.</span>
+                        <span class="n">value</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_request_repr</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+                    <span class="n">cleansed</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">name</span><span class="p">,</span> <span class="n">value</span><span class="p">))</span>
+                <span class="k">return</span> <span class="n">cleansed</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c"># Potentially cleanse only the request if it&#39;s one of the frame variables.</span>
+            <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">tb_frame</span><span class="o">.</span><span class="n">f_locals</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">HttpRequest</span><span class="p">):</span>
+                    <span class="c"># Cleanse the request&#39;s POST parameters.</span>
+                    <span class="n">value</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_request_repr</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+                <span class="n">cleansed</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">name</span><span class="p">,</span> <span class="n">value</span><span class="p">))</span>
+            <span class="k">return</span> <span class="n">cleansed</span>
+</div></div>
 <div class="viewcode-block" id="ExceptionReporter"><a class="viewcode-back" href="../../../django.views.html#django.views.debug.ExceptionReporter">[docs]</a><span class="k">class</span> <span class="nc">ExceptionReporter</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    A class to organize and coordinate reporting on exceptions.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">request</span><span class="p">,</span> <span class="n">exc_type</span><span class="p">,</span> <span class="n">exc_value</span><span class="p">,</span> <span class="n">tb</span><span class="p">,</span> <span class="n">is_email</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">request</span> <span class="o">=</span> <span class="n">request</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">filter</span> <span class="o">=</span> <span class="n">get_exception_reporter_filter</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">request</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">exc_type</span> <span class="o">=</span> <span class="n">exc_type</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">exc_value</span> <span class="o">=</span> <span class="n">exc_value</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">tb</span> <span class="o">=</span> <span class="n">tb</span>
@@ -128,8 +254,8 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">exc_value</span> <span class="o">=</span> <span class="ne">Exception</span><span class="p">(</span><span class="s">&#39;Deprecated String Exception: </span><span class="si">%r</span><span class="s">&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">exc_type</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">exc_type</span> <span class="o">=</span> <span class="nb">type</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">exc_value</span><span class="p">)</span>
 
-<div class="viewcode-block" id="ExceptionReporter.get_traceback_html"><a class="viewcode-back" href="../../../django.views.html#django.views.debug.ExceptionReporter.get_traceback_html">[docs]</a>    <span class="k">def</span> <span class="nf">get_traceback_html</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="s">&quot;Return HTML code for traceback.&quot;</span>
+<div class="viewcode-block" id="ExceptionReporter.get_traceback_data"><a class="viewcode-back" href="../../../django.views.html#django.views.debug.ExceptionReporter.get_traceback_data">[docs]</a>    <span class="k">def</span> <span class="nf">get_traceback_data</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="s">&quot;Return a Context instance containing traceback information.&quot;</span>
 
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">exc_type</span> <span class="ow">and</span> <span class="nb">issubclass</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">exc_type</span><span class="p">,</span> <span class="n">TemplateDoesNotExist</span><span class="p">):</span>
             <span class="kn">from</span> <span class="nn">django.template.loader</span> <span class="kn">import</span> <span class="n">template_source_loaders</span>
@@ -137,27 +263,20 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">loader_debug_info</span> <span class="o">=</span> <span class="p">[]</span>
             <span class="k">for</span> <span class="n">loader</span> <span class="ow">in</span> <span class="n">template_source_loaders</span><span class="p">:</span>
                 <span class="k">try</span><span class="p">:</span>
-                    <span class="n">module</span> <span class="o">=</span> <span class="n">import_module</span><span class="p">(</span><span class="n">loader</span><span class="o">.</span><span class="n">__module__</span><span class="p">)</span>
-                    <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">loader</span><span class="p">,</span> <span class="s">&#39;__class__&#39;</span><span class="p">):</span>
-                        <span class="n">source_list_func</span> <span class="o">=</span> <span class="n">loader</span><span class="o">.</span><span class="n">get_template_sources</span>
-                    <span class="k">else</span><span class="p">:</span> <span class="c"># NOTE: Remember to remove this branch when we deprecate old template loaders in 1.4</span>
-                        <span class="n">source_list_func</span> <span class="o">=</span> <span class="n">module</span><span class="o">.</span><span class="n">get_template_sources</span>
+                    <span class="n">source_list_func</span> <span class="o">=</span> <span class="n">loader</span><span class="o">.</span><span class="n">get_template_sources</span>
                     <span class="c"># NOTE: This assumes exc_value is the name of the template that</span>
                     <span class="c"># the loader attempted to load.</span>
                     <span class="n">template_list</span> <span class="o">=</span> <span class="p">[{</span><span class="s">&#39;name&#39;</span><span class="p">:</span> <span class="n">t</span><span class="p">,</span> <span class="s">&#39;exists&#39;</span><span class="p">:</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">t</span><span class="p">)}</span> \
                         <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="n">source_list_func</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">exc_value</span><span class="p">))]</span>
-                <span class="k">except</span> <span class="p">(</span><span class="ne">ImportError</span><span class="p">,</span> <span class="ne">AttributeError</span><span class="p">):</span>
+                <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>
                     <span class="n">template_list</span> <span class="o">=</span> <span class="p">[]</span>
-                <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">loader</span><span class="p">,</span> <span class="s">&#39;__class__&#39;</span><span class="p">):</span>
-                    <span class="n">loader_name</span> <span class="o">=</span> <span class="n">loader</span><span class="o">.</span><span class="n">__module__</span> <span class="o">+</span> <span class="s">&#39;.&#39;</span> <span class="o">+</span> <span class="n">loader</span><span class="o">.</span><span class="n">__class__</span><span class="o">.</span><span class="n">__name__</span>
-                <span class="k">else</span><span class="p">:</span> <span class="c"># NOTE: Remember to remove this branch when we deprecate old template loaders in 1.4</span>
-                    <span class="n">loader_name</span> <span class="o">=</span> <span class="n">loader</span><span class="o">.</span><span class="n">__module__</span> <span class="o">+</span> <span class="s">&#39;.&#39;</span> <span class="o">+</span> <span class="n">loader</span><span class="o">.</span><span class="n">__name__</span>
+                <span class="n">loader_name</span> <span class="o">=</span> <span class="n">loader</span><span class="o">.</span><span class="n">__module__</span> <span class="o">+</span> <span class="s">&#39;.&#39;</span> <span class="o">+</span> <span class="n">loader</span><span class="o">.</span><span class="n">__class__</span><span class="o">.</span><span class="n">__name__</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">loader_debug_info</span><span class="o">.</span><span class="n">append</span><span class="p">({</span>
                     <span class="s">&#39;loader&#39;</span><span class="p">:</span> <span class="n">loader_name</span><span class="p">,</span>
                     <span class="s">&#39;templates&#39;</span><span class="p">:</span> <span class="n">template_list</span><span class="p">,</span>
                 <span class="p">})</span>
-        <span class="k">if</span> <span class="p">(</span><span class="n">settings</span><span class="o">.</span><span class="n">TEMPLATE_DEBUG</span> <span class="ow">and</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">exc_value</span><span class="p">,</span> <span class="s">&#39;source&#39;</span><span class="p">)</span> <span class="ow">and</span>
-            <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">exc_value</span><span class="p">,</span> <span class="n">TemplateSyntaxError</span><span class="p">)):</span>
+        <span class="k">if</span> <span class="p">(</span><span class="n">settings</span><span class="o">.</span><span class="n">TEMPLATE_DEBUG</span> <span class="ow">and</span>
+            <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">exc_value</span><span class="p">,</span> <span class="s">&#39;django_template_source&#39;</span><span class="p">)):</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">get_template_exception_info</span><span class="p">()</span>
 
         <span class="n">frames</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_traceback_frames</span><span class="p">()</span>
@@ -174,12 +293,12 @@
                 <span class="n">unicode_str</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">exc_value</span><span class="o">.</span><span class="n">args</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
                 <span class="n">unicode_hint</span> <span class="o">=</span> <span class="n">smart_unicode</span><span class="p">(</span><span class="n">unicode_str</span><span class="p">[</span><span class="nb">max</span><span class="p">(</span><span class="n">start</span><span class="o">-</span><span class="mi">5</span><span class="p">,</span> <span class="mi">0</span><span class="p">):</span><span class="nb">min</span><span class="p">(</span><span class="n">end</span><span class="o">+</span><span class="mi">5</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">unicode_str</span><span class="p">))],</span> <span class="s">&#39;ascii&#39;</span><span class="p">,</span> <span class="n">errors</span><span class="o">=</span><span class="s">&#39;replace&#39;</span><span class="p">)</span>
         <span class="kn">from</span> <span class="nn">django</span> <span class="kn">import</span> <span class="n">get_version</span>
-        <span class="n">t</span> <span class="o">=</span> <span class="n">Template</span><span class="p">(</span><span class="n">TECHNICAL_500_TEMPLATE</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s">&#39;Technical 500 template&#39;</span><span class="p">)</span>
-        <span class="n">c</span> <span class="o">=</span> <span class="n">Context</span><span class="p">({</span>
+        <span class="n">c</span> <span class="o">=</span> <span class="p">{</span>
             <span class="s">&#39;is_email&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_email</span><span class="p">,</span>
             <span class="s">&#39;unicode_hint&#39;</span><span class="p">:</span> <span class="n">unicode_hint</span><span class="p">,</span>
             <span class="s">&#39;frames&#39;</span><span class="p">:</span> <span class="n">frames</span><span class="p">,</span>
             <span class="s">&#39;request&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">request</span><span class="p">,</span>
+            <span class="s">&#39;filtered_POST&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">filter</span><span class="o">.</span><span class="n">get_post_parameters</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">request</span><span class="p">),</span>
             <span class="s">&#39;settings&#39;</span><span class="p">:</span> <span class="n">get_safe_settings</span><span class="p">(),</span>
             <span class="s">&#39;sys_executable&#39;</span><span class="p">:</span> <span class="n">sys</span><span class="o">.</span><span class="n">executable</span><span class="p">,</span>
             <span class="s">&#39;sys_version_info&#39;</span><span class="p">:</span> <span class="s">&#39;</span><span class="si">%d</span><span class="s">.</span><span class="si">%d</span><span class="s">.</span><span class="si">%d</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">sys</span><span class="o">.</span><span class="n">version_info</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="mi">3</span><span class="p">],</span>
@@ -189,7 +308,7 @@
             <span class="s">&#39;template_info&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">template_info</span><span class="p">,</span>
             <span class="s">&#39;template_does_not_exist&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">template_does_not_exist</span><span class="p">,</span>
             <span class="s">&#39;loader_debug_info&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">loader_debug_info</span><span class="p">,</span>
-        <span class="p">})</span>
+        <span class="p">}</span>
         <span class="c"># Check whether exception info is available</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">exc_type</span><span class="p">:</span>
             <span class="n">c</span><span class="p">[</span><span class="s">&#39;exception_type&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">exc_type</span><span class="o">.</span><span class="n">__name__</span>
@@ -197,10 +316,22 @@
             <span class="n">c</span><span class="p">[</span><span class="s">&#39;exception_value&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">smart_unicode</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">exc_value</span><span class="p">,</span> <span class="n">errors</span><span class="o">=</span><span class="s">&#39;replace&#39;</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">frames</span><span class="p">:</span>
             <span class="n">c</span><span class="p">[</span><span class="s">&#39;lastframe&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">frames</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+        <span class="k">return</span> <span class="n">c</span>
+</div>
+<div class="viewcode-block" id="ExceptionReporter.get_traceback_html"><a class="viewcode-back" href="../../../django.views.html#django.views.debug.ExceptionReporter.get_traceback_html">[docs]</a>    <span class="k">def</span> <span class="nf">get_traceback_html</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="s">&quot;Return HTML version of debug 500 HTTP error page.&quot;</span>
+        <span class="n">t</span> <span class="o">=</span> <span class="n">Template</span><span class="p">(</span><span class="n">TECHNICAL_500_TEMPLATE</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s">&#39;Technical 500 template&#39;</span><span class="p">)</span>
+        <span class="n">c</span> <span class="o">=</span> <span class="n">Context</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">get_traceback_data</span><span class="p">())</span>
+        <span class="k">return</span> <span class="n">t</span><span class="o">.</span><span class="n">render</span><span class="p">(</span><span class="n">c</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="ExceptionReporter.get_traceback_text"><a class="viewcode-back" href="../../../django.views.html#django.views.debug.ExceptionReporter.get_traceback_text">[docs]</a>    <span class="k">def</span> <span class="nf">get_traceback_text</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="s">&quot;Return plain text version of debug 500 HTTP error page.&quot;</span>
+        <span class="n">t</span> <span class="o">=</span> <span class="n">Template</span><span class="p">(</span><span class="n">TECHNICAL_500_TEXT_TEMPLATE</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s">&#39;Technical 500 template&#39;</span><span class="p">)</span>
+        <span class="n">c</span> <span class="o">=</span> <span class="n">Context</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">get_traceback_data</span><span class="p">(),</span> <span class="n">autoescape</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">t</span><span class="o">.</span><span class="n">render</span><span class="p">(</span><span class="n">c</span><span class="p">)</span>
 </div>
     <span class="k">def</span> <span class="nf">get_template_exception_info</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="n">origin</span><span class="p">,</span> <span class="p">(</span><span class="n">start</span><span class="p">,</span> <span class="n">end</span><span class="p">)</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">exc_value</span><span class="o">.</span><span class="n">source</span>
+        <span class="n">origin</span><span class="p">,</span> <span class="p">(</span><span class="n">start</span><span class="p">,</span> <span class="n">end</span><span class="p">)</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">exc_value</span><span class="o">.</span><span class="n">django_template_source</span>
         <span class="n">template_source</span> <span class="o">=</span> <span class="n">origin</span><span class="o">.</span><span class="n">reload</span><span class="p">()</span>
         <span class="n">context_lines</span> <span class="o">=</span> <span class="mi">10</span>
         <span class="n">line</span> <span class="o">=</span> <span class="mi">0</span>
@@ -220,8 +351,14 @@
         <span class="n">top</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">line</span> <span class="o">-</span> <span class="n">context_lines</span><span class="p">)</span>
         <span class="n">bottom</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">total</span><span class="p">,</span> <span class="n">line</span> <span class="o">+</span> <span class="mi">1</span> <span class="o">+</span> <span class="n">context_lines</span><span class="p">)</span>
 
+        <span class="c"># In some rare cases, exc_value.args might be empty.</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">message</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">exc_value</span><span class="o">.</span><span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="k">except</span> <span class="ne">IndexError</span><span class="p">:</span>
+            <span class="n">message</span> <span class="o">=</span> <span class="s">&#39;(Could not get exception message)&#39;</span>
+
         <span class="bp">self</span><span class="o">.</span><span class="n">template_info</span> <span class="o">=</span> <span class="p">{</span>
-            <span class="s">&#39;message&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">exc_value</span><span class="o">.</span><span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
+            <span class="s">&#39;message&#39;</span><span class="p">:</span> <span class="n">message</span><span class="p">,</span>
             <span class="s">&#39;source_lines&#39;</span><span class="p">:</span> <span class="n">source_lines</span><span class="p">[</span><span class="n">top</span><span class="p">:</span><span class="n">bottom</span><span class="p">],</span>
             <span class="s">&#39;before&#39;</span><span class="p">:</span> <span class="n">before</span><span class="p">,</span>
             <span class="s">&#39;during&#39;</span><span class="p">:</span> <span class="n">during</span><span class="p">,</span>
@@ -278,7 +415,7 @@
         <span class="n">frames</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="n">tb</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tb</span>
         <span class="k">while</span> <span class="n">tb</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
-            <span class="c"># support for __traceback_hide__ which is used by a few libraries</span>
+            <span class="c"># Support for __traceback_hide__ which is used by a few libraries</span>
             <span class="c"># to hide internal frames.</span>
             <span class="k">if</span> <span class="n">tb</span><span class="o">.</span><span class="n">tb_frame</span><span class="o">.</span><span class="n">f_locals</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;__traceback_hide__&#39;</span><span class="p">):</span>
                 <span class="n">tb</span> <span class="o">=</span> <span class="n">tb</span><span class="o">.</span><span class="n">tb_next</span>
@@ -287,15 +424,16 @@
             <span class="n">function</span> <span class="o">=</span> <span class="n">tb</span><span class="o">.</span><span class="n">tb_frame</span><span class="o">.</span><span class="n">f_code</span><span class="o">.</span><span class="n">co_name</span>
             <span class="n">lineno</span> <span class="o">=</span> <span class="n">tb</span><span class="o">.</span><span class="n">tb_lineno</span> <span class="o">-</span> <span class="mi">1</span>
             <span class="n">loader</span> <span class="o">=</span> <span class="n">tb</span><span class="o">.</span><span class="n">tb_frame</span><span class="o">.</span><span class="n">f_globals</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;__loader__&#39;</span><span class="p">)</span>
-            <span class="n">module_name</span> <span class="o">=</span> <span class="n">tb</span><span class="o">.</span><span class="n">tb_frame</span><span class="o">.</span><span class="n">f_globals</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;__name__&#39;</span><span class="p">)</span>
+            <span class="n">module_name</span> <span class="o">=</span> <span class="n">tb</span><span class="o">.</span><span class="n">tb_frame</span><span class="o">.</span><span class="n">f_globals</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;__name__&#39;</span><span class="p">)</span> <span class="ow">or</span> <span class="s">&#39;&#39;</span>
             <span class="n">pre_context_lineno</span><span class="p">,</span> <span class="n">pre_context</span><span class="p">,</span> <span class="n">context_line</span><span class="p">,</span> <span class="n">post_context</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_lines_from_file</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="n">lineno</span><span class="p">,</span> <span class="mi">7</span><span class="p">,</span> <span class="n">loader</span><span class="p">,</span> <span class="n">module_name</span><span class="p">)</span>
             <span class="k">if</span> <span class="n">pre_context_lineno</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
                 <span class="n">frames</span><span class="o">.</span><span class="n">append</span><span class="p">({</span>
                     <span class="s">&#39;tb&#39;</span><span class="p">:</span> <span class="n">tb</span><span class="p">,</span>
+                    <span class="s">&#39;type&#39;</span><span class="p">:</span> <span class="n">module_name</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s">&#39;django.&#39;</span><span class="p">)</span> <span class="ow">and</span> <span class="s">&#39;django&#39;</span> <span class="ow">or</span> <span class="s">&#39;user&#39;</span><span class="p">,</span>
                     <span class="s">&#39;filename&#39;</span><span class="p">:</span> <span class="n">filename</span><span class="p">,</span>
                     <span class="s">&#39;function&#39;</span><span class="p">:</span> <span class="n">function</span><span class="p">,</span>
                     <span class="s">&#39;lineno&#39;</span><span class="p">:</span> <span class="n">lineno</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span>
-                    <span class="s">&#39;vars&#39;</span><span class="p">:</span> <span class="n">tb</span><span class="o">.</span><span class="n">tb_frame</span><span class="o">.</span><span class="n">f_locals</span><span class="o">.</span><span class="n">items</span><span class="p">(),</span>
+                    <span class="s">&#39;vars&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">filter</span><span class="o">.</span><span class="n">get_traceback_frame_variables</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">request</span><span class="p">,</span> <span class="n">tb</span><span class="o">.</span><span class="n">tb_frame</span><span class="p">),</span>
                     <span class="s">&#39;id&#39;</span><span class="p">:</span> <span class="nb">id</span><span class="p">(</span><span class="n">tb</span><span class="p">),</span>
                     <span class="s">&#39;pre_context&#39;</span><span class="p">:</span> <span class="n">pre_context</span><span class="p">,</span>
                     <span class="s">&#39;context_line&#39;</span><span class="p">:</span> <span class="n">context_line</span><span class="p">,</span>
@@ -360,7 +498,7 @@
 <span class="c">#</span>
 </div>
 <span class="n">TECHNICAL_500_TEMPLATE</span> <span class="o">=</span> <span class="s">&quot;&quot;&quot;</span>
-<span class="s">&lt;!DOCTYPE HTML PUBLIC &quot;-//W3C//DTD HTML 4.01 Transitional//EN&quot; &quot;http://www.w3.org/TR/html4/loose.dtd&quot;&gt;</span>
+<span class="s">&lt;!DOCTYPE html&gt;</span>
 <span class="s">&lt;html lang=&quot;en&quot;&gt;</span>
 <span class="s">&lt;head&gt;</span>
 <span class="s">  &lt;meta http-equiv=&quot;content-type&quot; content=&quot;text/html; charset=utf-8&quot;&gt;</span>
@@ -377,7 +515,7 @@
 <span class="s">    h2 span { font-size:80%; color:#666; font-weight:normal; }</span>
 <span class="s">    h3 { margin:1em 0 .5em 0; }</span>
 <span class="s">    h4 { margin:0 0 .5em 0; font-weight: normal; }</span>
-<span class="s">    code, pre { font-size: 100%; }</span>
+<span class="s">    code, pre { font-size: 100%; white-space: pre-wrap; }</span>
 <span class="s">    table { border:1px solid #ccc; border-collapse: collapse; width:100%; background:white; }</span>
 <span class="s">    tbody td, tbody th { vertical-align:top; padding:2px 3px; }</span>
 <span class="s">    thead th { padding:1px 6px 1px 3px; background:#fefefe; text-align:left; font-weight:normal; font-size:11px; border:1px solid #ddd; }</span>
@@ -388,16 +526,20 @@
 <span class="s">    table td.code pre { overflow:hidden; }</span>
 <span class="s">    table.source th { color:#666; }</span>
 <span class="s">    table.source td { font-family:monospace; white-space:pre; border-bottom:1px solid #eee; }</span>
-<span class="s">    ul.traceback { list-style-type:none; }</span>
-<span class="s">    ul.traceback li.frame { padding-bottom:1em; }</span>
+<span class="s">    ul.traceback { list-style-type:none; color: #222; }</span>
+<span class="s">    ul.traceback li.frame { padding-bottom:1em; color:#666; }</span>
+<span class="s">    ul.traceback li.user { background-color:#e0e0e0; color:#000 }</span>
 <span class="s">    div.context { padding:10px 0; overflow:hidden; }</span>
 <span class="s">    div.context ol { padding-left:30px; margin:0 10px; list-style-position: inside; }</span>
-<span class="s">    div.context ol li { font-family:monospace; white-space:pre; color:#666; cursor:pointer; }</span>
+<span class="s">    div.context ol li { font-family:monospace; white-space:pre; color:#777; cursor:pointer; }</span>
 <span class="s">    div.context ol li pre { display:inline; }</span>
-<span class="s">    div.context ol.context-line li { color:black; background-color:#ccc; }</span>
+<span class="s">    div.context ol.context-line li { color:#505050; background-color:#dfdfdf; }</span>
 <span class="s">    div.context ol.context-line li span { position:absolute; right:32px; }</span>
+<span class="s">    .user div.context ol.context-line li { background-color:#bbb; color:#000; }</span>
+<span class="s">    .user div.context ol li { color:#666; }</span>
 <span class="s">    div.commands { margin-left: 40px; }</span>
-<span class="s">    div.commands a { color:black; text-decoration:none; }</span>
+<span class="s">    div.commands a { color:#555; text-decoration:none; }</span>
+<span class="s">    .user div.commands a { color: black; }</span>
 <span class="s">    #summary { background: #ffc; }</span>
 <span class="s">    #summary h2 { font-weight: normal; color: #666; }</span>
 <span class="s">    #explanation { background:#eee; }</span>
@@ -553,7 +695,7 @@
 <span class="s">{</span><span class="si">% e</span><span class="s">ndif %}</span>
 <span class="s">{</span><span class="si">% i</span><span class="s">f template_info %}</span>
 <span class="s">&lt;div id=&quot;template&quot;&gt;</span>
-<span class="s">   &lt;h2&gt;Template error&lt;/h2&gt;</span>
+<span class="s">   &lt;h2&gt;Error during template rendering&lt;/h2&gt;</span>
 <span class="s">   &lt;p&gt;In template &lt;code&gt;{{ template_info.name }}&lt;/code&gt;, error at line &lt;strong&gt;{{ template_info.line }}&lt;/strong&gt;&lt;/p&gt;</span>
 <span class="s">   &lt;h3&gt;{{ template_info.message }}&lt;/h3&gt;</span>
 <span class="s">   &lt;table class=&quot;source{</span><span class="si">% i</span><span class="s">f template_info.top %} cut-top{</span><span class="si">% e</span><span class="s">ndif %}{</span><span class="si">% i</span><span class="s">fnotequal template_info.bottom template_info.total %} cut-bottom{</span><span class="si">% e</span><span class="s">ndifnotequal %}&quot;&gt;</span>
@@ -576,7 +718,7 @@
 <span class="s">  &lt;div id=&quot;browserTraceback&quot;&gt;</span>
 <span class="s">    &lt;ul class=&quot;traceback&quot;&gt;</span>
 <span class="s">      {</span><span class="si">% f</span><span class="s">or frame in frames %}</span>
-<span class="s">        &lt;li class=&quot;frame&quot;&gt;</span>
+<span class="s">        &lt;li class=&quot;frame {{ frame.type }}&quot;&gt;</span>
 <span class="s">          &lt;code&gt;{{ frame.filename|escape }}&lt;/code&gt; in &lt;code&gt;{{ frame.function|escape }}&lt;/code&gt;</span>
 
 <span class="s">          {</span><span class="si">% i</span><span class="s">f frame.context_line %}</span>
@@ -699,7 +841,7 @@
 <span class="s">  {</span><span class="si">% e</span><span class="s">ndif %}</span>
 
 <span class="s">  &lt;h3 id=&quot;post-info&quot;&gt;POST&lt;/h3&gt;</span>
-<span class="s">  {</span><span class="si">% i</span><span class="s">f request.POST %}</span>
+<span class="s">  {</span><span class="si">% i</span><span class="s">f filtered_POST %}</span>
 <span class="s">    &lt;table class=&quot;req&quot;&gt;</span>
 <span class="s">      &lt;thead&gt;</span>
 <span class="s">        &lt;tr&gt;</span>
@@ -708,7 +850,7 @@
 <span class="s">        &lt;/tr&gt;</span>
 <span class="s">      &lt;/thead&gt;</span>
 <span class="s">      &lt;tbody&gt;</span>
-<span class="s">        {</span><span class="si">% f</span><span class="s">or var in request.POST.items %}</span>
+<span class="s">        {</span><span class="si">% f</span><span class="s">or var in filtered_POST.items %}</span>
 <span class="s">          &lt;tr&gt;</span>
 <span class="s">            &lt;td&gt;{{ var.0 }}&lt;/td&gt;</span>
 <span class="s">            &lt;td class=&quot;code&quot;&gt;&lt;pre&gt;{{ var.1|pprint }}&lt;/pre&gt;&lt;/td&gt;</span>
@@ -818,8 +960,69 @@
 <span class="s">&lt;/html&gt;</span>
 <span class="s">&quot;&quot;&quot;</span>
 
+<span class="n">TECHNICAL_500_TEXT_TEMPLATE</span> <span class="o">=</span> <span class="s">&quot;&quot;&quot;{</span><span class="si">% f</span><span class="s">irstof exception_type &#39;Report&#39; %}{</span><span class="si">% i</span><span class="s">f request %} at {{ request.path_info }}{</span><span class="si">% e</span><span class="s">ndif %}</span>
+<span class="s">{</span><span class="si">% f</span><span class="s">irstof exception_value &#39;No exception supplied&#39; %}</span>
+<span class="s">{</span><span class="si">% i</span><span class="s">f request %}</span>
+<span class="s">Request Method: {{ request.META.REQUEST_METHOD }}</span>
+<span class="s">Request URL: {{ request.build_absolute_uri }}{</span><span class="si">% e</span><span class="s">ndif %}</span>
+<span class="s">Django Version: {{ django_version_info }}</span>
+<span class="s">Python Executable: {{ sys_executable }}</span>
+<span class="s">Python Version: {{ sys_version_info }}</span>
+<span class="s">Python Path: {{ sys_path }}</span>
+<span class="s">Server time: {{server_time|date:&quot;r&quot;}}</span>
+<span class="s">Installed Applications:</span>
+<span class="s">{{ settings.INSTALLED_APPS|pprint }}</span>
+<span class="s">Installed Middleware:</span>
+<span class="s">{{ settings.MIDDLEWARE_CLASSES|pprint }}</span>
+<span class="s">{</span><span class="si">% i</span><span class="s">f template_does_not_exist %}Template loader Error:</span>
+<span class="s">{</span><span class="si">% i</span><span class="s">f loader_debug_info %}Django tried loading these templates, in this order:</span>
+<span class="s">{</span><span class="si">% f</span><span class="s">or loader in loader_debug_info %}Using loader {{ loader.loader }}:</span>
+<span class="s">{</span><span class="si">% f</span><span class="s">or t in loader.templates %}{{ t.name }} (File {</span><span class="si">% i</span><span class="s">f t.exists %}exists{</span><span class="si">% e</span><span class="s">lse %}does not exist{</span><span class="si">% e</span><span class="s">ndif %})</span>
+<span class="s">{</span><span class="si">% e</span><span class="s">ndfor %}{</span><span class="si">% e</span><span class="s">ndfor %}</span>
+<span class="s">{</span><span class="si">% e</span><span class="s">lse %}Django couldn&#39;t find any templates because your TEMPLATE_LOADERS setting is empty!</span>
+<span class="s">{</span><span class="si">% e</span><span class="s">ndif %}</span>
+<span class="s">{</span><span class="si">% e</span><span class="s">ndif %}{</span><span class="si">% i</span><span class="s">f template_info %}</span>
+<span class="s">Template error:</span>
+<span class="s">In template {{ template_info.name }}, error at line {{ template_info.line }}</span>
+<span class="s">   {{ template_info.message }}{</span><span class="si">% f</span><span class="s">or source_line in template_info.source_lines %}{</span><span class="si">% i</span><span class="s">fequal source_line.0 template_info.line %}</span>
+<span class="s">   {{ source_line.0 }} : {{ template_info.before }} {{ template_info.during }} {{ template_info.after }}</span>
+<span class="s">{</span><span class="si">% e</span><span class="s">lse %}</span>
+<span class="s">   {{ source_line.0 }} : {{ source_line.1 }}</span>
+<span class="s">   {</span><span class="si">% e</span><span class="s">ndifequal %}{</span><span class="si">% e</span><span class="s">ndfor %}{</span><span class="si">% e</span><span class="s">ndif %}{</span><span class="si">% i</span><span class="s">f frames %}</span>
+<span class="s">Traceback:</span>
+<span class="s">{</span><span class="si">% f</span><span class="s">or frame in frames %}File &quot;{{ frame.filename }}&quot; in {{ frame.function }}</span>
+<span class="s">{</span><span class="si">% i</span><span class="s">f frame.context_line %}  {{ frame.lineno }}. {{ frame.context_line }}{</span><span class="si">% e</span><span class="s">ndif %}</span>
+<span class="s">{</span><span class="si">% e</span><span class="s">ndfor %}</span>
+<span class="s">{</span><span class="si">% i</span><span class="s">f exception_type %}Exception Type: {{ exception_type }}{</span><span class="si">% i</span><span class="s">f request %} at {{ request.path_info }}{</span><span class="si">% e</span><span class="s">ndif %}</span>
+<span class="s">{</span><span class="si">% i</span><span class="s">f exception_value %}Exception Value: {{ exception_value }}{</span><span class="si">% e</span><span class="s">ndif %}{</span><span class="si">% e</span><span class="s">ndif %}{</span><span class="si">% e</span><span class="s">ndif %}</span>
+<span class="s">{</span><span class="si">% i</span><span class="s">f request %}Request information:</span>
+<span class="s">GET:{</span><span class="si">% f</span><span class="s">or k, v in request.GET.items %}</span>
+<span class="s">{{ k }} = {{ v|stringformat:&quot;r&quot; }}{</span><span class="si">% e</span><span class="s">mpty %} No GET data{</span><span class="si">% e</span><span class="s">ndfor %}</span>
+
+<span class="s">POST:{</span><span class="si">% f</span><span class="s">or k, v in filtered_POST.items %}</span>
+<span class="s">{{ k }} = {{ v|stringformat:&quot;r&quot; }}{</span><span class="si">% e</span><span class="s">mpty %} No POST data{</span><span class="si">% e</span><span class="s">ndfor %}</span>
+
+<span class="s">FILES:{</span><span class="si">% f</span><span class="s">or k, v in request.FILES.items %}</span>
+<span class="s">{{ k }} = {{ v|stringformat:&quot;r&quot; }}{</span><span class="si">% e</span><span class="s">mpty %} No FILES data{</span><span class="si">% e</span><span class="s">ndfor %}</span>
+
+<span class="s">COOKIES:{</span><span class="si">% f</span><span class="s">or k, v in request.COOKIES.items %}</span>
+<span class="s">{{ k }} = {{ v|stringformat:&quot;r&quot; }}{</span><span class="si">% e</span><span class="s">mpty %} No cookie data{</span><span class="si">% e</span><span class="s">ndfor %}</span>
+
+<span class="s">META:{</span><span class="si">% f</span><span class="s">or k, v in request.META.items|dictsort:&quot;0&quot; %}</span>
+<span class="s">{{ k }} = {{ v|stringformat:&quot;r&quot; }}{</span><span class="si">% e</span><span class="s">ndfor %}</span>
+<span class="s">{</span><span class="si">% e</span><span class="s">lse %}Request data not supplied</span>
+<span class="s">{</span><span class="si">% e</span><span class="s">ndif %}</span>
+<span class="s">Settings:</span>
+<span class="s">Using settings module {{ settings.SETTINGS_MODULE }}{</span><span class="si">% f</span><span class="s">or k, v in settings.items|dictsort:&quot;0&quot; %}</span>
+<span class="s">{{ k }} = {{ v|stringformat:&quot;r&quot; }}{</span><span class="si">% e</span><span class="s">ndfor %}</span>
+
+<span class="s">You&#39;re seeing this error because you have DEBUG = True in your</span>
+<span class="s">Django settings file. Change that to False, and Django will</span>
+<span class="s">display a standard 500 page.</span>
+<span class="s">&quot;&quot;&quot;</span>
+
 <span class="n">TECHNICAL_404_TEMPLATE</span> <span class="o">=</span> <span class="s">&quot;&quot;&quot;</span>
-<span class="s">&lt;!DOCTYPE HTML PUBLIC &quot;-//W3C//DTD HTML 4.01 Transitional//EN&quot; &quot;http://www.w3.org/TR/html4/loose.dtd&quot;&gt;</span>
+<span class="s">&lt;!DOCTYPE html&gt;</span>
 <span class="s">&lt;html lang=&quot;en&quot;&gt;</span>
 <span class="s">&lt;head&gt;</span>
 <span class="s">  &lt;meta http-equiv=&quot;content-type&quot; content=&quot;text/html; charset=utf-8&quot;&gt;</span>
@@ -891,7 +1094,7 @@
 <span class="s">&quot;&quot;&quot;</span>
 
 <span class="n">EMPTY_URLCONF_TEMPLATE</span> <span class="o">=</span> <span class="s">&quot;&quot;&quot;</span>
-<span class="s">&lt;!DOCTYPE HTML PUBLIC &quot;-//W3C//DTD HTML 4.01 Transitional//EN&quot; &quot;http://www.w3.org/TR/html4/loose.dtd&quot;&gt;</span>
+<span class="s">&lt;!DOCTYPE html&gt;</span>
 <span class="s">&lt;html lang=&quot;en&quot;&gt;&lt;head&gt;</span>
 <span class="s">  &lt;meta http-equiv=&quot;content-type&quot; content=&quot;text/html; charset=utf-8&quot;&gt;</span>
 <span class="s">  &lt;meta name=&quot;robots&quot; content=&quot;NONE,NOARCHIVE&quot;&gt;&lt;title&gt;Welcome to Django&lt;/title&gt;</span>
@@ -929,7 +1132,7 @@
 <span class="s">  &lt;p&gt;Of course, you haven&#39;t actually done any work yet. Here&#39;s what to do next:&lt;/p&gt;</span>
 <span class="s">  &lt;ul&gt;</span>
 <span class="s">    &lt;li&gt;If you plan to use a database, edit the &lt;code&gt;DATABASES&lt;/code&gt; setting in &lt;code&gt;{{ project_name }}/settings.py&lt;/code&gt;.&lt;/li&gt;</span>
-<span class="s">    &lt;li&gt;Start your first app by running &lt;code&gt;python {{ project_name }}/manage.py startapp [appname]&lt;/code&gt;.&lt;/li&gt;</span>
+<span class="s">    &lt;li&gt;Start your first app by running &lt;code&gt;python manage.py startapp [appname]&lt;/code&gt;.&lt;/li&gt;</span>
 <span class="s">  &lt;/ul&gt;</span>
 <span class="s">&lt;/div&gt;</span>
 
@@ -955,7 +1158,7 @@
 
     <div class="footer">
         &copy; Copyright 2012, HDKNR.COM.
-      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.2pre/660be19d7963.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.2pre/3c28de26aac2.
     </div>
   </body>
 </html>

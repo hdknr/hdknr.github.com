@@ -28,7 +28,7 @@
     <script type="text/javascript" src="../../../../static/doctools.js"></script>
     <script type="text/javascript" src="../../../../static/theme_extras.js"></script>
     <link rel="top" title="Django Cheat 1 documentation" href="../../../../index.html" />
-    <link rel="up" title="Module code" href="../../../index.html" /> 
+    <link rel="up" title="django" href="../../../django.html" /> 
   </head>
   <body>
       <div class="header"><h1 class="heading"><a href="../../../../index.html">
@@ -48,13 +48,22 @@
         
   <h1>Source code for django.contrib.formtools.tests</h1><div class="highlight"><pre>
 <span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">re</span>
+<span class="kn">import</span> <span class="nn">warnings</span>
 
-<span class="kn">from</span> <span class="nn">django</span> <span class="kn">import</span> <span class="n">forms</span><span class="p">,</span> <span class="n">http</span>
+<span class="kn">from</span> <span class="nn">django</span> <span class="kn">import</span> <span class="n">http</span>
 <span class="kn">from</span> <span class="nn">django.conf</span> <span class="kn">import</span> <span class="n">settings</span>
-<span class="kn">from</span> <span class="nn">django.contrib.formtools</span> <span class="kn">import</span> <span class="n">preview</span><span class="p">,</span> <span class="n">wizard</span><span class="p">,</span> <span class="n">utils</span>
+<span class="kn">from</span> <span class="nn">django.contrib.formtools</span> <span class="kn">import</span> <span class="n">preview</span><span class="p">,</span> <span class="n">utils</span>
+<span class="kn">from</span> <span class="nn">django.contrib.formtools.wizard</span> <span class="kn">import</span> <span class="n">FormWizard</span>
 <span class="kn">from</span> <span class="nn">django.test</span> <span class="kn">import</span> <span class="n">TestCase</span>
+<span class="kn">from</span> <span class="nn">django.test.utils</span> <span class="kn">import</span> <span class="n">get_warnings_state</span><span class="p">,</span> <span class="n">restore_warnings_state</span>
 <span class="kn">from</span> <span class="nn">django.utils</span> <span class="kn">import</span> <span class="n">unittest</span>
 
+<span class="kn">from</span> <span class="nn">django.contrib.formtools.tests.wizard</span> <span class="kn">import</span> <span class="o">*</span>
+<span class="kn">from</span> <span class="nn">django.contrib.formtools.tests.forms</span> <span class="kn">import</span> <span class="o">*</span>
+
+<span class="n">warnings</span><span class="o">.</span><span class="n">filterwarnings</span><span class="p">(</span><span class="s">&#39;ignore&#39;</span><span class="p">,</span> <span class="n">category</span><span class="o">=</span><span class="ne">PendingDeprecationWarning</span><span class="p">,</span>
+                        <span class="n">module</span><span class="o">=</span><span class="s">&#39;django.contrib.formtools.wizard&#39;</span><span class="p">)</span>
 
 <span class="n">success_string</span> <span class="o">=</span> <span class="s">&quot;Done was called!&quot;</span>
 
@@ -71,29 +80,35 @@
         <span class="k">return</span> <span class="n">http</span><span class="o">.</span><span class="n">HttpResponse</span><span class="p">(</span><span class="n">success_string</span><span class="p">)</span>
 
 
-<span class="k">class</span> <span class="nc">TestForm</span><span class="p">(</span><span class="n">forms</span><span class="o">.</span><span class="n">Form</span><span class="p">):</span>
-    <span class="n">field1</span> <span class="o">=</span> <span class="n">forms</span><span class="o">.</span><span class="n">CharField</span><span class="p">()</span>
-    <span class="n">field1_</span> <span class="o">=</span> <span class="n">forms</span><span class="o">.</span><span class="n">CharField</span><span class="p">()</span>
-    <span class="n">bool1</span> <span class="o">=</span> <span class="n">forms</span><span class="o">.</span><span class="n">BooleanField</span><span class="p">(</span><span class="n">required</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span>
+<span class="k">class</span> <span class="nc">FormToolsTestCase</span><span class="p">(</span><span class="n">TestCase</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c"># in the test runner use templates/tests/ to provide base.html</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">old_TEMPLATE_DIRS</span> <span class="o">=</span> <span class="n">settings</span><span class="o">.</span><span class="n">TEMPLATE_DIRS</span>
+        <span class="n">settings</span><span class="o">.</span><span class="n">TEMPLATE_DIRS</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">settings</span><span class="o">.</span><span class="n">TEMPLATE_DIRS</span><span class="p">)</span> <span class="o">+</span> <span class="p">[</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">__file__</span><span class="p">),</span> <span class="s">&#39;templates&#39;</span><span class="p">)]</span>
+
+    <span class="k">def</span> <span class="nf">tearDown</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">settings</span><span class="o">.</span><span class="n">TEMPLATE_DIRS</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">old_TEMPLATE_DIRS</span>
 
 
-<div class="viewcode-block" id="UserSecuredFormPreview"><a class="viewcode-back" href="../../../../django.contrib.formtools.tests.html#django.contrib.formtools.tests.UserSecuredFormPreview">[docs]</a><span class="k">class</span> <span class="nc">UserSecuredFormPreview</span><span class="p">(</span><span class="n">TestFormPreview</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    FormPreview with a custum security_hash method</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">def</span> <span class="nf">security_hash</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">request</span><span class="p">,</span> <span class="n">form</span><span class="p">):</span>
-        <span class="k">return</span> <span class="s">&quot;123&quot;</span>
-
-</div>
-<span class="k">class</span> <span class="nc">PreviewTests</span><span class="p">(</span><span class="n">TestCase</span><span class="p">):</span>
+<span class="k">class</span> <span class="nc">PreviewTests</span><span class="p">(</span><span class="n">FormToolsTestCase</span><span class="p">):</span>
     <span class="n">urls</span> <span class="o">=</span> <span class="s">&#39;django.contrib.formtools.tests.urls&#39;</span>
 
     <span class="k">def</span> <span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">PreviewTests</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">setUp</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">save_warnings_state</span><span class="p">()</span>
+        <span class="n">warnings</span><span class="o">.</span><span class="n">filterwarnings</span><span class="p">(</span><span class="s">&#39;ignore&#39;</span><span class="p">,</span> <span class="n">category</span><span class="o">=</span><span class="ne">DeprecationWarning</span><span class="p">,</span>
+                                <span class="n">module</span><span class="o">=</span><span class="s">&#39;django.contrib.formtools.utils&#39;</span><span class="p">)</span>
+
         <span class="c"># Create a FormPreview instance to share between tests</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">preview</span> <span class="o">=</span> <span class="n">preview</span><span class="o">.</span><span class="n">FormPreview</span><span class="p">(</span><span class="n">TestForm</span><span class="p">)</span>
         <span class="n">input_template</span> <span class="o">=</span> <span class="s">&#39;&lt;input type=&quot;hidden&quot; name=&quot;</span><span class="si">%s</span><span class="s">&quot; value=&quot;</span><span class="si">%s</span><span class="s">&quot; /&gt;&#39;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">input</span> <span class="o">=</span> <span class="n">input_template</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">preview</span><span class="o">.</span><span class="n">unused_name</span><span class="p">(</span><span class="s">&#39;stage&#39;</span><span class="p">),</span> <span class="s">&quot;</span><span class="si">%d</span><span class="s">&quot;</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">test_data</span> <span class="o">=</span> <span class="p">{</span><span class="s">&#39;field1&#39;</span><span class="p">:</span><span class="s">u&#39;foo&#39;</span><span class="p">,</span> <span class="s">&#39;field1_&#39;</span><span class="p">:</span><span class="s">u&#39;asdf&#39;</span><span class="p">}</span>
+
+    <span class="k">def</span> <span class="nf">tearDown</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">PreviewTests</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">tearDown</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">restore_warnings_state</span><span class="p">()</span>
 
     <span class="k">def</span> <span class="nf">test_unused_name</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
@@ -111,7 +126,7 @@
 <span class="sd">        is created to manage the stage.</span>
 
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;/test1/&#39;</span><span class="p">)</span>
+        <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;/preview/&#39;</span><span class="p">)</span>
         <span class="n">stage</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">input</span> <span class="o">%</span> <span class="mi">1</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">assertContains</span><span class="p">(</span><span class="n">response</span><span class="p">,</span> <span class="n">stage</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">context</span><span class="p">[</span><span class="s">&#39;custom_context&#39;</span><span class="p">],</span> <span class="bp">True</span><span class="p">)</span>
@@ -129,7 +144,7 @@
         <span class="c"># Pass strings for form submittal and add stage variable to</span>
         <span class="c"># show we previously saw first stage of the form.</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">test_data</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s">&#39;stage&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">})</span>
-        <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="s">&#39;/test1/&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">test_data</span><span class="p">)</span>
+        <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="s">&#39;/preview/&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">test_data</span><span class="p">)</span>
         <span class="c"># Check to confirm stage is set to 2 in output form.</span>
         <span class="n">stage</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">input</span> <span class="o">%</span> <span class="mi">2</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">assertContains</span><span class="p">(</span><span class="n">response</span><span class="p">,</span> <span class="n">stage</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
@@ -147,11 +162,11 @@
         <span class="c"># Pass strings for form submittal and add stage variable to</span>
         <span class="c"># show we previously saw first stage of the form.</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">test_data</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s">&#39;stage&#39;</span><span class="p">:</span><span class="mi">2</span><span class="p">})</span>
-        <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="s">&#39;/test1/&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">test_data</span><span class="p">)</span>
+        <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="s">&#39;/preview/&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">test_data</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">assertNotEqual</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">content</span><span class="p">,</span> <span class="n">success_string</span><span class="p">)</span>
         <span class="nb">hash</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">preview</span><span class="o">.</span><span class="n">security_hash</span><span class="p">(</span><span class="bp">None</span><span class="p">,</span> <span class="n">TestForm</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">test_data</span><span class="p">))</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">test_data</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s">&#39;hash&#39;</span><span class="p">:</span> <span class="nb">hash</span><span class="p">})</span>
-        <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="s">&#39;/test1/&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">test_data</span><span class="p">)</span>
+        <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="s">&#39;/preview/&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">test_data</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">content</span><span class="p">,</span> <span class="n">success_string</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">test_bool_submit</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
@@ -170,43 +185,50 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">test_data</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s">&#39;stage&#39;</span><span class="p">:</span><span class="mi">2</span><span class="p">})</span>
         <span class="nb">hash</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">preview</span><span class="o">.</span><span class="n">security_hash</span><span class="p">(</span><span class="bp">None</span><span class="p">,</span> <span class="n">TestForm</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">test_data</span><span class="p">))</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">test_data</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s">&#39;hash&#39;</span><span class="p">:</span><span class="nb">hash</span><span class="p">,</span> <span class="s">&#39;bool1&#39;</span><span class="p">:</span><span class="s">u&#39;False&#39;</span><span class="p">})</span>
-        <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="s">&#39;/test1/&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">test_data</span><span class="p">)</span>
+        <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="s">&#39;/preview/&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">test_data</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">content</span><span class="p">,</span> <span class="n">success_string</span><span class="p">)</span>
 
-    <span class="k">def</span> <span class="nf">test_form_submit_django12_hash</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">test_form_submit_good_hash</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Test contrib.formtools.preview form submittal, using the hash function</span>
-<span class="sd">        used in Django 1.2</span>
+<span class="sd">        Test contrib.formtools.preview form submittal, using a correct</span>
+<span class="sd">        hash</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="c"># Pass strings for form submittal and add stage variable to</span>
         <span class="c"># show we previously saw first stage of the form.</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">test_data</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s">&#39;stage&#39;</span><span class="p">:</span><span class="mi">2</span><span class="p">})</span>
-        <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="s">&#39;/test1/&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">test_data</span><span class="p">)</span>
+        <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="s">&#39;/preview/&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">test_data</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">assertNotEqual</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">content</span><span class="p">,</span> <span class="n">success_string</span><span class="p">)</span>
-        <span class="nb">hash</span> <span class="o">=</span> <span class="n">utils</span><span class="o">.</span><span class="n">security_hash</span><span class="p">(</span><span class="bp">None</span><span class="p">,</span> <span class="n">TestForm</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">test_data</span><span class="p">))</span>
+        <span class="nb">hash</span> <span class="o">=</span> <span class="n">utils</span><span class="o">.</span><span class="n">form_hmac</span><span class="p">(</span><span class="n">TestForm</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">test_data</span><span class="p">))</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">test_data</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s">&#39;hash&#39;</span><span class="p">:</span> <span class="nb">hash</span><span class="p">})</span>
-        <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="s">&#39;/test1/&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">test_data</span><span class="p">)</span>
+        <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="s">&#39;/preview/&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">test_data</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">content</span><span class="p">,</span> <span class="n">success_string</span><span class="p">)</span>
 
 
-    <span class="k">def</span> <span class="nf">test_form_submit_django12_hash_custom_hash</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">test_form_submit_bad_hash</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Test contrib.formtools.preview form submittal, using the hash function</span>
-<span class="sd">        used in Django 1.2 and a custom security_hash method.</span>
+<span class="sd">        Test contrib.formtools.preview form submittal does not proceed</span>
+<span class="sd">        if the hash is incorrect.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="c"># Pass strings for form submittal and add stage variable to</span>
         <span class="c"># show we previously saw first stage of the form.</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">test_data</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s">&#39;stage&#39;</span><span class="p">:</span><span class="mi">2</span><span class="p">})</span>
-        <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="s">&#39;/test2/&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">test_data</span><span class="p">)</span>
+        <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="s">&#39;/preview/&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">test_data</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">status_code</span><span class="p">,</span> <span class="mi">200</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">assertNotEqual</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">content</span><span class="p">,</span> <span class="n">success_string</span><span class="p">)</span>
-        <span class="nb">hash</span> <span class="o">=</span> <span class="n">utils</span><span class="o">.</span><span class="n">security_hash</span><span class="p">(</span><span class="bp">None</span><span class="p">,</span> <span class="n">TestForm</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">test_data</span><span class="p">))</span>
+        <span class="nb">hash</span> <span class="o">=</span> <span class="n">utils</span><span class="o">.</span><span class="n">form_hmac</span><span class="p">(</span><span class="n">TestForm</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">test_data</span><span class="p">))</span> <span class="o">+</span> <span class="s">&quot;bad&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">test_data</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s">&#39;hash&#39;</span><span class="p">:</span> <span class="nb">hash</span><span class="p">})</span>
-        <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="s">&#39;/test2/&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">test_data</span><span class="p">)</span>
+        <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="s">&#39;/previewpreview/&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">test_data</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">assertNotEqual</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">content</span><span class="p">,</span> <span class="n">success_string</span><span class="p">)</span>
 
 
 <span class="k">class</span> <span class="nc">SecurityHashTests</span><span class="p">(</span><span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_warnings_state</span> <span class="o">=</span> <span class="n">get_warnings_state</span><span class="p">()</span>
+        <span class="n">warnings</span><span class="o">.</span><span class="n">filterwarnings</span><span class="p">(</span><span class="s">&#39;ignore&#39;</span><span class="p">,</span> <span class="n">category</span><span class="o">=</span><span class="ne">DeprecationWarning</span><span class="p">,</span>
+                                <span class="n">module</span><span class="o">=</span><span class="s">&#39;django.contrib.formtools.utils&#39;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">tearDown</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">restore_warnings_state</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_warnings_state</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">test_textfield_hash</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
@@ -260,52 +282,20 @@
         <span class="n">hash2</span> <span class="o">=</span> <span class="n">utils</span><span class="o">.</span><span class="n">form_hmac</span><span class="p">(</span><span class="n">f2</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">hash1</span><span class="p">,</span> <span class="n">hash2</span><span class="p">)</span>
 
-</div></div>
-<span class="k">class</span> <span class="nc">HashTestForm</span><span class="p">(</span><span class="n">forms</span><span class="o">.</span><span class="n">Form</span><span class="p">):</span>
-    <span class="n">name</span> <span class="o">=</span> <span class="n">forms</span><span class="o">.</span><span class="n">CharField</span><span class="p">()</span>
-    <span class="n">bio</span> <span class="o">=</span> <span class="n">forms</span><span class="o">.</span><span class="n">CharField</span><span class="p">()</span>
-
-
-<span class="k">class</span> <span class="nc">HashTestBlankForm</span><span class="p">(</span><span class="n">forms</span><span class="o">.</span><span class="n">Form</span><span class="p">):</span>
-    <span class="n">name</span> <span class="o">=</span> <span class="n">forms</span><span class="o">.</span><span class="n">CharField</span><span class="p">(</span><span class="n">required</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span>
-    <span class="n">bio</span> <span class="o">=</span> <span class="n">forms</span><span class="o">.</span><span class="n">CharField</span><span class="p">(</span><span class="n">required</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span>
 
 <span class="c">#</span>
 <span class="c"># FormWizard tests</span>
 <span class="c">#</span>
-
-
-<span class="k">class</span> <span class="nc">WizardPageOneForm</span><span class="p">(</span><span class="n">forms</span><span class="o">.</span><span class="n">Form</span><span class="p">):</span>
-    <span class="n">field</span> <span class="o">=</span> <span class="n">forms</span><span class="o">.</span><span class="n">CharField</span><span class="p">()</span>
-
-
-<span class="k">class</span> <span class="nc">WizardPageTwoForm</span><span class="p">(</span><span class="n">forms</span><span class="o">.</span><span class="n">Form</span><span class="p">):</span>
-    <span class="n">field</span> <span class="o">=</span> <span class="n">forms</span><span class="o">.</span><span class="n">CharField</span><span class="p">()</span>
-
-<span class="k">class</span> <span class="nc">WizardPageTwoAlternativeForm</span><span class="p">(</span><span class="n">forms</span><span class="o">.</span><span class="n">Form</span><span class="p">):</span>
-    <span class="n">field</span> <span class="o">=</span> <span class="n">forms</span><span class="o">.</span><span class="n">CharField</span><span class="p">()</span>
-
-<span class="k">class</span> <span class="nc">WizardPageThreeForm</span><span class="p">(</span><span class="n">forms</span><span class="o">.</span><span class="n">Form</span><span class="p">):</span>
-    <span class="n">field</span> <span class="o">=</span> <span class="n">forms</span><span class="o">.</span><span class="n">CharField</span><span class="p">()</span>
-
-
-<span class="k">class</span> <span class="nc">WizardClass</span><span class="p">(</span><span class="n">wizard</span><span class="o">.</span><span class="n">FormWizard</span><span class="p">):</span>
+</div></div>
+<span class="k">class</span> <span class="nc">TestWizardClass</span><span class="p">(</span><span class="n">FormWizard</span><span class="p">):</span>
 
     <span class="k">def</span> <span class="nf">get_template</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">step</span><span class="p">):</span>
-        <span class="k">return</span> <span class="s">&#39;formwizard/wizard.html&#39;</span>
+        <span class="k">return</span> <span class="s">&#39;forms/wizard.html&#39;</span>
 
     <span class="k">def</span> <span class="nf">done</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">request</span><span class="p">,</span> <span class="n">cleaned_data</span><span class="p">):</span>
         <span class="k">return</span> <span class="n">http</span><span class="o">.</span><span class="n">HttpResponse</span><span class="p">(</span><span class="n">success_string</span><span class="p">)</span>
 
 
-<div class="viewcode-block" id="UserSecuredWizardClass"><a class="viewcode-back" href="../../../../django.contrib.formtools.tests.html#django.contrib.formtools.tests.UserSecuredWizardClass">[docs]</a><span class="k">class</span> <span class="nc">UserSecuredWizardClass</span><span class="p">(</span><span class="n">WizardClass</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Wizard with a custum security_hash method</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">def</span> <span class="nf">security_hash</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">request</span><span class="p">,</span> <span class="n">form</span><span class="p">):</span>
-        <span class="k">return</span> <span class="s">&quot;123&quot;</span>
-
-</div>
 <span class="k">class</span> <span class="nc">DummyRequest</span><span class="p">(</span><span class="n">http</span><span class="o">.</span><span class="n">HttpRequest</span><span class="p">):</span>
 
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">POST</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
@@ -316,79 +306,58 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">_dont_enforce_csrf_checks</span> <span class="o">=</span> <span class="bp">True</span>
 
 
-<span class="k">class</span> <span class="nc">WizardTests</span><span class="p">(</span><span class="n">TestCase</span><span class="p">):</span>
+<span class="k">class</span> <span class="nc">WizardTests</span><span class="p">(</span><span class="n">FormToolsTestCase</span><span class="p">):</span>
     <span class="n">urls</span> <span class="o">=</span> <span class="s">&#39;django.contrib.formtools.tests.urls&#39;</span>
+    <span class="n">input_re</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="s">&#39;name=&quot;([^&quot;]+)&quot; value=&quot;([^&quot;]+)&quot;&#39;</span><span class="p">)</span>
+    <span class="n">wizard_step_data</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="p">{</span>
+            <span class="s">&#39;0-name&#39;</span><span class="p">:</span> <span class="s">&#39;Pony&#39;</span><span class="p">,</span>
+            <span class="s">&#39;0-thirsty&#39;</span><span class="p">:</span> <span class="s">&#39;2&#39;</span><span class="p">,</span>
+        <span class="p">},</span>
+        <span class="p">{</span>
+            <span class="s">&#39;1-address1&#39;</span><span class="p">:</span> <span class="s">&#39;123 Main St&#39;</span><span class="p">,</span>
+            <span class="s">&#39;1-address2&#39;</span><span class="p">:</span> <span class="s">&#39;Djangoland&#39;</span><span class="p">,</span>
+        <span class="p">},</span>
+        <span class="p">{</span>
+            <span class="s">&#39;2-random_crap&#39;</span><span class="p">:</span> <span class="s">&#39;blah blah&#39;</span><span class="p">,</span>
+        <span class="p">}</span>
+    <span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">old_TEMPLATE_DIRS</span> <span class="o">=</span> <span class="n">settings</span><span class="o">.</span><span class="n">TEMPLATE_DIRS</span>
-        <span class="n">settings</span><span class="o">.</span><span class="n">TEMPLATE_DIRS</span> <span class="o">=</span> <span class="p">(</span>
-            <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
-                <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">__file__</span><span class="p">),</span>
-                <span class="s">&#39;templates&#39;</span>
-            <span class="p">),</span>
-        <span class="p">)</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">WizardTests</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">setUp</span><span class="p">()</span>
         <span class="c"># Use a known SECRET_KEY to make security_hash tests deterministic</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">old_SECRET_KEY</span> <span class="o">=</span> <span class="n">settings</span><span class="o">.</span><span class="n">SECRET_KEY</span>
         <span class="n">settings</span><span class="o">.</span><span class="n">SECRET_KEY</span> <span class="o">=</span> <span class="s">&quot;123&quot;</span>
 
     <span class="k">def</span> <span class="nf">tearDown</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="n">settings</span><span class="o">.</span><span class="n">TEMPLATE_DIRS</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">old_TEMPLATE_DIRS</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">WizardTests</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">tearDown</span><span class="p">()</span>
         <span class="n">settings</span><span class="o">.</span><span class="n">SECRET_KEY</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">old_SECRET_KEY</span>
 
     <span class="k">def</span> <span class="nf">test_step_starts_at_zero</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        step should be zero for the first form</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;/wizard/&#39;</span><span class="p">)</span>
+        <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;/wizard1/&#39;</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">response</span><span class="o">.</span><span class="n">context</span><span class="p">[</span><span class="s">&#39;step0&#39;</span><span class="p">])</span>
 
     <span class="k">def</span> <span class="nf">test_step_increments</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        step should be incremented when we go to the next page</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="s">&#39;/wizard/&#39;</span><span class="p">,</span> <span class="p">{</span><span class="s">&quot;0-field&quot;</span><span class="p">:</span><span class="s">&quot;test&quot;</span><span class="p">,</span> <span class="s">&quot;wizard_step&quot;</span><span class="p">:</span><span class="s">&quot;0&quot;</span><span class="p">})</span>
+        <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="s">&#39;/wizard1/&#39;</span><span class="p">,</span> <span class="p">{</span><span class="s">&quot;0-field&quot;</span><span class="p">:</span><span class="s">&quot;test&quot;</span><span class="p">,</span> <span class="s">&quot;wizard_step&quot;</span><span class="p">:</span><span class="s">&quot;0&quot;</span><span class="p">})</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">response</span><span class="o">.</span><span class="n">context</span><span class="p">[</span><span class="s">&#39;step0&#39;</span><span class="p">])</span>
 
     <span class="k">def</span> <span class="nf">test_bad_hash</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Form should not advance if the hash is missing or bad</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="s">&#39;/wizard/&#39;</span><span class="p">,</span>
+        <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="s">&#39;/wizard1/&#39;</span><span class="p">,</span>
                                     <span class="p">{</span><span class="s">&quot;0-field&quot;</span><span class="p">:</span><span class="s">&quot;test&quot;</span><span class="p">,</span>
                                      <span class="s">&quot;1-field&quot;</span><span class="p">:</span><span class="s">&quot;test2&quot;</span><span class="p">,</span>
                                      <span class="s">&quot;wizard_step&quot;</span><span class="p">:</span> <span class="s">&quot;1&quot;</span><span class="p">})</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">response</span><span class="o">.</span><span class="n">context</span><span class="p">[</span><span class="s">&#39;step0&#39;</span><span class="p">])</span>
 
-    <span class="k">def</span> <span class="nf">test_good_hash_django12</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Form should advance if the hash is present and good, as calculated using</span>
-<span class="sd">        django 1.2 method.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="c"># We are hard-coding a hash value here, but that is OK, since we want to</span>
-        <span class="c"># ensure that we don&#39;t accidentally change the algorithm.</span>
-        <span class="n">data</span> <span class="o">=</span> <span class="p">{</span><span class="s">&quot;0-field&quot;</span><span class="p">:</span> <span class="s">&quot;test&quot;</span><span class="p">,</span>
-                <span class="s">&quot;1-field&quot;</span><span class="p">:</span> <span class="s">&quot;test2&quot;</span><span class="p">,</span>
-                <span class="s">&quot;hash_0&quot;</span><span class="p">:</span> <span class="s">&quot;2fdbefd4c0cad51509478fbacddf8b13&quot;</span><span class="p">,</span>
-                <span class="s">&quot;wizard_step&quot;</span><span class="p">:</span> <span class="s">&quot;1&quot;</span><span class="p">}</span>
-        <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="s">&#39;/wizard/&#39;</span><span class="p">,</span> <span class="n">data</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="n">response</span><span class="o">.</span><span class="n">context</span><span class="p">[</span><span class="s">&#39;step0&#39;</span><span class="p">])</span>
-
-    <span class="k">def</span> <span class="nf">test_good_hash_django12_subclass</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        The Django 1.2 method of calulating hashes should *not* be used as a</span>
-<span class="sd">        fallback if the FormWizard subclass has provided their own method</span>
-<span class="sd">        of calculating a hash.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="c"># We are hard-coding a hash value here, but that is OK, since we want to</span>
-        <span class="c"># ensure that we don&#39;t accidentally change the algorithm.</span>
-        <span class="n">data</span> <span class="o">=</span> <span class="p">{</span><span class="s">&quot;0-field&quot;</span><span class="p">:</span> <span class="s">&quot;test&quot;</span><span class="p">,</span>
-                <span class="s">&quot;1-field&quot;</span><span class="p">:</span> <span class="s">&quot;test2&quot;</span><span class="p">,</span>
-                <span class="s">&quot;hash_0&quot;</span><span class="p">:</span> <span class="s">&quot;2fdbefd4c0cad51509478fbacddf8b13&quot;</span><span class="p">,</span>
-                <span class="s">&quot;wizard_step&quot;</span><span class="p">:</span> <span class="s">&quot;1&quot;</span><span class="p">}</span>
-        <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="s">&#39;/wizard2/&#39;</span><span class="p">,</span> <span class="n">data</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">response</span><span class="o">.</span><span class="n">context</span><span class="p">[</span><span class="s">&#39;step0&#39;</span><span class="p">])</span>
-
-    <span class="k">def</span> <span class="nf">test_good_hash_current</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">test_good_hash</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Form should advance if the hash is present and good, as calculated using</span>
 <span class="sd">        current method.</span>
@@ -397,8 +366,40 @@
                 <span class="s">&quot;1-field&quot;</span><span class="p">:</span> <span class="s">&quot;test2&quot;</span><span class="p">,</span>
                 <span class="s">&quot;hash_0&quot;</span><span class="p">:</span> <span class="s">&quot;7e9cea465f6a10a6fb47fcea65cb9a76350c9a5c&quot;</span><span class="p">,</span>
                 <span class="s">&quot;wizard_step&quot;</span><span class="p">:</span> <span class="s">&quot;1&quot;</span><span class="p">}</span>
-        <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="s">&#39;/wizard/&#39;</span><span class="p">,</span> <span class="n">data</span><span class="p">)</span>
+        <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="s">&#39;/wizard1/&#39;</span><span class="p">,</span> <span class="n">data</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="n">response</span><span class="o">.</span><span class="n">context</span><span class="p">[</span><span class="s">&#39;step0&#39;</span><span class="p">])</span>
+
+    <span class="k">def</span> <span class="nf">test_11726</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Regression test for ticket #11726.</span>
+<span class="sd">        Wizard should not raise Http404 when steps are added dynamically.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">reached</span> <span class="o">=</span> <span class="p">[</span><span class="bp">False</span><span class="p">]</span>
+        <span class="n">that</span> <span class="o">=</span> <span class="bp">self</span>
+
+        <span class="k">class</span> <span class="nc">WizardWithProcessStep</span><span class="p">(</span><span class="n">TestWizardClass</span><span class="p">):</span>
+            <span class="k">def</span> <span class="nf">process_step</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">request</span><span class="p">,</span> <span class="n">form</span><span class="p">,</span> <span class="n">step</span><span class="p">):</span>
+                <span class="k">if</span> <span class="n">step</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_steps</span><span class="p">()</span> <span class="o">&lt;</span> <span class="mi">2</span><span class="p">:</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">form_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">WizardPageTwoForm</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">step</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+                    <span class="n">that</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">form</span><span class="p">,</span> <span class="n">WizardPageTwoForm</span><span class="p">))</span>
+                    <span class="n">reached</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="bp">True</span>
+
+        <span class="n">wizard</span> <span class="o">=</span> <span class="n">WizardWithProcessStep</span><span class="p">([</span><span class="n">WizardPageOneForm</span><span class="p">])</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="p">{</span><span class="s">&quot;0-field&quot;</span><span class="p">:</span> <span class="s">&quot;test&quot;</span><span class="p">,</span>
+                <span class="s">&quot;1-field&quot;</span><span class="p">:</span> <span class="s">&quot;test2&quot;</span><span class="p">,</span>
+                <span class="s">&quot;hash_0&quot;</span><span class="p">:</span> <span class="s">&quot;7e9cea465f6a10a6fb47fcea65cb9a76350c9a5c&quot;</span><span class="p">,</span>
+                <span class="s">&quot;wizard_step&quot;</span><span class="p">:</span> <span class="s">&quot;1&quot;</span><span class="p">}</span>
+        <span class="n">wizard</span><span class="p">(</span><span class="n">DummyRequest</span><span class="p">(</span><span class="n">POST</span><span class="o">=</span><span class="n">data</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="n">reached</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+
+        <span class="n">data</span> <span class="o">=</span> <span class="p">{</span><span class="s">&quot;0-field&quot;</span><span class="p">:</span> <span class="s">&quot;test&quot;</span><span class="p">,</span>
+                <span class="s">&quot;1-field&quot;</span><span class="p">:</span> <span class="s">&quot;test2&quot;</span><span class="p">,</span>
+                <span class="s">&quot;hash_0&quot;</span><span class="p">:</span> <span class="s">&quot;7e9cea465f6a10a6fb47fcea65cb9a76350c9a5c&quot;</span><span class="p">,</span>
+                <span class="s">&quot;hash_1&quot;</span><span class="p">:</span> <span class="s">&quot;d5b434e3934cc92fee4bd2964c4ebc06f81d362d&quot;</span><span class="p">,</span>
+                <span class="s">&quot;wizard_step&quot;</span><span class="p">:</span> <span class="s">&quot;2&quot;</span><span class="p">}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="n">http</span><span class="o">.</span><span class="n">Http404</span><span class="p">,</span> <span class="n">wizard</span><span class="p">,</span> <span class="n">DummyRequest</span><span class="p">(</span><span class="n">POST</span><span class="o">=</span><span class="n">data</span><span class="p">))</span>
 
     <span class="k">def</span> <span class="nf">test_14498</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
@@ -408,7 +409,7 @@
         <span class="n">reached</span> <span class="o">=</span> <span class="p">[</span><span class="bp">False</span><span class="p">]</span>
         <span class="n">that</span> <span class="o">=</span> <span class="bp">self</span>
 
-        <span class="k">class</span> <span class="nc">WizardWithProcessStep</span><span class="p">(</span><span class="n">WizardClass</span><span class="p">):</span>
+        <span class="k">class</span> <span class="nc">WizardWithProcessStep</span><span class="p">(</span><span class="n">TestWizardClass</span><span class="p">):</span>
             <span class="k">def</span> <span class="nf">process_step</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">request</span><span class="p">,</span> <span class="n">form</span><span class="p">,</span> <span class="n">step</span><span class="p">):</span>
                 <span class="n">that</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="nb">hasattr</span><span class="p">(</span><span class="n">form</span><span class="p">,</span> <span class="s">&#39;cleaned_data&#39;</span><span class="p">))</span>
                 <span class="n">reached</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="bp">True</span>
@@ -432,7 +433,7 @@
         <span class="n">reached</span> <span class="o">=</span> <span class="p">[</span><span class="bp">False</span><span class="p">]</span>
         <span class="n">that</span> <span class="o">=</span> <span class="bp">self</span>
 
-        <span class="k">class</span> <span class="nc">Wizard</span><span class="p">(</span><span class="n">WizardClass</span><span class="p">):</span>
+        <span class="k">class</span> <span class="nc">Wizard</span><span class="p">(</span><span class="n">TestWizardClass</span><span class="p">):</span>
             <span class="k">def</span> <span class="nf">done</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">request</span><span class="p">,</span> <span class="n">form_list</span><span class="p">):</span>
                 <span class="n">reached</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="bp">True</span>
                 <span class="n">that</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">form_list</span><span class="p">)</span> <span class="o">==</span> <span class="mi">2</span><span class="p">)</span>
@@ -455,7 +456,7 @@
         <span class="n">reached</span> <span class="o">=</span> <span class="p">[</span><span class="bp">False</span><span class="p">]</span>
         <span class="n">that</span> <span class="o">=</span> <span class="bp">self</span>
 
-        <span class="k">class</span> <span class="nc">WizardWithProcessStep</span><span class="p">(</span><span class="n">WizardClass</span><span class="p">):</span>
+        <span class="k">class</span> <span class="nc">WizardWithProcessStep</span><span class="p">(</span><span class="n">TestWizardClass</span><span class="p">):</span>
             <span class="k">def</span> <span class="nf">process_step</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">request</span><span class="p">,</span> <span class="n">form</span><span class="p">,</span> <span class="n">step</span><span class="p">):</span>
                 <span class="k">if</span> <span class="n">step</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
                     <span class="bp">self</span><span class="o">.</span><span class="n">form_list</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">WizardPageTwoAlternativeForm</span>
@@ -472,6 +473,42 @@
                 <span class="s">&quot;wizard_step&quot;</span><span class="p">:</span> <span class="s">&quot;1&quot;</span><span class="p">}</span>
         <span class="n">wizard</span><span class="p">(</span><span class="n">DummyRequest</span><span class="p">(</span><span class="n">POST</span><span class="o">=</span><span class="n">data</span><span class="p">))</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="n">reached</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+
+    <span class="k">def</span> <span class="nf">grab_field_data</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">response</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Pull the appropriate field data from the context to pass to the next wizard step</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">previous_fields</span> <span class="o">=</span> <span class="n">response</span><span class="o">.</span><span class="n">context</span><span class="p">[</span><span class="s">&#39;previous_fields&#39;</span><span class="p">]</span>
+        <span class="n">fields</span> <span class="o">=</span> <span class="p">{</span><span class="s">&#39;wizard_step&#39;</span><span class="p">:</span> <span class="n">response</span><span class="o">.</span><span class="n">context</span><span class="p">[</span><span class="s">&#39;step0&#39;</span><span class="p">]}</span>
+
+        <span class="k">def</span> <span class="nf">grab</span><span class="p">(</span><span class="n">m</span><span class="p">):</span>
+            <span class="n">fields</span><span class="p">[</span><span class="n">m</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">1</span><span class="p">)]</span> <span class="o">=</span> <span class="n">m</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+            <span class="k">return</span> <span class="s">&#39;&#39;</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">input_re</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="n">grab</span><span class="p">,</span> <span class="n">previous_fields</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">fields</span>
+
+    <span class="k">def</span> <span class="nf">check_wizard_step</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">response</span><span class="p">,</span> <span class="n">step_no</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Helper function to test each step of the wizard</span>
+<span class="sd">        - Make sure the call succeeded</span>
+<span class="sd">        - Make sure response is the proper step number</span>
+<span class="sd">        - return the result from the post for the next step</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">step_count</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">wizard_step_data</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">status_code</span><span class="p">,</span> <span class="mi">200</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertContains</span><span class="p">(</span><span class="n">response</span><span class="p">,</span> <span class="s">&#39;Step </span><span class="si">%d</span><span class="s"> of </span><span class="si">%d</span><span class="s">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">step_no</span><span class="p">,</span> <span class="n">step_count</span><span class="p">))</span>
+
+        <span class="n">data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">grab_field_data</span><span class="p">(</span><span class="n">response</span><span class="p">)</span>
+        <span class="n">data</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">wizard_step_data</span><span class="p">[</span><span class="n">step_no</span> <span class="o">-</span> <span class="mi">1</span><span class="p">])</span>
+
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="s">&#39;/wizard2/&#39;</span><span class="p">,</span> <span class="n">data</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">test_9473</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;/wizard2/&#39;</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">step_no</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">wizard_step_data</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span><span class="p">):</span>
+            <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">check_wizard_step</span><span class="p">(</span><span class="n">response</span><span class="p">,</span> <span class="n">step_no</span><span class="p">)</span>
 </pre></div>
 
       </div>
@@ -486,7 +523,7 @@
 
     <div class="footer">
         &copy; Copyright 2012, HDKNR.COM.
-      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.2pre/660be19d7963.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.2pre/3c28de26aac2.
     </div>
   </body>
 </html>

@@ -52,6 +52,7 @@
 <span class="kn">from</span> <span class="nn">django.db.models.fields</span> <span class="kn">import</span> <span class="n">FieldDoesNotExist</span>
 <span class="kn">from</span> <span class="nn">django.forms.models</span> <span class="kn">import</span> <span class="p">(</span><span class="n">BaseModelForm</span><span class="p">,</span> <span class="n">BaseModelFormSet</span><span class="p">,</span> <span class="n">fields_for_model</span><span class="p">,</span>
     <span class="n">_get_foreign_key</span><span class="p">)</span>
+<span class="kn">from</span> <span class="nn">django.contrib.admin</span> <span class="kn">import</span> <span class="n">ListFilter</span><span class="p">,</span> <span class="n">FieldListFilter</span>
 <span class="kn">from</span> <span class="nn">django.contrib.admin.util</span> <span class="kn">import</span> <span class="n">get_fields_from_path</span><span class="p">,</span> <span class="n">NotRelationField</span>
 <span class="kn">from</span> <span class="nn">django.contrib.admin.options</span> <span class="kn">import</span> <span class="p">(</span><span class="n">flatten_fieldsets</span><span class="p">,</span> <span class="n">BaseModelAdmin</span><span class="p">,</span>
     <span class="n">HORIZONTAL</span><span class="p">,</span> <span class="n">VERTICAL</span><span class="p">)</span>
@@ -103,19 +104,50 @@
     <span class="c"># list_filter</span>
     <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="s">&#39;list_filter&#39;</span><span class="p">):</span>
         <span class="n">check_isseq</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="s">&#39;list_filter&#39;</span><span class="p">,</span> <span class="n">cls</span><span class="o">.</span><span class="n">list_filter</span><span class="p">)</span>
-        <span class="k">for</span> <span class="n">idx</span><span class="p">,</span> <span class="n">fpath</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">cls</span><span class="o">.</span><span class="n">list_filter</span><span class="p">):</span>
-            <span class="k">try</span><span class="p">:</span>
-                <span class="n">get_fields_from_path</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">fpath</span><span class="p">)</span>
-            <span class="k">except</span> <span class="p">(</span><span class="n">NotRelationField</span><span class="p">,</span> <span class="n">FieldDoesNotExist</span><span class="p">),</span> <span class="n">e</span><span class="p">:</span>
-                <span class="k">raise</span> <span class="n">ImproperlyConfigured</span><span class="p">(</span>
-                    <span class="s">&quot;&#39;</span><span class="si">%s</span><span class="s">.list_filter[</span><span class="si">%d</span><span class="s">]&#39; refers to &#39;</span><span class="si">%s</span><span class="s">&#39; which does not refer to a Field.&quot;</span> <span class="o">%</span> <span class="p">(</span>
-                        <span class="n">cls</span><span class="o">.</span><span class="n">__name__</span><span class="p">,</span> <span class="n">idx</span><span class="p">,</span> <span class="n">fpath</span>
-                    <span class="p">)</span>
-                <span class="p">)</span>
+        <span class="k">for</span> <span class="n">idx</span><span class="p">,</span> <span class="n">item</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">cls</span><span class="o">.</span><span class="n">list_filter</span><span class="p">):</span>
+            <span class="c"># There are three options for specifying a filter:</span>
+            <span class="c">#   1: &#39;field&#39; - a basic field filter, possibly w/ relationships (eg, &#39;field__rel&#39;)</span>
+            <span class="c">#   2: (&#39;field&#39;, SomeFieldListFilter) - a field-based list filter class</span>
+            <span class="c">#   3: SomeListFilter - a non-field list filter class</span>
+            <span class="k">if</span> <span class="nb">callable</span><span class="p">(</span><span class="n">item</span><span class="p">)</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">item</span><span class="p">,</span> <span class="n">models</span><span class="o">.</span><span class="n">Field</span><span class="p">):</span>
+                <span class="c"># If item is option 3, it should be a ListFilter...</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="nb">issubclass</span><span class="p">(</span><span class="n">item</span><span class="p">,</span> <span class="n">ListFilter</span><span class="p">):</span>
+                    <span class="k">raise</span> <span class="n">ImproperlyConfigured</span><span class="p">(</span><span class="s">&quot;&#39;</span><span class="si">%s</span><span class="s">.list_filter[</span><span class="si">%d</span><span class="s">]&#39; is &#39;</span><span class="si">%s</span><span class="s">&#39;&quot;</span>
+                            <span class="s">&quot; which is not a descendant of ListFilter.&quot;</span>
+                            <span class="o">%</span> <span class="p">(</span><span class="n">cls</span><span class="o">.</span><span class="n">__name__</span><span class="p">,</span> <span class="n">idx</span><span class="p">,</span> <span class="n">item</span><span class="o">.</span><span class="n">__name__</span><span class="p">))</span>
+                <span class="c"># ...  but not a FieldListFilter.</span>
+                <span class="k">if</span> <span class="nb">issubclass</span><span class="p">(</span><span class="n">item</span><span class="p">,</span> <span class="n">FieldListFilter</span><span class="p">):</span>
+                    <span class="k">raise</span> <span class="n">ImproperlyConfigured</span><span class="p">(</span><span class="s">&quot;&#39;</span><span class="si">%s</span><span class="s">.list_filter[</span><span class="si">%d</span><span class="s">]&#39; is &#39;</span><span class="si">%s</span><span class="s">&#39;&quot;</span>
+                            <span class="s">&quot; which is of type FieldListFilter but is not&quot;</span>
+                            <span class="s">&quot; associated with a field name.&quot;</span>
+                            <span class="o">%</span> <span class="p">(</span><span class="n">cls</span><span class="o">.</span><span class="n">__name__</span><span class="p">,</span> <span class="n">idx</span><span class="p">,</span> <span class="n">item</span><span class="o">.</span><span class="n">__name__</span><span class="p">))</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">item</span><span class="p">,</span> <span class="p">(</span><span class="nb">tuple</span><span class="p">,</span> <span class="nb">list</span><span class="p">)):</span>
+                    <span class="c"># item is option #2</span>
+                    <span class="n">field</span><span class="p">,</span> <span class="n">list_filter_class</span> <span class="o">=</span> <span class="n">item</span>
+                    <span class="k">if</span> <span class="ow">not</span> <span class="nb">issubclass</span><span class="p">(</span><span class="n">list_filter_class</span><span class="p">,</span> <span class="n">FieldListFilter</span><span class="p">):</span>
+                        <span class="k">raise</span> <span class="n">ImproperlyConfigured</span><span class="p">(</span><span class="s">&quot;&#39;</span><span class="si">%s</span><span class="s">.list_filter[</span><span class="si">%d</span><span class="s">][1]&#39;&quot;</span>
+                            <span class="s">&quot; is &#39;</span><span class="si">%s</span><span class="s">&#39; which is not of type FieldListFilter.&quot;</span>
+                            <span class="o">%</span> <span class="p">(</span><span class="n">cls</span><span class="o">.</span><span class="n">__name__</span><span class="p">,</span> <span class="n">idx</span><span class="p">,</span> <span class="n">list_filter_class</span><span class="o">.</span><span class="n">__name__</span><span class="p">))</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="c"># item is option #1</span>
+                    <span class="n">field</span> <span class="o">=</span> <span class="n">item</span>
+                <span class="c"># Validate the field string</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="n">get_fields_from_path</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">field</span><span class="p">)</span>
+                <span class="k">except</span> <span class="p">(</span><span class="n">NotRelationField</span><span class="p">,</span> <span class="n">FieldDoesNotExist</span><span class="p">):</span>
+                    <span class="k">raise</span> <span class="n">ImproperlyConfigured</span><span class="p">(</span><span class="s">&quot;&#39;</span><span class="si">%s</span><span class="s">.list_filter[</span><span class="si">%d</span><span class="s">]&#39; refers to &#39;</span><span class="si">%s</span><span class="s">&#39;&quot;</span>
+                            <span class="s">&quot; which does not refer to a Field.&quot;</span>
+                            <span class="o">%</span> <span class="p">(</span><span class="n">cls</span><span class="o">.</span><span class="n">__name__</span><span class="p">,</span> <span class="n">idx</span><span class="p">,</span> <span class="n">field</span><span class="p">))</span>
 
     <span class="c"># list_per_page = 100</span>
     <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="s">&#39;list_per_page&#39;</span><span class="p">)</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">cls</span><span class="o">.</span><span class="n">list_per_page</span><span class="p">,</span> <span class="nb">int</span><span class="p">):</span>
         <span class="k">raise</span> <span class="n">ImproperlyConfigured</span><span class="p">(</span><span class="s">&quot;&#39;</span><span class="si">%s</span><span class="s">.list_per_page&#39; should be a integer.&quot;</span>
+                <span class="o">%</span> <span class="n">cls</span><span class="o">.</span><span class="n">__name__</span><span class="p">)</span>
+
+    <span class="c"># list_max_show_all</span>
+    <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="s">&#39;list_max_show_all&#39;</span><span class="p">)</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">cls</span><span class="o">.</span><span class="n">list_max_show_all</span><span class="p">,</span> <span class="nb">int</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="n">ImproperlyConfigured</span><span class="p">(</span><span class="s">&quot;&#39;</span><span class="si">%s</span><span class="s">.list_max_show_all&#39; should be an integer.&quot;</span>
                 <span class="o">%</span> <span class="n">cls</span><span class="o">.</span><span class="n">__name__</span><span class="p">)</span>
 
     <span class="c"># list_editable</span>
@@ -126,8 +158,8 @@
                 <span class="n">field</span> <span class="o">=</span> <span class="n">opts</span><span class="o">.</span><span class="n">get_field_by_name</span><span class="p">(</span><span class="n">field_name</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
             <span class="k">except</span> <span class="n">models</span><span class="o">.</span><span class="n">FieldDoesNotExist</span><span class="p">:</span>
                 <span class="k">raise</span> <span class="n">ImproperlyConfigured</span><span class="p">(</span><span class="s">&quot;&#39;</span><span class="si">%s</span><span class="s">.list_editable[</span><span class="si">%d</span><span class="s">]&#39; refers to a &quot;</span>
-                    <span class="s">&quot;field, &#39;</span><span class="si">%s</span><span class="s">&#39;, not defined on </span><span class="si">%s</span><span class="s">.&quot;</span>
-                    <span class="o">%</span> <span class="p">(</span><span class="n">cls</span><span class="o">.</span><span class="n">__name__</span><span class="p">,</span> <span class="n">idx</span><span class="p">,</span> <span class="n">field_name</span><span class="p">,</span> <span class="n">model</span><span class="o">.</span><span class="n">__name__</span><span class="p">))</span>
+                    <span class="s">&quot;field, &#39;</span><span class="si">%s</span><span class="s">&#39;, not defined on </span><span class="si">%s</span><span class="s">.</span><span class="si">%s</span><span class="s">.&quot;</span>
+                    <span class="o">%</span> <span class="p">(</span><span class="n">cls</span><span class="o">.</span><span class="n">__name__</span><span class="p">,</span> <span class="n">idx</span><span class="p">,</span> <span class="n">field_name</span><span class="p">,</span> <span class="n">model</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">app_label</span><span class="p">,</span> <span class="n">model</span><span class="o">.</span><span class="n">__name__</span><span class="p">))</span>
             <span class="k">if</span> <span class="n">field_name</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">cls</span><span class="o">.</span><span class="n">list_display</span><span class="p">:</span>
                 <span class="k">raise</span> <span class="n">ImproperlyConfigured</span><span class="p">(</span><span class="s">&quot;&#39;</span><span class="si">%s</span><span class="s">.list_editable[</span><span class="si">%d</span><span class="s">]&#39; refers to &quot;</span>
                     <span class="s">&quot;&#39;</span><span class="si">%s</span><span class="s">&#39; which is not defined in &#39;list_display&#39;.&quot;</span>
@@ -237,10 +269,44 @@
         <span class="k">if</span> <span class="n">fk</span> <span class="ow">and</span> <span class="n">fk</span><span class="o">.</span><span class="n">name</span> <span class="ow">in</span> <span class="n">cls</span><span class="o">.</span><span class="n">exclude</span><span class="p">:</span>
             <span class="k">raise</span> <span class="n">ImproperlyConfigured</span><span class="p">(</span><span class="s">&quot;</span><span class="si">%s</span><span class="s"> cannot exclude the field &quot;</span>
                     <span class="s">&quot;&#39;</span><span class="si">%s</span><span class="s">&#39; - this is the foreign key to the parent model &quot;</span>
-                    <span class="s">&quot;</span><span class="si">%s</span><span class="s">.&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">cls</span><span class="o">.</span><span class="n">__name__</span><span class="p">,</span> <span class="n">fk</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">parent_model</span><span class="o">.</span><span class="n">__name__</span><span class="p">))</span>
+                    <span class="s">&quot;</span><span class="si">%s</span><span class="s">.</span><span class="si">%s</span><span class="s">.&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">cls</span><span class="o">.</span><span class="n">__name__</span><span class="p">,</span> <span class="n">fk</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">parent_model</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">app_label</span><span class="p">,</span> <span class="n">parent_model</span><span class="o">.</span><span class="n">__name__</span><span class="p">))</span>
 
     <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="s">&quot;readonly_fields&quot;</span><span class="p">):</span>
         <span class="n">check_readonly_fields</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">cls</span><span class="o">.</span><span class="n">model</span><span class="p">,</span> <span class="n">cls</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">_meta</span><span class="p">)</span>
+
+<span class="k">def</span> <span class="nf">validate_fields_spec</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">model</span><span class="p">,</span> <span class="n">opts</span><span class="p">,</span> <span class="n">flds</span><span class="p">,</span> <span class="n">label</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Validate the fields specification in `flds` from a ModelAdmin subclass</span>
+<span class="sd">    `cls` for the `model` model. `opts` is `model`&#39;s Meta inner class.</span>
+<span class="sd">    Use `label` for reporting problems to the user.</span>
+
+<span class="sd">    The fields specification can be a ``fields`` option or a ``fields``</span>
+<span class="sd">    sub-option from a ``fieldsets`` option component.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">for</span> <span class="n">fields</span> <span class="ow">in</span> <span class="n">flds</span><span class="p">:</span>
+        <span class="c"># The entry in fields might be a tuple. If it is a standalone</span>
+        <span class="c"># field, make it into a tuple to make processing easier.</span>
+        <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">fields</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">tuple</span><span class="p">:</span>
+            <span class="n">fields</span> <span class="o">=</span> <span class="p">(</span><span class="n">fields</span><span class="p">,)</span>
+        <span class="k">for</span> <span class="n">field</span> <span class="ow">in</span> <span class="n">fields</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">field</span> <span class="ow">in</span> <span class="n">cls</span><span class="o">.</span><span class="n">readonly_fields</span><span class="p">:</span>
+                <span class="c"># Stuff can be put in fields that isn&#39;t actually a</span>
+                <span class="c"># model field if it&#39;s in readonly_fields,</span>
+                <span class="c"># readonly_fields will handle the validation of such</span>
+                <span class="c"># things.</span>
+                <span class="k">continue</span>
+            <span class="n">check_formfield</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">model</span><span class="p">,</span> <span class="n">opts</span><span class="p">,</span> <span class="n">label</span><span class="p">,</span> <span class="n">field</span><span class="p">)</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">f</span> <span class="o">=</span> <span class="n">opts</span><span class="o">.</span><span class="n">get_field</span><span class="p">(</span><span class="n">field</span><span class="p">)</span>
+            <span class="k">except</span> <span class="n">models</span><span class="o">.</span><span class="n">FieldDoesNotExist</span><span class="p">:</span>
+                <span class="c"># If we can&#39;t find a field on the model that matches, it could be an</span>
+                <span class="c"># extra field on the form; nothing to check so move on to the next field.</span>
+                <span class="k">continue</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="n">models</span><span class="o">.</span><span class="n">ManyToManyField</span><span class="p">)</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">f</span><span class="o">.</span><span class="n">rel</span><span class="o">.</span><span class="n">through</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">auto_created</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">ImproperlyConfigured</span><span class="p">(</span><span class="s">&quot;&#39;</span><span class="si">%s</span><span class="s">.</span><span class="si">%s</span><span class="s">&#39; &quot;</span>
+                    <span class="s">&quot;can&#39;t include the ManyToManyField field &#39;</span><span class="si">%s</span><span class="s">&#39; because &quot;</span>
+                    <span class="s">&quot;&#39;</span><span class="si">%s</span><span class="s">&#39; manually specifies a &#39;through&#39; model.&quot;</span> <span class="o">%</span> <span class="p">(</span>
+                        <span class="n">cls</span><span class="o">.</span><span class="n">__name__</span><span class="p">,</span> <span class="n">label</span><span class="p">,</span> <span class="n">field</span><span class="p">,</span> <span class="n">field</span><span class="p">))</span>
 
 <span class="k">def</span> <span class="nf">validate_base</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">model</span><span class="p">):</span>
     <span class="n">opts</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">_meta</span>
@@ -258,23 +324,7 @@
     <span class="c"># fields</span>
     <span class="k">if</span> <span class="n">cls</span><span class="o">.</span><span class="n">fields</span><span class="p">:</span> <span class="c"># default value is None</span>
         <span class="n">check_isseq</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="s">&#39;fields&#39;</span><span class="p">,</span> <span class="n">cls</span><span class="o">.</span><span class="n">fields</span><span class="p">)</span>
-        <span class="k">for</span> <span class="n">field</span> <span class="ow">in</span> <span class="n">cls</span><span class="o">.</span><span class="n">fields</span><span class="p">:</span>
-            <span class="k">if</span> <span class="n">field</span> <span class="ow">in</span> <span class="n">cls</span><span class="o">.</span><span class="n">readonly_fields</span><span class="p">:</span>
-                <span class="c"># Stuff can be put in fields that isn&#39;t actually a model field</span>
-                <span class="c"># if it&#39;s in readonly_fields, readonly_fields will handle the</span>
-                <span class="c"># validation of such things.</span>
-                <span class="k">continue</span>
-            <span class="n">check_formfield</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">model</span><span class="p">,</span> <span class="n">opts</span><span class="p">,</span> <span class="s">&#39;fields&#39;</span><span class="p">,</span> <span class="n">field</span><span class="p">)</span>
-            <span class="k">try</span><span class="p">:</span>
-                <span class="n">f</span> <span class="o">=</span> <span class="n">opts</span><span class="o">.</span><span class="n">get_field</span><span class="p">(</span><span class="n">field</span><span class="p">)</span>
-            <span class="k">except</span> <span class="n">models</span><span class="o">.</span><span class="n">FieldDoesNotExist</span><span class="p">:</span>
-                <span class="c"># If we can&#39;t find a field on the model that matches,</span>
-                <span class="c"># it could be an extra field on the form.</span>
-                <span class="k">continue</span>
-            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="n">models</span><span class="o">.</span><span class="n">ManyToManyField</span><span class="p">)</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">f</span><span class="o">.</span><span class="n">rel</span><span class="o">.</span><span class="n">through</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">auto_created</span><span class="p">:</span>
-                <span class="k">raise</span> <span class="n">ImproperlyConfigured</span><span class="p">(</span><span class="s">&quot;&#39;</span><span class="si">%s</span><span class="s">.fields&#39; can&#39;t include the ManyToManyField &quot;</span>
-                    <span class="s">&quot;field &#39;</span><span class="si">%s</span><span class="s">&#39; because &#39;</span><span class="si">%s</span><span class="s">&#39; manually specifies &quot;</span>
-                    <span class="s">&quot;a &#39;through&#39; model.&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">cls</span><span class="o">.</span><span class="n">__name__</span><span class="p">,</span> <span class="n">field</span><span class="p">,</span> <span class="n">field</span><span class="p">))</span>
+        <span class="n">validate_fields_spec</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">model</span><span class="p">,</span> <span class="n">opts</span><span class="p">,</span> <span class="n">cls</span><span class="o">.</span><span class="n">fields</span><span class="p">,</span> <span class="s">&#39;fields&#39;</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">cls</span><span class="o">.</span><span class="n">fieldsets</span><span class="p">:</span>
             <span class="k">raise</span> <span class="n">ImproperlyConfigured</span><span class="p">(</span><span class="s">&#39;Both fieldsets and fields are specified in </span><span class="si">%s</span><span class="s">.&#39;</span> <span class="o">%</span> <span class="n">cls</span><span class="o">.</span><span class="n">__name__</span><span class="p">)</span>
         <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">cls</span><span class="o">.</span><span class="n">fields</span><span class="p">)</span> <span class="o">&gt;</span> <span class="nb">len</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">cls</span><span class="o">.</span><span class="n">fields</span><span class="p">)):</span>
@@ -293,30 +343,7 @@
                 <span class="k">raise</span> <span class="n">ImproperlyConfigured</span><span class="p">(</span><span class="s">&quot;&#39;fields&#39; key is required in &quot;</span>
                         <span class="s">&quot;</span><span class="si">%s</span><span class="s">.fieldsets[</span><span class="si">%d</span><span class="s">][1] field options dict.&quot;</span>
                         <span class="o">%</span> <span class="p">(</span><span class="n">cls</span><span class="o">.</span><span class="n">__name__</span><span class="p">,</span> <span class="n">idx</span><span class="p">))</span>
-            <span class="k">for</span> <span class="n">fields</span> <span class="ow">in</span> <span class="n">fieldset</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="s">&#39;fields&#39;</span><span class="p">]:</span>
-                <span class="c"># The entry in fields might be a tuple. If it is a standalone</span>
-                <span class="c"># field, make it into a tuple to make processing easier.</span>
-                <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">fields</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">tuple</span><span class="p">:</span>
-                    <span class="n">fields</span> <span class="o">=</span> <span class="p">(</span><span class="n">fields</span><span class="p">,)</span>
-                <span class="k">for</span> <span class="n">field</span> <span class="ow">in</span> <span class="n">fields</span><span class="p">:</span>
-                    <span class="k">if</span> <span class="n">field</span> <span class="ow">in</span> <span class="n">cls</span><span class="o">.</span><span class="n">readonly_fields</span><span class="p">:</span>
-                        <span class="c"># Stuff can be put in fields that isn&#39;t actually a</span>
-                        <span class="c"># model field if it&#39;s in readonly_fields,</span>
-                        <span class="c"># readonly_fields will handle the validation of such</span>
-                        <span class="c"># things.</span>
-                        <span class="k">continue</span>
-                    <span class="n">check_formfield</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">model</span><span class="p">,</span> <span class="n">opts</span><span class="p">,</span> <span class="s">&quot;fieldsets[</span><span class="si">%d</span><span class="s">][1][&#39;fields&#39;]&quot;</span> <span class="o">%</span> <span class="n">idx</span><span class="p">,</span> <span class="n">field</span><span class="p">)</span>
-                    <span class="k">try</span><span class="p">:</span>
-                        <span class="n">f</span> <span class="o">=</span> <span class="n">opts</span><span class="o">.</span><span class="n">get_field</span><span class="p">(</span><span class="n">field</span><span class="p">)</span>
-                        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="n">models</span><span class="o">.</span><span class="n">ManyToManyField</span><span class="p">)</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">f</span><span class="o">.</span><span class="n">rel</span><span class="o">.</span><span class="n">through</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">auto_created</span><span class="p">:</span>
-                            <span class="k">raise</span> <span class="n">ImproperlyConfigured</span><span class="p">(</span><span class="s">&quot;&#39;</span><span class="si">%s</span><span class="s">.fieldsets[</span><span class="si">%d</span><span class="s">][1][&#39;fields&#39;]&#39; &quot;</span>
-                                <span class="s">&quot;can&#39;t include the ManyToManyField field &#39;</span><span class="si">%s</span><span class="s">&#39; because &quot;</span>
-                                <span class="s">&quot;&#39;</span><span class="si">%s</span><span class="s">&#39; manually specifies a &#39;through&#39; model.&quot;</span> <span class="o">%</span> <span class="p">(</span>
-                                    <span class="n">cls</span><span class="o">.</span><span class="n">__name__</span><span class="p">,</span> <span class="n">idx</span><span class="p">,</span> <span class="n">field</span><span class="p">,</span> <span class="n">field</span><span class="p">))</span>
-                    <span class="k">except</span> <span class="n">models</span><span class="o">.</span><span class="n">FieldDoesNotExist</span><span class="p">:</span>
-                        <span class="c"># If we can&#39;t find a field on the model that matches,</span>
-                        <span class="c"># it could be an extra field on the form.</span>
-                        <span class="k">pass</span>
+            <span class="n">validate_fields_spec</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">model</span><span class="p">,</span> <span class="n">opts</span><span class="p">,</span> <span class="n">fieldset</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="s">&#39;fields&#39;</span><span class="p">],</span> <span class="s">&quot;fieldsets[</span><span class="si">%d</span><span class="s">][1][&#39;fields&#39;]&quot;</span> <span class="o">%</span> <span class="n">idx</span><span class="p">)</span>
         <span class="n">flattened_fieldsets</span> <span class="o">=</span> <span class="n">flatten_fieldsets</span><span class="p">(</span><span class="n">cls</span><span class="o">.</span><span class="n">fieldsets</span><span class="p">)</span>
         <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">flattened_fieldsets</span><span class="p">)</span> <span class="o">&gt;</span> <span class="nb">len</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">flattened_fieldsets</span><span class="p">)):</span>
             <span class="k">raise</span> <span class="n">ImproperlyConfigured</span><span class="p">(</span><span class="s">&#39;There are duplicate field(s) in </span><span class="si">%s</span><span class="s">.fieldsets&#39;</span> <span class="o">%</span> <span class="n">cls</span><span class="o">.</span><span class="n">__name__</span><span class="p">)</span>
@@ -399,8 +426,8 @@
     <span class="k">try</span><span class="p">:</span>
         <span class="k">return</span> <span class="n">opts</span><span class="o">.</span><span class="n">get_field</span><span class="p">(</span><span class="n">field</span><span class="p">)</span>
     <span class="k">except</span> <span class="n">models</span><span class="o">.</span><span class="n">FieldDoesNotExist</span><span class="p">:</span>
-        <span class="k">raise</span> <span class="n">ImproperlyConfigured</span><span class="p">(</span><span class="s">&quot;&#39;</span><span class="si">%s</span><span class="s">.</span><span class="si">%s</span><span class="s">&#39; refers to field &#39;</span><span class="si">%s</span><span class="s">&#39; that is missing from model &#39;</span><span class="si">%s</span><span class="s">&#39;.&quot;</span>
-                <span class="o">%</span> <span class="p">(</span><span class="n">cls</span><span class="o">.</span><span class="n">__name__</span><span class="p">,</span> <span class="n">label</span><span class="p">,</span> <span class="n">field</span><span class="p">,</span> <span class="n">model</span><span class="o">.</span><span class="n">__name__</span><span class="p">))</span>
+        <span class="k">raise</span> <span class="n">ImproperlyConfigured</span><span class="p">(</span><span class="s">&quot;&#39;</span><span class="si">%s</span><span class="s">.</span><span class="si">%s</span><span class="s">&#39; refers to field &#39;</span><span class="si">%s</span><span class="s">&#39; that is missing from model &#39;</span><span class="si">%s</span><span class="s">.</span><span class="si">%s</span><span class="s">&#39;.&quot;</span>
+                <span class="o">%</span> <span class="p">(</span><span class="n">cls</span><span class="o">.</span><span class="n">__name__</span><span class="p">,</span> <span class="n">label</span><span class="p">,</span> <span class="n">field</span><span class="p">,</span> <span class="n">model</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">app_label</span><span class="p">,</span> <span class="n">model</span><span class="o">.</span><span class="n">__name__</span><span class="p">))</span>
 
 <span class="k">def</span> <span class="nf">check_formfield</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">model</span><span class="p">,</span> <span class="n">opts</span><span class="p">,</span> <span class="n">label</span><span class="p">,</span> <span class="n">field</span><span class="p">):</span>
     <span class="k">if</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">cls</span><span class="o">.</span><span class="n">form</span><span class="p">,</span> <span class="s">&#39;base_fields&#39;</span><span class="p">,</span> <span class="bp">None</span><span class="p">):</span>
@@ -425,8 +452,8 @@
     <span class="k">try</span><span class="p">:</span>
         <span class="k">return</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">field</span><span class="p">)</span>
     <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>
-        <span class="k">raise</span> <span class="n">ImproperlyConfigured</span><span class="p">(</span><span class="s">&quot;&#39;</span><span class="si">%s</span><span class="s">.</span><span class="si">%s</span><span class="s">&#39; refers to &#39;</span><span class="si">%s</span><span class="s">&#39; that is neither a field, method or property of model &#39;</span><span class="si">%s</span><span class="s">&#39;.&quot;</span>
-            <span class="o">%</span> <span class="p">(</span><span class="n">cls</span><span class="o">.</span><span class="n">__name__</span><span class="p">,</span> <span class="n">label</span><span class="p">,</span> <span class="n">field</span><span class="p">,</span> <span class="n">model</span><span class="o">.</span><span class="n">__name__</span><span class="p">))</span>
+        <span class="k">raise</span> <span class="n">ImproperlyConfigured</span><span class="p">(</span><span class="s">&quot;&#39;</span><span class="si">%s</span><span class="s">.</span><span class="si">%s</span><span class="s">&#39; refers to &#39;</span><span class="si">%s</span><span class="s">&#39; that is neither a field, method or property of model &#39;</span><span class="si">%s</span><span class="s">.</span><span class="si">%s</span><span class="s">&#39;.&quot;</span>
+            <span class="o">%</span> <span class="p">(</span><span class="n">cls</span><span class="o">.</span><span class="n">__name__</span><span class="p">,</span> <span class="n">label</span><span class="p">,</span> <span class="n">field</span><span class="p">,</span> <span class="n">model</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">app_label</span><span class="p">,</span> <span class="n">model</span><span class="o">.</span><span class="n">__name__</span><span class="p">))</span>
 
 <span class="k">def</span> <span class="nf">check_readonly_fields</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">model</span><span class="p">,</span> <span class="n">opts</span><span class="p">):</span>
     <span class="n">check_isseq</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="s">&quot;readonly_fields&quot;</span><span class="p">,</span> <span class="n">cls</span><span class="o">.</span><span class="n">readonly_fields</span><span class="p">)</span>
@@ -453,7 +480,7 @@
 
     <div class="footer">
         &copy; Copyright 2012, HDKNR.COM.
-      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.2pre/660be19d7963.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.2pre/3c28de26aac2.
     </div>
   </body>
 </html>

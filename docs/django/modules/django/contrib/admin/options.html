@@ -47,29 +47,32 @@
         
         
   <h1>Source code for django.contrib.admin.options</h1><div class="highlight"><pre>
-<span class="kn">from</span> <span class="nn">django</span> <span class="kn">import</span> <span class="n">forms</span><span class="p">,</span> <span class="n">template</span>
+<span class="kn">from</span> <span class="nn">functools</span> <span class="kn">import</span> <span class="n">update_wrapper</span><span class="p">,</span> <span class="n">partial</span>
+<span class="kn">from</span> <span class="nn">django</span> <span class="kn">import</span> <span class="n">forms</span>
+<span class="kn">from</span> <span class="nn">django.conf</span> <span class="kn">import</span> <span class="n">settings</span>
 <span class="kn">from</span> <span class="nn">django.forms.formsets</span> <span class="kn">import</span> <span class="n">all_valid</span>
 <span class="kn">from</span> <span class="nn">django.forms.models</span> <span class="kn">import</span> <span class="p">(</span><span class="n">modelform_factory</span><span class="p">,</span> <span class="n">modelformset_factory</span><span class="p">,</span>
     <span class="n">inlineformset_factory</span><span class="p">,</span> <span class="n">BaseInlineFormSet</span><span class="p">)</span>
 <span class="kn">from</span> <span class="nn">django.contrib.contenttypes.models</span> <span class="kn">import</span> <span class="n">ContentType</span>
 <span class="kn">from</span> <span class="nn">django.contrib.admin</span> <span class="kn">import</span> <span class="n">widgets</span><span class="p">,</span> <span class="n">helpers</span>
 <span class="kn">from</span> <span class="nn">django.contrib.admin.util</span> <span class="kn">import</span> <span class="n">unquote</span><span class="p">,</span> <span class="n">flatten_fieldsets</span><span class="p">,</span> <span class="n">get_deleted_objects</span><span class="p">,</span> <span class="n">model_format_dict</span>
+<span class="kn">from</span> <span class="nn">django.contrib.admin.templatetags.admin_static</span> <span class="kn">import</span> <span class="n">static</span>
 <span class="kn">from</span> <span class="nn">django.contrib</span> <span class="kn">import</span> <span class="n">messages</span>
 <span class="kn">from</span> <span class="nn">django.views.decorators.csrf</span> <span class="kn">import</span> <span class="n">csrf_protect</span>
 <span class="kn">from</span> <span class="nn">django.core.exceptions</span> <span class="kn">import</span> <span class="n">PermissionDenied</span><span class="p">,</span> <span class="n">ValidationError</span>
 <span class="kn">from</span> <span class="nn">django.core.paginator</span> <span class="kn">import</span> <span class="n">Paginator</span>
+<span class="kn">from</span> <span class="nn">django.core.urlresolvers</span> <span class="kn">import</span> <span class="n">reverse</span>
 <span class="kn">from</span> <span class="nn">django.db</span> <span class="kn">import</span> <span class="n">models</span><span class="p">,</span> <span class="n">transaction</span><span class="p">,</span> <span class="n">router</span>
 <span class="kn">from</span> <span class="nn">django.db.models.related</span> <span class="kn">import</span> <span class="n">RelatedObject</span>
 <span class="kn">from</span> <span class="nn">django.db.models.fields</span> <span class="kn">import</span> <span class="n">BLANK_CHOICE_DASH</span><span class="p">,</span> <span class="n">FieldDoesNotExist</span>
 <span class="kn">from</span> <span class="nn">django.db.models.sql.constants</span> <span class="kn">import</span> <span class="n">LOOKUP_SEP</span><span class="p">,</span> <span class="n">QUERY_TERMS</span>
 <span class="kn">from</span> <span class="nn">django.http</span> <span class="kn">import</span> <span class="n">Http404</span><span class="p">,</span> <span class="n">HttpResponse</span><span class="p">,</span> <span class="n">HttpResponseRedirect</span>
-<span class="kn">from</span> <span class="nn">django.shortcuts</span> <span class="kn">import</span> <span class="n">get_object_or_404</span><span class="p">,</span> <span class="n">render_to_response</span>
+<span class="kn">from</span> <span class="nn">django.shortcuts</span> <span class="kn">import</span> <span class="n">get_object_or_404</span>
+<span class="kn">from</span> <span class="nn">django.template.response</span> <span class="kn">import</span> <span class="n">SimpleTemplateResponse</span><span class="p">,</span> <span class="n">TemplateResponse</span>
 <span class="kn">from</span> <span class="nn">django.utils.decorators</span> <span class="kn">import</span> <span class="n">method_decorator</span>
 <span class="kn">from</span> <span class="nn">django.utils.datastructures</span> <span class="kn">import</span> <span class="n">SortedDict</span>
-<span class="kn">from</span> <span class="nn">django.utils.functional</span> <span class="kn">import</span> <span class="n">update_wrapper</span>
 <span class="kn">from</span> <span class="nn">django.utils.html</span> <span class="kn">import</span> <span class="n">escape</span><span class="p">,</span> <span class="n">escapejs</span>
 <span class="kn">from</span> <span class="nn">django.utils.safestring</span> <span class="kn">import</span> <span class="n">mark_safe</span>
-<span class="kn">from</span> <span class="nn">django.utils.functional</span> <span class="kn">import</span> <span class="n">curry</span>
 <span class="kn">from</span> <span class="nn">django.utils.text</span> <span class="kn">import</span> <span class="n">capfirst</span><span class="p">,</span> <span class="n">get_text_list</span>
 <span class="kn">from</span> <span class="nn">django.utils.translation</span> <span class="kn">import</span> <span class="n">ugettext</span> <span class="k">as</span> <span class="n">_</span>
 <span class="kn">from</span> <span class="nn">django.utils.translation</span> <span class="kn">import</span> <span class="n">ungettext</span>
@@ -203,7 +206,8 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">db</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;using&#39;</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">db_field</span><span class="o">.</span><span class="n">name</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">raw_id_fields</span><span class="p">:</span>
-            <span class="n">kwargs</span><span class="p">[</span><span class="s">&#39;widget&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">widgets</span><span class="o">.</span><span class="n">ForeignKeyRawIdWidget</span><span class="p">(</span><span class="n">db_field</span><span class="o">.</span><span class="n">rel</span><span class="p">,</span> <span class="n">using</span><span class="o">=</span><span class="n">db</span><span class="p">)</span>
+            <span class="n">kwargs</span><span class="p">[</span><span class="s">&#39;widget&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">widgets</span><span class="o">.</span><span class="n">ForeignKeyRawIdWidget</span><span class="p">(</span><span class="n">db_field</span><span class="o">.</span><span class="n">rel</span><span class="p">,</span>
+                                    <span class="bp">self</span><span class="o">.</span><span class="n">admin_site</span><span class="p">,</span> <span class="n">using</span><span class="o">=</span><span class="n">db</span><span class="p">)</span>
         <span class="k">elif</span> <span class="n">db_field</span><span class="o">.</span><span class="n">name</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">radio_fields</span><span class="p">:</span>
             <span class="n">kwargs</span><span class="p">[</span><span class="s">&#39;widget&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">widgets</span><span class="o">.</span><span class="n">AdminRadioSelect</span><span class="p">(</span><span class="n">attrs</span><span class="o">=</span><span class="p">{</span>
                 <span class="s">&#39;class&#39;</span><span class="p">:</span> <span class="n">get_ul_class</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">radio_fields</span><span class="p">[</span><span class="n">db_field</span><span class="o">.</span><span class="n">name</span><span class="p">]),</span>
@@ -223,7 +227,8 @@
         <span class="n">db</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;using&#39;</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="n">db_field</span><span class="o">.</span><span class="n">name</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">raw_id_fields</span><span class="p">:</span>
-            <span class="n">kwargs</span><span class="p">[</span><span class="s">&#39;widget&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">widgets</span><span class="o">.</span><span class="n">ManyToManyRawIdWidget</span><span class="p">(</span><span class="n">db_field</span><span class="o">.</span><span class="n">rel</span><span class="p">,</span> <span class="n">using</span><span class="o">=</span><span class="n">db</span><span class="p">)</span>
+            <span class="n">kwargs</span><span class="p">[</span><span class="s">&#39;widget&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">widgets</span><span class="o">.</span><span class="n">ManyToManyRawIdWidget</span><span class="p">(</span><span class="n">db_field</span><span class="o">.</span><span class="n">rel</span><span class="p">,</span>
+                                    <span class="bp">self</span><span class="o">.</span><span class="n">admin_site</span><span class="p">,</span> <span class="n">using</span><span class="o">=</span><span class="n">db</span><span class="p">)</span>
             <span class="n">kwargs</span><span class="p">[</span><span class="s">&#39;help_text&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s">&#39;&#39;</span>
         <span class="k">elif</span> <span class="n">db_field</span><span class="o">.</span><span class="n">name</span> <span class="ow">in</span> <span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">filter_vertical</span><span class="p">)</span> <span class="o">+</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">filter_horizontal</span><span class="p">)):</span>
             <span class="n">kwargs</span><span class="p">[</span><span class="s">&#39;widget&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">widgets</span><span class="o">.</span><span class="n">FilteredSelectMultiple</span><span class="p">(</span><span class="n">db_field</span><span class="o">.</span><span class="n">verbose_name</span><span class="p">,</span> <span class="p">(</span><span class="n">db_field</span><span class="o">.</span><span class="n">name</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">filter_vertical</span><span class="p">))</span>
@@ -238,9 +243,24 @@
         <span class="k">return</span> <span class="bp">None</span>
     <span class="n">declared_fieldsets</span> <span class="o">=</span> <span class="nb">property</span><span class="p">(</span><span class="n">_declared_fieldsets</span><span class="p">)</span>
 
-    <span class="k">def</span> <span class="nf">get_readonly_fields</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">request</span><span class="p">,</span> <span class="n">obj</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+<div class="viewcode-block" id="BaseModelAdmin.get_ordering"><a class="viewcode-back" href="../../../../django.contrib.admin.html#django.contrib.admin.options.BaseModelAdmin.get_ordering">[docs]</a>    <span class="k">def</span> <span class="nf">get_ordering</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">request</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Hook for specifying field ordering.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">ordering</span> <span class="ow">or</span> <span class="p">()</span>  <span class="c"># otherwise we might try to *None, which is bad ;)</span>
+</div>
+<div class="viewcode-block" id="BaseModelAdmin.get_readonly_fields"><a class="viewcode-back" href="../../../../django.contrib.admin.html#django.contrib.admin.options.BaseModelAdmin.get_readonly_fields">[docs]</a>    <span class="k">def</span> <span class="nf">get_readonly_fields</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">request</span><span class="p">,</span> <span class="n">obj</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Hook for specifying custom readonly fields.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">readonly_fields</span>
-
+</div>
+<div class="viewcode-block" id="BaseModelAdmin.get_prepopulated_fields"><a class="viewcode-back" href="../../../../django.contrib.admin.html#django.contrib.admin.options.BaseModelAdmin.get_prepopulated_fields">[docs]</a>    <span class="k">def</span> <span class="nf">get_prepopulated_fields</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">request</span><span class="p">,</span> <span class="n">obj</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Hook for specifying custom prepopulated fields.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">prepopulated_fields</span>
+</div>
 <div class="viewcode-block" id="BaseModelAdmin.queryset"><a class="viewcode-back" href="../../../../django.contrib.admin.html#django.contrib.admin.options.BaseModelAdmin.queryset">[docs]</a>    <span class="k">def</span> <span class="nf">queryset</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">request</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Returns a QuerySet of all model instances that can be edited by the</span>
@@ -248,7 +268,7 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">qs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">_default_manager</span><span class="o">.</span><span class="n">get_query_set</span><span class="p">()</span>
         <span class="c"># TODO: this should be handled by some parameter to the ChangeList.</span>
-        <span class="n">ordering</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">ordering</span> <span class="ow">or</span> <span class="p">()</span> <span class="c"># otherwise we might try to *None, which is bad ;)</span>
+        <span class="n">ordering</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_ordering</span><span class="p">(</span><span class="n">request</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">ordering</span><span class="p">:</span>
             <span class="n">qs</span> <span class="o">=</span> <span class="n">qs</span><span class="o">.</span><span class="n">order_by</span><span class="p">(</span><span class="o">*</span><span class="n">ordering</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">qs</span>
@@ -276,7 +296,12 @@
         <span class="c"># the pk attribute name.</span>
         <span class="n">pk_attr_name</span> <span class="o">=</span> <span class="bp">None</span>
         <span class="k">for</span> <span class="n">part</span> <span class="ow">in</span> <span class="n">parts</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]:</span>
-            <span class="n">field</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">get_field_by_name</span><span class="p">(</span><span class="n">part</span><span class="p">)</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">field</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">get_field_by_name</span><span class="p">(</span><span class="n">part</span><span class="p">)</span>
+            <span class="k">except</span> <span class="n">FieldDoesNotExist</span><span class="p">:</span>
+                <span class="c"># Lookups on non-existants fields are ok, since they&#39;re ignored</span>
+                <span class="c"># later.</span>
+                <span class="k">return</span> <span class="bp">True</span>
             <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">field</span><span class="p">,</span> <span class="s">&#39;rel&#39;</span><span class="p">):</span>
                 <span class="n">model</span> <span class="o">=</span> <span class="n">field</span><span class="o">.</span><span class="n">rel</span><span class="o">.</span><span class="n">to</span>
                 <span class="n">pk_attr_name</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">pk</span><span class="o">.</span><span class="n">name</span>
@@ -288,18 +313,47 @@
         <span class="k">if</span> <span class="n">pk_attr_name</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">parts</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span> <span class="ow">and</span> <span class="n">parts</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="n">pk_attr_name</span><span class="p">:</span>
             <span class="n">parts</span><span class="o">.</span><span class="n">pop</span><span class="p">()</span>
 
-        <span class="k">try</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">get_field_by_name</span><span class="p">(</span><span class="n">parts</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
-        <span class="k">except</span> <span class="n">FieldDoesNotExist</span><span class="p">:</span>
-            <span class="c"># Lookups on non-existants fields are ok, since they&#39;re ignored</span>
-            <span class="c"># later.</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">parts</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
             <span class="k">return</span> <span class="bp">True</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">parts</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
-                <span class="k">return</span> <span class="bp">True</span>
-            <span class="n">clean_lookup</span> <span class="o">=</span> <span class="n">LOOKUP_SEP</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">parts</span><span class="p">)</span>
-            <span class="k">return</span> <span class="n">clean_lookup</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">list_filter</span> <span class="ow">or</span> <span class="n">clean_lookup</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">date_hierarchy</span>
+        <span class="n">clean_lookup</span> <span class="o">=</span> <span class="n">LOOKUP_SEP</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">parts</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">clean_lookup</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">list_filter</span> <span class="ow">or</span> <span class="n">clean_lookup</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">date_hierarchy</span>
+
+<div class="viewcode-block" id="BaseModelAdmin.has_add_permission"><a class="viewcode-back" href="../../../../django.contrib.admin.html#django.contrib.admin.options.BaseModelAdmin.has_add_permission">[docs]</a>    <span class="k">def</span> <span class="nf">has_add_permission</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">request</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns True if the given request has permission to add an object.</span>
+<span class="sd">        Can be overriden by the user in subclasses.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">opts</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">opts</span>
+        <span class="k">return</span> <span class="n">request</span><span class="o">.</span><span class="n">user</span><span class="o">.</span><span class="n">has_perm</span><span class="p">(</span><span class="n">opts</span><span class="o">.</span><span class="n">app_label</span> <span class="o">+</span> <span class="s">&#39;.&#39;</span> <span class="o">+</span> <span class="n">opts</span><span class="o">.</span><span class="n">get_add_permission</span><span class="p">())</span>
 </div>
+<div class="viewcode-block" id="BaseModelAdmin.has_change_permission"><a class="viewcode-back" href="../../../../django.contrib.admin.html#django.contrib.admin.options.BaseModelAdmin.has_change_permission">[docs]</a>    <span class="k">def</span> <span class="nf">has_change_permission</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">request</span><span class="p">,</span> <span class="n">obj</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns True if the given request has permission to change the given</span>
+<span class="sd">        Django model instance, the default implementation doesn&#39;t examine the</span>
+<span class="sd">        `obj` parameter.</span>
+
+<span class="sd">        Can be overriden by the user in subclasses. In such case it should</span>
+<span class="sd">        return True if the given request has permission to change the `obj`</span>
+<span class="sd">        model instance. If `obj` is None, this should return True if the given</span>
+<span class="sd">        request has permission to change *any* object of the given type.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">opts</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">opts</span>
+        <span class="k">return</span> <span class="n">request</span><span class="o">.</span><span class="n">user</span><span class="o">.</span><span class="n">has_perm</span><span class="p">(</span><span class="n">opts</span><span class="o">.</span><span class="n">app_label</span> <span class="o">+</span> <span class="s">&#39;.&#39;</span> <span class="o">+</span> <span class="n">opts</span><span class="o">.</span><span class="n">get_change_permission</span><span class="p">())</span>
+</div>
+<div class="viewcode-block" id="BaseModelAdmin.has_delete_permission"><a class="viewcode-back" href="../../../../django.contrib.admin.html#django.contrib.admin.options.BaseModelAdmin.has_delete_permission">[docs]</a>    <span class="k">def</span> <span class="nf">has_delete_permission</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">request</span><span class="p">,</span> <span class="n">obj</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns True if the given request has permission to change the given</span>
+<span class="sd">        Django model instance, the default implementation doesn&#39;t examine the</span>
+<span class="sd">        `obj` parameter.</span>
+
+<span class="sd">        Can be overriden by the user in subclasses. In such case it should</span>
+<span class="sd">        return True if the given request has permission to delete the `obj`</span>
+<span class="sd">        model instance. If `obj` is None, this should return True if the given</span>
+<span class="sd">        request has permission to delete *any* object of the given type.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">opts</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">opts</span>
+        <span class="k">return</span> <span class="n">request</span><span class="o">.</span><span class="n">user</span><span class="o">.</span><span class="n">has_perm</span><span class="p">(</span><span class="n">opts</span><span class="o">.</span><span class="n">app_label</span> <span class="o">+</span> <span class="s">&#39;.&#39;</span> <span class="o">+</span> <span class="n">opts</span><span class="o">.</span><span class="n">get_delete_permission</span><span class="p">())</span>
+</div></div>
 <div class="viewcode-block" id="ModelAdmin"><a class="viewcode-back" href="../../../../django.contrib.admin.html#django.contrib.admin.options.ModelAdmin">[docs]</a><span class="k">class</span> <span class="nc">ModelAdmin</span><span class="p">(</span><span class="n">BaseModelAdmin</span><span class="p">):</span>
     <span class="s">&quot;Encapsulates all admin options and functionality for a given model.&quot;</span>
 
@@ -308,6 +362,7 @@
     <span class="n">list_filter</span> <span class="o">=</span> <span class="p">()</span>
     <span class="n">list_select_related</span> <span class="o">=</span> <span class="bp">False</span>
     <span class="n">list_per_page</span> <span class="o">=</span> <span class="mi">100</span>
+    <span class="n">list_max_show_all</span> <span class="o">=</span> <span class="mi">200</span>
     <span class="n">list_editable</span> <span class="o">=</span> <span class="p">()</span>
     <span class="n">search_fields</span> <span class="o">=</span> <span class="p">()</span>
     <span class="n">date_hierarchy</span> <span class="o">=</span> <span class="bp">None</span>
@@ -335,21 +390,25 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">model</span> <span class="o">=</span> <span class="n">model</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">opts</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">_meta</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">admin_site</span> <span class="o">=</span> <span class="n">admin_site</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">inline_instances</span> <span class="o">=</span> <span class="p">[]</span>
-        <span class="k">for</span> <span class="n">inline_class</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">inlines</span><span class="p">:</span>
-            <span class="n">inline_instance</span> <span class="o">=</span> <span class="n">inline_class</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">admin_site</span><span class="p">)</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">inline_instances</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">inline_instance</span><span class="p">)</span>
-        <span class="k">if</span> <span class="s">&#39;action_checkbox&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">list_display</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">actions</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">list_display</span> <span class="o">=</span> <span class="p">[</span><span class="s">&#39;action_checkbox&#39;</span><span class="p">]</span> <span class="o">+</span>  <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">list_display</span><span class="p">)</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">list_display_links</span><span class="p">:</span>
-            <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">list_display</span><span class="p">:</span>
-                <span class="k">if</span> <span class="n">name</span> <span class="o">!=</span> <span class="s">&#39;action_checkbox&#39;</span><span class="p">:</span>
-                    <span class="bp">self</span><span class="o">.</span><span class="n">list_display_links</span> <span class="o">=</span> <span class="p">[</span><span class="n">name</span><span class="p">]</span>
-                    <span class="k">break</span>
         <span class="nb">super</span><span class="p">(</span><span class="n">ModelAdmin</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__init__</span><span class="p">()</span>
 
+    <span class="k">def</span> <span class="nf">get_inline_instances</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">request</span><span class="p">):</span>
+        <span class="n">inline_instances</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">inline_class</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">inlines</span><span class="p">:</span>
+            <span class="n">inline</span> <span class="o">=</span> <span class="n">inline_class</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">admin_site</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">request</span><span class="p">:</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="n">inline</span><span class="o">.</span><span class="n">has_add_permission</span><span class="p">(</span><span class="n">request</span><span class="p">)</span> <span class="ow">or</span>
+                        <span class="n">inline</span><span class="o">.</span><span class="n">has_change_permission</span><span class="p">(</span><span class="n">request</span><span class="p">)</span> <span class="ow">or</span>
+                        <span class="n">inline</span><span class="o">.</span><span class="n">has_delete_permission</span><span class="p">(</span><span class="n">request</span><span class="p">)):</span>
+                    <span class="k">continue</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">inline</span><span class="o">.</span><span class="n">has_add_permission</span><span class="p">(</span><span class="n">request</span><span class="p">):</span>
+                    <span class="n">inline</span><span class="o">.</span><span class="n">max_num</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="n">inline_instances</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">inline</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">inline_instances</span>
+
     <span class="k">def</span> <span class="nf">get_urls</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="kn">from</span> <span class="nn">django.conf.urls.defaults</span> <span class="kn">import</span> <span class="n">patterns</span><span class="p">,</span> <span class="n">url</span>
+        <span class="kn">from</span> <span class="nn">django.conf.urls</span> <span class="kn">import</span> <span class="n">patterns</span><span class="p">,</span> <span class="n">url</span>
 
         <span class="k">def</span> <span class="nf">wrap</span><span class="p">(</span><span class="n">view</span><span class="p">):</span>
             <span class="k">def</span> <span class="nf">wrapper</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
@@ -381,58 +440,23 @@
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_urls</span><span class="p">()</span>
     <span class="n">urls</span> <span class="o">=</span> <span class="nb">property</span><span class="p">(</span><span class="n">urls</span><span class="p">)</span>
 
-    <span class="k">def</span> <span class="nf">_media</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="kn">from</span> <span class="nn">django.conf</span> <span class="kn">import</span> <span class="n">settings</span>
-
-        <span class="n">js</span> <span class="o">=</span> <span class="p">[</span><span class="s">&#39;js/core.js&#39;</span><span class="p">,</span> <span class="s">&#39;js/admin/RelatedObjectLookups.js&#39;</span><span class="p">,</span>
-              <span class="s">&#39;js/jquery.min.js&#39;</span><span class="p">,</span> <span class="s">&#39;js/jquery.init.js&#39;</span><span class="p">]</span>
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">media</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">extra</span> <span class="o">=</span> <span class="s">&#39;&#39;</span> <span class="k">if</span> <span class="n">settings</span><span class="o">.</span><span class="n">DEBUG</span> <span class="k">else</span> <span class="s">&#39;.min&#39;</span>
+        <span class="n">js</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="s">&#39;core.js&#39;</span><span class="p">,</span>
+            <span class="s">&#39;admin/RelatedObjectLookups.js&#39;</span><span class="p">,</span>
+            <span class="s">&#39;jquery</span><span class="si">%s</span><span class="s">.js&#39;</span> <span class="o">%</span> <span class="n">extra</span><span class="p">,</span>
+            <span class="s">&#39;jquery.init.js&#39;</span>
+        <span class="p">]</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">actions</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
-            <span class="n">js</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="s">&#39;js/actions.min.js&#39;</span><span class="p">])</span>
+            <span class="n">js</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s">&#39;actions</span><span class="si">%s</span><span class="s">.js&#39;</span> <span class="o">%</span> <span class="n">extra</span><span class="p">)</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">prepopulated_fields</span><span class="p">:</span>
-            <span class="n">js</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s">&#39;js/urlify.js&#39;</span><span class="p">)</span>
-            <span class="n">js</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s">&#39;js/prepopulate.min.js&#39;</span><span class="p">)</span>
+            <span class="n">js</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="s">&#39;urlify.js&#39;</span><span class="p">,</span> <span class="s">&#39;prepopulate</span><span class="si">%s</span><span class="s">.js&#39;</span> <span class="o">%</span> <span class="n">extra</span><span class="p">])</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">opts</span><span class="o">.</span><span class="n">get_ordered_objects</span><span class="p">():</span>
-            <span class="n">js</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="s">&#39;js/getElementsBySelector.js&#39;</span><span class="p">,</span> <span class="s">&#39;js/dom-drag.js&#39;</span> <span class="p">,</span> <span class="s">&#39;js/admin/ordering.js&#39;</span><span class="p">])</span>
+            <span class="n">js</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="s">&#39;getElementsBySelector.js&#39;</span><span class="p">,</span> <span class="s">&#39;dom-drag.js&#39;</span> <span class="p">,</span> <span class="s">&#39;admin/ordering.js&#39;</span><span class="p">])</span>
+        <span class="k">return</span> <span class="n">forms</span><span class="o">.</span><span class="n">Media</span><span class="p">(</span><span class="n">js</span><span class="o">=</span><span class="p">[</span><span class="n">static</span><span class="p">(</span><span class="s">&#39;admin/js/</span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">url</span><span class="p">)</span> <span class="k">for</span> <span class="n">url</span> <span class="ow">in</span> <span class="n">js</span><span class="p">])</span>
 
-        <span class="k">return</span> <span class="n">forms</span><span class="o">.</span><span class="n">Media</span><span class="p">(</span><span class="n">js</span><span class="o">=</span><span class="p">[</span><span class="s">&#39;</span><span class="si">%s%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">settings</span><span class="o">.</span><span class="n">ADMIN_MEDIA_PREFIX</span><span class="p">,</span> <span class="n">url</span><span class="p">)</span> <span class="k">for</span> <span class="n">url</span> <span class="ow">in</span> <span class="n">js</span><span class="p">])</span>
-    <span class="n">media</span> <span class="o">=</span> <span class="nb">property</span><span class="p">(</span><span class="n">_media</span><span class="p">)</span>
-
-<div class="viewcode-block" id="ModelAdmin.has_add_permission"><a class="viewcode-back" href="../../../../django.contrib.admin.html#django.contrib.admin.options.ModelAdmin.has_add_permission">[docs]</a>    <span class="k">def</span> <span class="nf">has_add_permission</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">request</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Returns True if the given request has permission to add an object.</span>
-<span class="sd">        Can be overriden by the user in subclasses.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">opts</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">opts</span>
-        <span class="k">return</span> <span class="n">request</span><span class="o">.</span><span class="n">user</span><span class="o">.</span><span class="n">has_perm</span><span class="p">(</span><span class="n">opts</span><span class="o">.</span><span class="n">app_label</span> <span class="o">+</span> <span class="s">&#39;.&#39;</span> <span class="o">+</span> <span class="n">opts</span><span class="o">.</span><span class="n">get_add_permission</span><span class="p">())</span>
-</div>
-<div class="viewcode-block" id="ModelAdmin.has_change_permission"><a class="viewcode-back" href="../../../../django.contrib.admin.html#django.contrib.admin.options.ModelAdmin.has_change_permission">[docs]</a>    <span class="k">def</span> <span class="nf">has_change_permission</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">request</span><span class="p">,</span> <span class="n">obj</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Returns True if the given request has permission to change the given</span>
-<span class="sd">        Django model instance, the default implementation doesn&#39;t examine the</span>
-<span class="sd">        `obj` parameter.</span>
-
-<span class="sd">        Can be overriden by the user in subclasses. In such case it should</span>
-<span class="sd">        return True if the given request has permission to change the `obj`</span>
-<span class="sd">        model instance. If `obj` is None, this should return True if the given</span>
-<span class="sd">        request has permission to change *any* object of the given type.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">opts</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">opts</span>
-        <span class="k">return</span> <span class="n">request</span><span class="o">.</span><span class="n">user</span><span class="o">.</span><span class="n">has_perm</span><span class="p">(</span><span class="n">opts</span><span class="o">.</span><span class="n">app_label</span> <span class="o">+</span> <span class="s">&#39;.&#39;</span> <span class="o">+</span> <span class="n">opts</span><span class="o">.</span><span class="n">get_change_permission</span><span class="p">())</span>
-</div>
-<div class="viewcode-block" id="ModelAdmin.has_delete_permission"><a class="viewcode-back" href="../../../../django.contrib.admin.html#django.contrib.admin.options.ModelAdmin.has_delete_permission">[docs]</a>    <span class="k">def</span> <span class="nf">has_delete_permission</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">request</span><span class="p">,</span> <span class="n">obj</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Returns True if the given request has permission to change the given</span>
-<span class="sd">        Django model instance, the default implementation doesn&#39;t examine the</span>
-<span class="sd">        `obj` parameter.</span>
-
-<span class="sd">        Can be overriden by the user in subclasses. In such case it should</span>
-<span class="sd">        return True if the given request has permission to delete the `obj`</span>
-<span class="sd">        model instance. If `obj` is None, this should return True if the given</span>
-<span class="sd">        request has permission to delete *any* object of the given type.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">opts</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">opts</span>
-        <span class="k">return</span> <span class="n">request</span><span class="o">.</span><span class="n">user</span><span class="o">.</span><span class="n">has_perm</span><span class="p">(</span><span class="n">opts</span><span class="o">.</span><span class="n">app_label</span> <span class="o">+</span> <span class="s">&#39;.&#39;</span> <span class="o">+</span> <span class="n">opts</span><span class="o">.</span><span class="n">get_delete_permission</span><span class="p">())</span>
-</div>
 <div class="viewcode-block" id="ModelAdmin.get_model_perms"><a class="viewcode-back" href="../../../../django.contrib.admin.html#django.contrib.admin.options.ModelAdmin.get_model_perms">[docs]</a>    <span class="k">def</span> <span class="nf">get_model_perms</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">request</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Returns a dict of all perms for this model. This dict has the keys</span>
@@ -466,8 +490,11 @@
             <span class="n">exclude</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="n">exclude</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">exclude</span><span class="p">)</span>
-        <span class="n">exclude</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&quot;exclude&quot;</span><span class="p">,</span> <span class="p">[]))</span>
         <span class="n">exclude</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">get_readonly_fields</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="n">obj</span><span class="p">))</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">exclude</span> <span class="ow">is</span> <span class="bp">None</span> <span class="ow">and</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">form</span><span class="p">,</span> <span class="s">&#39;_meta&#39;</span><span class="p">)</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">form</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">exclude</span><span class="p">:</span>
+            <span class="c"># Take the custom ModelForm&#39;s Meta.exclude into account only if the</span>
+            <span class="c"># ModelAdmin doesn&#39;t define its own.</span>
+            <span class="n">exclude</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">form</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">exclude</span><span class="p">)</span>
         <span class="c"># if exclude is an empty list we pass None to be consistant with the</span>
         <span class="c"># default on modelform_factory</span>
         <span class="n">exclude</span> <span class="o">=</span> <span class="n">exclude</span> <span class="ow">or</span> <span class="bp">None</span>
@@ -475,7 +502,7 @@
             <span class="s">&quot;form&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">form</span><span class="p">,</span>
             <span class="s">&quot;fields&quot;</span><span class="p">:</span> <span class="n">fields</span><span class="p">,</span>
             <span class="s">&quot;exclude&quot;</span><span class="p">:</span> <span class="n">exclude</span><span class="p">,</span>
-            <span class="s">&quot;formfield_callback&quot;</span><span class="p">:</span> <span class="n">curry</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">formfield_for_dbfield</span><span class="p">,</span> <span class="n">request</span><span class="o">=</span><span class="n">request</span><span class="p">),</span>
+            <span class="s">&quot;formfield_callback&quot;</span><span class="p">:</span> <span class="n">partial</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">formfield_for_dbfield</span><span class="p">,</span> <span class="n">request</span><span class="o">=</span><span class="n">request</span><span class="p">),</span>
         <span class="p">}</span>
         <span class="n">defaults</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">kwargs</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">modelform_factory</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="p">,</span> <span class="o">**</span><span class="n">defaults</span><span class="p">)</span>
@@ -506,7 +533,7 @@
 <span class="sd">        Returns a Form class for use in the Formset on the changelist page.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">defaults</span> <span class="o">=</span> <span class="p">{</span>
-            <span class="s">&quot;formfield_callback&quot;</span><span class="p">:</span> <span class="n">curry</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">formfield_for_dbfield</span><span class="p">,</span> <span class="n">request</span><span class="o">=</span><span class="n">request</span><span class="p">),</span>
+            <span class="s">&quot;formfield_callback&quot;</span><span class="p">:</span> <span class="n">partial</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">formfield_for_dbfield</span><span class="p">,</span> <span class="n">request</span><span class="o">=</span><span class="n">request</span><span class="p">),</span>
         <span class="p">}</span>
         <span class="n">defaults</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">kwargs</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">modelform_factory</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="p">,</span> <span class="o">**</span><span class="n">defaults</span><span class="p">)</span>
@@ -517,7 +544,7 @@
 <span class="sd">        is used.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">defaults</span> <span class="o">=</span> <span class="p">{</span>
-            <span class="s">&quot;formfield_callback&quot;</span><span class="p">:</span> <span class="n">curry</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">formfield_for_dbfield</span><span class="p">,</span> <span class="n">request</span><span class="o">=</span><span class="n">request</span><span class="p">),</span>
+            <span class="s">&quot;formfield_callback&quot;</span><span class="p">:</span> <span class="n">partial</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">formfield_for_dbfield</span><span class="p">,</span> <span class="n">request</span><span class="o">=</span><span class="n">request</span><span class="p">),</span>
         <span class="p">}</span>
         <span class="n">defaults</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">kwargs</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">modelformset_factory</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="p">,</span>
@@ -525,7 +552,7 @@
             <span class="n">fields</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">list_editable</span><span class="p">,</span> <span class="o">**</span><span class="n">defaults</span><span class="p">)</span>
 </div>
     <span class="k">def</span> <span class="nf">get_formsets</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">request</span><span class="p">,</span> <span class="n">obj</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
-        <span class="k">for</span> <span class="n">inline</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">inline_instances</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">inline</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_inline_instances</span><span class="p">(</span><span class="n">request</span><span class="p">):</span>
             <span class="k">yield</span> <span class="n">inline</span><span class="o">.</span><span class="n">get_formset</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="n">obj</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">get_paginator</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">request</span><span class="p">,</span> <span class="n">queryset</span><span class="p">,</span> <span class="n">per_page</span><span class="p">,</span> <span class="n">orphans</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">allow_empty_first_page</span><span class="o">=</span><span class="bp">True</span><span class="p">):</span>
@@ -616,9 +643,7 @@
         <span class="c"># get_action might have returned None, so filter any of those out.</span>
         <span class="n">actions</span> <span class="o">=</span> <span class="nb">filter</span><span class="p">(</span><span class="bp">None</span><span class="p">,</span> <span class="n">actions</span><span class="p">)</span>
 
-        <span class="c"># Convert the actions into a SortedDict keyed by name</span>
-        <span class="c"># and sorted by description.</span>
-        <span class="n">actions</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">k</span><span class="p">:</span> <span class="n">k</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="o">.</span><span class="n">lower</span><span class="p">())</span>
+        <span class="c"># Convert the actions into a SortedDict keyed by name.</span>
         <span class="n">actions</span> <span class="o">=</span> <span class="n">SortedDict</span><span class="p">([</span>
             <span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="p">(</span><span class="n">func</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">desc</span><span class="p">))</span>
             <span class="k">for</span> <span class="n">func</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">desc</span> <span class="ow">in</span> <span class="n">actions</span>
@@ -666,6 +691,25 @@
         <span class="k">else</span><span class="p">:</span>
             <span class="n">description</span> <span class="o">=</span> <span class="n">capfirst</span><span class="p">(</span><span class="n">action</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s">&#39;_&#39;</span><span class="p">,</span> <span class="s">&#39; &#39;</span><span class="p">))</span>
         <span class="k">return</span> <span class="n">func</span><span class="p">,</span> <span class="n">action</span><span class="p">,</span> <span class="n">description</span>
+</div>
+<div class="viewcode-block" id="ModelAdmin.get_list_display"><a class="viewcode-back" href="../../../../django.contrib.admin.html#django.contrib.admin.options.ModelAdmin.get_list_display">[docs]</a>    <span class="k">def</span> <span class="nf">get_list_display</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">request</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Return a sequence containing the fields to be displayed on the</span>
+<span class="sd">        changelist.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">list_display</span>
+</div>
+<div class="viewcode-block" id="ModelAdmin.get_list_display_links"><a class="viewcode-back" href="../../../../django.contrib.admin.html#django.contrib.admin.options.ModelAdmin.get_list_display_links">[docs]</a>    <span class="k">def</span> <span class="nf">get_list_display_links</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">request</span><span class="p">,</span> <span class="n">list_display</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Return a sequence containing the fields to be displayed as links</span>
+<span class="sd">        on the changelist. The list_display parameter is the list of fields</span>
+<span class="sd">        returned by get_list_display().</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">list_display_links</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">list_display</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">list_display_links</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c"># Use only the first item in list_display as link</span>
+            <span class="k">return</span> <span class="nb">list</span><span class="p">(</span><span class="n">list_display</span><span class="p">)[:</span><span class="mi">1</span><span class="p">]</span>
 </div>
 <div class="viewcode-block" id="ModelAdmin.construct_change_message"><a class="viewcode-back" href="../../../../django.contrib.admin.html#django.contrib.admin.options.ModelAdmin.construct_change_message">[docs]</a>    <span class="k">def</span> <span class="nf">construct_change_message</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">request</span><span class="p">,</span> <span class="n">form</span><span class="p">,</span> <span class="n">formsets</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
@@ -725,6 +769,18 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">formset</span><span class="o">.</span><span class="n">save</span><span class="p">()</span>
 </div>
+<div class="viewcode-block" id="ModelAdmin.save_related"><a class="viewcode-back" href="../../../../django.contrib.admin.html#django.contrib.admin.options.ModelAdmin.save_related">[docs]</a>    <span class="k">def</span> <span class="nf">save_related</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">request</span><span class="p">,</span> <span class="n">form</span><span class="p">,</span> <span class="n">formsets</span><span class="p">,</span> <span class="n">change</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Given the ``HttpRequest``, the parent ``ModelForm`` instance, the</span>
+<span class="sd">        list of inline formsets and a boolean value based on whether the</span>
+<span class="sd">        parent is being added or changed, save the related objects to the</span>
+<span class="sd">        database. Note that at this point save_form() and save_model() have</span>
+<span class="sd">        already been called.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">form</span><span class="o">.</span><span class="n">save_m2m</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">formset</span> <span class="ow">in</span> <span class="n">formsets</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">save_formset</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="n">form</span><span class="p">,</span> <span class="n">formset</span><span class="p">,</span> <span class="n">change</span><span class="o">=</span><span class="n">change</span><span class="p">)</span>
+</div>
     <span class="k">def</span> <span class="nf">render_change_form</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">request</span><span class="p">,</span> <span class="n">context</span><span class="p">,</span> <span class="n">add</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">change</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">form_url</span><span class="o">=</span><span class="s">&#39;&#39;</span><span class="p">,</span> <span class="n">obj</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
         <span class="n">opts</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">_meta</span>
         <span class="n">app_label</span> <span class="o">=</span> <span class="n">opts</span><span class="o">.</span><span class="n">app_label</span>
@@ -743,18 +799,17 @@
             <span class="s">&#39;content_type_id&#39;</span><span class="p">:</span> <span class="n">ContentType</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">get_for_model</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="p">)</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
             <span class="s">&#39;save_as&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">save_as</span><span class="p">,</span>
             <span class="s">&#39;save_on_top&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">save_on_top</span><span class="p">,</span>
-            <span class="s">&#39;root_path&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">admin_site</span><span class="o">.</span><span class="n">root_path</span><span class="p">,</span>
         <span class="p">})</span>
         <span class="k">if</span> <span class="n">add</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">add_form_template</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
             <span class="n">form_template</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">add_form_template</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="n">form_template</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">change_form_template</span>
-        <span class="n">context_instance</span> <span class="o">=</span> <span class="n">template</span><span class="o">.</span><span class="n">RequestContext</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="n">current_app</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">admin_site</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">render_to_response</span><span class="p">(</span><span class="n">form_template</span> <span class="ow">or</span> <span class="p">[</span>
+
+        <span class="k">return</span> <span class="n">TemplateResponse</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="n">form_template</span> <span class="ow">or</span> <span class="p">[</span>
             <span class="s">&quot;admin/</span><span class="si">%s</span><span class="s">/</span><span class="si">%s</span><span class="s">/change_form.html&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">app_label</span><span class="p">,</span> <span class="n">opts</span><span class="o">.</span><span class="n">object_name</span><span class="o">.</span><span class="n">lower</span><span class="p">()),</span>
             <span class="s">&quot;admin/</span><span class="si">%s</span><span class="s">/change_form.html&quot;</span> <span class="o">%</span> <span class="n">app_label</span><span class="p">,</span>
             <span class="s">&quot;admin/change_form.html&quot;</span>
-        <span class="p">],</span> <span class="n">context</span><span class="p">,</span> <span class="n">context_instance</span><span class="o">=</span><span class="n">context_instance</span><span class="p">)</span>
+        <span class="p">],</span> <span class="n">context</span><span class="p">,</span> <span class="n">current_app</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">admin_site</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
 
 <div class="viewcode-block" id="ModelAdmin.response_add"><a class="viewcode-back" href="../../../../django.contrib.admin.html#django.contrib.admin.options.ModelAdmin.response_add">[docs]</a>    <span class="k">def</span> <span class="nf">response_add</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">request</span><span class="p">,</span> <span class="n">obj</span><span class="p">,</span> <span class="n">post_url_continue</span><span class="o">=</span><span class="s">&#39;../</span><span class="si">%s</span><span class="s">/&#39;</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
@@ -773,7 +828,9 @@
             <span class="k">return</span> <span class="n">HttpResponseRedirect</span><span class="p">(</span><span class="n">post_url_continue</span> <span class="o">%</span> <span class="n">pk_value</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="s">&quot;_popup&quot;</span> <span class="ow">in</span> <span class="n">request</span><span class="o">.</span><span class="n">POST</span><span class="p">:</span>
-            <span class="k">return</span> <span class="n">HttpResponse</span><span class="p">(</span><span class="s">&#39;&lt;script type=&quot;text/javascript&quot;&gt;opener.dismissAddAnotherPopup(window, &quot;</span><span class="si">%s</span><span class="s">&quot;, &quot;</span><span class="si">%s</span><span class="s">&quot;);&lt;/script&gt;&#39;</span> <span class="o">%</span> \
+            <span class="k">return</span> <span class="n">HttpResponse</span><span class="p">(</span>
+                <span class="s">&#39;&lt;!DOCTYPE html&gt;&lt;html&gt;&lt;head&gt;&lt;title&gt;&lt;/title&gt;&lt;/head&gt;&lt;body&gt;&#39;</span>
+                <span class="s">&#39;&lt;script type=&quot;text/javascript&quot;&gt;opener.dismissAddAnotherPopup(window, &quot;</span><span class="si">%s</span><span class="s">&quot;, &quot;</span><span class="si">%s</span><span class="s">&quot;);&lt;/script&gt;&lt;/body&gt;&lt;/html&gt;&#39;</span> <span class="o">%</span> \
                 <span class="c"># escape() calls force_unicode.</span>
                 <span class="p">(</span><span class="n">escape</span><span class="p">(</span><span class="n">pk_value</span><span class="p">),</span> <span class="n">escapejs</span><span class="p">(</span><span class="n">obj</span><span class="p">)))</span>
         <span class="k">elif</span> <span class="s">&quot;_addanother&quot;</span> <span class="ow">in</span> <span class="n">request</span><span class="o">.</span><span class="n">POST</span><span class="p">:</span>
@@ -786,9 +843,12 @@
             <span class="c"># redirect to the change-list page for this object. Otherwise,</span>
             <span class="c"># redirect to the admin index.</span>
             <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">has_change_permission</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="bp">None</span><span class="p">):</span>
-                <span class="n">post_url</span> <span class="o">=</span> <span class="s">&#39;../&#39;</span>
+                <span class="n">post_url</span> <span class="o">=</span> <span class="n">reverse</span><span class="p">(</span><span class="s">&#39;admin:</span><span class="si">%s</span><span class="s">_</span><span class="si">%s</span><span class="s">_changelist&#39;</span> <span class="o">%</span>
+                                   <span class="p">(</span><span class="n">opts</span><span class="o">.</span><span class="n">app_label</span><span class="p">,</span> <span class="n">opts</span><span class="o">.</span><span class="n">module_name</span><span class="p">),</span>
+                                   <span class="n">current_app</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">admin_site</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
             <span class="k">else</span><span class="p">:</span>
-                <span class="n">post_url</span> <span class="o">=</span> <span class="s">&#39;../../../&#39;</span>
+                <span class="n">post_url</span> <span class="o">=</span> <span class="n">reverse</span><span class="p">(</span><span class="s">&#39;admin:index&#39;</span><span class="p">,</span>
+                                   <span class="n">current_app</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">admin_site</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
             <span class="k">return</span> <span class="n">HttpResponseRedirect</span><span class="p">(</span><span class="n">post_url</span><span class="p">)</span>
 </div>
 <div class="viewcode-block" id="ModelAdmin.response_change"><a class="viewcode-back" href="../../../../django.contrib.admin.html#django.contrib.admin.options.ModelAdmin.response_change">[docs]</a>    <span class="k">def</span> <span class="nf">response_change</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">request</span><span class="p">,</span> <span class="n">obj</span><span class="p">):</span>
@@ -797,11 +857,14 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">opts</span> <span class="o">=</span> <span class="n">obj</span><span class="o">.</span><span class="n">_meta</span>
 
-        <span class="c"># Handle proxy models automatically created by .only() or .defer()</span>
+        <span class="c"># Handle proxy models automatically created by .only() or .defer().</span>
+        <span class="c"># Refs #14529</span>
         <span class="n">verbose_name</span> <span class="o">=</span> <span class="n">opts</span><span class="o">.</span><span class="n">verbose_name</span>
+        <span class="n">module_name</span> <span class="o">=</span> <span class="n">opts</span><span class="o">.</span><span class="n">module_name</span>
         <span class="k">if</span> <span class="n">obj</span><span class="o">.</span><span class="n">_deferred</span><span class="p">:</span>
             <span class="n">opts_</span> <span class="o">=</span> <span class="n">opts</span><span class="o">.</span><span class="n">proxy_for_model</span><span class="o">.</span><span class="n">_meta</span>
             <span class="n">verbose_name</span> <span class="o">=</span> <span class="n">opts_</span><span class="o">.</span><span class="n">verbose_name</span>
+            <span class="n">module_name</span> <span class="o">=</span> <span class="n">opts_</span><span class="o">.</span><span class="n">module_name</span>
 
         <span class="n">pk_value</span> <span class="o">=</span> <span class="n">obj</span><span class="o">.</span><span class="n">_get_pk_val</span><span class="p">()</span>
 
@@ -815,19 +878,28 @@
         <span class="k">elif</span> <span class="s">&quot;_saveasnew&quot;</span> <span class="ow">in</span> <span class="n">request</span><span class="o">.</span><span class="n">POST</span><span class="p">:</span>
             <span class="n">msg</span> <span class="o">=</span> <span class="n">_</span><span class="p">(</span><span class="s">&#39;The </span><span class="si">%(name)s</span><span class="s"> &quot;</span><span class="si">%(obj)s</span><span class="s">&quot; was added successfully. You may edit it again below.&#39;</span><span class="p">)</span> <span class="o">%</span> <span class="p">{</span><span class="s">&#39;name&#39;</span><span class="p">:</span> <span class="n">force_unicode</span><span class="p">(</span><span class="n">verbose_name</span><span class="p">),</span> <span class="s">&#39;obj&#39;</span><span class="p">:</span> <span class="n">obj</span><span class="p">}</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">message_user</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="n">msg</span><span class="p">)</span>
-            <span class="k">return</span> <span class="n">HttpResponseRedirect</span><span class="p">(</span><span class="s">&quot;../</span><span class="si">%s</span><span class="s">/&quot;</span> <span class="o">%</span> <span class="n">pk_value</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">HttpResponseRedirect</span><span class="p">(</span><span class="n">reverse</span><span class="p">(</span><span class="s">&#39;admin:</span><span class="si">%s</span><span class="s">_</span><span class="si">%s</span><span class="s">_change&#39;</span> <span class="o">%</span>
+                                        <span class="p">(</span><span class="n">opts</span><span class="o">.</span><span class="n">app_label</span><span class="p">,</span> <span class="n">module_name</span><span class="p">),</span>
+                                        <span class="n">args</span><span class="o">=</span><span class="p">(</span><span class="n">pk_value</span><span class="p">,),</span>
+                                        <span class="n">current_app</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">admin_site</span><span class="o">.</span><span class="n">name</span><span class="p">))</span>
         <span class="k">elif</span> <span class="s">&quot;_addanother&quot;</span> <span class="ow">in</span> <span class="n">request</span><span class="o">.</span><span class="n">POST</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">message_user</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="n">msg</span> <span class="o">+</span> <span class="s">&#39; &#39;</span> <span class="o">+</span> <span class="p">(</span><span class="n">_</span><span class="p">(</span><span class="s">&quot;You may add another </span><span class="si">%s</span><span class="s"> below.&quot;</span><span class="p">)</span> <span class="o">%</span> <span class="n">force_unicode</span><span class="p">(</span><span class="n">verbose_name</span><span class="p">)))</span>
-            <span class="k">return</span> <span class="n">HttpResponseRedirect</span><span class="p">(</span><span class="s">&quot;../add/&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">HttpResponseRedirect</span><span class="p">(</span><span class="n">reverse</span><span class="p">(</span><span class="s">&#39;admin:</span><span class="si">%s</span><span class="s">_</span><span class="si">%s</span><span class="s">_add&#39;</span> <span class="o">%</span>
+                                        <span class="p">(</span><span class="n">opts</span><span class="o">.</span><span class="n">app_label</span><span class="p">,</span> <span class="n">module_name</span><span class="p">),</span>
+                                        <span class="n">current_app</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">admin_site</span><span class="o">.</span><span class="n">name</span><span class="p">))</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">message_user</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="n">msg</span><span class="p">)</span>
             <span class="c"># Figure out where to redirect. If the user has change permission,</span>
             <span class="c"># redirect to the change-list page for this object. Otherwise,</span>
             <span class="c"># redirect to the admin index.</span>
             <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">has_change_permission</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="bp">None</span><span class="p">):</span>
-                <span class="k">return</span> <span class="n">HttpResponseRedirect</span><span class="p">(</span><span class="s">&#39;../&#39;</span><span class="p">)</span>
+                <span class="n">post_url</span> <span class="o">=</span> <span class="n">reverse</span><span class="p">(</span><span class="s">&#39;admin:</span><span class="si">%s</span><span class="s">_</span><span class="si">%s</span><span class="s">_changelist&#39;</span> <span class="o">%</span>
+                                   <span class="p">(</span><span class="n">opts</span><span class="o">.</span><span class="n">app_label</span><span class="p">,</span> <span class="n">module_name</span><span class="p">),</span>
+                                   <span class="n">current_app</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">admin_site</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
             <span class="k">else</span><span class="p">:</span>
-                <span class="k">return</span> <span class="n">HttpResponseRedirect</span><span class="p">(</span><span class="s">&#39;../../../&#39;</span><span class="p">)</span>
+                <span class="n">post_url</span> <span class="o">=</span> <span class="n">reverse</span><span class="p">(</span><span class="s">&#39;admin:index&#39;</span><span class="p">,</span>
+                                   <span class="n">current_app</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">admin_site</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">HttpResponseRedirect</span><span class="p">(</span><span class="n">post_url</span><span class="p">)</span>
 </div>
 <div class="viewcode-block" id="ModelAdmin.response_action"><a class="viewcode-back" href="../../../../django.contrib.admin.html#django.contrib.admin.options.ModelAdmin.response_action">[docs]</a>    <span class="k">def</span> <span class="nf">response_action</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">request</span><span class="p">,</span> <span class="n">queryset</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
@@ -908,6 +980,7 @@
 
         <span class="n">ModelForm</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_form</span><span class="p">(</span><span class="n">request</span><span class="p">)</span>
         <span class="n">formsets</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">inline_instances</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_inline_instances</span><span class="p">(</span><span class="n">request</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">request</span><span class="o">.</span><span class="n">method</span> <span class="o">==</span> <span class="s">&#39;POST&#39;</span><span class="p">:</span>
             <span class="n">form</span> <span class="o">=</span> <span class="n">ModelForm</span><span class="p">(</span><span class="n">request</span><span class="o">.</span><span class="n">POST</span><span class="p">,</span> <span class="n">request</span><span class="o">.</span><span class="n">FILES</span><span class="p">)</span>
             <span class="k">if</span> <span class="n">form</span><span class="o">.</span><span class="n">is_valid</span><span class="p">():</span>
@@ -917,10 +990,10 @@
                 <span class="n">form_validated</span> <span class="o">=</span> <span class="bp">False</span>
                 <span class="n">new_object</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="p">()</span>
             <span class="n">prefixes</span> <span class="o">=</span> <span class="p">{}</span>
-            <span class="k">for</span> <span class="n">FormSet</span><span class="p">,</span> <span class="n">inline</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">get_formsets</span><span class="p">(</span><span class="n">request</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">inline_instances</span><span class="p">):</span>
+            <span class="k">for</span> <span class="n">FormSet</span><span class="p">,</span> <span class="n">inline</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">get_formsets</span><span class="p">(</span><span class="n">request</span><span class="p">),</span> <span class="n">inline_instances</span><span class="p">):</span>
                 <span class="n">prefix</span> <span class="o">=</span> <span class="n">FormSet</span><span class="o">.</span><span class="n">get_default_prefix</span><span class="p">()</span>
                 <span class="n">prefixes</span><span class="p">[</span><span class="n">prefix</span><span class="p">]</span> <span class="o">=</span> <span class="n">prefixes</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">prefix</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span>
-                <span class="k">if</span> <span class="n">prefixes</span><span class="p">[</span><span class="n">prefix</span><span class="p">]</span> <span class="o">!=</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">prefixes</span><span class="p">[</span><span class="n">prefix</span><span class="p">]</span> <span class="o">!=</span> <span class="mi">1</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">prefix</span><span class="p">:</span>
                     <span class="n">prefix</span> <span class="o">=</span> <span class="s">&quot;</span><span class="si">%s</span><span class="s">-</span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">prefix</span><span class="p">,</span> <span class="n">prefixes</span><span class="p">[</span><span class="n">prefix</span><span class="p">])</span>
                 <span class="n">formset</span> <span class="o">=</span> <span class="n">FormSet</span><span class="p">(</span><span class="n">data</span><span class="o">=</span><span class="n">request</span><span class="o">.</span><span class="n">POST</span><span class="p">,</span> <span class="n">files</span><span class="o">=</span><span class="n">request</span><span class="o">.</span><span class="n">FILES</span><span class="p">,</span>
                                   <span class="n">instance</span><span class="o">=</span><span class="n">new_object</span><span class="p">,</span>
@@ -928,11 +1001,8 @@
                                   <span class="n">prefix</span><span class="o">=</span><span class="n">prefix</span><span class="p">,</span> <span class="n">queryset</span><span class="o">=</span><span class="n">inline</span><span class="o">.</span><span class="n">queryset</span><span class="p">(</span><span class="n">request</span><span class="p">))</span>
                 <span class="n">formsets</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">formset</span><span class="p">)</span>
             <span class="k">if</span> <span class="n">all_valid</span><span class="p">(</span><span class="n">formsets</span><span class="p">)</span> <span class="ow">and</span> <span class="n">form_validated</span><span class="p">:</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">save_model</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="n">new_object</span><span class="p">,</span> <span class="n">form</span><span class="p">,</span> <span class="n">change</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span>
-                <span class="n">form</span><span class="o">.</span><span class="n">save_m2m</span><span class="p">()</span>
-                <span class="k">for</span> <span class="n">formset</span> <span class="ow">in</span> <span class="n">formsets</span><span class="p">:</span>
-                    <span class="bp">self</span><span class="o">.</span><span class="n">save_formset</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="n">form</span><span class="p">,</span> <span class="n">formset</span><span class="p">,</span> <span class="n">change</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span>
-
+                <span class="bp">self</span><span class="o">.</span><span class="n">save_model</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="n">new_object</span><span class="p">,</span> <span class="n">form</span><span class="p">,</span> <span class="bp">False</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">save_related</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="n">form</span><span class="p">,</span> <span class="n">formsets</span><span class="p">,</span> <span class="bp">False</span><span class="p">)</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">log_addition</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="n">new_object</span><span class="p">)</span>
                 <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">response_add</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="n">new_object</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
@@ -948,27 +1018,28 @@
                     <span class="n">initial</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">initial</span><span class="p">[</span><span class="n">k</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&quot;,&quot;</span><span class="p">)</span>
             <span class="n">form</span> <span class="o">=</span> <span class="n">ModelForm</span><span class="p">(</span><span class="n">initial</span><span class="o">=</span><span class="n">initial</span><span class="p">)</span>
             <span class="n">prefixes</span> <span class="o">=</span> <span class="p">{}</span>
-            <span class="k">for</span> <span class="n">FormSet</span><span class="p">,</span> <span class="n">inline</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">get_formsets</span><span class="p">(</span><span class="n">request</span><span class="p">),</span>
-                                       <span class="bp">self</span><span class="o">.</span><span class="n">inline_instances</span><span class="p">):</span>
+            <span class="k">for</span> <span class="n">FormSet</span><span class="p">,</span> <span class="n">inline</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">get_formsets</span><span class="p">(</span><span class="n">request</span><span class="p">),</span> <span class="n">inline_instances</span><span class="p">):</span>
                 <span class="n">prefix</span> <span class="o">=</span> <span class="n">FormSet</span><span class="o">.</span><span class="n">get_default_prefix</span><span class="p">()</span>
                 <span class="n">prefixes</span><span class="p">[</span><span class="n">prefix</span><span class="p">]</span> <span class="o">=</span> <span class="n">prefixes</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">prefix</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span>
-                <span class="k">if</span> <span class="n">prefixes</span><span class="p">[</span><span class="n">prefix</span><span class="p">]</span> <span class="o">!=</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">prefixes</span><span class="p">[</span><span class="n">prefix</span><span class="p">]</span> <span class="o">!=</span> <span class="mi">1</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">prefix</span><span class="p">:</span>
                     <span class="n">prefix</span> <span class="o">=</span> <span class="s">&quot;</span><span class="si">%s</span><span class="s">-</span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">prefix</span><span class="p">,</span> <span class="n">prefixes</span><span class="p">[</span><span class="n">prefix</span><span class="p">])</span>
                 <span class="n">formset</span> <span class="o">=</span> <span class="n">FormSet</span><span class="p">(</span><span class="n">instance</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="p">(),</span> <span class="n">prefix</span><span class="o">=</span><span class="n">prefix</span><span class="p">,</span>
                                   <span class="n">queryset</span><span class="o">=</span><span class="n">inline</span><span class="o">.</span><span class="n">queryset</span><span class="p">(</span><span class="n">request</span><span class="p">))</span>
                 <span class="n">formsets</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">formset</span><span class="p">)</span>
 
         <span class="n">adminForm</span> <span class="o">=</span> <span class="n">helpers</span><span class="o">.</span><span class="n">AdminForm</span><span class="p">(</span><span class="n">form</span><span class="p">,</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">get_fieldsets</span><span class="p">(</span><span class="n">request</span><span class="p">)),</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">prepopulated_fields</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_readonly_fields</span><span class="p">(</span><span class="n">request</span><span class="p">),</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">get_prepopulated_fields</span><span class="p">(</span><span class="n">request</span><span class="p">),</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">get_readonly_fields</span><span class="p">(</span><span class="n">request</span><span class="p">),</span>
             <span class="n">model_admin</span><span class="o">=</span><span class="bp">self</span><span class="p">)</span>
         <span class="n">media</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">media</span> <span class="o">+</span> <span class="n">adminForm</span><span class="o">.</span><span class="n">media</span>
 
         <span class="n">inline_admin_formsets</span> <span class="o">=</span> <span class="p">[]</span>
-        <span class="k">for</span> <span class="n">inline</span><span class="p">,</span> <span class="n">formset</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">inline_instances</span><span class="p">,</span> <span class="n">formsets</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">inline</span><span class="p">,</span> <span class="n">formset</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">inline_instances</span><span class="p">,</span> <span class="n">formsets</span><span class="p">):</span>
             <span class="n">fieldsets</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">inline</span><span class="o">.</span><span class="n">get_fieldsets</span><span class="p">(</span><span class="n">request</span><span class="p">))</span>
             <span class="n">readonly</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">inline</span><span class="o">.</span><span class="n">get_readonly_fields</span><span class="p">(</span><span class="n">request</span><span class="p">))</span>
+            <span class="n">prepopulated</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">inline</span><span class="o">.</span><span class="n">get_prepopulated_fields</span><span class="p">(</span><span class="n">request</span><span class="p">))</span>
             <span class="n">inline_admin_formset</span> <span class="o">=</span> <span class="n">helpers</span><span class="o">.</span><span class="n">InlineAdminFormSet</span><span class="p">(</span><span class="n">inline</span><span class="p">,</span> <span class="n">formset</span><span class="p">,</span>
-                <span class="n">fieldsets</span><span class="p">,</span> <span class="n">readonly</span><span class="p">,</span> <span class="n">model_admin</span><span class="o">=</span><span class="bp">self</span><span class="p">)</span>
+                <span class="n">fieldsets</span><span class="p">,</span> <span class="n">prepopulated</span><span class="p">,</span> <span class="n">readonly</span><span class="p">,</span> <span class="n">model_admin</span><span class="o">=</span><span class="bp">self</span><span class="p">)</span>
             <span class="n">inline_admin_formsets</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">inline_admin_formset</span><span class="p">)</span>
             <span class="n">media</span> <span class="o">=</span> <span class="n">media</span> <span class="o">+</span> <span class="n">inline_admin_formset</span><span class="o">.</span><span class="n">media</span>
 
@@ -977,10 +1048,9 @@
             <span class="s">&#39;adminform&#39;</span><span class="p">:</span> <span class="n">adminForm</span><span class="p">,</span>
             <span class="s">&#39;is_popup&#39;</span><span class="p">:</span> <span class="s">&quot;_popup&quot;</span> <span class="ow">in</span> <span class="n">request</span><span class="o">.</span><span class="n">REQUEST</span><span class="p">,</span>
             <span class="s">&#39;show_delete&#39;</span><span class="p">:</span> <span class="bp">False</span><span class="p">,</span>
-            <span class="s">&#39;media&#39;</span><span class="p">:</span> <span class="n">mark_safe</span><span class="p">(</span><span class="n">media</span><span class="p">),</span>
+            <span class="s">&#39;media&#39;</span><span class="p">:</span> <span class="n">media</span><span class="p">,</span>
             <span class="s">&#39;inline_admin_formsets&#39;</span><span class="p">:</span> <span class="n">inline_admin_formsets</span><span class="p">,</span>
             <span class="s">&#39;errors&#39;</span><span class="p">:</span> <span class="n">helpers</span><span class="o">.</span><span class="n">AdminErrorList</span><span class="p">(</span><span class="n">form</span><span class="p">,</span> <span class="n">formsets</span><span class="p">),</span>
-            <span class="s">&#39;root_path&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">admin_site</span><span class="o">.</span><span class="n">root_path</span><span class="p">,</span>
             <span class="s">&#39;app_label&#39;</span><span class="p">:</span> <span class="n">opts</span><span class="o">.</span><span class="n">app_label</span><span class="p">,</span>
         <span class="p">}</span>
         <span class="n">context</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">extra_context</span> <span class="ow">or</span> <span class="p">{})</span>
@@ -988,7 +1058,7 @@
 </div>
     <span class="nd">@csrf_protect_m</span>
     <span class="nd">@transaction.commit_on_success</span>
-<div class="viewcode-block" id="ModelAdmin.change_view"><a class="viewcode-back" href="../../../../django.contrib.admin.html#django.contrib.admin.options.ModelAdmin.change_view">[docs]</a>    <span class="k">def</span> <span class="nf">change_view</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">request</span><span class="p">,</span> <span class="n">object_id</span><span class="p">,</span> <span class="n">extra_context</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+<div class="viewcode-block" id="ModelAdmin.change_view"><a class="viewcode-back" href="../../../../django.contrib.admin.html#django.contrib.admin.options.ModelAdmin.change_view">[docs]</a>    <span class="k">def</span> <span class="nf">change_view</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">request</span><span class="p">,</span> <span class="n">object_id</span><span class="p">,</span> <span class="n">form_url</span><span class="o">=</span><span class="s">&#39;&#39;</span><span class="p">,</span> <span class="n">extra_context</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
         <span class="s">&quot;The &#39;change&#39; admin view for this model.&quot;</span>
         <span class="n">model</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span>
         <span class="n">opts</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">_meta</span>
@@ -1002,10 +1072,13 @@
             <span class="k">raise</span> <span class="n">Http404</span><span class="p">(</span><span class="n">_</span><span class="p">(</span><span class="s">&#39;</span><span class="si">%(name)s</span><span class="s"> object with primary key </span><span class="si">%(key)r</span><span class="s"> does not exist.&#39;</span><span class="p">)</span> <span class="o">%</span> <span class="p">{</span><span class="s">&#39;name&#39;</span><span class="p">:</span> <span class="n">force_unicode</span><span class="p">(</span><span class="n">opts</span><span class="o">.</span><span class="n">verbose_name</span><span class="p">),</span> <span class="s">&#39;key&#39;</span><span class="p">:</span> <span class="n">escape</span><span class="p">(</span><span class="n">object_id</span><span class="p">)})</span>
 
         <span class="k">if</span> <span class="n">request</span><span class="o">.</span><span class="n">method</span> <span class="o">==</span> <span class="s">&#39;POST&#39;</span> <span class="ow">and</span> <span class="s">&quot;_saveasnew&quot;</span> <span class="ow">in</span> <span class="n">request</span><span class="o">.</span><span class="n">POST</span><span class="p">:</span>
-            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">add_view</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="n">form_url</span><span class="o">=</span><span class="s">&#39;../add/&#39;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">add_view</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="n">form_url</span><span class="o">=</span><span class="n">reverse</span><span class="p">(</span><span class="s">&#39;admin:</span><span class="si">%s</span><span class="s">_</span><span class="si">%s</span><span class="s">_add&#39;</span> <span class="o">%</span>
+                                    <span class="p">(</span><span class="n">opts</span><span class="o">.</span><span class="n">app_label</span><span class="p">,</span> <span class="n">opts</span><span class="o">.</span><span class="n">module_name</span><span class="p">),</span>
+                                    <span class="n">current_app</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">admin_site</span><span class="o">.</span><span class="n">name</span><span class="p">))</span>
 
         <span class="n">ModelForm</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_form</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="n">obj</span><span class="p">)</span>
         <span class="n">formsets</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">inline_instances</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_inline_instances</span><span class="p">(</span><span class="n">request</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">request</span><span class="o">.</span><span class="n">method</span> <span class="o">==</span> <span class="s">&#39;POST&#39;</span><span class="p">:</span>
             <span class="n">form</span> <span class="o">=</span> <span class="n">ModelForm</span><span class="p">(</span><span class="n">request</span><span class="o">.</span><span class="n">POST</span><span class="p">,</span> <span class="n">request</span><span class="o">.</span><span class="n">FILES</span><span class="p">,</span> <span class="n">instance</span><span class="o">=</span><span class="n">obj</span><span class="p">)</span>
             <span class="k">if</span> <span class="n">form</span><span class="o">.</span><span class="n">is_valid</span><span class="p">():</span>
@@ -1015,11 +1088,10 @@
                 <span class="n">form_validated</span> <span class="o">=</span> <span class="bp">False</span>
                 <span class="n">new_object</span> <span class="o">=</span> <span class="n">obj</span>
             <span class="n">prefixes</span> <span class="o">=</span> <span class="p">{}</span>
-            <span class="k">for</span> <span class="n">FormSet</span><span class="p">,</span> <span class="n">inline</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">get_formsets</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="n">new_object</span><span class="p">),</span>
-                                       <span class="bp">self</span><span class="o">.</span><span class="n">inline_instances</span><span class="p">):</span>
+            <span class="k">for</span> <span class="n">FormSet</span><span class="p">,</span> <span class="n">inline</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">get_formsets</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="n">new_object</span><span class="p">),</span> <span class="n">inline_instances</span><span class="p">):</span>
                 <span class="n">prefix</span> <span class="o">=</span> <span class="n">FormSet</span><span class="o">.</span><span class="n">get_default_prefix</span><span class="p">()</span>
                 <span class="n">prefixes</span><span class="p">[</span><span class="n">prefix</span><span class="p">]</span> <span class="o">=</span> <span class="n">prefixes</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">prefix</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span>
-                <span class="k">if</span> <span class="n">prefixes</span><span class="p">[</span><span class="n">prefix</span><span class="p">]</span> <span class="o">!=</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">prefixes</span><span class="p">[</span><span class="n">prefix</span><span class="p">]</span> <span class="o">!=</span> <span class="mi">1</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">prefix</span><span class="p">:</span>
                     <span class="n">prefix</span> <span class="o">=</span> <span class="s">&quot;</span><span class="si">%s</span><span class="s">-</span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">prefix</span><span class="p">,</span> <span class="n">prefixes</span><span class="p">[</span><span class="n">prefix</span><span class="p">])</span>
                 <span class="n">formset</span> <span class="o">=</span> <span class="n">FormSet</span><span class="p">(</span><span class="n">request</span><span class="o">.</span><span class="n">POST</span><span class="p">,</span> <span class="n">request</span><span class="o">.</span><span class="n">FILES</span><span class="p">,</span>
                                   <span class="n">instance</span><span class="o">=</span><span class="n">new_object</span><span class="p">,</span> <span class="n">prefix</span><span class="o">=</span><span class="n">prefix</span><span class="p">,</span>
@@ -1028,11 +1100,8 @@
                 <span class="n">formsets</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">formset</span><span class="p">)</span>
 
             <span class="k">if</span> <span class="n">all_valid</span><span class="p">(</span><span class="n">formsets</span><span class="p">)</span> <span class="ow">and</span> <span class="n">form_validated</span><span class="p">:</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">save_model</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="n">new_object</span><span class="p">,</span> <span class="n">form</span><span class="p">,</span> <span class="n">change</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
-                <span class="n">form</span><span class="o">.</span><span class="n">save_m2m</span><span class="p">()</span>
-                <span class="k">for</span> <span class="n">formset</span> <span class="ow">in</span> <span class="n">formsets</span><span class="p">:</span>
-                    <span class="bp">self</span><span class="o">.</span><span class="n">save_formset</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="n">form</span><span class="p">,</span> <span class="n">formset</span><span class="p">,</span> <span class="n">change</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
-
+                <span class="bp">self</span><span class="o">.</span><span class="n">save_model</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="n">new_object</span><span class="p">,</span> <span class="n">form</span><span class="p">,</span> <span class="bp">True</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">save_related</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="n">form</span><span class="p">,</span> <span class="n">formsets</span><span class="p">,</span> <span class="bp">True</span><span class="p">)</span>
                 <span class="n">change_message</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">construct_change_message</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="n">form</span><span class="p">,</span> <span class="n">formsets</span><span class="p">)</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">log_change</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="n">new_object</span><span class="p">,</span> <span class="n">change_message</span><span class="p">)</span>
                 <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">response_change</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="n">new_object</span><span class="p">)</span>
@@ -1040,26 +1109,28 @@
         <span class="k">else</span><span class="p">:</span>
             <span class="n">form</span> <span class="o">=</span> <span class="n">ModelForm</span><span class="p">(</span><span class="n">instance</span><span class="o">=</span><span class="n">obj</span><span class="p">)</span>
             <span class="n">prefixes</span> <span class="o">=</span> <span class="p">{}</span>
-            <span class="k">for</span> <span class="n">FormSet</span><span class="p">,</span> <span class="n">inline</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">get_formsets</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="n">obj</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">inline_instances</span><span class="p">):</span>
+            <span class="k">for</span> <span class="n">FormSet</span><span class="p">,</span> <span class="n">inline</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">get_formsets</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="n">obj</span><span class="p">),</span> <span class="n">inline_instances</span><span class="p">):</span>
                 <span class="n">prefix</span> <span class="o">=</span> <span class="n">FormSet</span><span class="o">.</span><span class="n">get_default_prefix</span><span class="p">()</span>
                 <span class="n">prefixes</span><span class="p">[</span><span class="n">prefix</span><span class="p">]</span> <span class="o">=</span> <span class="n">prefixes</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">prefix</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span>
-                <span class="k">if</span> <span class="n">prefixes</span><span class="p">[</span><span class="n">prefix</span><span class="p">]</span> <span class="o">!=</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">prefixes</span><span class="p">[</span><span class="n">prefix</span><span class="p">]</span> <span class="o">!=</span> <span class="mi">1</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">prefix</span><span class="p">:</span>
                     <span class="n">prefix</span> <span class="o">=</span> <span class="s">&quot;</span><span class="si">%s</span><span class="s">-</span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">prefix</span><span class="p">,</span> <span class="n">prefixes</span><span class="p">[</span><span class="n">prefix</span><span class="p">])</span>
                 <span class="n">formset</span> <span class="o">=</span> <span class="n">FormSet</span><span class="p">(</span><span class="n">instance</span><span class="o">=</span><span class="n">obj</span><span class="p">,</span> <span class="n">prefix</span><span class="o">=</span><span class="n">prefix</span><span class="p">,</span>
                                   <span class="n">queryset</span><span class="o">=</span><span class="n">inline</span><span class="o">.</span><span class="n">queryset</span><span class="p">(</span><span class="n">request</span><span class="p">))</span>
                 <span class="n">formsets</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">formset</span><span class="p">)</span>
 
         <span class="n">adminForm</span> <span class="o">=</span> <span class="n">helpers</span><span class="o">.</span><span class="n">AdminForm</span><span class="p">(</span><span class="n">form</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_fieldsets</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="n">obj</span><span class="p">),</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">prepopulated_fields</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_readonly_fields</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="n">obj</span><span class="p">),</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">get_prepopulated_fields</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="n">obj</span><span class="p">),</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">get_readonly_fields</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="n">obj</span><span class="p">),</span>
             <span class="n">model_admin</span><span class="o">=</span><span class="bp">self</span><span class="p">)</span>
         <span class="n">media</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">media</span> <span class="o">+</span> <span class="n">adminForm</span><span class="o">.</span><span class="n">media</span>
 
         <span class="n">inline_admin_formsets</span> <span class="o">=</span> <span class="p">[]</span>
-        <span class="k">for</span> <span class="n">inline</span><span class="p">,</span> <span class="n">formset</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">inline_instances</span><span class="p">,</span> <span class="n">formsets</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">inline</span><span class="p">,</span> <span class="n">formset</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">inline_instances</span><span class="p">,</span> <span class="n">formsets</span><span class="p">):</span>
             <span class="n">fieldsets</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">inline</span><span class="o">.</span><span class="n">get_fieldsets</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="n">obj</span><span class="p">))</span>
             <span class="n">readonly</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">inline</span><span class="o">.</span><span class="n">get_readonly_fields</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="n">obj</span><span class="p">))</span>
+            <span class="n">prepopulated</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">inline</span><span class="o">.</span><span class="n">get_prepopulated_fields</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="n">obj</span><span class="p">))</span>
             <span class="n">inline_admin_formset</span> <span class="o">=</span> <span class="n">helpers</span><span class="o">.</span><span class="n">InlineAdminFormSet</span><span class="p">(</span><span class="n">inline</span><span class="p">,</span> <span class="n">formset</span><span class="p">,</span>
-                <span class="n">fieldsets</span><span class="p">,</span> <span class="n">readonly</span><span class="p">,</span> <span class="n">model_admin</span><span class="o">=</span><span class="bp">self</span><span class="p">)</span>
+                <span class="n">fieldsets</span><span class="p">,</span> <span class="n">prepopulated</span><span class="p">,</span> <span class="n">readonly</span><span class="p">,</span> <span class="n">model_admin</span><span class="o">=</span><span class="bp">self</span><span class="p">)</span>
             <span class="n">inline_admin_formsets</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">inline_admin_formset</span><span class="p">)</span>
             <span class="n">media</span> <span class="o">=</span> <span class="n">media</span> <span class="o">+</span> <span class="n">inline_admin_formset</span><span class="o">.</span><span class="n">media</span>
 
@@ -1069,40 +1140,41 @@
             <span class="s">&#39;object_id&#39;</span><span class="p">:</span> <span class="n">object_id</span><span class="p">,</span>
             <span class="s">&#39;original&#39;</span><span class="p">:</span> <span class="n">obj</span><span class="p">,</span>
             <span class="s">&#39;is_popup&#39;</span><span class="p">:</span> <span class="s">&quot;_popup&quot;</span> <span class="ow">in</span> <span class="n">request</span><span class="o">.</span><span class="n">REQUEST</span><span class="p">,</span>
-            <span class="s">&#39;media&#39;</span><span class="p">:</span> <span class="n">mark_safe</span><span class="p">(</span><span class="n">media</span><span class="p">),</span>
+            <span class="s">&#39;media&#39;</span><span class="p">:</span> <span class="n">media</span><span class="p">,</span>
             <span class="s">&#39;inline_admin_formsets&#39;</span><span class="p">:</span> <span class="n">inline_admin_formsets</span><span class="p">,</span>
             <span class="s">&#39;errors&#39;</span><span class="p">:</span> <span class="n">helpers</span><span class="o">.</span><span class="n">AdminErrorList</span><span class="p">(</span><span class="n">form</span><span class="p">,</span> <span class="n">formsets</span><span class="p">),</span>
-            <span class="s">&#39;root_path&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">admin_site</span><span class="o">.</span><span class="n">root_path</span><span class="p">,</span>
             <span class="s">&#39;app_label&#39;</span><span class="p">:</span> <span class="n">opts</span><span class="o">.</span><span class="n">app_label</span><span class="p">,</span>
         <span class="p">}</span>
         <span class="n">context</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">extra_context</span> <span class="ow">or</span> <span class="p">{})</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">render_change_form</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="n">context</span><span class="p">,</span> <span class="n">change</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">obj</span><span class="o">=</span><span class="n">obj</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">render_change_form</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="n">context</span><span class="p">,</span> <span class="n">change</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">obj</span><span class="o">=</span><span class="n">obj</span><span class="p">,</span> <span class="n">form_url</span><span class="o">=</span><span class="n">form_url</span><span class="p">)</span>
 </div>
     <span class="nd">@csrf_protect_m</span>
 <div class="viewcode-block" id="ModelAdmin.changelist_view"><a class="viewcode-back" href="../../../../django.contrib.admin.html#django.contrib.admin.options.ModelAdmin.changelist_view">[docs]</a>    <span class="k">def</span> <span class="nf">changelist_view</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">request</span><span class="p">,</span> <span class="n">extra_context</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
-        <span class="s">&quot;The &#39;change list&#39; admin view for this model.&quot;</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        The &#39;change list&#39; admin view for this model.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="kn">from</span> <span class="nn">django.contrib.admin.views.main</span> <span class="kn">import</span> <span class="n">ERROR_FLAG</span>
         <span class="n">opts</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">_meta</span>
         <span class="n">app_label</span> <span class="o">=</span> <span class="n">opts</span><span class="o">.</span><span class="n">app_label</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">has_change_permission</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="bp">None</span><span class="p">):</span>
             <span class="k">raise</span> <span class="n">PermissionDenied</span>
 
+        <span class="n">list_display</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_list_display</span><span class="p">(</span><span class="n">request</span><span class="p">)</span>
+        <span class="n">list_display_links</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_list_display_links</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="n">list_display</span><span class="p">)</span>
+
         <span class="c"># Check actions to see if any are available on this changelist</span>
         <span class="n">actions</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_actions</span><span class="p">(</span><span class="n">request</span><span class="p">)</span>
-
-        <span class="c"># Remove action checkboxes if there aren&#39;t any actions available.</span>
-        <span class="n">list_display</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">list_display</span><span class="p">)</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">actions</span><span class="p">:</span>
-            <span class="k">try</span><span class="p">:</span>
-                <span class="n">list_display</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="s">&#39;action_checkbox&#39;</span><span class="p">)</span>
-            <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
-                <span class="k">pass</span>
+        <span class="k">if</span> <span class="n">actions</span><span class="p">:</span>
+            <span class="c"># Add the action checkboxes if there are any actions available.</span>
+            <span class="n">list_display</span> <span class="o">=</span> <span class="p">[</span><span class="s">&#39;action_checkbox&#39;</span><span class="p">]</span> <span class="o">+</span>  <span class="nb">list</span><span class="p">(</span><span class="n">list_display</span><span class="p">)</span>
 
         <span class="n">ChangeList</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_changelist</span><span class="p">(</span><span class="n">request</span><span class="p">)</span>
         <span class="k">try</span><span class="p">:</span>
-            <span class="n">cl</span> <span class="o">=</span> <span class="n">ChangeList</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="p">,</span> <span class="n">list_display</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">list_display_links</span><span class="p">,</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">list_filter</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">date_hierarchy</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">search_fields</span><span class="p">,</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">list_select_related</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">list_per_page</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">list_editable</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span>
+            <span class="n">cl</span> <span class="o">=</span> <span class="n">ChangeList</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="p">,</span> <span class="n">list_display</span><span class="p">,</span>
+                <span class="n">list_display_links</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">list_filter</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">date_hierarchy</span><span class="p">,</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">search_fields</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">list_select_related</span><span class="p">,</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">list_per_page</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">list_max_show_all</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">list_editable</span><span class="p">,</span>
+                <span class="bp">self</span><span class="p">)</span>
         <span class="k">except</span> <span class="n">IncorrectLookupParameters</span><span class="p">:</span>
             <span class="c"># Wacky lookup parameters were given, so redirect to the main</span>
             <span class="c"># changelist page, without parameters, and pass an &#39;invalid=1&#39;</span>
@@ -1111,7 +1183,9 @@
             <span class="c"># something is screwed up with the database, so display an error</span>
             <span class="c"># page.</span>
             <span class="k">if</span> <span class="n">ERROR_FLAG</span> <span class="ow">in</span> <span class="n">request</span><span class="o">.</span><span class="n">GET</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
-                <span class="k">return</span> <span class="n">render_to_response</span><span class="p">(</span><span class="s">&#39;admin/invalid_setup.html&#39;</span><span class="p">,</span> <span class="p">{</span><span class="s">&#39;title&#39;</span><span class="p">:</span> <span class="n">_</span><span class="p">(</span><span class="s">&#39;Database error&#39;</span><span class="p">)})</span>
+                <span class="k">return</span> <span class="n">SimpleTemplateResponse</span><span class="p">(</span><span class="s">&#39;admin/invalid_setup.html&#39;</span><span class="p">,</span> <span class="p">{</span>
+                    <span class="s">&#39;title&#39;</span><span class="p">:</span> <span class="n">_</span><span class="p">(</span><span class="s">&#39;Database error&#39;</span><span class="p">),</span>
+                <span class="p">})</span>
             <span class="k">return</span> <span class="n">HttpResponseRedirect</span><span class="p">(</span><span class="n">request</span><span class="o">.</span><span class="n">path</span> <span class="o">+</span> <span class="s">&#39;?&#39;</span> <span class="o">+</span> <span class="n">ERROR_FLAG</span> <span class="o">+</span> <span class="s">&#39;=1&#39;</span><span class="p">)</span>
 
         <span class="c"># If the request was POSTed, this might be a bulk action or a bulk</span>
@@ -1125,7 +1199,7 @@
         <span class="k">if</span> <span class="p">(</span><span class="n">actions</span> <span class="ow">and</span> <span class="n">request</span><span class="o">.</span><span class="n">method</span> <span class="o">==</span> <span class="s">&#39;POST&#39;</span> <span class="ow">and</span>
                 <span class="s">&#39;index&#39;</span> <span class="ow">in</span> <span class="n">request</span><span class="o">.</span><span class="n">POST</span> <span class="ow">and</span> <span class="s">&#39;_save&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">request</span><span class="o">.</span><span class="n">POST</span><span class="p">):</span>
             <span class="k">if</span> <span class="n">selected</span><span class="p">:</span>
-                <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">response_action</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="n">queryset</span><span class="o">=</span><span class="n">cl</span><span class="o">.</span><span class="n">get_query_set</span><span class="p">())</span>
+                <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">response_action</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="n">queryset</span><span class="o">=</span><span class="n">cl</span><span class="o">.</span><span class="n">get_query_set</span><span class="p">(</span><span class="n">request</span><span class="p">))</span>
                 <span class="k">if</span> <span class="n">response</span><span class="p">:</span>
                     <span class="k">return</span> <span class="n">response</span>
                 <span class="k">else</span><span class="p">:</span>
@@ -1141,7 +1215,7 @@
                 <span class="n">helpers</span><span class="o">.</span><span class="n">ACTION_CHECKBOX_NAME</span> <span class="ow">in</span> <span class="n">request</span><span class="o">.</span><span class="n">POST</span> <span class="ow">and</span>
                 <span class="s">&#39;index&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">request</span><span class="o">.</span><span class="n">POST</span> <span class="ow">and</span> <span class="s">&#39;_save&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">request</span><span class="o">.</span><span class="n">POST</span><span class="p">):</span>
             <span class="k">if</span> <span class="n">selected</span><span class="p">:</span>
-                <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">response_action</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="n">queryset</span><span class="o">=</span><span class="n">cl</span><span class="o">.</span><span class="n">get_query_set</span><span class="p">())</span>
+                <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">response_action</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="n">queryset</span><span class="o">=</span><span class="n">cl</span><span class="o">.</span><span class="n">get_query_set</span><span class="p">(</span><span class="n">request</span><span class="p">))</span>
                 <span class="k">if</span> <span class="n">response</span><span class="p">:</span>
                     <span class="k">return</span> <span class="n">response</span>
                 <span class="k">else</span><span class="p">:</span>
@@ -1163,7 +1237,7 @@
                     <span class="k">if</span> <span class="n">form</span><span class="o">.</span><span class="n">has_changed</span><span class="p">():</span>
                         <span class="n">obj</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">save_form</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="n">form</span><span class="p">,</span> <span class="n">change</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
                         <span class="bp">self</span><span class="o">.</span><span class="n">save_model</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="n">obj</span><span class="p">,</span> <span class="n">form</span><span class="p">,</span> <span class="n">change</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
-                        <span class="n">form</span><span class="o">.</span><span class="n">save_m2m</span><span class="p">()</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">save_related</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="n">form</span><span class="p">,</span> <span class="n">formsets</span><span class="o">=</span><span class="p">[],</span> <span class="n">change</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
                         <span class="n">change_msg</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">construct_change_message</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="n">form</span><span class="p">,</span> <span class="bp">None</span><span class="p">)</span>
                         <span class="bp">self</span><span class="o">.</span><span class="n">log_change</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="n">obj</span><span class="p">,</span> <span class="n">change_msg</span><span class="p">)</span>
                         <span class="n">changecount</span> <span class="o">+=</span> <span class="mi">1</span>
@@ -1212,7 +1286,6 @@
             <span class="s">&#39;cl&#39;</span><span class="p">:</span> <span class="n">cl</span><span class="p">,</span>
             <span class="s">&#39;media&#39;</span><span class="p">:</span> <span class="n">media</span><span class="p">,</span>
             <span class="s">&#39;has_add_permission&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">has_add_permission</span><span class="p">(</span><span class="n">request</span><span class="p">),</span>
-            <span class="s">&#39;root_path&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">admin_site</span><span class="o">.</span><span class="n">root_path</span><span class="p">,</span>
             <span class="s">&#39;app_label&#39;</span><span class="p">:</span> <span class="n">app_label</span><span class="p">,</span>
             <span class="s">&#39;action_form&#39;</span><span class="p">:</span> <span class="n">action_form</span><span class="p">,</span>
             <span class="s">&#39;actions_on_top&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">actions_on_top</span><span class="p">,</span>
@@ -1220,12 +1293,12 @@
             <span class="s">&#39;actions_selection_counter&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">actions_selection_counter</span><span class="p">,</span>
         <span class="p">}</span>
         <span class="n">context</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">extra_context</span> <span class="ow">or</span> <span class="p">{})</span>
-        <span class="n">context_instance</span> <span class="o">=</span> <span class="n">template</span><span class="o">.</span><span class="n">RequestContext</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="n">current_app</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">admin_site</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">render_to_response</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">change_list_template</span> <span class="ow">or</span> <span class="p">[</span>
+
+        <span class="k">return</span> <span class="n">TemplateResponse</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">change_list_template</span> <span class="ow">or</span> <span class="p">[</span>
             <span class="s">&#39;admin/</span><span class="si">%s</span><span class="s">/</span><span class="si">%s</span><span class="s">/change_list.html&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">app_label</span><span class="p">,</span> <span class="n">opts</span><span class="o">.</span><span class="n">object_name</span><span class="o">.</span><span class="n">lower</span><span class="p">()),</span>
             <span class="s">&#39;admin/</span><span class="si">%s</span><span class="s">/change_list.html&#39;</span> <span class="o">%</span> <span class="n">app_label</span><span class="p">,</span>
             <span class="s">&#39;admin/change_list.html&#39;</span>
-        <span class="p">],</span> <span class="n">context</span><span class="p">,</span> <span class="n">context_instance</span><span class="o">=</span><span class="n">context_instance</span><span class="p">)</span>
+        <span class="p">],</span> <span class="n">context</span><span class="p">,</span> <span class="n">current_app</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">admin_site</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
 </div>
     <span class="nd">@csrf_protect_m</span>
     <span class="nd">@transaction.commit_on_success</span>
@@ -1259,8 +1332,11 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">message_user</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="n">_</span><span class="p">(</span><span class="s">&#39;The </span><span class="si">%(name)s</span><span class="s"> &quot;</span><span class="si">%(obj)s</span><span class="s">&quot; was deleted successfully.&#39;</span><span class="p">)</span> <span class="o">%</span> <span class="p">{</span><span class="s">&#39;name&#39;</span><span class="p">:</span> <span class="n">force_unicode</span><span class="p">(</span><span class="n">opts</span><span class="o">.</span><span class="n">verbose_name</span><span class="p">),</span> <span class="s">&#39;obj&#39;</span><span class="p">:</span> <span class="n">force_unicode</span><span class="p">(</span><span class="n">obj_display</span><span class="p">)})</span>
 
             <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">has_change_permission</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="bp">None</span><span class="p">):</span>
-                <span class="k">return</span> <span class="n">HttpResponseRedirect</span><span class="p">(</span><span class="s">&quot;../../../../&quot;</span><span class="p">)</span>
-            <span class="k">return</span> <span class="n">HttpResponseRedirect</span><span class="p">(</span><span class="s">&quot;../../&quot;</span><span class="p">)</span>
+                <span class="k">return</span> <span class="n">HttpResponseRedirect</span><span class="p">(</span><span class="n">reverse</span><span class="p">(</span><span class="s">&#39;admin:index&#39;</span><span class="p">,</span>
+                                                    <span class="n">current_app</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">admin_site</span><span class="o">.</span><span class="n">name</span><span class="p">))</span>
+            <span class="k">return</span> <span class="n">HttpResponseRedirect</span><span class="p">(</span><span class="n">reverse</span><span class="p">(</span><span class="s">&#39;admin:</span><span class="si">%s</span><span class="s">_</span><span class="si">%s</span><span class="s">_changelist&#39;</span> <span class="o">%</span>
+                                        <span class="p">(</span><span class="n">opts</span><span class="o">.</span><span class="n">app_label</span><span class="p">,</span> <span class="n">opts</span><span class="o">.</span><span class="n">module_name</span><span class="p">),</span>
+                                        <span class="n">current_app</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">admin_site</span><span class="o">.</span><span class="n">name</span><span class="p">))</span>
 
         <span class="n">object_name</span> <span class="o">=</span> <span class="n">force_unicode</span><span class="p">(</span><span class="n">opts</span><span class="o">.</span><span class="n">verbose_name</span><span class="p">)</span>
 
@@ -1277,16 +1353,15 @@
             <span class="s">&quot;perms_lacking&quot;</span><span class="p">:</span> <span class="n">perms_needed</span><span class="p">,</span>
             <span class="s">&quot;protected&quot;</span><span class="p">:</span> <span class="n">protected</span><span class="p">,</span>
             <span class="s">&quot;opts&quot;</span><span class="p">:</span> <span class="n">opts</span><span class="p">,</span>
-            <span class="s">&quot;root_path&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">admin_site</span><span class="o">.</span><span class="n">root_path</span><span class="p">,</span>
             <span class="s">&quot;app_label&quot;</span><span class="p">:</span> <span class="n">app_label</span><span class="p">,</span>
         <span class="p">}</span>
         <span class="n">context</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">extra_context</span> <span class="ow">or</span> <span class="p">{})</span>
-        <span class="n">context_instance</span> <span class="o">=</span> <span class="n">template</span><span class="o">.</span><span class="n">RequestContext</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="n">current_app</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">admin_site</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">render_to_response</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">delete_confirmation_template</span> <span class="ow">or</span> <span class="p">[</span>
+
+        <span class="k">return</span> <span class="n">TemplateResponse</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">delete_confirmation_template</span> <span class="ow">or</span> <span class="p">[</span>
             <span class="s">&quot;admin/</span><span class="si">%s</span><span class="s">/</span><span class="si">%s</span><span class="s">/delete_confirmation.html&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">app_label</span><span class="p">,</span> <span class="n">opts</span><span class="o">.</span><span class="n">object_name</span><span class="o">.</span><span class="n">lower</span><span class="p">()),</span>
             <span class="s">&quot;admin/</span><span class="si">%s</span><span class="s">/delete_confirmation.html&quot;</span> <span class="o">%</span> <span class="n">app_label</span><span class="p">,</span>
             <span class="s">&quot;admin/delete_confirmation.html&quot;</span>
-        <span class="p">],</span> <span class="n">context</span><span class="p">,</span> <span class="n">context_instance</span><span class="o">=</span><span class="n">context_instance</span><span class="p">)</span>
+        <span class="p">],</span> <span class="n">context</span><span class="p">,</span> <span class="n">current_app</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">admin_site</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
 </div>
 <div class="viewcode-block" id="ModelAdmin.history_view"><a class="viewcode-back" href="../../../../django.contrib.admin.html#django.contrib.admin.options.ModelAdmin.history_view">[docs]</a>    <span class="k">def</span> <span class="nf">history_view</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">request</span><span class="p">,</span> <span class="n">object_id</span><span class="p">,</span> <span class="n">extra_context</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
         <span class="s">&quot;The &#39;history&#39; admin view for this model.&quot;</span>
@@ -1305,16 +1380,15 @@
             <span class="s">&#39;action_list&#39;</span><span class="p">:</span> <span class="n">action_list</span><span class="p">,</span>
             <span class="s">&#39;module_name&#39;</span><span class="p">:</span> <span class="n">capfirst</span><span class="p">(</span><span class="n">force_unicode</span><span class="p">(</span><span class="n">opts</span><span class="o">.</span><span class="n">verbose_name_plural</span><span class="p">)),</span>
             <span class="s">&#39;object&#39;</span><span class="p">:</span> <span class="n">obj</span><span class="p">,</span>
-            <span class="s">&#39;root_path&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">admin_site</span><span class="o">.</span><span class="n">root_path</span><span class="p">,</span>
             <span class="s">&#39;app_label&#39;</span><span class="p">:</span> <span class="n">app_label</span><span class="p">,</span>
+            <span class="s">&#39;opts&#39;</span><span class="p">:</span> <span class="n">opts</span><span class="p">,</span>
         <span class="p">}</span>
         <span class="n">context</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">extra_context</span> <span class="ow">or</span> <span class="p">{})</span>
-        <span class="n">context_instance</span> <span class="o">=</span> <span class="n">template</span><span class="o">.</span><span class="n">RequestContext</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="n">current_app</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">admin_site</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">render_to_response</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">object_history_template</span> <span class="ow">or</span> <span class="p">[</span>
+        <span class="k">return</span> <span class="n">TemplateResponse</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">object_history_template</span> <span class="ow">or</span> <span class="p">[</span>
             <span class="s">&quot;admin/</span><span class="si">%s</span><span class="s">/</span><span class="si">%s</span><span class="s">/object_history.html&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">app_label</span><span class="p">,</span> <span class="n">opts</span><span class="o">.</span><span class="n">object_name</span><span class="o">.</span><span class="n">lower</span><span class="p">()),</span>
             <span class="s">&quot;admin/</span><span class="si">%s</span><span class="s">/object_history.html&quot;</span> <span class="o">%</span> <span class="n">app_label</span><span class="p">,</span>
             <span class="s">&quot;admin/object_history.html&quot;</span>
-        <span class="p">],</span> <span class="n">context</span><span class="p">,</span> <span class="n">context_instance</span><span class="o">=</span><span class="n">context_instance</span><span class="p">)</span>
+        <span class="p">],</span> <span class="n">context</span><span class="p">,</span> <span class="n">current_app</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">admin_site</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
 </div></div>
 <div class="viewcode-block" id="InlineModelAdmin"><a class="viewcode-back" href="../../../../django.contrib.admin.html#django.contrib.admin.options.InlineModelAdmin">[docs]</a><span class="k">class</span> <span class="nc">InlineModelAdmin</span><span class="p">(</span><span class="n">BaseModelAdmin</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
@@ -1344,16 +1418,15 @@
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">verbose_name_plural</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">verbose_name_plural</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">verbose_name_plural</span>
 
-    <span class="k">def</span> <span class="nf">_media</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="kn">from</span> <span class="nn">django.conf</span> <span class="kn">import</span> <span class="n">settings</span>
-        <span class="n">js</span> <span class="o">=</span> <span class="p">[</span><span class="s">&#39;js/jquery.min.js&#39;</span><span class="p">,</span> <span class="s">&#39;js/jquery.init.js&#39;</span><span class="p">,</span> <span class="s">&#39;js/inlines.min.js&#39;</span><span class="p">]</span>
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">media</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">extra</span> <span class="o">=</span> <span class="s">&#39;&#39;</span> <span class="k">if</span> <span class="n">settings</span><span class="o">.</span><span class="n">DEBUG</span> <span class="k">else</span> <span class="s">&#39;.min&#39;</span>
+        <span class="n">js</span> <span class="o">=</span> <span class="p">[</span><span class="s">&#39;jquery</span><span class="si">%s</span><span class="s">.js&#39;</span> <span class="o">%</span> <span class="n">extra</span><span class="p">,</span> <span class="s">&#39;jquery.init.js&#39;</span><span class="p">,</span> <span class="s">&#39;inlines</span><span class="si">%s</span><span class="s">.js&#39;</span> <span class="o">%</span> <span class="n">extra</span><span class="p">]</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">prepopulated_fields</span><span class="p">:</span>
-            <span class="n">js</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s">&#39;js/urlify.js&#39;</span><span class="p">)</span>
-            <span class="n">js</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s">&#39;js/prepopulate.min.js&#39;</span><span class="p">)</span>
+            <span class="n">js</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="s">&#39;urlify.js&#39;</span><span class="p">,</span> <span class="s">&#39;prepopulate</span><span class="si">%s</span><span class="s">.js&#39;</span> <span class="o">%</span> <span class="n">extra</span><span class="p">])</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">filter_vertical</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">filter_horizontal</span><span class="p">:</span>
-            <span class="n">js</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="s">&#39;js/SelectBox.js&#39;</span> <span class="p">,</span> <span class="s">&#39;js/SelectFilter2.js&#39;</span><span class="p">])</span>
-        <span class="k">return</span> <span class="n">forms</span><span class="o">.</span><span class="n">Media</span><span class="p">(</span><span class="n">js</span><span class="o">=</span><span class="p">[</span><span class="s">&#39;</span><span class="si">%s%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">settings</span><span class="o">.</span><span class="n">ADMIN_MEDIA_PREFIX</span><span class="p">,</span> <span class="n">url</span><span class="p">)</span> <span class="k">for</span> <span class="n">url</span> <span class="ow">in</span> <span class="n">js</span><span class="p">])</span>
-    <span class="n">media</span> <span class="o">=</span> <span class="nb">property</span><span class="p">(</span><span class="n">_media</span><span class="p">)</span>
+            <span class="n">js</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="s">&#39;SelectBox.js&#39;</span><span class="p">,</span> <span class="s">&#39;SelectFilter2.js&#39;</span><span class="p">])</span>
+        <span class="k">return</span> <span class="n">forms</span><span class="o">.</span><span class="n">Media</span><span class="p">(</span><span class="n">js</span><span class="o">=</span><span class="p">[</span><span class="n">static</span><span class="p">(</span><span class="s">&#39;admin/js/</span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">url</span><span class="p">)</span> <span class="k">for</span> <span class="n">url</span> <span class="ow">in</span> <span class="n">js</span><span class="p">])</span>
 
 <div class="viewcode-block" id="InlineModelAdmin.get_formset"><a class="viewcode-back" href="../../../../django.contrib.admin.html#django.contrib.admin.options.InlineModelAdmin.get_formset">[docs]</a>    <span class="k">def</span> <span class="nf">get_formset</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">request</span><span class="p">,</span> <span class="n">obj</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Returns a BaseInlineFormSet class for use in admin add/change views.&quot;&quot;&quot;</span>
@@ -1365,21 +1438,25 @@
             <span class="n">exclude</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="n">exclude</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">exclude</span><span class="p">)</span>
-        <span class="n">exclude</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&quot;exclude&quot;</span><span class="p">,</span> <span class="p">[]))</span>
         <span class="n">exclude</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">get_readonly_fields</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="n">obj</span><span class="p">))</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">exclude</span> <span class="ow">is</span> <span class="bp">None</span> <span class="ow">and</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">form</span><span class="p">,</span> <span class="s">&#39;_meta&#39;</span><span class="p">)</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">form</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">exclude</span><span class="p">:</span>
+            <span class="c"># Take the custom ModelForm&#39;s Meta.exclude into account only if the</span>
+            <span class="c"># InlineModelAdmin doesn&#39;t define its own.</span>
+            <span class="n">exclude</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">form</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">exclude</span><span class="p">)</span>
         <span class="c"># if exclude is an empty list we use None, since that&#39;s the actual</span>
         <span class="c"># default</span>
         <span class="n">exclude</span> <span class="o">=</span> <span class="n">exclude</span> <span class="ow">or</span> <span class="bp">None</span>
+        <span class="n">can_delete</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">can_delete</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">has_delete_permission</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="n">obj</span><span class="p">)</span>
         <span class="n">defaults</span> <span class="o">=</span> <span class="p">{</span>
             <span class="s">&quot;form&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">form</span><span class="p">,</span>
             <span class="s">&quot;formset&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">formset</span><span class="p">,</span>
             <span class="s">&quot;fk_name&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">fk_name</span><span class="p">,</span>
             <span class="s">&quot;fields&quot;</span><span class="p">:</span> <span class="n">fields</span><span class="p">,</span>
             <span class="s">&quot;exclude&quot;</span><span class="p">:</span> <span class="n">exclude</span><span class="p">,</span>
-            <span class="s">&quot;formfield_callback&quot;</span><span class="p">:</span> <span class="n">curry</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">formfield_for_dbfield</span><span class="p">,</span> <span class="n">request</span><span class="o">=</span><span class="n">request</span><span class="p">),</span>
+            <span class="s">&quot;formfield_callback&quot;</span><span class="p">:</span> <span class="n">partial</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">formfield_for_dbfield</span><span class="p">,</span> <span class="n">request</span><span class="o">=</span><span class="n">request</span><span class="p">),</span>
             <span class="s">&quot;extra&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">extra</span><span class="p">,</span>
             <span class="s">&quot;max_num&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_num</span><span class="p">,</span>
-            <span class="s">&quot;can_delete&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">can_delete</span><span class="p">,</span>
+            <span class="s">&quot;can_delete&quot;</span><span class="p">:</span> <span class="n">can_delete</span><span class="p">,</span>
         <span class="p">}</span>
         <span class="n">defaults</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">kwargs</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">inlineformset_factory</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">parent_model</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="p">,</span> <span class="o">**</span><span class="n">defaults</span><span class="p">)</span>
@@ -1387,9 +1464,47 @@
     <span class="k">def</span> <span class="nf">get_fieldsets</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">request</span><span class="p">,</span> <span class="n">obj</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">declared_fieldsets</span><span class="p">:</span>
             <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">declared_fieldsets</span>
-        <span class="n">form</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_formset</span><span class="p">(</span><span class="n">request</span><span class="p">)</span><span class="o">.</span><span class="n">form</span>
+        <span class="n">form</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_formset</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="n">obj</span><span class="p">)</span><span class="o">.</span><span class="n">form</span>
         <span class="n">fields</span> <span class="o">=</span> <span class="n">form</span><span class="o">.</span><span class="n">base_fields</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span> <span class="o">+</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">get_readonly_fields</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="n">obj</span><span class="p">))</span>
         <span class="k">return</span> <span class="p">[(</span><span class="bp">None</span><span class="p">,</span> <span class="p">{</span><span class="s">&#39;fields&#39;</span><span class="p">:</span> <span class="n">fields</span><span class="p">})]</span>
+
+    <span class="k">def</span> <span class="nf">queryset</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">request</span><span class="p">):</span>
+        <span class="n">queryset</span> <span class="o">=</span> <span class="nb">super</span><span class="p">(</span><span class="n">InlineModelAdmin</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">queryset</span><span class="p">(</span><span class="n">request</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">has_change_permission</span><span class="p">(</span><span class="n">request</span><span class="p">):</span>
+            <span class="n">queryset</span> <span class="o">=</span> <span class="n">queryset</span><span class="o">.</span><span class="n">none</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">queryset</span>
+
+    <span class="k">def</span> <span class="nf">has_add_permission</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">request</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">opts</span><span class="o">.</span><span class="n">auto_created</span><span class="p">:</span>
+            <span class="c"># We&#39;re checking the rights to an auto-created intermediate model,</span>
+            <span class="c"># which doesn&#39;t have its own individual permissions. The user needs</span>
+            <span class="c"># to have the change permission for the related model in order to</span>
+            <span class="c"># be able to do anything with the intermediate model.</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">has_change_permission</span><span class="p">(</span><span class="n">request</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">request</span><span class="o">.</span><span class="n">user</span><span class="o">.</span><span class="n">has_perm</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">opts</span><span class="o">.</span><span class="n">app_label</span> <span class="o">+</span> <span class="s">&#39;.&#39;</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">opts</span><span class="o">.</span><span class="n">get_add_permission</span><span class="p">())</span>
+
+    <span class="k">def</span> <span class="nf">has_change_permission</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">request</span><span class="p">,</span> <span class="n">obj</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="n">opts</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">opts</span>
+        <span class="k">if</span> <span class="n">opts</span><span class="o">.</span><span class="n">auto_created</span><span class="p">:</span>
+            <span class="c"># The model was auto-created as intermediary for a</span>
+            <span class="c"># ManyToMany-relationship, find the target model</span>
+            <span class="k">for</span> <span class="n">field</span> <span class="ow">in</span> <span class="n">opts</span><span class="o">.</span><span class="n">fields</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">field</span><span class="o">.</span><span class="n">rel</span> <span class="ow">and</span> <span class="n">field</span><span class="o">.</span><span class="n">rel</span><span class="o">.</span><span class="n">to</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parent_model</span><span class="p">:</span>
+                    <span class="n">opts</span> <span class="o">=</span> <span class="n">field</span><span class="o">.</span><span class="n">rel</span><span class="o">.</span><span class="n">to</span><span class="o">.</span><span class="n">_meta</span>
+                    <span class="k">break</span>
+        <span class="k">return</span> <span class="n">request</span><span class="o">.</span><span class="n">user</span><span class="o">.</span><span class="n">has_perm</span><span class="p">(</span>
+            <span class="n">opts</span><span class="o">.</span><span class="n">app_label</span> <span class="o">+</span> <span class="s">&#39;.&#39;</span> <span class="o">+</span> <span class="n">opts</span><span class="o">.</span><span class="n">get_change_permission</span><span class="p">())</span>
+
+    <span class="k">def</span> <span class="nf">has_delete_permission</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">request</span><span class="p">,</span> <span class="n">obj</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">opts</span><span class="o">.</span><span class="n">auto_created</span><span class="p">:</span>
+            <span class="c"># We&#39;re checking the rights to an auto-created intermediate model,</span>
+            <span class="c"># which doesn&#39;t have its own individual permissions. The user needs</span>
+            <span class="c"># to have the change permission for the related model in order to</span>
+            <span class="c"># be able to do anything with the intermediate model.</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">has_change_permission</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="n">obj</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">request</span><span class="o">.</span><span class="n">user</span><span class="o">.</span><span class="n">has_perm</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">opts</span><span class="o">.</span><span class="n">app_label</span> <span class="o">+</span> <span class="s">&#39;.&#39;</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">opts</span><span class="o">.</span><span class="n">get_delete_permission</span><span class="p">())</span>
 </div>
 <span class="k">class</span> <span class="nc">StackedInline</span><span class="p">(</span><span class="n">InlineModelAdmin</span><span class="p">):</span>
     <span class="n">template</span> <span class="o">=</span> <span class="s">&#39;admin/edit_inline/stacked.html&#39;</span>
@@ -1410,7 +1525,7 @@
 
     <div class="footer">
         &copy; Copyright 2012, HDKNR.COM.
-      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.2pre/660be19d7963.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.2pre/3c28de26aac2.
     </div>
   </body>
 </html>

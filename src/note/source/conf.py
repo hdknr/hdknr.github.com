@@ -289,6 +289,9 @@ epub_copyright = u'2012, HDKNR.COM'
 intersphinx_mapping = {'http://docs.python.org/': None}
 #
 extensions.append('sphinxtogithub')  #:GITHUB by HDKNR
+sphinx_to_github = True
+sphinx_to_github_verbose = True
+#
 todo_include_todos = True
 
 html_theme = 'mybasic' # HDKNR

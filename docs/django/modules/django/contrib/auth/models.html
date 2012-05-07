@@ -47,81 +47,70 @@
         
         
   <h1>Source code for django.contrib.auth.models</h1><div class="highlight"><pre>
-<span class="kn">import</span> <span class="nn">datetime</span>
 <span class="kn">import</span> <span class="nn">urllib</span>
 
-<span class="kn">from</span> <span class="nn">django.contrib</span> <span class="kn">import</span> <span class="n">auth</span>
-<span class="kn">from</span> <span class="nn">django.contrib.auth.signals</span> <span class="kn">import</span> <span class="n">user_logged_in</span>
 <span class="kn">from</span> <span class="nn">django.core.exceptions</span> <span class="kn">import</span> <span class="n">ImproperlyConfigured</span>
+<span class="kn">from</span> <span class="nn">django.core.mail</span> <span class="kn">import</span> <span class="n">send_mail</span>
 <span class="kn">from</span> <span class="nn">django.db</span> <span class="kn">import</span> <span class="n">models</span>
 <span class="kn">from</span> <span class="nn">django.db.models.manager</span> <span class="kn">import</span> <span class="n">EmptyManager</span>
-<span class="kn">from</span> <span class="nn">django.contrib.contenttypes.models</span> <span class="kn">import</span> <span class="n">ContentType</span>
+<span class="kn">from</span> <span class="nn">django.utils.crypto</span> <span class="kn">import</span> <span class="n">get_random_string</span>
 <span class="kn">from</span> <span class="nn">django.utils.encoding</span> <span class="kn">import</span> <span class="n">smart_str</span>
-<span class="kn">from</span> <span class="nn">django.utils.hashcompat</span> <span class="kn">import</span> <span class="n">md5_constructor</span><span class="p">,</span> <span class="n">sha_constructor</span>
 <span class="kn">from</span> <span class="nn">django.utils.translation</span> <span class="kn">import</span> <span class="n">ugettext_lazy</span> <span class="k">as</span> <span class="n">_</span>
-<span class="kn">from</span> <span class="nn">django.utils.crypto</span> <span class="kn">import</span> <span class="n">constant_time_compare</span>
+<span class="kn">from</span> <span class="nn">django.utils</span> <span class="kn">import</span> <span class="n">timezone</span>
+
+<span class="kn">from</span> <span class="nn">django.contrib</span> <span class="kn">import</span> <span class="n">auth</span>
+<span class="c"># UNUSABLE_PASSWORD is still imported here for backwards compatibility</span>
+<span class="kn">from</span> <span class="nn">django.contrib.auth.hashers</span> <span class="kn">import</span> <span class="p">(</span>
+    <span class="n">check_password</span><span class="p">,</span> <span class="n">make_password</span><span class="p">,</span> <span class="n">is_password_usable</span><span class="p">,</span> <span class="n">UNUSABLE_PASSWORD</span><span class="p">)</span>
+<span class="kn">from</span> <span class="nn">django.contrib.auth.signals</span> <span class="kn">import</span> <span class="n">user_logged_in</span>
+<span class="kn">from</span> <span class="nn">django.contrib.contenttypes.models</span> <span class="kn">import</span> <span class="n">ContentType</span>
 
 
-<span class="n">UNUSABLE_PASSWORD</span> <span class="o">=</span> <span class="s">&#39;!&#39;</span> <span class="c"># This will never be a valid hash</span>
-
-<div class="viewcode-block" id="get_hexdigest"><a class="viewcode-back" href="../../../../django.contrib.auth.html#django.contrib.auth.models.get_hexdigest">[docs]</a><span class="k">def</span> <span class="nf">get_hexdigest</span><span class="p">(</span><span class="n">algorithm</span><span class="p">,</span> <span class="n">salt</span><span class="p">,</span> <span class="n">raw_password</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Returns a string of the hexdigest of the given plaintext password and salt</span>
-<span class="sd">    using the given algorithm (&#39;md5&#39;, &#39;sha1&#39; or &#39;crypt&#39;).</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-    <span class="n">raw_password</span><span class="p">,</span> <span class="n">salt</span> <span class="o">=</span> <span class="n">smart_str</span><span class="p">(</span><span class="n">raw_password</span><span class="p">),</span> <span class="n">smart_str</span><span class="p">(</span><span class="n">salt</span><span class="p">)</span>
-    <span class="k">if</span> <span class="n">algorithm</span> <span class="o">==</span> <span class="s">&#39;crypt&#39;</span><span class="p">:</span>
-        <span class="k">try</span><span class="p">:</span>
-            <span class="kn">import</span> <span class="nn">crypt</span>
-        <span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s">&#39;&quot;crypt&quot; password algorithm not supported in this environment&#39;</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">crypt</span><span class="o">.</span><span class="n">crypt</span><span class="p">(</span><span class="n">raw_password</span><span class="p">,</span> <span class="n">salt</span><span class="p">)</span>
-
-    <span class="k">if</span> <span class="n">algorithm</span> <span class="o">==</span> <span class="s">&#39;md5&#39;</span><span class="p">:</span>
-        <span class="k">return</span> <span class="n">md5_constructor</span><span class="p">(</span><span class="n">salt</span> <span class="o">+</span> <span class="n">raw_password</span><span class="p">)</span><span class="o">.</span><span class="n">hexdigest</span><span class="p">()</span>
-    <span class="k">elif</span> <span class="n">algorithm</span> <span class="o">==</span> <span class="s">&#39;sha1&#39;</span><span class="p">:</span>
-        <span class="k">return</span> <span class="n">sha_constructor</span><span class="p">(</span><span class="n">salt</span> <span class="o">+</span> <span class="n">raw_password</span><span class="p">)</span><span class="o">.</span><span class="n">hexdigest</span><span class="p">()</span>
-    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s">&quot;Got unknown password algorithm type in password.&quot;</span><span class="p">)</span>
-</div>
-<div class="viewcode-block" id="check_password"><a class="viewcode-back" href="../../../../django.contrib.auth.html#django.contrib.auth.models.check_password">[docs]</a><span class="k">def</span> <span class="nf">check_password</span><span class="p">(</span><span class="n">raw_password</span><span class="p">,</span> <span class="n">enc_password</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Returns a boolean of whether the raw_password was correct. Handles</span>
-<span class="sd">    encryption formats behind the scenes.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-    <span class="n">algo</span><span class="p">,</span> <span class="n">salt</span><span class="p">,</span> <span class="n">hsh</span> <span class="o">=</span> <span class="n">enc_password</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&#39;$&#39;</span><span class="p">)</span>
-    <span class="k">return</span> <span class="n">constant_time_compare</span><span class="p">(</span><span class="n">hsh</span><span class="p">,</span> <span class="n">get_hexdigest</span><span class="p">(</span><span class="n">algo</span><span class="p">,</span> <span class="n">salt</span><span class="p">,</span> <span class="n">raw_password</span><span class="p">))</span>
-</div>
 <div class="viewcode-block" id="update_last_login"><a class="viewcode-back" href="../../../../django.contrib.auth.html#django.contrib.auth.models.update_last_login">[docs]</a><span class="k">def</span> <span class="nf">update_last_login</span><span class="p">(</span><span class="n">sender</span><span class="p">,</span> <span class="n">user</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    A signal receiver which updates the last_login date for</span>
 <span class="sd">    the user logging in.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="n">user</span><span class="o">.</span><span class="n">last_login</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span>
+    <span class="n">user</span><span class="o">.</span><span class="n">last_login</span> <span class="o">=</span> <span class="n">timezone</span><span class="o">.</span><span class="n">now</span><span class="p">()</span>
     <span class="n">user</span><span class="o">.</span><span class="n">save</span><span class="p">()</span></div>
 <span class="n">user_logged_in</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">update_last_login</span><span class="p">)</span>
 
+
 <span class="k">class</span> <span class="nc">SiteProfileNotAvailable</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
     <span class="k">pass</span>
+
 
 <span class="k">class</span> <span class="nc">PermissionManager</span><span class="p">(</span><span class="n">models</span><span class="o">.</span><span class="n">Manager</span><span class="p">):</span>
     <span class="k">def</span> <span class="nf">get_by_natural_key</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">codename</span><span class="p">,</span> <span class="n">app_label</span><span class="p">,</span> <span class="n">model</span><span class="p">):</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
             <span class="n">codename</span><span class="o">=</span><span class="n">codename</span><span class="p">,</span>
-            <span class="n">content_type</span><span class="o">=</span><span class="n">ContentType</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">get_by_natural_key</span><span class="p">(</span><span class="n">app_label</span><span class="p">,</span> <span class="n">model</span><span class="p">)</span>
+            <span class="n">content_type</span><span class="o">=</span><span class="n">ContentType</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">get_by_natural_key</span><span class="p">(</span><span class="n">app_label</span><span class="p">,</span>
+                                                                <span class="n">model</span><span class="p">),</span>
         <span class="p">)</span>
 
+
 <div class="viewcode-block" id="Permission"><a class="viewcode-back" href="../../../../django.contrib.auth.html#django.contrib.auth.models.Permission">[docs]</a><span class="k">class</span> <span class="nc">Permission</span><span class="p">(</span><span class="n">models</span><span class="o">.</span><span class="n">Model</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;The permissions system provides a way to assign permissions to specific users and groups of users.</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    The permissions system provides a way to assign permissions to specific</span>
+<span class="sd">    users and groups of users.</span>
 
-<span class="sd">    The permission system is used by the Django admin site, but may also be useful in your own code. The Django admin site uses permissions as follows:</span>
+<span class="sd">    The permission system is used by the Django admin site, but may also be</span>
+<span class="sd">    useful in your own code. The Django admin site uses permissions as follows:</span>
 
-<span class="sd">        - The &quot;add&quot; permission limits the user&#39;s ability to view the &quot;add&quot; form and add an object.</span>
-<span class="sd">        - The &quot;change&quot; permission limits a user&#39;s ability to view the change list, view the &quot;change&quot; form and change an object.</span>
+<span class="sd">        - The &quot;add&quot; permission limits the user&#39;s ability to view the &quot;add&quot; form</span>
+<span class="sd">          and add an object.</span>
+<span class="sd">        - The &quot;change&quot; permission limits a user&#39;s ability to view the change</span>
+<span class="sd">          list, view the &quot;change&quot; form and change an object.</span>
 <span class="sd">        - The &quot;delete&quot; permission limits the ability to delete an object.</span>
 
-<span class="sd">    Permissions are set globally per type of object, not per specific object instance. It is possible to say &quot;Mary may change news stories,&quot; but it&#39;s not currently possible to say &quot;Mary may change news stories, but only the ones she created herself&quot; or &quot;Mary may only change news stories that have a certain status or publication date.&quot;</span>
+<span class="sd">    Permissions are set globally per type of object, not per specific object</span>
+<span class="sd">    instance. It is possible to say &quot;Mary may change news stories,&quot; but it&#39;s</span>
+<span class="sd">    not currently possible to say &quot;Mary may change news stories, but only the</span>
+<span class="sd">    ones she created herself&quot; or &quot;Mary may only change news stories that have a</span>
+<span class="sd">    certain status or publication date.&quot;</span>
 
-<span class="sd">    Three basic permissions -- add, change and delete -- are automatically created for each Django model.</span>
+<span class="sd">    Three basic permissions -- add, change and delete -- are automatically</span>
+<span class="sd">    created for each Django model.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">name</span> <span class="o">=</span> <span class="n">models</span><span class="o">.</span><span class="n">CharField</span><span class="p">(</span><span class="n">_</span><span class="p">(</span><span class="s">&#39;name&#39;</span><span class="p">),</span> <span class="n">max_length</span><span class="o">=</span><span class="mi">50</span><span class="p">)</span>
     <span class="n">content_type</span> <span class="o">=</span> <span class="n">models</span><span class="o">.</span><span class="n">ForeignKey</span><span class="p">(</span><span class="n">ContentType</span><span class="p">)</span>
@@ -132,7 +121,8 @@
         <span class="n">verbose_name</span> <span class="o">=</span> <span class="n">_</span><span class="p">(</span><span class="s">&#39;permission&#39;</span><span class="p">)</span>
         <span class="n">verbose_name_plural</span> <span class="o">=</span> <span class="n">_</span><span class="p">(</span><span class="s">&#39;permissions&#39;</span><span class="p">)</span>
         <span class="n">unique_together</span> <span class="o">=</span> <span class="p">((</span><span class="s">&#39;content_type&#39;</span><span class="p">,</span> <span class="s">&#39;codename&#39;</span><span class="p">),)</span>
-        <span class="n">ordering</span> <span class="o">=</span> <span class="p">(</span><span class="s">&#39;content_type__app_label&#39;</span><span class="p">,</span> <span class="s">&#39;content_type__model&#39;</span><span class="p">,</span> <span class="s">&#39;codename&#39;</span><span class="p">)</span>
+        <span class="n">ordering</span> <span class="o">=</span> <span class="p">(</span><span class="s">&#39;content_type__app_label&#39;</span><span class="p">,</span> <span class="s">&#39;content_type__model&#39;</span><span class="p">,</span>
+                    <span class="s">&#39;codename&#39;</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">__unicode__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">return</span> <span class="s">u&quot;</span><span class="si">%s</span><span class="s"> | </span><span class="si">%s</span><span class="s"> | </span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="p">(</span>
@@ -143,16 +133,37 @@
     <span class="k">def</span> <span class="nf">natural_key</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">return</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">codename</span><span class="p">,)</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">content_type</span><span class="o">.</span><span class="n">natural_key</span><span class="p">()</span>
     <span class="n">natural_key</span><span class="o">.</span><span class="n">dependencies</span> <span class="o">=</span> <span class="p">[</span><span class="s">&#39;contenttypes.contenttype&#39;</span><span class="p">]</span>
+
+</div>
+<div class="viewcode-block" id="GroupManager"><a class="viewcode-back" href="../../../../django.contrib.auth.html#django.contrib.auth.models.GroupManager">[docs]</a><span class="k">class</span> <span class="nc">GroupManager</span><span class="p">(</span><span class="n">models</span><span class="o">.</span><span class="n">Manager</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    The manager for the auth&#39;s Group model.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">get_by_natural_key</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">)</span>
 </div>
 <div class="viewcode-block" id="Group"><a class="viewcode-back" href="../../../../django.contrib.auth.html#django.contrib.auth.models.Group">[docs]</a><span class="k">class</span> <span class="nc">Group</span><span class="p">(</span><span class="n">models</span><span class="o">.</span><span class="n">Model</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;Groups are a generic way of categorizing users to apply permissions, or some other label, to those users. A user can belong to any number of groups.</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Groups are a generic way of categorizing users to apply permissions, or</span>
+<span class="sd">    some other label, to those users. A user can belong to any number of</span>
+<span class="sd">    groups.</span>
 
-<span class="sd">    A user in a group automatically has all the permissions granted to that group. For example, if the group Site editors has the permission can_edit_home_page, any user in that group will have that permission.</span>
+<span class="sd">    A user in a group automatically has all the permissions granted to that</span>
+<span class="sd">    group. For example, if the group Site editors has the permission</span>
+<span class="sd">    can_edit_home_page, any user in that group will have that permission.</span>
 
-<span class="sd">    Beyond permissions, groups are a convenient way to categorize users to apply some label, or extended functionality, to them. For example, you could create a group &#39;Special users&#39;, and you could write code that would do special things to those users -- such as giving them access to a members-only portion of your site, or sending them members-only e-mail messages.</span>
+<span class="sd">    Beyond permissions, groups are a convenient way to categorize users to</span>
+<span class="sd">    apply some label, or extended functionality, to them. For example, you</span>
+<span class="sd">    could create a group &#39;Special users&#39;, and you could write code that would</span>
+<span class="sd">    do special things to those users -- such as giving them access to a</span>
+<span class="sd">    members-only portion of your site, or sending them members-only email</span>
+<span class="sd">    messages.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">name</span> <span class="o">=</span> <span class="n">models</span><span class="o">.</span><span class="n">CharField</span><span class="p">(</span><span class="n">_</span><span class="p">(</span><span class="s">&#39;name&#39;</span><span class="p">),</span> <span class="n">max_length</span><span class="o">=</span><span class="mi">80</span><span class="p">,</span> <span class="n">unique</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
-    <span class="n">permissions</span> <span class="o">=</span> <span class="n">models</span><span class="o">.</span><span class="n">ManyToManyField</span><span class="p">(</span><span class="n">Permission</span><span class="p">,</span> <span class="n">verbose_name</span><span class="o">=</span><span class="n">_</span><span class="p">(</span><span class="s">&#39;permissions&#39;</span><span class="p">),</span> <span class="n">blank</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+    <span class="n">permissions</span> <span class="o">=</span> <span class="n">models</span><span class="o">.</span><span class="n">ManyToManyField</span><span class="p">(</span><span class="n">Permission</span><span class="p">,</span>
+        <span class="n">verbose_name</span><span class="o">=</span><span class="n">_</span><span class="p">(</span><span class="s">&#39;permissions&#39;</span><span class="p">),</span> <span class="n">blank</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+
+    <span class="n">objects</span> <span class="o">=</span> <span class="n">GroupManager</span><span class="p">()</span>
 
     <span class="k">class</span> <span class="nc">Meta</span><span class="p">:</span>
         <span class="n">verbose_name</span> <span class="o">=</span> <span class="n">_</span><span class="p">(</span><span class="s">&#39;group&#39;</span><span class="p">)</span>
@@ -160,26 +171,39 @@
 
     <span class="k">def</span> <span class="nf">__unicode__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span>
+
+    <span class="k">def</span> <span class="nf">natural_key</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,)</span>
+
 </div>
 <span class="k">class</span> <span class="nc">UserManager</span><span class="p">(</span><span class="n">models</span><span class="o">.</span><span class="n">Manager</span><span class="p">):</span>
-    <span class="k">def</span> <span class="nf">create_user</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">username</span><span class="p">,</span> <span class="n">email</span><span class="p">,</span> <span class="n">password</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Creates and saves a User with the given username, e-mail and password.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">now</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span>
 
-        <span class="c"># Normalize the address by lowercasing the domain part of the email</span>
-        <span class="c"># address.</span>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">normalize_email</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">email</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Normalize the address by lowercasing the domain part of the email</span>
+<span class="sd">        address.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">email</span> <span class="o">=</span> <span class="n">email</span> <span class="ow">or</span> <span class="s">&#39;&#39;</span>
         <span class="k">try</span><span class="p">:</span>
-            <span class="n">email_name</span><span class="p">,</span> <span class="n">domain_part</span> <span class="o">=</span> <span class="n">email</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&#39;@&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+            <span class="n">email_name</span><span class="p">,</span> <span class="n">domain_part</span> <span class="o">=</span> <span class="n">email</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">rsplit</span><span class="p">(</span><span class="s">&#39;@&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
         <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
             <span class="k">pass</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="n">email</span> <span class="o">=</span> <span class="s">&#39;@&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="n">email_name</span><span class="p">,</span> <span class="n">domain_part</span><span class="o">.</span><span class="n">lower</span><span class="p">()])</span>
+        <span class="k">return</span> <span class="n">email</span>
 
-        <span class="n">user</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="p">(</span><span class="n">username</span><span class="o">=</span><span class="n">username</span><span class="p">,</span> <span class="n">email</span><span class="o">=</span><span class="n">email</span><span class="p">,</span> <span class="n">is_staff</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span>
-                         <span class="n">is_active</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">is_superuser</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">last_login</span><span class="o">=</span><span class="n">now</span><span class="p">,</span>
-                         <span class="n">date_joined</span><span class="o">=</span><span class="n">now</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">create_user</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">username</span><span class="p">,</span> <span class="n">email</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">password</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Creates and saves a User with the given username, email and password.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">now</span> <span class="o">=</span> <span class="n">timezone</span><span class="o">.</span><span class="n">now</span><span class="p">()</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">username</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s">&#39;The given username must be set&#39;</span><span class="p">)</span>
+        <span class="n">email</span> <span class="o">=</span> <span class="n">UserManager</span><span class="o">.</span><span class="n">normalize_email</span><span class="p">(</span><span class="n">email</span><span class="p">)</span>
+        <span class="n">user</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="p">(</span><span class="n">username</span><span class="o">=</span><span class="n">username</span><span class="p">,</span> <span class="n">email</span><span class="o">=</span><span class="n">email</span><span class="p">,</span>
+                          <span class="n">is_staff</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">is_active</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">is_superuser</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span>
+                          <span class="n">last_login</span><span class="o">=</span><span class="n">now</span><span class="p">,</span> <span class="n">date_joined</span><span class="o">=</span><span class="n">now</span><span class="p">)</span>
 
         <span class="n">user</span><span class="o">.</span><span class="n">set_password</span><span class="p">(</span><span class="n">password</span><span class="p">)</span>
         <span class="n">user</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">using</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_db</span><span class="p">)</span>
@@ -193,28 +217,31 @@
         <span class="n">u</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">using</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_db</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">u</span>
 
-    <span class="k">def</span> <span class="nf">make_random_password</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">length</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span> <span class="n">allowed_chars</span><span class="o">=</span><span class="s">&#39;abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789&#39;</span><span class="p">):</span>
-        <span class="s">&quot;Generates a random password with the given length and given allowed_chars&quot;</span>
-        <span class="c"># Note that default value of allowed_chars does not have &quot;I&quot; or letters</span>
-        <span class="c"># that look like it -- just to avoid confusion.</span>
-        <span class="kn">from</span> <span class="nn">random</span> <span class="kn">import</span> <span class="n">choice</span>
-        <span class="k">return</span> <span class="s">&#39;&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="n">choice</span><span class="p">(</span><span class="n">allowed_chars</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">length</span><span class="p">)])</span>
+    <span class="k">def</span> <span class="nf">make_random_password</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">length</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span>
+                             <span class="n">allowed_chars</span><span class="o">=</span><span class="s">&#39;abcdefghjkmnpqrstuvwxyz&#39;</span>
+                                           <span class="s">&#39;ABCDEFGHJKLMNPQRSTUVWXYZ&#39;</span>
+                                           <span class="s">&#39;23456789&#39;</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Generates a random password with the given length and given</span>
+<span class="sd">        allowed_chars. Note that the default value of allowed_chars does not</span>
+<span class="sd">        have &quot;I&quot; or &quot;O&quot; or letters and digits that look similar -- just to</span>
+<span class="sd">        avoid confusion.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">get_random_string</span><span class="p">(</span><span class="n">length</span><span class="p">,</span> <span class="n">allowed_chars</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">get_by_natural_key</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">username</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">username</span><span class="o">=</span><span class="n">username</span><span class="p">)</span>
 
 
 <span class="c"># A few helper functions for common logic between User and AnonymousUser.</span>
 <span class="k">def</span> <span class="nf">_user_get_all_permissions</span><span class="p">(</span><span class="n">user</span><span class="p">,</span> <span class="n">obj</span><span class="p">):</span>
     <span class="n">permissions</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
-    <span class="n">anon</span> <span class="o">=</span> <span class="n">user</span><span class="o">.</span><span class="n">is_anonymous</span><span class="p">()</span>
     <span class="k">for</span> <span class="n">backend</span> <span class="ow">in</span> <span class="n">auth</span><span class="o">.</span><span class="n">get_backends</span><span class="p">():</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">anon</span> <span class="ow">or</span> <span class="n">backend</span><span class="o">.</span><span class="n">supports_anonymous_user</span><span class="p">:</span>
-            <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">backend</span><span class="p">,</span> <span class="s">&quot;get_all_permissions&quot;</span><span class="p">):</span>
-                <span class="k">if</span> <span class="n">obj</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
-                    <span class="k">if</span> <span class="n">backend</span><span class="o">.</span><span class="n">supports_object_permissions</span><span class="p">:</span>
-                        <span class="n">permissions</span><span class="o">.</span><span class="n">update</span><span class="p">(</span>
-                            <span class="n">backend</span><span class="o">.</span><span class="n">get_all_permissions</span><span class="p">(</span><span class="n">user</span><span class="p">,</span> <span class="n">obj</span><span class="p">)</span>
-                        <span class="p">)</span>
-                <span class="k">else</span><span class="p">:</span>
-                    <span class="n">permissions</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">backend</span><span class="o">.</span><span class="n">get_all_permissions</span><span class="p">(</span><span class="n">user</span><span class="p">))</span>
+        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">backend</span><span class="p">,</span> <span class="s">&quot;get_all_permissions&quot;</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">obj</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+                <span class="n">permissions</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">backend</span><span class="o">.</span><span class="n">get_all_permissions</span><span class="p">(</span><span class="n">user</span><span class="p">,</span> <span class="n">obj</span><span class="p">))</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">permissions</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">backend</span><span class="o">.</span><span class="n">get_all_permissions</span><span class="p">(</span><span class="n">user</span><span class="p">))</span>
     <span class="k">return</span> <span class="n">permissions</span>
 
 
@@ -222,12 +249,10 @@
     <span class="n">anon</span> <span class="o">=</span> <span class="n">user</span><span class="o">.</span><span class="n">is_anonymous</span><span class="p">()</span>
     <span class="n">active</span> <span class="o">=</span> <span class="n">user</span><span class="o">.</span><span class="n">is_active</span>
     <span class="k">for</span> <span class="n">backend</span> <span class="ow">in</span> <span class="n">auth</span><span class="o">.</span><span class="n">get_backends</span><span class="p">():</span>
-        <span class="k">if</span> <span class="p">(</span><span class="ow">not</span> <span class="n">active</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">anon</span> <span class="ow">and</span> <span class="n">backend</span><span class="o">.</span><span class="n">supports_inactive_user</span><span class="p">)</span> <span class="ow">or</span> \
-                    <span class="p">(</span><span class="ow">not</span> <span class="n">anon</span> <span class="ow">or</span> <span class="n">backend</span><span class="o">.</span><span class="n">supports_anonymous_user</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">anon</span> <span class="ow">or</span> <span class="n">active</span> <span class="ow">or</span> <span class="n">backend</span><span class="o">.</span><span class="n">supports_inactive_user</span><span class="p">:</span>
             <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">backend</span><span class="p">,</span> <span class="s">&quot;has_perm&quot;</span><span class="p">):</span>
                 <span class="k">if</span> <span class="n">obj</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
-                    <span class="k">if</span> <span class="p">(</span><span class="n">backend</span><span class="o">.</span><span class="n">supports_object_permissions</span> <span class="ow">and</span>
-                        <span class="n">backend</span><span class="o">.</span><span class="n">has_perm</span><span class="p">(</span><span class="n">user</span><span class="p">,</span> <span class="n">perm</span><span class="p">,</span> <span class="n">obj</span><span class="p">)):</span>
+                    <span class="k">if</span> <span class="n">backend</span><span class="o">.</span><span class="n">has_perm</span><span class="p">(</span><span class="n">user</span><span class="p">,</span> <span class="n">perm</span><span class="p">,</span> <span class="n">obj</span><span class="p">):</span>
                             <span class="k">return</span> <span class="bp">True</span>
                 <span class="k">else</span><span class="p">:</span>
                     <span class="k">if</span> <span class="n">backend</span><span class="o">.</span><span class="n">has_perm</span><span class="p">(</span><span class="n">user</span><span class="p">,</span> <span class="n">perm</span><span class="p">):</span>
@@ -239,8 +264,7 @@
     <span class="n">anon</span> <span class="o">=</span> <span class="n">user</span><span class="o">.</span><span class="n">is_anonymous</span><span class="p">()</span>
     <span class="n">active</span> <span class="o">=</span> <span class="n">user</span><span class="o">.</span><span class="n">is_active</span>
     <span class="k">for</span> <span class="n">backend</span> <span class="ow">in</span> <span class="n">auth</span><span class="o">.</span><span class="n">get_backends</span><span class="p">():</span>
-        <span class="k">if</span> <span class="p">(</span><span class="ow">not</span> <span class="n">active</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">anon</span> <span class="ow">and</span> <span class="n">backend</span><span class="o">.</span><span class="n">supports_inactive_user</span><span class="p">)</span> <span class="ow">or</span> \
-                    <span class="p">(</span><span class="ow">not</span> <span class="n">anon</span> <span class="ow">or</span> <span class="n">backend</span><span class="o">.</span><span class="n">supports_anonymous_user</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">anon</span> <span class="ow">or</span> <span class="n">active</span> <span class="ow">or</span> <span class="n">backend</span><span class="o">.</span><span class="n">supports_inactive_user</span><span class="p">:</span>
             <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">backend</span><span class="p">,</span> <span class="s">&quot;has_module_perms&quot;</span><span class="p">):</span>
                 <span class="k">if</span> <span class="n">backend</span><span class="o">.</span><span class="n">has_module_perms</span><span class="p">(</span><span class="n">user</span><span class="p">,</span> <span class="n">app_label</span><span class="p">):</span>
                     <span class="k">return</span> <span class="bp">True</span>
@@ -249,23 +273,36 @@
 
 <div class="viewcode-block" id="User"><a class="viewcode-back" href="../../../../django.contrib.auth.html#django.contrib.auth.models.User">[docs]</a><span class="k">class</span> <span class="nc">User</span><span class="p">(</span><span class="n">models</span><span class="o">.</span><span class="n">Model</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Users within the Django authentication system are represented by this model.</span>
+<span class="sd">    Users within the Django authentication system are represented by this</span>
+<span class="sd">    model.</span>
 
 <span class="sd">    Username and password are required. Other fields are optional.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="n">username</span> <span class="o">=</span> <span class="n">models</span><span class="o">.</span><span class="n">CharField</span><span class="p">(</span><span class="n">_</span><span class="p">(</span><span class="s">&#39;username&#39;</span><span class="p">),</span> <span class="n">max_length</span><span class="o">=</span><span class="mi">30</span><span class="p">,</span> <span class="n">unique</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">help_text</span><span class="o">=</span><span class="n">_</span><span class="p">(</span><span class="s">&quot;Required. 30 characters or fewer. Letters, numbers and @/./+/-/_ characters&quot;</span><span class="p">))</span>
+    <span class="n">username</span> <span class="o">=</span> <span class="n">models</span><span class="o">.</span><span class="n">CharField</span><span class="p">(</span><span class="n">_</span><span class="p">(</span><span class="s">&#39;username&#39;</span><span class="p">),</span> <span class="n">max_length</span><span class="o">=</span><span class="mi">30</span><span class="p">,</span> <span class="n">unique</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span>
+        <span class="n">help_text</span><span class="o">=</span><span class="n">_</span><span class="p">(</span><span class="s">&#39;Required. 30 characters or fewer. Letters, numbers and &#39;</span>
+                    <span class="s">&#39;@/./+/-/_ characters&#39;</span><span class="p">))</span>
     <span class="n">first_name</span> <span class="o">=</span> <span class="n">models</span><span class="o">.</span><span class="n">CharField</span><span class="p">(</span><span class="n">_</span><span class="p">(</span><span class="s">&#39;first name&#39;</span><span class="p">),</span> <span class="n">max_length</span><span class="o">=</span><span class="mi">30</span><span class="p">,</span> <span class="n">blank</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
     <span class="n">last_name</span> <span class="o">=</span> <span class="n">models</span><span class="o">.</span><span class="n">CharField</span><span class="p">(</span><span class="n">_</span><span class="p">(</span><span class="s">&#39;last name&#39;</span><span class="p">),</span> <span class="n">max_length</span><span class="o">=</span><span class="mi">30</span><span class="p">,</span> <span class="n">blank</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
     <span class="n">email</span> <span class="o">=</span> <span class="n">models</span><span class="o">.</span><span class="n">EmailField</span><span class="p">(</span><span class="n">_</span><span class="p">(</span><span class="s">&#39;e-mail address&#39;</span><span class="p">),</span> <span class="n">blank</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
-    <span class="n">password</span> <span class="o">=</span> <span class="n">models</span><span class="o">.</span><span class="n">CharField</span><span class="p">(</span><span class="n">_</span><span class="p">(</span><span class="s">&#39;password&#39;</span><span class="p">),</span> <span class="n">max_length</span><span class="o">=</span><span class="mi">128</span><span class="p">,</span> <span class="n">help_text</span><span class="o">=</span><span class="n">_</span><span class="p">(</span><span class="s">&quot;Use &#39;[algo]$[salt]$[hexdigest]&#39; or use the &lt;a href=</span><span class="se">\&quot;</span><span class="s">password/</span><span class="se">\&quot;</span><span class="s">&gt;change password form&lt;/a&gt;.&quot;</span><span class="p">))</span>
-    <span class="n">is_staff</span> <span class="o">=</span> <span class="n">models</span><span class="o">.</span><span class="n">BooleanField</span><span class="p">(</span><span class="n">_</span><span class="p">(</span><span class="s">&#39;staff status&#39;</span><span class="p">),</span> <span class="n">default</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">help_text</span><span class="o">=</span><span class="n">_</span><span class="p">(</span><span class="s">&quot;Designates whether the user can log into this admin site.&quot;</span><span class="p">))</span>
-    <span class="n">is_active</span> <span class="o">=</span> <span class="n">models</span><span class="o">.</span><span class="n">BooleanField</span><span class="p">(</span><span class="n">_</span><span class="p">(</span><span class="s">&#39;active&#39;</span><span class="p">),</span> <span class="n">default</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">help_text</span><span class="o">=</span><span class="n">_</span><span class="p">(</span><span class="s">&quot;Designates whether this user should be treated as active. Unselect this instead of deleting accounts.&quot;</span><span class="p">))</span>
-    <span class="n">is_superuser</span> <span class="o">=</span> <span class="n">models</span><span class="o">.</span><span class="n">BooleanField</span><span class="p">(</span><span class="n">_</span><span class="p">(</span><span class="s">&#39;superuser status&#39;</span><span class="p">),</span> <span class="n">default</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">help_text</span><span class="o">=</span><span class="n">_</span><span class="p">(</span><span class="s">&quot;Designates that this user has all permissions without explicitly assigning them.&quot;</span><span class="p">))</span>
-    <span class="n">last_login</span> <span class="o">=</span> <span class="n">models</span><span class="o">.</span><span class="n">DateTimeField</span><span class="p">(</span><span class="n">_</span><span class="p">(</span><span class="s">&#39;last login&#39;</span><span class="p">),</span> <span class="n">default</span><span class="o">=</span><span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">)</span>
-    <span class="n">date_joined</span> <span class="o">=</span> <span class="n">models</span><span class="o">.</span><span class="n">DateTimeField</span><span class="p">(</span><span class="n">_</span><span class="p">(</span><span class="s">&#39;date joined&#39;</span><span class="p">),</span> <span class="n">default</span><span class="o">=</span><span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">)</span>
-    <span class="n">groups</span> <span class="o">=</span> <span class="n">models</span><span class="o">.</span><span class="n">ManyToManyField</span><span class="p">(</span><span class="n">Group</span><span class="p">,</span> <span class="n">verbose_name</span><span class="o">=</span><span class="n">_</span><span class="p">(</span><span class="s">&#39;groups&#39;</span><span class="p">),</span> <span class="n">blank</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span>
-        <span class="n">help_text</span><span class="o">=</span><span class="n">_</span><span class="p">(</span><span class="s">&quot;In addition to the permissions manually assigned, this user will also get all permissions granted to each group he/she is in.&quot;</span><span class="p">))</span>
-    <span class="n">user_permissions</span> <span class="o">=</span> <span class="n">models</span><span class="o">.</span><span class="n">ManyToManyField</span><span class="p">(</span><span class="n">Permission</span><span class="p">,</span> <span class="n">verbose_name</span><span class="o">=</span><span class="n">_</span><span class="p">(</span><span class="s">&#39;user permissions&#39;</span><span class="p">),</span> <span class="n">blank</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+    <span class="n">password</span> <span class="o">=</span> <span class="n">models</span><span class="o">.</span><span class="n">CharField</span><span class="p">(</span><span class="n">_</span><span class="p">(</span><span class="s">&#39;password&#39;</span><span class="p">),</span> <span class="n">max_length</span><span class="o">=</span><span class="mi">128</span><span class="p">)</span>
+    <span class="n">is_staff</span> <span class="o">=</span> <span class="n">models</span><span class="o">.</span><span class="n">BooleanField</span><span class="p">(</span><span class="n">_</span><span class="p">(</span><span class="s">&#39;staff status&#39;</span><span class="p">),</span> <span class="n">default</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span>
+        <span class="n">help_text</span><span class="o">=</span><span class="n">_</span><span class="p">(</span><span class="s">&#39;Designates whether the user can log into this admin &#39;</span>
+                    <span class="s">&#39;site.&#39;</span><span class="p">))</span>
+    <span class="n">is_active</span> <span class="o">=</span> <span class="n">models</span><span class="o">.</span><span class="n">BooleanField</span><span class="p">(</span><span class="n">_</span><span class="p">(</span><span class="s">&#39;active&#39;</span><span class="p">),</span> <span class="n">default</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span>
+        <span class="n">help_text</span><span class="o">=</span><span class="n">_</span><span class="p">(</span><span class="s">&#39;Designates whether this user should be treated as &#39;</span>
+                    <span class="s">&#39;active. Unselect this instead of deleting accounts.&#39;</span><span class="p">))</span>
+    <span class="n">is_superuser</span> <span class="o">=</span> <span class="n">models</span><span class="o">.</span><span class="n">BooleanField</span><span class="p">(</span><span class="n">_</span><span class="p">(</span><span class="s">&#39;superuser status&#39;</span><span class="p">),</span> <span class="n">default</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span>
+        <span class="n">help_text</span><span class="o">=</span><span class="n">_</span><span class="p">(</span><span class="s">&#39;Designates that this user has all permissions without &#39;</span>
+                    <span class="s">&#39;explicitly assigning them.&#39;</span><span class="p">))</span>
+    <span class="n">last_login</span> <span class="o">=</span> <span class="n">models</span><span class="o">.</span><span class="n">DateTimeField</span><span class="p">(</span><span class="n">_</span><span class="p">(</span><span class="s">&#39;last login&#39;</span><span class="p">),</span> <span class="n">default</span><span class="o">=</span><span class="n">timezone</span><span class="o">.</span><span class="n">now</span><span class="p">)</span>
+    <span class="n">date_joined</span> <span class="o">=</span> <span class="n">models</span><span class="o">.</span><span class="n">DateTimeField</span><span class="p">(</span><span class="n">_</span><span class="p">(</span><span class="s">&#39;date joined&#39;</span><span class="p">),</span> <span class="n">default</span><span class="o">=</span><span class="n">timezone</span><span class="o">.</span><span class="n">now</span><span class="p">)</span>
+    <span class="n">groups</span> <span class="o">=</span> <span class="n">models</span><span class="o">.</span><span class="n">ManyToManyField</span><span class="p">(</span><span class="n">Group</span><span class="p">,</span> <span class="n">verbose_name</span><span class="o">=</span><span class="n">_</span><span class="p">(</span><span class="s">&#39;groups&#39;</span><span class="p">),</span>
+        <span class="n">blank</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">help_text</span><span class="o">=</span><span class="n">_</span><span class="p">(</span><span class="s">&#39;The groups this user belongs to. A user will &#39;</span>
+                                <span class="s">&#39;get all permissions granted to each of &#39;</span>
+                                <span class="s">&#39;his/her group.&#39;</span><span class="p">))</span>
+    <span class="n">user_permissions</span> <span class="o">=</span> <span class="n">models</span><span class="o">.</span><span class="n">ManyToManyField</span><span class="p">(</span><span class="n">Permission</span><span class="p">,</span>
+        <span class="n">verbose_name</span><span class="o">=</span><span class="n">_</span><span class="p">(</span><span class="s">&#39;user permissions&#39;</span><span class="p">),</span> <span class="n">blank</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span>
+        <span class="n">help_text</span><span class="o">=</span><span class="s">&#39;Specific permissions for this user.&#39;</span><span class="p">)</span>
     <span class="n">objects</span> <span class="o">=</span> <span class="n">UserManager</span><span class="p">()</span>
 
     <span class="k">class</span> <span class="nc">Meta</span><span class="p">:</span>
@@ -274,6 +311,9 @@
 
     <span class="k">def</span> <span class="nf">__unicode__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">username</span>
+
+    <span class="k">def</span> <span class="nf">natural_key</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">username</span><span class="p">,)</span>
 
     <span class="k">def</span> <span class="nf">get_absolute_url</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">return</span> <span class="s">&quot;/users/</span><span class="si">%s</span><span class="s">/&quot;</span> <span class="o">%</span> <span class="n">urllib</span><span class="o">.</span><span class="n">quote</span><span class="p">(</span><span class="n">smart_str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">username</span><span class="p">))</span>
@@ -293,62 +333,44 @@
         <span class="k">return</span> <span class="bp">True</span>
 </div>
 <div class="viewcode-block" id="User.get_full_name"><a class="viewcode-back" href="../../../../django.contrib.auth.html#django.contrib.auth.models.User.get_full_name">[docs]</a>    <span class="k">def</span> <span class="nf">get_full_name</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="s">&quot;Returns the first_name plus the last_name, with a space in between.&quot;</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns the first_name plus the last_name, with a space in between.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">full_name</span> <span class="o">=</span> <span class="s">u&#39;</span><span class="si">%s</span><span class="s"> </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">first_name</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">last_name</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">full_name</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
 </div>
     <span class="k">def</span> <span class="nf">set_password</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">raw_password</span><span class="p">):</span>
-        <span class="k">if</span> <span class="n">raw_password</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">set_unusable_password</span><span class="p">()</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="kn">import</span> <span class="nn">random</span>
-            <span class="n">algo</span> <span class="o">=</span> <span class="s">&#39;sha1&#39;</span>
-            <span class="n">salt</span> <span class="o">=</span> <span class="n">get_hexdigest</span><span class="p">(</span><span class="n">algo</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">random</span><span class="o">.</span><span class="n">random</span><span class="p">()),</span> <span class="nb">str</span><span class="p">(</span><span class="n">random</span><span class="o">.</span><span class="n">random</span><span class="p">()))[:</span><span class="mi">5</span><span class="p">]</span>
-            <span class="n">hsh</span> <span class="o">=</span> <span class="n">get_hexdigest</span><span class="p">(</span><span class="n">algo</span><span class="p">,</span> <span class="n">salt</span><span class="p">,</span> <span class="n">raw_password</span><span class="p">)</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">password</span> <span class="o">=</span> <span class="s">&#39;</span><span class="si">%s</span><span class="s">$</span><span class="si">%s</span><span class="s">$</span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">algo</span><span class="p">,</span> <span class="n">salt</span><span class="p">,</span> <span class="n">hsh</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">password</span> <span class="o">=</span> <span class="n">make_password</span><span class="p">(</span><span class="n">raw_password</span><span class="p">)</span>
 
 <div class="viewcode-block" id="User.check_password"><a class="viewcode-back" href="../../../../django.contrib.auth.html#django.contrib.auth.models.User.check_password">[docs]</a>    <span class="k">def</span> <span class="nf">check_password</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">raw_password</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Returns a boolean of whether the raw_password was correct. Handles</span>
-<span class="sd">        encryption formats behind the scenes.</span>
+<span class="sd">        hashing formats behind the scenes.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="c"># Backwards-compatibility check. Older passwords won&#39;t include the</span>
-        <span class="c"># algorithm or salt.</span>
-        <span class="k">if</span> <span class="s">&#39;$&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">password</span><span class="p">:</span>
-            <span class="n">is_correct</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">password</span> <span class="o">==</span> <span class="n">get_hexdigest</span><span class="p">(</span><span class="s">&#39;md5&#39;</span><span class="p">,</span> <span class="s">&#39;&#39;</span><span class="p">,</span> <span class="n">raw_password</span><span class="p">))</span>
-            <span class="k">if</span> <span class="n">is_correct</span><span class="p">:</span>
-                <span class="c"># Convert the password to the new, more secure format.</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">set_password</span><span class="p">(</span><span class="n">raw_password</span><span class="p">)</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">save</span><span class="p">()</span>
-            <span class="k">return</span> <span class="n">is_correct</span>
-        <span class="k">return</span> <span class="n">check_password</span><span class="p">(</span><span class="n">raw_password</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">password</span><span class="p">)</span>
+        <span class="k">def</span> <span class="nf">setter</span><span class="p">(</span><span class="n">raw_password</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">set_password</span><span class="p">(</span><span class="n">raw_password</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">save</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">check_password</span><span class="p">(</span><span class="n">raw_password</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">password</span><span class="p">,</span> <span class="n">setter</span><span class="p">)</span>
 </div>
     <span class="k">def</span> <span class="nf">set_unusable_password</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="c"># Sets a value that will never be a valid hash</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">password</span> <span class="o">=</span> <span class="n">UNUSABLE_PASSWORD</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">password</span> <span class="o">=</span> <span class="n">make_password</span><span class="p">(</span><span class="bp">None</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">has_usable_password</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">password</span> <span class="ow">is</span> <span class="bp">None</span> \
-            <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">password</span> <span class="o">==</span> <span class="n">UNUSABLE_PASSWORD</span><span class="p">:</span>
-            <span class="k">return</span> <span class="bp">False</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="k">return</span> <span class="bp">True</span>
+        <span class="k">return</span> <span class="n">is_password_usable</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">password</span><span class="p">)</span>
 
 <div class="viewcode-block" id="User.get_group_permissions"><a class="viewcode-back" href="../../../../django.contrib.auth.html#django.contrib.auth.models.User.get_group_permissions">[docs]</a>    <span class="k">def</span> <span class="nf">get_group_permissions</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">obj</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Returns a list of permission strings that this user has through</span>
-<span class="sd">        his/her groups. This method queries all available auth backends.</span>
-<span class="sd">        If an object is passed in, only permissions matching this object</span>
-<span class="sd">        are returned.</span>
+<span class="sd">        Returns a list of permission strings that this user has through his/her</span>
+<span class="sd">        groups. This method queries all available auth backends. If an object</span>
+<span class="sd">        is passed in, only permissions matching this object are returned.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">permissions</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
         <span class="k">for</span> <span class="n">backend</span> <span class="ow">in</span> <span class="n">auth</span><span class="o">.</span><span class="n">get_backends</span><span class="p">():</span>
             <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">backend</span><span class="p">,</span> <span class="s">&quot;get_group_permissions&quot;</span><span class="p">):</span>
                 <span class="k">if</span> <span class="n">obj</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
-                    <span class="k">if</span> <span class="n">backend</span><span class="o">.</span><span class="n">supports_object_permissions</span><span class="p">:</span>
-                        <span class="n">permissions</span><span class="o">.</span><span class="n">update</span><span class="p">(</span>
-                            <span class="n">backend</span><span class="o">.</span><span class="n">get_group_permissions</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">obj</span><span class="p">)</span>
-                        <span class="p">)</span>
+                    <span class="n">permissions</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">backend</span><span class="o">.</span><span class="n">get_group_permissions</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                                                                     <span class="n">obj</span><span class="p">))</span>
                 <span class="k">else</span><span class="p">:</span>
                     <span class="n">permissions</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">backend</span><span class="o">.</span><span class="n">get_group_permissions</span><span class="p">(</span><span class="bp">self</span><span class="p">))</span>
         <span class="k">return</span> <span class="n">permissions</span>
@@ -361,8 +383,8 @@
 <span class="sd">        Returns True if the user has the specified permission. This method</span>
 <span class="sd">        queries all available auth backends, but returns immediately if any</span>
 <span class="sd">        backend returns True. Thus, a user who has permission from a single</span>
-<span class="sd">        auth backend is assumed to have permission in general. If an object</span>
-<span class="sd">        is provided, permissions for this specific object are checked.</span>
+<span class="sd">        auth backend is assumed to have permission in general. If an object is</span>
+<span class="sd">        provided, permissions for this specific object are checked.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
 
         <span class="c"># Active superusers have all permissions.</span>
@@ -374,9 +396,9 @@
 </div>
 <div class="viewcode-block" id="User.has_perms"><a class="viewcode-back" href="../../../../django.contrib.auth.html#django.contrib.auth.models.User.has_perms">[docs]</a>    <span class="k">def</span> <span class="nf">has_perms</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">perm_list</span><span class="p">,</span> <span class="n">obj</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Returns True if the user has each of the specified permissions.</span>
-<span class="sd">        If object is passed, it checks if the user has all required perms</span>
-<span class="sd">        for this object.</span>
+<span class="sd">        Returns True if the user has each of the specified permissions. If</span>
+<span class="sd">        object is passed, it checks if the user has all required perms for this</span>
+<span class="sd">        object.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">for</span> <span class="n">perm</span> <span class="ow">in</span> <span class="n">perm_list</span><span class="p">:</span>
             <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">has_perm</span><span class="p">(</span><span class="n">perm</span><span class="p">,</span> <span class="n">obj</span><span class="p">):</span>
@@ -385,8 +407,8 @@
 </div>
 <div class="viewcode-block" id="User.has_module_perms"><a class="viewcode-back" href="../../../../django.contrib.auth.html#django.contrib.auth.models.User.has_module_perms">[docs]</a>    <span class="k">def</span> <span class="nf">has_module_perms</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">app_label</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Returns True if the user has any permissions in the given app</span>
-<span class="sd">        label. Uses pretty much the same logic as has_perm, above.</span>
+<span class="sd">        Returns True if the user has any permissions in the given app label.</span>
+<span class="sd">        Uses pretty much the same logic as has_perm, above.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="c"># Active superusers have all permissions.</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_active</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_superuser</span><span class="p">:</span>
@@ -394,16 +416,10 @@
 
         <span class="k">return</span> <span class="n">_user_has_module_perms</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">app_label</span><span class="p">)</span>
 </div>
-    <span class="k">def</span> <span class="nf">get_and_delete_messages</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="n">messages</span> <span class="o">=</span> <span class="p">[]</span>
-        <span class="k">for</span> <span class="n">m</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">message_set</span><span class="o">.</span><span class="n">all</span><span class="p">():</span>
-            <span class="n">messages</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">m</span><span class="o">.</span><span class="n">message</span><span class="p">)</span>
-            <span class="n">m</span><span class="o">.</span><span class="n">delete</span><span class="p">()</span>
-        <span class="k">return</span> <span class="n">messages</span>
-
 <div class="viewcode-block" id="User.email_user"><a class="viewcode-back" href="../../../../django.contrib.auth.html#django.contrib.auth.models.User.email_user">[docs]</a>    <span class="k">def</span> <span class="nf">email_user</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">subject</span><span class="p">,</span> <span class="n">message</span><span class="p">,</span> <span class="n">from_email</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
-        <span class="s">&quot;Sends an e-mail to this User.&quot;</span>
-        <span class="kn">from</span> <span class="nn">django.core.mail</span> <span class="kn">import</span> <span class="n">send_mail</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Sends an email to this User.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">send_mail</span><span class="p">(</span><span class="n">subject</span><span class="p">,</span> <span class="n">message</span><span class="p">,</span> <span class="n">from_email</span><span class="p">,</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">email</span><span class="p">])</span>
 </div>
 <div class="viewcode-block" id="User.get_profile"><a class="viewcode-back" href="../../../../django.contrib.auth.html#django.contrib.auth.models.User.get_profile">[docs]</a>    <span class="k">def</span> <span class="nf">get_profile</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
@@ -414,50 +430,29 @@
         <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s">&#39;_profile_cache&#39;</span><span class="p">):</span>
             <span class="kn">from</span> <span class="nn">django.conf</span> <span class="kn">import</span> <span class="n">settings</span>
             <span class="k">if</span> <span class="ow">not</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">settings</span><span class="p">,</span> <span class="s">&#39;AUTH_PROFILE_MODULE&#39;</span><span class="p">,</span> <span class="bp">False</span><span class="p">):</span>
-                <span class="k">raise</span> <span class="n">SiteProfileNotAvailable</span><span class="p">(</span><span class="s">&#39;You need to set AUTH_PROFILE_MO&#39;</span>
-                                              <span class="s">&#39;DULE in your project settings&#39;</span><span class="p">)</span>
+                <span class="k">raise</span> <span class="n">SiteProfileNotAvailable</span><span class="p">(</span>
+                    <span class="s">&#39;You need to set AUTH_PROFILE_MODULE in your project &#39;</span>
+                    <span class="s">&#39;settings&#39;</span><span class="p">)</span>
             <span class="k">try</span><span class="p">:</span>
                 <span class="n">app_label</span><span class="p">,</span> <span class="n">model_name</span> <span class="o">=</span> <span class="n">settings</span><span class="o">.</span><span class="n">AUTH_PROFILE_MODULE</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&#39;.&#39;</span><span class="p">)</span>
             <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
-                <span class="k">raise</span> <span class="n">SiteProfileNotAvailable</span><span class="p">(</span><span class="s">&#39;app_label and model_name should&#39;</span>
-                        <span class="s">&#39; be separated by a dot in the AUTH_PROFILE_MODULE set&#39;</span>
-                        <span class="s">&#39;ting&#39;</span><span class="p">)</span>
-
+                <span class="k">raise</span> <span class="n">SiteProfileNotAvailable</span><span class="p">(</span>
+                    <span class="s">&#39;app_label and model_name should be separated by a dot in &#39;</span>
+                    <span class="s">&#39;the AUTH_PROFILE_MODULE setting&#39;</span><span class="p">)</span>
             <span class="k">try</span><span class="p">:</span>
                 <span class="n">model</span> <span class="o">=</span> <span class="n">models</span><span class="o">.</span><span class="n">get_model</span><span class="p">(</span><span class="n">app_label</span><span class="p">,</span> <span class="n">model_name</span><span class="p">)</span>
                 <span class="k">if</span> <span class="n">model</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
-                    <span class="k">raise</span> <span class="n">SiteProfileNotAvailable</span><span class="p">(</span><span class="s">&#39;Unable to load the profile &#39;</span>
-                        <span class="s">&#39;model, check AUTH_PROFILE_MODULE in your project sett&#39;</span>
-                        <span class="s">&#39;ings&#39;</span><span class="p">)</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">_profile_cache</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">_default_manager</span><span class="o">.</span><span class="n">using</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_state</span><span class="o">.</span><span class="n">db</span><span class="p">)</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">user__id__exact</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">)</span>
+                    <span class="k">raise</span> <span class="n">SiteProfileNotAvailable</span><span class="p">(</span>
+                        <span class="s">&#39;Unable to load the profile model, check &#39;</span>
+                        <span class="s">&#39;AUTH_PROFILE_MODULE in your project settings&#39;</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_profile_cache</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">_default_manager</span><span class="o">.</span><span class="n">using</span><span class="p">(</span>
+                                   <span class="bp">self</span><span class="o">.</span><span class="n">_state</span><span class="o">.</span><span class="n">db</span><span class="p">)</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">user__id__exact</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">)</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">_profile_cache</span><span class="o">.</span><span class="n">user</span> <span class="o">=</span> <span class="bp">self</span>
             <span class="k">except</span> <span class="p">(</span><span class="ne">ImportError</span><span class="p">,</span> <span class="n">ImproperlyConfigured</span><span class="p">):</span>
                 <span class="k">raise</span> <span class="n">SiteProfileNotAvailable</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_profile_cache</span>
-</div>
-    <span class="k">def</span> <span class="nf">_get_message_set</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="kn">import</span> <span class="nn">warnings</span>
-        <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s">&#39;The user messaging API is deprecated. Please update&#39;</span>
-                      <span class="s">&#39; your code to use the new messages framework.&#39;</span><span class="p">,</span>
-                      <span class="n">category</span><span class="o">=</span><span class="ne">DeprecationWarning</span><span class="p">)</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_message_set</span>
-    <span class="n">message_set</span> <span class="o">=</span> <span class="nb">property</span><span class="p">(</span><span class="n">_get_message_set</span><span class="p">)</span>
-</div>
-<div class="viewcode-block" id="Message"><a class="viewcode-back" href="../../../../django.contrib.auth.html#django.contrib.auth.models.Message">[docs]</a><span class="k">class</span> <span class="nc">Message</span><span class="p">(</span><span class="n">models</span><span class="o">.</span><span class="n">Model</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    The message system is a lightweight way to queue messages for given</span>
-<span class="sd">    users. A message is associated with a User instance (so it is only</span>
-<span class="sd">    applicable for registered users). There&#39;s no concept of expiration or</span>
-<span class="sd">    timestamps. Messages are created by the Django admin after successful</span>
-<span class="sd">    actions. For example, &quot;The poll Foo was created successfully.&quot; is a</span>
-<span class="sd">    message.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-    <span class="n">user</span> <span class="o">=</span> <span class="n">models</span><span class="o">.</span><span class="n">ForeignKey</span><span class="p">(</span><span class="n">User</span><span class="p">,</span> <span class="n">related_name</span><span class="o">=</span><span class="s">&#39;_message_set&#39;</span><span class="p">)</span>
-    <span class="n">message</span> <span class="o">=</span> <span class="n">models</span><span class="o">.</span><span class="n">TextField</span><span class="p">(</span><span class="n">_</span><span class="p">(</span><span class="s">&#39;message&#39;</span><span class="p">))</span>
 
-    <span class="k">def</span> <span class="nf">__unicode__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">message</span>
-</div>
+</div></div>
 <span class="k">class</span> <span class="nc">AnonymousUser</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
     <span class="nb">id</span> <span class="o">=</span> <span class="bp">None</span>
     <span class="n">username</span> <span class="o">=</span> <span class="s">&#39;&#39;</span>
@@ -523,9 +518,6 @@
     <span class="k">def</span> <span class="nf">has_module_perms</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">module</span><span class="p">):</span>
         <span class="k">return</span> <span class="n">_user_has_module_perms</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">module</span><span class="p">)</span>
 
-    <span class="k">def</span> <span class="nf">get_and_delete_messages</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="k">return</span> <span class="p">[]</span>
-
     <span class="k">def</span> <span class="nf">is_anonymous</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">return</span> <span class="bp">True</span>
 
@@ -545,7 +537,7 @@
 
     <div class="footer">
         &copy; Copyright 2012, HDKNR.COM.
-      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.2pre/660be19d7963.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.2pre/3c28de26aac2.
     </div>
   </body>
 </html>

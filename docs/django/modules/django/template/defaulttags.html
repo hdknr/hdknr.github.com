@@ -51,69 +51,23 @@
 
 <span class="kn">import</span> <span class="nn">sys</span>
 <span class="kn">import</span> <span class="nn">re</span>
+<span class="kn">from</span> <span class="nn">datetime</span> <span class="kn">import</span> <span class="n">datetime</span>
 <span class="kn">from</span> <span class="nn">itertools</span> <span class="kn">import</span> <span class="n">groupby</span><span class="p">,</span> <span class="n">cycle</span> <span class="k">as</span> <span class="n">itertools_cycle</span>
 
-<span class="kn">from</span> <span class="nn">django.template.base</span> <span class="kn">import</span> <span class="n">Node</span><span class="p">,</span> <span class="n">NodeList</span><span class="p">,</span> <span class="n">Template</span><span class="p">,</span> <span class="n">Context</span><span class="p">,</span> <span class="n">Variable</span>
-<span class="kn">from</span> <span class="nn">django.template.base</span> <span class="kn">import</span> <span class="n">TemplateSyntaxError</span><span class="p">,</span> <span class="n">VariableDoesNotExist</span><span class="p">,</span> <span class="n">BLOCK_TAG_START</span><span class="p">,</span> <span class="n">BLOCK_TAG_END</span><span class="p">,</span> <span class="n">VARIABLE_TAG_START</span><span class="p">,</span> <span class="n">VARIABLE_TAG_END</span><span class="p">,</span> <span class="n">SINGLE_BRACE_START</span><span class="p">,</span> <span class="n">SINGLE_BRACE_END</span><span class="p">,</span> <span class="n">COMMENT_TAG_START</span><span class="p">,</span> <span class="n">COMMENT_TAG_END</span>
-<span class="kn">from</span> <span class="nn">django.template.base</span> <span class="kn">import</span> <span class="n">get_library</span><span class="p">,</span> <span class="n">Library</span><span class="p">,</span> <span class="n">InvalidTemplateLibrary</span>
-<span class="kn">from</span> <span class="nn">django.template.smartif</span> <span class="kn">import</span> <span class="n">IfParser</span><span class="p">,</span> <span class="n">Literal</span>
 <span class="kn">from</span> <span class="nn">django.conf</span> <span class="kn">import</span> <span class="n">settings</span>
+<span class="kn">from</span> <span class="nn">django.template.base</span> <span class="kn">import</span> <span class="p">(</span><span class="n">Node</span><span class="p">,</span> <span class="n">NodeList</span><span class="p">,</span> <span class="n">Template</span><span class="p">,</span> <span class="n">Library</span><span class="p">,</span>
+    <span class="n">TemplateSyntaxError</span><span class="p">,</span> <span class="n">VariableDoesNotExist</span><span class="p">,</span> <span class="n">InvalidTemplateLibrary</span><span class="p">,</span>
+    <span class="n">BLOCK_TAG_START</span><span class="p">,</span> <span class="n">BLOCK_TAG_END</span><span class="p">,</span> <span class="n">VARIABLE_TAG_START</span><span class="p">,</span> <span class="n">VARIABLE_TAG_END</span><span class="p">,</span>
+    <span class="n">SINGLE_BRACE_START</span><span class="p">,</span> <span class="n">SINGLE_BRACE_END</span><span class="p">,</span> <span class="n">COMMENT_TAG_START</span><span class="p">,</span> <span class="n">COMMENT_TAG_END</span><span class="p">,</span>
+    <span class="n">VARIABLE_ATTRIBUTE_SEPARATOR</span><span class="p">,</span> <span class="n">get_library</span><span class="p">,</span> <span class="n">token_kwargs</span><span class="p">,</span> <span class="n">kwarg_re</span><span class="p">)</span>
+<span class="kn">from</span> <span class="nn">django.template.smartif</span> <span class="kn">import</span> <span class="n">IfParser</span><span class="p">,</span> <span class="n">Literal</span>
+<span class="kn">from</span> <span class="nn">django.template.defaultfilters</span> <span class="kn">import</span> <span class="n">date</span>
 <span class="kn">from</span> <span class="nn">django.utils.encoding</span> <span class="kn">import</span> <span class="n">smart_str</span><span class="p">,</span> <span class="n">smart_unicode</span>
 <span class="kn">from</span> <span class="nn">django.utils.safestring</span> <span class="kn">import</span> <span class="n">mark_safe</span>
+<span class="kn">from</span> <span class="nn">django.utils</span> <span class="kn">import</span> <span class="n">timezone</span>
 
 <span class="n">register</span> <span class="o">=</span> <span class="n">Library</span><span class="p">()</span>
-<span class="c"># Regex for token keyword arguments</span>
-<span class="n">kwarg_re</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="s">r&quot;(?:(\w+)=)?(.+)&quot;</span><span class="p">)</span>
 
-<div class="viewcode-block" id="token_kwargs"><a class="viewcode-back" href="../../../django.template.html#django.template.defaulttags.token_kwargs">[docs]</a><span class="k">def</span> <span class="nf">token_kwargs</span><span class="p">(</span><span class="n">bits</span><span class="p">,</span> <span class="n">parser</span><span class="p">,</span> <span class="n">support_legacy</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    A utility method for parsing token keyword arguments.</span>
-
-<span class="sd">    :param bits: A list containing remainder of the token (split by spaces)</span>
-<span class="sd">        that is to be checked for arguments. Valid arguments will be removed</span>
-<span class="sd">        from this list.</span>
-
-<span class="sd">    :param support_legacy: If set to true ``True``, the legacy format</span>
-<span class="sd">        ``1 as foo`` will be accepted. Otherwise, only the standard ``foo=1``</span>
-<span class="sd">        format is allowed.</span>
-
-<span class="sd">    :returns: A dictionary of the arguments retrieved from the ``bits`` token</span>
-<span class="sd">        list.</span>
-
-<span class="sd">    There is no requirement for all remaining token ``bits`` to be keyword</span>
-<span class="sd">    arguments, so the dictionary will be returned as soon as an invalid</span>
-<span class="sd">    argument format is reached.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">if</span> <span class="ow">not</span> <span class="n">bits</span><span class="p">:</span>
-        <span class="k">return</span> <span class="p">{}</span>
-    <span class="n">match</span> <span class="o">=</span> <span class="n">kwarg_re</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="n">bits</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
-    <span class="n">kwarg_format</span> <span class="o">=</span> <span class="n">match</span> <span class="ow">and</span> <span class="n">match</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
-    <span class="k">if</span> <span class="ow">not</span> <span class="n">kwarg_format</span><span class="p">:</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">support_legacy</span><span class="p">:</span>
-            <span class="k">return</span> <span class="p">{}</span>
-        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">bits</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">3</span> <span class="ow">or</span> <span class="n">bits</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">!=</span> <span class="s">&#39;as&#39;</span><span class="p">:</span>
-            <span class="k">return</span> <span class="p">{}</span>
-
-    <span class="n">kwargs</span> <span class="o">=</span> <span class="p">{}</span>
-    <span class="k">while</span> <span class="n">bits</span><span class="p">:</span>
-        <span class="k">if</span> <span class="n">kwarg_format</span><span class="p">:</span> 
-            <span class="n">match</span> <span class="o">=</span> <span class="n">kwarg_re</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="n">bits</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
-            <span class="k">if</span> <span class="ow">not</span> <span class="n">match</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">match</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">1</span><span class="p">):</span>
-                <span class="k">return</span> <span class="n">kwargs</span>
-            <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="o">=</span> <span class="n">match</span><span class="o">.</span><span class="n">groups</span><span class="p">()</span>
-            <span class="k">del</span> <span class="n">bits</span><span class="p">[:</span><span class="mi">1</span><span class="p">]</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">bits</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">3</span> <span class="ow">or</span> <span class="n">bits</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">!=</span> <span class="s">&#39;as&#39;</span><span class="p">:</span>
-                <span class="k">return</span> <span class="n">kwargs</span>
-            <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="o">=</span> <span class="n">bits</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span> <span class="n">bits</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
-            <span class="k">del</span> <span class="n">bits</span><span class="p">[:</span><span class="mi">3</span><span class="p">]</span>
-        <span class="n">kwargs</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">parser</span><span class="o">.</span><span class="n">compile_filter</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
-        <span class="k">if</span> <span class="n">bits</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">kwarg_format</span><span class="p">:</span>
-            <span class="k">if</span> <span class="n">bits</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">!=</span> <span class="s">&#39;and&#39;</span><span class="p">:</span>
-                <span class="k">return</span> <span class="n">kwargs</span>
-            <span class="k">del</span> <span class="n">bits</span><span class="p">[:</span><span class="mi">1</span><span class="p">]</span>
-    <span class="k">return</span> <span class="n">kwargs</span>
-</div>
 <div class="viewcode-block" id="AutoEscapeControlNode"><a class="viewcode-back" href="../../../django.template.html#django.template.defaulttags.AutoEscapeControlNode">[docs]</a><span class="k">class</span> <span class="nc">AutoEscapeControlNode</span><span class="p">(</span><span class="n">Node</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;Implements the actions of the autoescape tag.&quot;&quot;&quot;</span>
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">setting</span><span class="p">,</span> <span class="n">nodelist</span><span class="p">):</span>
@@ -272,8 +226,19 @@
                     <span class="n">context</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">unpacked_vars</span><span class="p">)</span>
             <span class="k">else</span><span class="p">:</span>
                 <span class="n">context</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">loopvars</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span> <span class="o">=</span> <span class="n">item</span>
-            <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">nodelist_loop</span><span class="p">:</span>
-                <span class="n">nodelist</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">node</span><span class="o">.</span><span class="n">render</span><span class="p">(</span><span class="n">context</span><span class="p">))</span>
+            <span class="c"># In TEMPLATE_DEBUG mode provide source of the node which</span>
+            <span class="c"># actually raised the exception</span>
+            <span class="k">if</span> <span class="n">settings</span><span class="o">.</span><span class="n">TEMPLATE_DEBUG</span><span class="p">:</span>
+                <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">nodelist_loop</span><span class="p">:</span>
+                    <span class="k">try</span><span class="p">:</span>
+                        <span class="n">nodelist</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">node</span><span class="o">.</span><span class="n">render</span><span class="p">(</span><span class="n">context</span><span class="p">))</span>
+                    <span class="k">except</span> <span class="ne">Exception</span><span class="p">,</span> <span class="n">e</span><span class="p">:</span>
+                        <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">e</span><span class="p">,</span> <span class="s">&#39;django_template_source&#39;</span><span class="p">):</span>
+                            <span class="n">e</span><span class="o">.</span><span class="n">django_template_source</span> <span class="o">=</span> <span class="n">node</span><span class="o">.</span><span class="n">source</span>
+                        <span class="k">raise</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">nodelist_loop</span><span class="p">:</span>
+                    <span class="n">nodelist</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">node</span><span class="o">.</span><span class="n">render</span><span class="p">(</span><span class="n">context</span><span class="p">))</span>
             <span class="k">if</span> <span class="n">pop_context</span><span class="p">:</span>
                 <span class="c"># The loop variables were pushed on to the context so pop them</span>
                 <span class="c"># off again. This is necessary because the tag lets the length</span>
@@ -308,7 +273,6 @@
             <span class="n">compare_to</span> <span class="o">=</span> <span class="bp">None</span>
 
         <span class="k">if</span> <span class="n">compare_to</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_last_seen</span><span class="p">:</span>
-            <span class="n">firstloop</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_last_seen</span> <span class="o">==</span> <span class="bp">None</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_last_seen</span> <span class="o">=</span> <span class="n">compare_to</span>
             <span class="n">content</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">nodelist_true</span><span class="o">.</span><span class="n">render</span><span class="p">(</span><span class="n">context</span><span class="p">)</span>
             <span class="k">return</span> <span class="n">content</span>
@@ -335,36 +299,48 @@
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">nodelist_false</span><span class="o">.</span><span class="n">render</span><span class="p">(</span><span class="n">context</span><span class="p">)</span>
 
 <span class="k">class</span> <span class="nc">IfNode</span><span class="p">(</span><span class="n">Node</span><span class="p">):</span>
-    <span class="n">child_nodelists</span> <span class="o">=</span> <span class="p">(</span><span class="s">&#39;nodelist_true&#39;</span><span class="p">,</span> <span class="s">&#39;nodelist_false&#39;</span><span class="p">)</span>
 
-    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">var</span><span class="p">,</span> <span class="n">nodelist_true</span><span class="p">,</span> <span class="n">nodelist_false</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">nodelist_true</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">nodelist_false</span> <span class="o">=</span> <span class="n">nodelist_true</span><span class="p">,</span> <span class="n">nodelist_false</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">var</span> <span class="o">=</span> <span class="n">var</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">conditions_nodelists</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">conditions_nodelists</span> <span class="o">=</span> <span class="n">conditions_nodelists</span>
 
     <span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="k">return</span> <span class="s">&quot;&lt;If node&gt;&quot;</span>
+        <span class="k">return</span> <span class="s">&quot;&lt;IfNode&gt;&quot;</span>
 
     <span class="k">def</span> <span class="nf">__iter__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">nodelist_true</span><span class="p">:</span>
-            <span class="k">yield</span> <span class="n">node</span>
-        <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">nodelist_false</span><span class="p">:</span>
-            <span class="k">yield</span> <span class="n">node</span>
+        <span class="k">for</span> <span class="n">_</span><span class="p">,</span> <span class="n">nodelist</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">conditions_nodelists</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">nodelist</span><span class="p">:</span>
+                <span class="k">yield</span> <span class="n">node</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">nodelist</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">NodeList</span><span class="p">(</span><span class="n">node</span> <span class="k">for</span> <span class="n">_</span><span class="p">,</span> <span class="n">nodelist</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">conditions_nodelists</span> <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">nodelist</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">render</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">context</span><span class="p">):</span>
-        <span class="k">try</span><span class="p">:</span>
-            <span class="n">var</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">var</span><span class="o">.</span><span class="n">eval</span><span class="p">(</span><span class="n">context</span><span class="p">)</span>
-        <span class="k">except</span> <span class="n">VariableDoesNotExist</span><span class="p">:</span>
-            <span class="n">var</span> <span class="o">=</span> <span class="bp">None</span>
+        <span class="k">for</span> <span class="n">condition</span><span class="p">,</span> <span class="n">nodelist</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">conditions_nodelists</span><span class="p">:</span>
 
-        <span class="k">if</span> <span class="n">var</span><span class="p">:</span>
-            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">nodelist_true</span><span class="o">.</span><span class="n">render</span><span class="p">(</span><span class="n">context</span><span class="p">)</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">nodelist_false</span><span class="o">.</span><span class="n">render</span><span class="p">(</span><span class="n">context</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">condition</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>           <span class="c"># if / elif clause</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="n">match</span> <span class="o">=</span> <span class="n">condition</span><span class="o">.</span><span class="n">eval</span><span class="p">(</span><span class="n">context</span><span class="p">)</span>
+                <span class="k">except</span> <span class="n">VariableDoesNotExist</span><span class="p">:</span>
+                    <span class="n">match</span> <span class="o">=</span> <span class="bp">None</span>
+            <span class="k">else</span><span class="p">:</span>                               <span class="c"># else clause</span>
+                <span class="n">match</span> <span class="o">=</span> <span class="bp">True</span>
+
+            <span class="k">if</span> <span class="n">match</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">nodelist</span><span class="o">.</span><span class="n">render</span><span class="p">(</span><span class="n">context</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="s">&#39;&#39;</span>
 
 <span class="k">class</span> <span class="nc">RegroupNode</span><span class="p">(</span><span class="n">Node</span><span class="p">):</span>
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">target</span><span class="p">,</span> <span class="n">expression</span><span class="p">,</span> <span class="n">var_name</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">target</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">expression</span> <span class="o">=</span> <span class="n">target</span><span class="p">,</span> <span class="n">expression</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">var_name</span> <span class="o">=</span> <span class="n">var_name</span>
+
+    <span class="k">def</span> <span class="nf">resolve_expression</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">obj</span><span class="p">,</span> <span class="n">context</span><span class="p">):</span>
+        <span class="c"># This method is called for each object in self.target. See regroup()</span>
+        <span class="c"># for the reason why we temporarily put the object in the context.</span>
+        <span class="n">context</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">var_name</span><span class="p">]</span> <span class="o">=</span> <span class="n">obj</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">expression</span><span class="o">.</span><span class="n">resolve</span><span class="p">(</span><span class="n">context</span><span class="p">,</span> <span class="bp">True</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">render</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">context</span><span class="p">):</span>
         <span class="n">obj_list</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">target</span><span class="o">.</span><span class="n">resolve</span><span class="p">(</span><span class="n">context</span><span class="p">,</span> <span class="bp">True</span><span class="p">)</span>
@@ -377,7 +353,7 @@
         <span class="n">context</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">var_name</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span>
             <span class="p">{</span><span class="s">&#39;grouper&#39;</span><span class="p">:</span> <span class="n">key</span><span class="p">,</span> <span class="s">&#39;list&#39;</span><span class="p">:</span> <span class="nb">list</span><span class="p">(</span><span class="n">val</span><span class="p">)}</span>
             <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">val</span> <span class="ow">in</span>
-            <span class="n">groupby</span><span class="p">(</span><span class="n">obj_list</span><span class="p">,</span> <span class="k">lambda</span> <span class="n">v</span><span class="p">,</span> <span class="n">f</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">expression</span><span class="o">.</span><span class="n">resolve</span><span class="p">:</span> <span class="n">f</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="bp">True</span><span class="p">))</span>
+            <span class="n">groupby</span><span class="p">(</span><span class="n">obj_list</span><span class="p">,</span> <span class="k">lambda</span> <span class="n">obj</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">resolve_expression</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">context</span><span class="p">))</span>
         <span class="p">]</span>
         <span class="k">return</span> <span class="s">&#39;&#39;</span>
 
@@ -429,10 +405,8 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">format_string</span> <span class="o">=</span> <span class="n">format_string</span>
 
     <span class="k">def</span> <span class="nf">render</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">context</span><span class="p">):</span>
-        <span class="kn">from</span> <span class="nn">datetime</span> <span class="kn">import</span> <span class="n">datetime</span>
-        <span class="kn">from</span> <span class="nn">django.utils.dateformat</span> <span class="kn">import</span> <span class="n">DateFormat</span>
-        <span class="n">df</span> <span class="o">=</span> <span class="n">DateFormat</span><span class="p">(</span><span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">())</span>
-        <span class="k">return</span> <span class="n">df</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">format_string</span><span class="p">)</span>
+        <span class="n">tzinfo</span> <span class="o">=</span> <span class="n">timezone</span><span class="o">.</span><span class="n">get_current_timezone</span><span class="p">()</span> <span class="k">if</span> <span class="n">settings</span><span class="o">.</span><span class="n">USE_TZ</span> <span class="k">else</span> <span class="bp">None</span>
+        <span class="k">return</span> <span class="n">date</span><span class="p">(</span><span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">(</span><span class="n">tz</span><span class="o">=</span><span class="n">tzinfo</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">format_string</span><span class="p">)</span>
 
 <span class="k">class</span> <span class="nc">SpacelessNode</span><span class="p">(</span><span class="n">Node</span><span class="p">):</span>
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">nodelist</span><span class="p">):</span>
@@ -516,7 +490,7 @@
     <span class="k">def</span> <span class="nf">render</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">context</span><span class="p">):</span>
         <span class="k">try</span><span class="p">:</span>
             <span class="n">value</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">val_expr</span><span class="o">.</span><span class="n">resolve</span><span class="p">(</span><span class="n">context</span><span class="p">)</span>
-            <span class="n">maxvalue</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_expr</span><span class="o">.</span><span class="n">resolve</span><span class="p">(</span><span class="n">context</span><span class="p">)</span>
+            <span class="n">max_value</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_expr</span><span class="o">.</span><span class="n">resolve</span><span class="p">(</span><span class="n">context</span><span class="p">)</span>
             <span class="n">max_width</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">max_width</span><span class="o">.</span><span class="n">resolve</span><span class="p">(</span><span class="n">context</span><span class="p">))</span>
         <span class="k">except</span> <span class="n">VariableDoesNotExist</span><span class="p">:</span>
             <span class="k">return</span> <span class="s">&#39;&#39;</span>
@@ -524,9 +498,11 @@
             <span class="k">raise</span> <span class="n">TemplateSyntaxError</span><span class="p">(</span><span class="s">&quot;widthratio final argument must be an number&quot;</span><span class="p">)</span>
         <span class="k">try</span><span class="p">:</span>
             <span class="n">value</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
-            <span class="n">maxvalue</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">maxvalue</span><span class="p">)</span>
-            <span class="n">ratio</span> <span class="o">=</span> <span class="p">(</span><span class="n">value</span> <span class="o">/</span> <span class="n">maxvalue</span><span class="p">)</span> <span class="o">*</span> <span class="n">max_width</span>
-        <span class="k">except</span> <span class="p">(</span><span class="ne">ValueError</span><span class="p">,</span> <span class="ne">ZeroDivisionError</span><span class="p">):</span>
+            <span class="n">max_value</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">max_value</span><span class="p">)</span>
+            <span class="n">ratio</span> <span class="o">=</span> <span class="p">(</span><span class="n">value</span> <span class="o">/</span> <span class="n">max_value</span><span class="p">)</span> <span class="o">*</span> <span class="n">max_width</span>
+        <span class="k">except</span> <span class="ne">ZeroDivisionError</span><span class="p">:</span>
+            <span class="k">return</span> <span class="s">&#39;0&#39;</span>
+        <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
             <span class="k">return</span> <span class="s">&#39;&#39;</span>
         <span class="k">return</span> <span class="nb">str</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="nb">round</span><span class="p">(</span><span class="n">ratio</span><span class="p">)))</span>
 
@@ -550,10 +526,10 @@
         <span class="n">context</span><span class="o">.</span><span class="n">pop</span><span class="p">()</span>
         <span class="k">return</span> <span class="n">output</span>
 
-<span class="c">#@register.tag</span>
+<span class="nd">@register.tag</span>
 <div class="viewcode-block" id="autoescape"><a class="viewcode-back" href="../../../django.template.html#django.template.defaulttags.autoescape">[docs]</a><span class="k">def</span> <span class="nf">autoescape</span><span class="p">(</span><span class="n">parser</span><span class="p">,</span> <span class="n">token</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Force autoescape behaviour for this block.</span>
+<span class="sd">    Force autoescape behavior for this block.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">args</span> <span class="o">=</span> <span class="n">token</span><span class="o">.</span><span class="n">contents</span><span class="o">.</span><span class="n">split</span><span class="p">()</span>
     <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">args</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">2</span><span class="p">:</span>
@@ -563,19 +539,17 @@
         <span class="k">raise</span> <span class="n">TemplateSyntaxError</span><span class="p">(</span><span class="s">&quot;&#39;autoescape&#39; argument should be &#39;on&#39; or &#39;off&#39;&quot;</span><span class="p">)</span>
     <span class="n">nodelist</span> <span class="o">=</span> <span class="n">parser</span><span class="o">.</span><span class="n">parse</span><span class="p">((</span><span class="s">&#39;endautoescape&#39;</span><span class="p">,))</span>
     <span class="n">parser</span><span class="o">.</span><span class="n">delete_first_token</span><span class="p">()</span>
-    <span class="k">return</span> <span class="n">AutoEscapeControlNode</span><span class="p">((</span><span class="n">arg</span> <span class="o">==</span> <span class="s">&#39;on&#39;</span><span class="p">),</span> <span class="n">nodelist</span><span class="p">)</span></div>
-<span class="n">autoescape</span> <span class="o">=</span> <span class="n">register</span><span class="o">.</span><span class="n">tag</span><span class="p">(</span><span class="n">autoescape</span><span class="p">)</span>
-
-<span class="c">#@register.tag</span>
+    <span class="k">return</span> <span class="n">AutoEscapeControlNode</span><span class="p">((</span><span class="n">arg</span> <span class="o">==</span> <span class="s">&#39;on&#39;</span><span class="p">),</span> <span class="n">nodelist</span><span class="p">)</span>
+</div>
+<span class="nd">@register.tag</span>
 <div class="viewcode-block" id="comment"><a class="viewcode-back" href="../../../django.template.html#django.template.defaulttags.comment">[docs]</a><span class="k">def</span> <span class="nf">comment</span><span class="p">(</span><span class="n">parser</span><span class="p">,</span> <span class="n">token</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Ignores everything between ``{% comment %}`` and ``{% endcomment %}``.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">parser</span><span class="o">.</span><span class="n">skip_past</span><span class="p">(</span><span class="s">&#39;endcomment&#39;</span><span class="p">)</span>
-    <span class="k">return</span> <span class="n">CommentNode</span><span class="p">()</span></div>
-<span class="n">comment</span> <span class="o">=</span> <span class="n">register</span><span class="o">.</span><span class="n">tag</span><span class="p">(</span><span class="n">comment</span><span class="p">)</span>
-
-<span class="c">#@register.tag</span>
+    <span class="k">return</span> <span class="n">CommentNode</span><span class="p">()</span>
+</div>
+<span class="nd">@register.tag</span>
 <div class="viewcode-block" id="cycle"><a class="viewcode-back" href="../../../django.template.html#django.template.defaulttags.cycle">[docs]</a><span class="k">def</span> <span class="nf">cycle</span><span class="p">(</span><span class="n">parser</span><span class="p">,</span> <span class="n">token</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Cycles among the given strings each time this tag is encountered.</span>
@@ -665,13 +639,13 @@
     <span class="k">else</span><span class="p">:</span>
         <span class="n">values</span> <span class="o">=</span> <span class="p">[</span><span class="n">parser</span><span class="o">.</span><span class="n">compile_filter</span><span class="p">(</span><span class="n">arg</span><span class="p">)</span> <span class="k">for</span> <span class="n">arg</span> <span class="ow">in</span> <span class="n">args</span><span class="p">[</span><span class="mi">1</span><span class="p">:]]</span>
         <span class="n">node</span> <span class="o">=</span> <span class="n">CycleNode</span><span class="p">(</span><span class="n">values</span><span class="p">)</span>
-    <span class="k">return</span> <span class="n">node</span></div>
-<span class="n">cycle</span> <span class="o">=</span> <span class="n">register</span><span class="o">.</span><span class="n">tag</span><span class="p">(</span><span class="n">cycle</span><span class="p">)</span>
-
+    <span class="k">return</span> <span class="n">node</span>
+</div>
+<span class="nd">@register.tag</span>
 <span class="k">def</span> <span class="nf">csrf_token</span><span class="p">(</span><span class="n">parser</span><span class="p">,</span> <span class="n">token</span><span class="p">):</span>
     <span class="k">return</span> <span class="n">CsrfTokenNode</span><span class="p">()</span>
-<span class="n">register</span><span class="o">.</span><span class="n">tag</span><span class="p">(</span><span class="n">csrf_token</span><span class="p">)</span>
 
+<span class="nd">@register.tag</span>
 <div class="viewcode-block" id="debug"><a class="viewcode-back" href="../../../django.template.html#django.template.defaulttags.debug">[docs]</a><span class="k">def</span> <span class="nf">debug</span><span class="p">(</span><span class="n">parser</span><span class="p">,</span> <span class="n">token</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Outputs a whole load of debugging information, including the current</span>
@@ -683,10 +657,9 @@
 <span class="sd">            {% debug %}</span>
 <span class="sd">        &lt;/pre&gt;</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">return</span> <span class="n">DebugNode</span><span class="p">()</span></div>
-<span class="n">debug</span> <span class="o">=</span> <span class="n">register</span><span class="o">.</span><span class="n">tag</span><span class="p">(</span><span class="n">debug</span><span class="p">)</span>
-
-<span class="c">#@register.tag(name=&quot;filter&quot;)</span>
+    <span class="k">return</span> <span class="n">DebugNode</span><span class="p">()</span>
+</div>
+<span class="nd">@register.tag</span><span class="p">(</span><span class="s">&#39;filter&#39;</span><span class="p">)</span>
 <div class="viewcode-block" id="do_filter"><a class="viewcode-back" href="../../../django.template.html#django.template.defaulttags.do_filter">[docs]</a><span class="k">def</span> <span class="nf">do_filter</span><span class="p">(</span><span class="n">parser</span><span class="p">,</span> <span class="n">token</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Filters the contents of the block through variable filters.</span>
@@ -699,6 +672,10 @@
 <span class="sd">        {% filter force_escape|lower %}</span>
 <span class="sd">            This text will be HTML-escaped, and will appear in lowercase.</span>
 <span class="sd">        {% endfilter %}</span>
+
+<span class="sd">    Note that the ``escape`` and ``safe`` filters are not acceptable arguments.</span>
+<span class="sd">    Instead, use the ``autoescape`` tag to manage autoescaping for blocks of</span>
+<span class="sd">    template code.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">_</span><span class="p">,</span> <span class="n">rest</span> <span class="o">=</span> <span class="n">token</span><span class="o">.</span><span class="n">contents</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="bp">None</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
     <span class="n">filter_expr</span> <span class="o">=</span> <span class="n">parser</span><span class="o">.</span><span class="n">compile_filter</span><span class="p">(</span><span class="s">&quot;var|</span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">rest</span><span class="p">))</span>
@@ -707,10 +684,9 @@
             <span class="k">raise</span> <span class="n">TemplateSyntaxError</span><span class="p">(</span><span class="s">&#39;&quot;filter </span><span class="si">%s</span><span class="s">&quot; is not permitted.  Use the &quot;autoescape&quot; tag instead.&#39;</span> <span class="o">%</span> <span class="n">func</span><span class="o">.</span><span class="n">__name__</span><span class="p">)</span>
     <span class="n">nodelist</span> <span class="o">=</span> <span class="n">parser</span><span class="o">.</span><span class="n">parse</span><span class="p">((</span><span class="s">&#39;endfilter&#39;</span><span class="p">,))</span>
     <span class="n">parser</span><span class="o">.</span><span class="n">delete_first_token</span><span class="p">()</span>
-    <span class="k">return</span> <span class="n">FilterNode</span><span class="p">(</span><span class="n">filter_expr</span><span class="p">,</span> <span class="n">nodelist</span><span class="p">)</span></div>
-<span class="n">do_filter</span> <span class="o">=</span> <span class="n">register</span><span class="o">.</span><span class="n">tag</span><span class="p">(</span><span class="s">&quot;filter&quot;</span><span class="p">,</span> <span class="n">do_filter</span><span class="p">)</span>
-
-<span class="c">#@register.tag</span>
+    <span class="k">return</span> <span class="n">FilterNode</span><span class="p">(</span><span class="n">filter_expr</span><span class="p">,</span> <span class="n">nodelist</span><span class="p">)</span>
+</div>
+<span class="nd">@register.tag</span>
 <div class="viewcode-block" id="firstof"><a class="viewcode-back" href="../../../django.template.html#django.template.defaulttags.firstof">[docs]</a><span class="k">def</span> <span class="nf">firstof</span><span class="p">(</span><span class="n">parser</span><span class="p">,</span> <span class="n">token</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Outputs the first variable passed that is not False, without escaping.</span>
@@ -748,10 +724,9 @@
     <span class="n">bits</span> <span class="o">=</span> <span class="n">token</span><span class="o">.</span><span class="n">split_contents</span><span class="p">()[</span><span class="mi">1</span><span class="p">:]</span>
     <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">bits</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">1</span><span class="p">:</span>
         <span class="k">raise</span> <span class="n">TemplateSyntaxError</span><span class="p">(</span><span class="s">&quot;&#39;firstof&#39; statement requires at least one argument&quot;</span><span class="p">)</span>
-    <span class="k">return</span> <span class="n">FirstOfNode</span><span class="p">([</span><span class="n">parser</span><span class="o">.</span><span class="n">compile_filter</span><span class="p">(</span><span class="n">bit</span><span class="p">)</span> <span class="k">for</span> <span class="n">bit</span> <span class="ow">in</span> <span class="n">bits</span><span class="p">])</span></div>
-<span class="n">firstof</span> <span class="o">=</span> <span class="n">register</span><span class="o">.</span><span class="n">tag</span><span class="p">(</span><span class="n">firstof</span><span class="p">)</span>
-
-<span class="c">#@register.tag(name=&quot;for&quot;)</span>
+    <span class="k">return</span> <span class="n">FirstOfNode</span><span class="p">([</span><span class="n">parser</span><span class="o">.</span><span class="n">compile_filter</span><span class="p">(</span><span class="n">bit</span><span class="p">)</span> <span class="k">for</span> <span class="n">bit</span> <span class="ow">in</span> <span class="n">bits</span><span class="p">])</span>
+</div>
+<span class="nd">@register.tag</span><span class="p">(</span><span class="s">&#39;for&#39;</span><span class="p">)</span>
 <div class="viewcode-block" id="do_for"><a class="viewcode-back" href="../../../django.template.html#django.template.defaulttags.do_for">[docs]</a><span class="k">def</span> <span class="nf">do_for</span><span class="p">(</span><span class="n">parser</span><span class="p">,</span> <span class="n">token</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Loops over each item in an array.</span>
@@ -840,9 +815,8 @@
         <span class="n">parser</span><span class="o">.</span><span class="n">delete_first_token</span><span class="p">()</span>
     <span class="k">else</span><span class="p">:</span>
         <span class="n">nodelist_empty</span> <span class="o">=</span> <span class="bp">None</span>
-    <span class="k">return</span> <span class="n">ForNode</span><span class="p">(</span><span class="n">loopvars</span><span class="p">,</span> <span class="n">sequence</span><span class="p">,</span> <span class="n">is_reversed</span><span class="p">,</span> <span class="n">nodelist_loop</span><span class="p">,</span> <span class="n">nodelist_empty</span><span class="p">)</span></div>
-<span class="n">do_for</span> <span class="o">=</span> <span class="n">register</span><span class="o">.</span><span class="n">tag</span><span class="p">(</span><span class="s">&quot;for&quot;</span><span class="p">,</span> <span class="n">do_for</span><span class="p">)</span>
-
+    <span class="k">return</span> <span class="n">ForNode</span><span class="p">(</span><span class="n">loopvars</span><span class="p">,</span> <span class="n">sequence</span><span class="p">,</span> <span class="n">is_reversed</span><span class="p">,</span> <span class="n">nodelist_loop</span><span class="p">,</span> <span class="n">nodelist_empty</span><span class="p">)</span>
+</div>
 <span class="k">def</span> <span class="nf">do_ifequal</span><span class="p">(</span><span class="n">parser</span><span class="p">,</span> <span class="n">token</span><span class="p">,</span> <span class="n">negate</span><span class="p">):</span>
     <span class="n">bits</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">token</span><span class="o">.</span><span class="n">split_contents</span><span class="p">())</span>
     <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">bits</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">3</span><span class="p">:</span>
@@ -859,7 +833,7 @@
     <span class="n">val2</span> <span class="o">=</span> <span class="n">parser</span><span class="o">.</span><span class="n">compile_filter</span><span class="p">(</span><span class="n">bits</span><span class="p">[</span><span class="mi">2</span><span class="p">])</span>
     <span class="k">return</span> <span class="n">IfEqualNode</span><span class="p">(</span><span class="n">val1</span><span class="p">,</span> <span class="n">val2</span><span class="p">,</span> <span class="n">nodelist_true</span><span class="p">,</span> <span class="n">nodelist_false</span><span class="p">,</span> <span class="n">negate</span><span class="p">)</span>
 
-<span class="c">#@register.tag</span>
+<span class="nd">@register.tag</span>
 <div class="viewcode-block" id="ifequal"><a class="viewcode-back" href="../../../django.template.html#django.template.defaulttags.ifequal">[docs]</a><span class="k">def</span> <span class="nf">ifequal</span><span class="p">(</span><span class="n">parser</span><span class="p">,</span> <span class="n">token</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Outputs the contents of the block if the two arguments equal each other.</span>
@@ -876,18 +850,16 @@
 <span class="sd">            ...</span>
 <span class="sd">        {% endifnotequal %}</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">return</span> <span class="n">do_ifequal</span><span class="p">(</span><span class="n">parser</span><span class="p">,</span> <span class="n">token</span><span class="p">,</span> <span class="bp">False</span><span class="p">)</span></div>
-<span class="n">ifequal</span> <span class="o">=</span> <span class="n">register</span><span class="o">.</span><span class="n">tag</span><span class="p">(</span><span class="n">ifequal</span><span class="p">)</span>
-
-<span class="c">#@register.tag</span>
+    <span class="k">return</span> <span class="n">do_ifequal</span><span class="p">(</span><span class="n">parser</span><span class="p">,</span> <span class="n">token</span><span class="p">,</span> <span class="bp">False</span><span class="p">)</span>
+</div>
+<span class="nd">@register.tag</span>
 <div class="viewcode-block" id="ifnotequal"><a class="viewcode-back" href="../../../django.template.html#django.template.defaulttags.ifnotequal">[docs]</a><span class="k">def</span> <span class="nf">ifnotequal</span><span class="p">(</span><span class="n">parser</span><span class="p">,</span> <span class="n">token</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Outputs the contents of the block if the two arguments are not equal.</span>
 <span class="sd">    See ifequal.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">return</span> <span class="n">do_ifequal</span><span class="p">(</span><span class="n">parser</span><span class="p">,</span> <span class="n">token</span><span class="p">,</span> <span class="bp">True</span><span class="p">)</span></div>
-<span class="n">ifnotequal</span> <span class="o">=</span> <span class="n">register</span><span class="o">.</span><span class="n">tag</span><span class="p">(</span><span class="n">ifnotequal</span><span class="p">)</span>
-
+    <span class="k">return</span> <span class="n">do_ifequal</span><span class="p">(</span><span class="n">parser</span><span class="p">,</span> <span class="n">token</span><span class="p">,</span> <span class="bp">True</span><span class="p">)</span>
+</div>
 <span class="k">class</span> <span class="nc">TemplateLiteral</span><span class="p">(</span><span class="n">Literal</span><span class="p">):</span>
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">text</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">value</span> <span class="o">=</span> <span class="n">value</span>
@@ -904,12 +876,12 @@
 
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">parser</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">template_parser</span> <span class="o">=</span> <span class="n">parser</span>
-        <span class="k">return</span> <span class="nb">super</span><span class="p">(</span><span class="n">TemplateIfParser</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">TemplateIfParser</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">create_var</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
         <span class="k">return</span> <span class="n">TemplateLiteral</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">template_parser</span><span class="o">.</span><span class="n">compile_filter</span><span class="p">(</span><span class="n">value</span><span class="p">),</span> <span class="n">value</span><span class="p">)</span>
 
-<span class="c">#@register.tag(name=&quot;if&quot;)</span>
+<span class="nd">@register.tag</span><span class="p">(</span><span class="s">&#39;if&#39;</span><span class="p">)</span>
 <div class="viewcode-block" id="do_if"><a class="viewcode-back" href="../../../django.template.html#django.template.defaulttags.do_if">[docs]</a><span class="k">def</span> <span class="nf">do_if</span><span class="p">(</span><span class="n">parser</span><span class="p">,</span> <span class="n">token</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    The ``{% if %}`` tag evaluates a variable, and if that variable is &quot;true&quot;</span>
@@ -920,6 +892,8 @@
 
 <span class="sd">        {% if athlete_list %}</span>
 <span class="sd">            Number of athletes: {{ athlete_list|count }}</span>
+<span class="sd">        {% elif athlete_in_locker_room_list %}</span>
+<span class="sd">            Athletes should be out of the locker room soon!</span>
 <span class="sd">        {% else %}</span>
 <span class="sd">            No athletes.</span>
 <span class="sd">        {% endif %}</span>
@@ -927,8 +901,9 @@
 <span class="sd">    In the above, if ``athlete_list`` is not empty, the number of athletes will</span>
 <span class="sd">    be displayed by the ``{{ athlete_list|count }}`` variable.</span>
 
-<span class="sd">    As you can see, the ``if`` tag can take an option ``{% else %}`` clause</span>
-<span class="sd">    that will be displayed if the test fails.</span>
+<span class="sd">    As you can see, the ``if`` tag may take one or several `` {% elif %}``</span>
+<span class="sd">    clauses, as well as an ``{% else %}`` clause that will be displayed if all</span>
+<span class="sd">    previous conditions fail. These clauses are optional.</span>
 
 <span class="sd">    ``if`` tags may use ``or``, ``and`` or ``not`` to test a number of</span>
 <span class="sd">    variables or to negate a given variable::</span>
@@ -966,24 +941,40 @@
 
 <span class="sd">    Operator precedence follows Python.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c"># {% if ... %}</span>
     <span class="n">bits</span> <span class="o">=</span> <span class="n">token</span><span class="o">.</span><span class="n">split_contents</span><span class="p">()[</span><span class="mi">1</span><span class="p">:]</span>
-    <span class="n">var</span> <span class="o">=</span> <span class="n">TemplateIfParser</span><span class="p">(</span><span class="n">parser</span><span class="p">,</span> <span class="n">bits</span><span class="p">)</span><span class="o">.</span><span class="n">parse</span><span class="p">()</span>
-    <span class="n">nodelist_true</span> <span class="o">=</span> <span class="n">parser</span><span class="o">.</span><span class="n">parse</span><span class="p">((</span><span class="s">&#39;else&#39;</span><span class="p">,</span> <span class="s">&#39;endif&#39;</span><span class="p">))</span>
+    <span class="n">condition</span> <span class="o">=</span> <span class="n">TemplateIfParser</span><span class="p">(</span><span class="n">parser</span><span class="p">,</span> <span class="n">bits</span><span class="p">)</span><span class="o">.</span><span class="n">parse</span><span class="p">()</span>
+    <span class="n">nodelist</span> <span class="o">=</span> <span class="n">parser</span><span class="o">.</span><span class="n">parse</span><span class="p">((</span><span class="s">&#39;elif&#39;</span><span class="p">,</span> <span class="s">&#39;else&#39;</span><span class="p">,</span> <span class="s">&#39;endif&#39;</span><span class="p">))</span>
+    <span class="n">conditions_nodelists</span> <span class="o">=</span> <span class="p">[(</span><span class="n">condition</span><span class="p">,</span> <span class="n">nodelist</span><span class="p">)]</span>
     <span class="n">token</span> <span class="o">=</span> <span class="n">parser</span><span class="o">.</span><span class="n">next_token</span><span class="p">()</span>
-    <span class="k">if</span> <span class="n">token</span><span class="o">.</span><span class="n">contents</span> <span class="o">==</span> <span class="s">&#39;else&#39;</span><span class="p">:</span>
-        <span class="n">nodelist_false</span> <span class="o">=</span> <span class="n">parser</span><span class="o">.</span><span class="n">parse</span><span class="p">((</span><span class="s">&#39;endif&#39;</span><span class="p">,))</span>
-        <span class="n">parser</span><span class="o">.</span><span class="n">delete_first_token</span><span class="p">()</span>
-    <span class="k">else</span><span class="p">:</span>
-        <span class="n">nodelist_false</span> <span class="o">=</span> <span class="n">NodeList</span><span class="p">()</span>
-    <span class="k">return</span> <span class="n">IfNode</span><span class="p">(</span><span class="n">var</span><span class="p">,</span> <span class="n">nodelist_true</span><span class="p">,</span> <span class="n">nodelist_false</span><span class="p">)</span></div>
-<span class="n">do_if</span> <span class="o">=</span> <span class="n">register</span><span class="o">.</span><span class="n">tag</span><span class="p">(</span><span class="s">&quot;if&quot;</span><span class="p">,</span> <span class="n">do_if</span><span class="p">)</span>
 
-<span class="c">#@register.tag</span>
+    <span class="c"># {% elif ... %} (repeatable)</span>
+    <span class="k">while</span> <span class="n">token</span><span class="o">.</span><span class="n">contents</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s">&#39;elif&#39;</span><span class="p">):</span>
+        <span class="n">bits</span> <span class="o">=</span> <span class="n">token</span><span class="o">.</span><span class="n">split_contents</span><span class="p">()[</span><span class="mi">1</span><span class="p">:]</span>
+        <span class="n">condition</span> <span class="o">=</span> <span class="n">TemplateIfParser</span><span class="p">(</span><span class="n">parser</span><span class="p">,</span> <span class="n">bits</span><span class="p">)</span><span class="o">.</span><span class="n">parse</span><span class="p">()</span>
+        <span class="n">nodelist</span> <span class="o">=</span> <span class="n">parser</span><span class="o">.</span><span class="n">parse</span><span class="p">((</span><span class="s">&#39;elif&#39;</span><span class="p">,</span> <span class="s">&#39;else&#39;</span><span class="p">,</span> <span class="s">&#39;endif&#39;</span><span class="p">))</span>
+        <span class="n">conditions_nodelists</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">condition</span><span class="p">,</span> <span class="n">nodelist</span><span class="p">))</span>
+        <span class="n">token</span> <span class="o">=</span> <span class="n">parser</span><span class="o">.</span><span class="n">next_token</span><span class="p">()</span>
+
+    <span class="c"># {% else %} (optional)</span>
+    <span class="k">if</span> <span class="n">token</span><span class="o">.</span><span class="n">contents</span> <span class="o">==</span> <span class="s">&#39;else&#39;</span><span class="p">:</span>
+        <span class="n">nodelist</span> <span class="o">=</span> <span class="n">parser</span><span class="o">.</span><span class="n">parse</span><span class="p">((</span><span class="s">&#39;endif&#39;</span><span class="p">,))</span>
+        <span class="n">conditions_nodelists</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="bp">None</span><span class="p">,</span> <span class="n">nodelist</span><span class="p">))</span>
+        <span class="n">token</span> <span class="o">=</span> <span class="n">parser</span><span class="o">.</span><span class="n">next_token</span><span class="p">()</span>
+
+    <span class="c"># {% endif %}</span>
+    <span class="k">assert</span> <span class="n">token</span><span class="o">.</span><span class="n">contents</span> <span class="o">==</span> <span class="s">&#39;endif&#39;</span>
+
+    <span class="k">return</span> <span class="n">IfNode</span><span class="p">(</span><span class="n">conditions_nodelists</span><span class="p">)</span>
+
+</div>
+<span class="nd">@register.tag</span>
 <div class="viewcode-block" id="ifchanged"><a class="viewcode-back" href="../../../django.template.html#django.template.defaulttags.ifchanged">[docs]</a><span class="k">def</span> <span class="nf">ifchanged</span><span class="p">(</span><span class="n">parser</span><span class="p">,</span> <span class="n">token</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Checks if a value has changed from the last iteration of a loop.</span>
 
-<span class="sd">    The &#39;ifchanged&#39; block tag is used within a loop. It has two possible uses.</span>
+<span class="sd">    The ``{% ifchanged %}`` block tag is used within a loop. It has two</span>
+<span class="sd">    possible uses.</span>
 
 <span class="sd">    1. Checks its own rendered contents against its previous state and only</span>
 <span class="sd">       displays the content if it has changed. For example, this displays a</span>
@@ -996,9 +987,9 @@
 <span class="sd">                &lt;a href=&quot;{{ date|date:&quot;M/d&quot;|lower }}/&quot;&gt;{{ date|date:&quot;j&quot; }}&lt;/a&gt;</span>
 <span class="sd">            {% endfor %}</span>
 
-<span class="sd">    2. If given a variable, check whether that variable has changed.</span>
-<span class="sd">       For example, the following shows the date every time it changes, but</span>
-<span class="sd">       only shows the hour if both the hour and the date have changed::</span>
+<span class="sd">    2. If given one or more variables, check whether any variable has changed.</span>
+<span class="sd">       For example, the following shows the date every time it changes, while</span>
+<span class="sd">       showing the hour if either the hour or the date has changed::</span>
 
 <span class="sd">            {% for date in days %}</span>
 <span class="sd">                {% ifchanged date.date %} {{ date.date }} {% endifchanged %}</span>
@@ -1016,10 +1007,9 @@
     <span class="k">else</span><span class="p">:</span>
         <span class="n">nodelist_false</span> <span class="o">=</span> <span class="n">NodeList</span><span class="p">()</span>
     <span class="n">values</span> <span class="o">=</span> <span class="p">[</span><span class="n">parser</span><span class="o">.</span><span class="n">compile_filter</span><span class="p">(</span><span class="n">bit</span><span class="p">)</span> <span class="k">for</span> <span class="n">bit</span> <span class="ow">in</span> <span class="n">bits</span><span class="p">[</span><span class="mi">1</span><span class="p">:]]</span>
-    <span class="k">return</span> <span class="n">IfChangedNode</span><span class="p">(</span><span class="n">nodelist_true</span><span class="p">,</span> <span class="n">nodelist_false</span><span class="p">,</span> <span class="o">*</span><span class="n">values</span><span class="p">)</span></div>
-<span class="n">ifchanged</span> <span class="o">=</span> <span class="n">register</span><span class="o">.</span><span class="n">tag</span><span class="p">(</span><span class="n">ifchanged</span><span class="p">)</span>
-
-<span class="c">#@register.tag</span>
+    <span class="k">return</span> <span class="n">IfChangedNode</span><span class="p">(</span><span class="n">nodelist_true</span><span class="p">,</span> <span class="n">nodelist_false</span><span class="p">,</span> <span class="o">*</span><span class="n">values</span><span class="p">)</span>
+</div>
+<span class="nd">@register.tag</span>
 <div class="viewcode-block" id="ssi"><a class="viewcode-back" href="../../../django.template.html#django.template.defaulttags.ssi">[docs]</a><span class="k">def</span> <span class="nf">ssi</span><span class="p">(</span><span class="n">parser</span><span class="p">,</span> <span class="n">token</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Outputs the contents of a given file into the page.</span>
@@ -1038,7 +1028,7 @@
 
     <span class="kn">import</span> <span class="nn">warnings</span>
     <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s">&#39;The syntax for the ssi template tag is changing. Load the `ssi` tag from the `future` tag library to start using the new behavior.&#39;</span><span class="p">,</span>
-                  <span class="n">category</span><span class="o">=</span><span class="ne">PendingDeprecationWarning</span><span class="p">)</span>
+                  <span class="n">category</span><span class="o">=</span><span class="ne">DeprecationWarning</span><span class="p">)</span>
 
     <span class="n">bits</span> <span class="o">=</span> <span class="n">token</span><span class="o">.</span><span class="n">contents</span><span class="o">.</span><span class="n">split</span><span class="p">()</span>
     <span class="n">parsed</span> <span class="o">=</span> <span class="bp">False</span>
@@ -1051,10 +1041,9 @@
         <span class="k">else</span><span class="p">:</span>
             <span class="k">raise</span> <span class="n">TemplateSyntaxError</span><span class="p">(</span><span class="s">&quot;Second (optional) argument to </span><span class="si">%s</span><span class="s"> tag&quot;</span>
                                       <span class="s">&quot; must be &#39;parsed&#39;&quot;</span> <span class="o">%</span> <span class="n">bits</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
-    <span class="k">return</span> <span class="n">SsiNode</span><span class="p">(</span><span class="n">bits</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">parsed</span><span class="p">,</span> <span class="n">legacy_filepath</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span></div>
-<span class="n">ssi</span> <span class="o">=</span> <span class="n">register</span><span class="o">.</span><span class="n">tag</span><span class="p">(</span><span class="n">ssi</span><span class="p">)</span>
-
-<span class="c">#@register.tag</span>
+    <span class="k">return</span> <span class="n">SsiNode</span><span class="p">(</span><span class="n">bits</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">parsed</span><span class="p">,</span> <span class="n">legacy_filepath</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+</div>
+<span class="nd">@register.tag</span>
 <div class="viewcode-block" id="load"><a class="viewcode-back" href="../../../django.template.html#django.template.defaulttags.load">[docs]</a><span class="k">def</span> <span class="nf">load</span><span class="p">(</span><span class="n">parser</span><span class="p">,</span> <span class="n">token</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Loads a custom template tag set.</span>
@@ -1101,10 +1090,9 @@
             <span class="k">except</span> <span class="n">InvalidTemplateLibrary</span><span class="p">,</span> <span class="n">e</span><span class="p">:</span>
                 <span class="k">raise</span> <span class="n">TemplateSyntaxError</span><span class="p">(</span><span class="s">&quot;&#39;</span><span class="si">%s</span><span class="s">&#39; is not a valid tag library: </span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span>
                                           <span class="p">(</span><span class="n">taglib</span><span class="p">,</span> <span class="n">e</span><span class="p">))</span>
-    <span class="k">return</span> <span class="n">LoadNode</span><span class="p">()</span></div>
-<span class="n">load</span> <span class="o">=</span> <span class="n">register</span><span class="o">.</span><span class="n">tag</span><span class="p">(</span><span class="n">load</span><span class="p">)</span>
-
-<span class="c">#@register.tag</span>
+    <span class="k">return</span> <span class="n">LoadNode</span><span class="p">()</span>
+</div>
+<span class="nd">@register.tag</span>
 <div class="viewcode-block" id="now"><a class="viewcode-back" href="../../../django.template.html#django.template.defaulttags.now">[docs]</a><span class="k">def</span> <span class="nf">now</span><span class="p">(</span><span class="n">parser</span><span class="p">,</span> <span class="n">token</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Displays the date, formatted according to the given string.</span>
@@ -1116,14 +1104,13 @@
 
 <span class="sd">        It is {% now &quot;jS F Y H:i&quot; %}</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="n">bits</span> <span class="o">=</span> <span class="n">token</span><span class="o">.</span><span class="n">contents</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&#39;&quot;&#39;</span><span class="p">)</span>
-    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">bits</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">3</span><span class="p">:</span>
+    <span class="n">bits</span> <span class="o">=</span> <span class="n">token</span><span class="o">.</span><span class="n">split_contents</span><span class="p">()</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">bits</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">2</span><span class="p">:</span>
         <span class="k">raise</span> <span class="n">TemplateSyntaxError</span><span class="p">(</span><span class="s">&quot;&#39;now&#39; statement takes one argument&quot;</span><span class="p">)</span>
-    <span class="n">format_string</span> <span class="o">=</span> <span class="n">bits</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
-    <span class="k">return</span> <span class="n">NowNode</span><span class="p">(</span><span class="n">format_string</span><span class="p">)</span></div>
-<span class="n">now</span> <span class="o">=</span> <span class="n">register</span><span class="o">.</span><span class="n">tag</span><span class="p">(</span><span class="n">now</span><span class="p">)</span>
-
-<span class="c">#@register.tag</span>
+    <span class="n">format_string</span> <span class="o">=</span> <span class="n">bits</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="mi">1</span><span class="p">:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+    <span class="k">return</span> <span class="n">NowNode</span><span class="p">(</span><span class="n">format_string</span><span class="p">)</span>
+</div>
+<span class="nd">@register.tag</span>
 <div class="viewcode-block" id="regroup"><a class="viewcode-back" href="../../../django.template.html#django.template.defaulttags.regroup">[docs]</a><span class="k">def</span> <span class="nf">regroup</span><span class="p">(</span><span class="n">parser</span><span class="p">,</span> <span class="n">token</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Regroups a list of alike objects by a common attribute.</span>
@@ -1180,13 +1167,19 @@
     <span class="k">if</span> <span class="n">lastbits_reversed</span><span class="p">[</span><span class="mi">1</span><span class="p">][::</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">!=</span> <span class="s">&#39;as&#39;</span><span class="p">:</span>
         <span class="k">raise</span> <span class="n">TemplateSyntaxError</span><span class="p">(</span><span class="s">&quot;next-to-last argument to &#39;regroup&#39; tag must&quot;</span>
                                   <span class="s">&quot; be &#39;as&#39;&quot;</span><span class="p">)</span>
-
-    <span class="n">expression</span> <span class="o">=</span> <span class="n">parser</span><span class="o">.</span><span class="n">compile_filter</span><span class="p">(</span><span class="n">lastbits_reversed</span><span class="p">[</span><span class="mi">2</span><span class="p">][::</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
-
     <span class="n">var_name</span> <span class="o">=</span> <span class="n">lastbits_reversed</span><span class="p">[</span><span class="mi">0</span><span class="p">][::</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
-    <span class="k">return</span> <span class="n">RegroupNode</span><span class="p">(</span><span class="n">target</span><span class="p">,</span> <span class="n">expression</span><span class="p">,</span> <span class="n">var_name</span><span class="p">)</span></div>
-<span class="n">regroup</span> <span class="o">=</span> <span class="n">register</span><span class="o">.</span><span class="n">tag</span><span class="p">(</span><span class="n">regroup</span><span class="p">)</span>
-
+    <span class="c"># RegroupNode will take each item in &#39;target&#39;, put it in the context under</span>
+    <span class="c"># &#39;var_name&#39;, evaluate &#39;var_name&#39;.&#39;expression&#39; in the current context, and</span>
+    <span class="c"># group by the resulting value. After all items are processed, it will</span>
+    <span class="c"># save the final result in the context under &#39;var_name&#39;, thus clearing the</span>
+    <span class="c"># temporary values. This hack is necessary because the template engine</span>
+    <span class="c"># doesn&#39;t provide a context-aware equivalent of Python&#39;s getattr.</span>
+    <span class="n">expression</span> <span class="o">=</span> <span class="n">parser</span><span class="o">.</span><span class="n">compile_filter</span><span class="p">(</span><span class="n">var_name</span> <span class="o">+</span>
+                                       <span class="n">VARIABLE_ATTRIBUTE_SEPARATOR</span> <span class="o">+</span>
+                                       <span class="n">lastbits_reversed</span><span class="p">[</span><span class="mi">2</span><span class="p">][::</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+    <span class="k">return</span> <span class="n">RegroupNode</span><span class="p">(</span><span class="n">target</span><span class="p">,</span> <span class="n">expression</span><span class="p">,</span> <span class="n">var_name</span><span class="p">)</span>
+</div>
+<span class="nd">@register.tag</span>
 <div class="viewcode-block" id="spaceless"><a class="viewcode-back" href="../../../django.template.html#django.template.defaulttags.spaceless">[docs]</a><span class="k">def</span> <span class="nf">spaceless</span><span class="p">(</span><span class="n">parser</span><span class="p">,</span> <span class="n">token</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Removes whitespace between HTML tags, including tab and newline characters.</span>
@@ -1214,10 +1207,9 @@
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">nodelist</span> <span class="o">=</span> <span class="n">parser</span><span class="o">.</span><span class="n">parse</span><span class="p">((</span><span class="s">&#39;endspaceless&#39;</span><span class="p">,))</span>
     <span class="n">parser</span><span class="o">.</span><span class="n">delete_first_token</span><span class="p">()</span>
-    <span class="k">return</span> <span class="n">SpacelessNode</span><span class="p">(</span><span class="n">nodelist</span><span class="p">)</span></div>
-<span class="n">spaceless</span> <span class="o">=</span> <span class="n">register</span><span class="o">.</span><span class="n">tag</span><span class="p">(</span><span class="n">spaceless</span><span class="p">)</span>
-
-<span class="c">#@register.tag</span>
+    <span class="k">return</span> <span class="n">SpacelessNode</span><span class="p">(</span><span class="n">nodelist</span><span class="p">)</span>
+</div>
+<span class="nd">@register.tag</span>
 <div class="viewcode-block" id="templatetag"><a class="viewcode-back" href="../../../django.template.html#django.template.defaulttags.templatetag">[docs]</a><span class="k">def</span> <span class="nf">templatetag</span><span class="p">(</span><span class="n">parser</span><span class="p">,</span> <span class="n">token</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Outputs one of the bits used to compose template tags.</span>
@@ -1248,9 +1240,9 @@
         <span class="k">raise</span> <span class="n">TemplateSyntaxError</span><span class="p">(</span><span class="s">&quot;Invalid templatetag argument: &#39;</span><span class="si">%s</span><span class="s">&#39;.&quot;</span>
                                   <span class="s">&quot; Must be one of: </span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span>
                                   <span class="p">(</span><span class="n">tag</span><span class="p">,</span> <span class="n">TemplateTagNode</span><span class="o">.</span><span class="n">mapping</span><span class="o">.</span><span class="n">keys</span><span class="p">()))</span>
-    <span class="k">return</span> <span class="n">TemplateTagNode</span><span class="p">(</span><span class="n">tag</span><span class="p">)</span></div>
-<span class="n">templatetag</span> <span class="o">=</span> <span class="n">register</span><span class="o">.</span><span class="n">tag</span><span class="p">(</span><span class="n">templatetag</span><span class="p">)</span>
-
+    <span class="k">return</span> <span class="n">TemplateTagNode</span><span class="p">(</span><span class="n">tag</span><span class="p">)</span>
+</div>
+<span class="nd">@register.tag</span>
 <div class="viewcode-block" id="url"><a class="viewcode-back" href="../../../django.template.html#django.template.defaulttags.url">[docs]</a><span class="k">def</span> <span class="nf">url</span><span class="p">(</span><span class="n">parser</span><span class="p">,</span> <span class="n">token</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Returns an absolute URL matching given view with its parameters.</span>
@@ -1289,7 +1281,7 @@
 
     <span class="kn">import</span> <span class="nn">warnings</span>
     <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s">&#39;The syntax for the url template tag is changing. Load the `url` tag from the `future` tag library to start using the new behavior.&#39;</span><span class="p">,</span>
-                  <span class="n">category</span><span class="o">=</span><span class="ne">PendingDeprecationWarning</span><span class="p">)</span>
+                  <span class="n">category</span><span class="o">=</span><span class="ne">DeprecationWarning</span><span class="p">)</span>
 
     <span class="n">bits</span> <span class="o">=</span> <span class="n">token</span><span class="o">.</span><span class="n">split_contents</span><span class="p">()</span>
     <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">bits</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">2</span><span class="p">:</span>
@@ -1347,10 +1339,9 @@
             <span class="k">else</span><span class="p">:</span>
                 <span class="n">args</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">parser</span><span class="o">.</span><span class="n">compile_filter</span><span class="p">(</span><span class="n">value</span><span class="p">))</span>
 
-    <span class="k">return</span> <span class="n">URLNode</span><span class="p">(</span><span class="n">viewname</span><span class="p">,</span> <span class="n">args</span><span class="p">,</span> <span class="n">kwargs</span><span class="p">,</span> <span class="n">asvar</span><span class="p">,</span> <span class="n">legacy_view_name</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span></div>
-<span class="n">url</span> <span class="o">=</span> <span class="n">register</span><span class="o">.</span><span class="n">tag</span><span class="p">(</span><span class="n">url</span><span class="p">)</span>
-
-<span class="c">#@register.tag</span>
+    <span class="k">return</span> <span class="n">URLNode</span><span class="p">(</span><span class="n">viewname</span><span class="p">,</span> <span class="n">args</span><span class="p">,</span> <span class="n">kwargs</span><span class="p">,</span> <span class="n">asvar</span><span class="p">,</span> <span class="n">legacy_view_name</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+</div>
+<span class="nd">@register.tag</span>
 <div class="viewcode-block" id="widthratio"><a class="viewcode-back" href="../../../django.template.html#django.template.defaulttags.widthratio">[docs]</a><span class="k">def</span> <span class="nf">widthratio</span><span class="p">(</span><span class="n">parser</span><span class="p">,</span> <span class="n">token</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    For creating bar charts and such, this tag calculates the ratio of a given</span>
@@ -1371,10 +1362,9 @@
 
     <span class="k">return</span> <span class="n">WidthRatioNode</span><span class="p">(</span><span class="n">parser</span><span class="o">.</span><span class="n">compile_filter</span><span class="p">(</span><span class="n">this_value_expr</span><span class="p">),</span>
                           <span class="n">parser</span><span class="o">.</span><span class="n">compile_filter</span><span class="p">(</span><span class="n">max_value_expr</span><span class="p">),</span>
-                          <span class="n">parser</span><span class="o">.</span><span class="n">compile_filter</span><span class="p">(</span><span class="n">max_width</span><span class="p">))</span></div>
-<span class="n">widthratio</span> <span class="o">=</span> <span class="n">register</span><span class="o">.</span><span class="n">tag</span><span class="p">(</span><span class="n">widthratio</span><span class="p">)</span>
-
-<span class="c">#@register.tag</span>
+                          <span class="n">parser</span><span class="o">.</span><span class="n">compile_filter</span><span class="p">(</span><span class="n">max_width</span><span class="p">))</span>
+</div>
+<span class="nd">@register.tag</span><span class="p">(</span><span class="s">&#39;with&#39;</span><span class="p">)</span>
 <div class="viewcode-block" id="do_with"><a class="viewcode-back" href="../../../django.template.html#django.template.defaulttags.do_with">[docs]</a><span class="k">def</span> <span class="nf">do_with</span><span class="p">(</span><span class="n">parser</span><span class="p">,</span> <span class="n">token</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Adds one or more values to the context (inside of this block) for caching</span>
@@ -1407,7 +1397,6 @@
     <span class="n">nodelist</span> <span class="o">=</span> <span class="n">parser</span><span class="o">.</span><span class="n">parse</span><span class="p">((</span><span class="s">&#39;endwith&#39;</span><span class="p">,))</span>
     <span class="n">parser</span><span class="o">.</span><span class="n">delete_first_token</span><span class="p">()</span>
     <span class="k">return</span> <span class="n">WithNode</span><span class="p">(</span><span class="bp">None</span><span class="p">,</span> <span class="bp">None</span><span class="p">,</span> <span class="n">nodelist</span><span class="p">,</span> <span class="n">extra_context</span><span class="o">=</span><span class="n">extra_context</span><span class="p">)</span></div>
-<span class="n">do_with</span> <span class="o">=</span> <span class="n">register</span><span class="o">.</span><span class="n">tag</span><span class="p">(</span><span class="s">&#39;with&#39;</span><span class="p">,</span> <span class="n">do_with</span><span class="p">)</span>
 </pre></div>
 
       </div>
@@ -1422,7 +1411,7 @@
 
     <div class="footer">
         &copy; Copyright 2012, HDKNR.COM.
-      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.2pre/660be19d7963.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.2pre/3c28de26aac2.
     </div>
   </body>
 </html>

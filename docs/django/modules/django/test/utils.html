@@ -28,7 +28,7 @@
     <script type="text/javascript" src="../../../static/doctools.js"></script>
     <script type="text/javascript" src="../../../static/theme_extras.js"></script>
     <link rel="top" title="Django Cheat 1 documentation" href="../../../index.html" />
-    <link rel="up" title="Module code" href="../../index.html" /> 
+    <link rel="up" title="django" href="../../django.html" /> 
   </head>
   <body>
       <div class="header"><h1 class="heading"><a href="../../../index.html">
@@ -47,20 +47,22 @@
         
         
   <h1>Source code for django.test.utils</h1><div class="highlight"><pre>
-<span class="kn">import</span> <span class="nn">sys</span>
-<span class="kn">import</span> <span class="nn">time</span>
-<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">with_statement</span>
+
 <span class="kn">import</span> <span class="nn">warnings</span>
-<span class="kn">from</span> <span class="nn">django.conf</span> <span class="kn">import</span> <span class="n">settings</span>
+<span class="kn">from</span> <span class="nn">django.conf</span> <span class="kn">import</span> <span class="n">settings</span><span class="p">,</span> <span class="n">UserSettingsHolder</span>
 <span class="kn">from</span> <span class="nn">django.core</span> <span class="kn">import</span> <span class="n">mail</span>
-<span class="kn">from</span> <span class="nn">django.core.mail.backends</span> <span class="kn">import</span> <span class="n">locmem</span>
-<span class="kn">from</span> <span class="nn">django.test</span> <span class="kn">import</span> <span class="n">signals</span>
+<span class="kn">from</span> <span class="nn">django.test.signals</span> <span class="kn">import</span> <span class="n">template_rendered</span><span class="p">,</span> <span class="n">setting_changed</span>
 <span class="kn">from</span> <span class="nn">django.template</span> <span class="kn">import</span> <span class="n">Template</span><span class="p">,</span> <span class="n">loader</span><span class="p">,</span> <span class="n">TemplateDoesNotExist</span>
 <span class="kn">from</span> <span class="nn">django.template.loaders</span> <span class="kn">import</span> <span class="n">cached</span>
 <span class="kn">from</span> <span class="nn">django.utils.translation</span> <span class="kn">import</span> <span class="n">deactivate</span>
+<span class="kn">from</span> <span class="nn">django.utils.functional</span> <span class="kn">import</span> <span class="n">wraps</span>
 
-<span class="n">__all__</span> <span class="o">=</span> <span class="p">(</span><span class="s">&#39;Approximate&#39;</span><span class="p">,</span> <span class="s">&#39;ContextList&#39;</span><span class="p">,</span> <span class="s">&#39;setup_test_environment&#39;</span><span class="p">,</span>
-       <span class="s">&#39;teardown_test_environment&#39;</span><span class="p">,</span> <span class="s">&#39;get_runner&#39;</span><span class="p">)</span>
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">(</span>
+    <span class="s">&#39;Approximate&#39;</span><span class="p">,</span> <span class="s">&#39;ContextList&#39;</span><span class="p">,</span>  <span class="s">&#39;get_runner&#39;</span><span class="p">,</span> <span class="s">&#39;override_settings&#39;</span><span class="p">,</span>
+    <span class="s">&#39;setup_test_environment&#39;</span><span class="p">,</span> <span class="s">&#39;teardown_test_environment&#39;</span><span class="p">,</span>
+<span class="p">)</span>
 
 <span class="n">RESTORE_LOADERS_ATTR</span> <span class="o">=</span> <span class="s">&#39;_original_template_source_loaders&#39;</span>
 
@@ -105,7 +107,7 @@
 <span class="sd">    An instrumented Template render method, providing a signal</span>
 <span class="sd">    that can be intercepted by the test system Client</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="n">signals</span><span class="o">.</span><span class="n">template_rendered</span><span class="o">.</span><span class="n">send</span><span class="p">(</span><span class="n">sender</span><span class="o">=</span><span class="bp">self</span><span class="p">,</span> <span class="n">template</span><span class="o">=</span><span class="bp">self</span><span class="p">,</span> <span class="n">context</span><span class="o">=</span><span class="n">context</span><span class="p">)</span>
+    <span class="n">template_rendered</span><span class="o">.</span><span class="n">send</span><span class="p">(</span><span class="n">sender</span><span class="o">=</span><span class="bp">self</span><span class="p">,</span> <span class="n">template</span><span class="o">=</span><span class="bp">self</span><span class="p">,</span> <span class="n">context</span><span class="o">=</span><span class="n">context</span><span class="p">)</span>
     <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">nodelist</span><span class="o">.</span><span class="n">render</span><span class="p">(</span><span class="n">context</span><span class="p">)</span>
 
 
@@ -118,9 +120,6 @@
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">Template</span><span class="o">.</span><span class="n">original_render</span> <span class="o">=</span> <span class="n">Template</span><span class="o">.</span><span class="n">_render</span>
     <span class="n">Template</span><span class="o">.</span><span class="n">_render</span> <span class="o">=</span> <span class="n">instrumented_test_render</span>
-
-    <span class="n">mail</span><span class="o">.</span><span class="n">original_SMTPConnection</span> <span class="o">=</span> <span class="n">mail</span><span class="o">.</span><span class="n">SMTPConnection</span>
-    <span class="n">mail</span><span class="o">.</span><span class="n">SMTPConnection</span> <span class="o">=</span> <span class="n">locmem</span><span class="o">.</span><span class="n">EmailBackend</span>
 
     <span class="n">mail</span><span class="o">.</span><span class="n">original_email_backend</span> <span class="o">=</span> <span class="n">settings</span><span class="o">.</span><span class="n">EMAIL_BACKEND</span>
     <span class="n">settings</span><span class="o">.</span><span class="n">EMAIL_BACKEND</span> <span class="o">=</span> <span class="s">&#39;django.core.mail.backends.locmem.EmailBackend&#39;</span>
@@ -139,9 +138,6 @@
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">Template</span><span class="o">.</span><span class="n">_render</span> <span class="o">=</span> <span class="n">Template</span><span class="o">.</span><span class="n">original_render</span>
     <span class="k">del</span> <span class="n">Template</span><span class="o">.</span><span class="n">original_render</span>
-
-    <span class="n">mail</span><span class="o">.</span><span class="n">SMTPConnection</span> <span class="o">=</span> <span class="n">mail</span><span class="o">.</span><span class="n">original_SMTPConnection</span>
-    <span class="k">del</span> <span class="n">mail</span><span class="o">.</span><span class="n">original_SMTPConnection</span>
 
     <span class="n">settings</span><span class="o">.</span><span class="n">EMAIL_BACKEND</span> <span class="o">=</span> <span class="n">mail</span><span class="o">.</span><span class="n">original_email_backend</span>
     <span class="k">del</span> <span class="n">mail</span><span class="o">.</span><span class="n">original_email_backend</span>
@@ -167,8 +163,11 @@
     <span class="n">warnings</span><span class="o">.</span><span class="n">filters</span> <span class="o">=</span> <span class="n">state</span><span class="p">[:]</span>
 
 
-<span class="k">def</span> <span class="nf">get_runner</span><span class="p">(</span><span class="n">settings</span><span class="p">):</span>
-    <span class="n">test_path</span> <span class="o">=</span> <span class="n">settings</span><span class="o">.</span><span class="n">TEST_RUNNER</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&#39;.&#39;</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">get_runner</span><span class="p">(</span><span class="n">settings</span><span class="p">,</span> <span class="n">test_runner_class</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">test_runner_class</span><span class="p">:</span>
+        <span class="n">test_runner_class</span> <span class="o">=</span> <span class="n">settings</span><span class="o">.</span><span class="n">TEST_RUNNER</span>
+
+    <span class="n">test_path</span> <span class="o">=</span> <span class="n">test_runner_class</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&#39;.&#39;</span><span class="p">)</span>
     <span class="c"># Allow for Python 2.5 relative paths</span>
     <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">test_path</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
         <span class="n">test_module_name</span> <span class="o">=</span> <span class="s">&#39;.&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">test_path</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
@@ -215,7 +214,62 @@
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">loader</span><span class="o">.</span><span class="n">template_source_loaders</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">loader</span><span class="p">,</span> <span class="n">RESTORE_LOADERS_ATTR</span><span class="p">)</span>
     <span class="nb">delattr</span><span class="p">(</span><span class="n">loader</span><span class="p">,</span> <span class="n">RESTORE_LOADERS_ATTR</span><span class="p">)</span>
-</pre></div>
+
+
+<div class="viewcode-block" id="override_settings"><a class="viewcode-back" href="../../../django.test.html#django.test.utils.override_settings">[docs]</a><span class="k">class</span> <span class="nc">override_settings</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Acts as either a decorator, or a context manager. If it&#39;s a decorator it</span>
+<span class="sd">    takes a function and returns a wrapped function. If it&#39;s a contextmanager</span>
+<span class="sd">    it&#39;s used with the ``with`` statement. In either event entering/exiting</span>
+<span class="sd">    are called before and after, respectively, the function/block is executed.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">options</span> <span class="o">=</span> <span class="n">kwargs</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">wrapped</span> <span class="o">=</span> <span class="n">settings</span><span class="o">.</span><span class="n">_wrapped</span>
+
+    <span class="k">def</span> <span class="nf">__enter__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">enable</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">__exit__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">exc_type</span><span class="p">,</span> <span class="n">exc_value</span><span class="p">,</span> <span class="n">traceback</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">disable</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">test_func</span><span class="p">):</span>
+        <span class="kn">from</span> <span class="nn">django.test</span> <span class="kn">import</span> <span class="n">TransactionTestCase</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">test_func</span><span class="p">,</span> <span class="nb">type</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">issubclass</span><span class="p">(</span><span class="n">test_func</span><span class="p">,</span> <span class="n">TransactionTestCase</span><span class="p">):</span>
+            <span class="n">original_pre_setup</span> <span class="o">=</span> <span class="n">test_func</span><span class="o">.</span><span class="n">_pre_setup</span>
+            <span class="n">original_post_teardown</span> <span class="o">=</span> <span class="n">test_func</span><span class="o">.</span><span class="n">_post_teardown</span>
+            <span class="k">def</span> <span class="nf">_pre_setup</span><span class="p">(</span><span class="n">innerself</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">enable</span><span class="p">()</span>
+                <span class="n">original_pre_setup</span><span class="p">(</span><span class="n">innerself</span><span class="p">)</span>
+            <span class="k">def</span> <span class="nf">_post_teardown</span><span class="p">(</span><span class="n">innerself</span><span class="p">):</span>
+                <span class="n">original_post_teardown</span><span class="p">(</span><span class="n">innerself</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">disable</span><span class="p">()</span>
+            <span class="n">test_func</span><span class="o">.</span><span class="n">_pre_setup</span> <span class="o">=</span> <span class="n">_pre_setup</span>
+            <span class="n">test_func</span><span class="o">.</span><span class="n">_post_teardown</span> <span class="o">=</span> <span class="n">_post_teardown</span>
+            <span class="k">return</span> <span class="n">test_func</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="nd">@wraps</span><span class="p">(</span><span class="n">test_func</span><span class="p">)</span>
+            <span class="k">def</span> <span class="nf">inner</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+                <span class="k">with</span> <span class="bp">self</span><span class="p">:</span>
+                    <span class="k">return</span> <span class="n">test_func</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">inner</span>
+
+    <span class="k">def</span> <span class="nf">enable</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">override</span> <span class="o">=</span> <span class="n">UserSettingsHolder</span><span class="p">(</span><span class="n">settings</span><span class="o">.</span><span class="n">_wrapped</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">new_value</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">options</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="nb">setattr</span><span class="p">(</span><span class="n">override</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">new_value</span><span class="p">)</span>
+        <span class="n">settings</span><span class="o">.</span><span class="n">_wrapped</span> <span class="o">=</span> <span class="n">override</span>
+        <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">new_value</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">options</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">setting_changed</span><span class="o">.</span><span class="n">send</span><span class="p">(</span><span class="n">sender</span><span class="o">=</span><span class="n">settings</span><span class="o">.</span><span class="n">_wrapped</span><span class="o">.</span><span class="n">__class__</span><span class="p">,</span>
+                                 <span class="n">setting</span><span class="o">=</span><span class="n">key</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="n">new_value</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">disable</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">settings</span><span class="o">.</span><span class="n">_wrapped</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">wrapped</span>
+        <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">options</span><span class="p">:</span>
+            <span class="n">new_value</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">settings</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="bp">None</span><span class="p">)</span>
+            <span class="n">setting_changed</span><span class="o">.</span><span class="n">send</span><span class="p">(</span><span class="n">sender</span><span class="o">=</span><span class="n">settings</span><span class="o">.</span><span class="n">_wrapped</span><span class="o">.</span><span class="n">__class__</span><span class="p">,</span>
+                                 <span class="n">setting</span><span class="o">=</span><span class="n">key</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="n">new_value</span><span class="p">)</span>
+</pre></div></div>
 
       </div>
       <div class="bottomnav">
@@ -229,7 +283,7 @@
 
     <div class="footer">
         &copy; Copyright 2012, HDKNR.COM.
-      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.2pre/660be19d7963.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.2pre/3c28de26aac2.
     </div>
   </body>
 </html>

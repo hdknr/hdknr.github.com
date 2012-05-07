@@ -28,7 +28,7 @@
     <script type="text/javascript" src="../../../../static/doctools.js"></script>
     <script type="text/javascript" src="../../../../static/theme_extras.js"></script>
     <link rel="top" title="Django Cheat 1 documentation" href="../../../../index.html" />
-    <link rel="up" title="Module code" href="../../../index.html" /> 
+    <link rel="up" title="django" href="../../../django.html" /> 
   </head>
   <body>
       <div class="header"><h1 class="heading"><a href="../../../../index.html">
@@ -47,14 +47,12 @@
         
         
   <h1>Source code for django.core.handlers.wsgi</h1><div class="highlight"><pre>
-<span class="kn">from</span> <span class="nn">pprint</span> <span class="kn">import</span> <span class="n">pformat</span>
 <span class="kn">import</span> <span class="nn">sys</span>
 <span class="kn">from</span> <span class="nn">threading</span> <span class="kn">import</span> <span class="n">Lock</span>
 <span class="k">try</span><span class="p">:</span>
     <span class="kn">from</span> <span class="nn">cStringIO</span> <span class="kn">import</span> <span class="n">StringIO</span>
 <span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
     <span class="kn">from</span> <span class="nn">StringIO</span> <span class="kn">import</span> <span class="n">StringIO</span>
-<span class="kn">import</span> <span class="nn">socket</span>
 
 <span class="kn">from</span> <span class="nn">django</span> <span class="kn">import</span> <span class="n">http</span>
 <span class="kn">from</span> <span class="nn">django.core</span> <span class="kn">import</span> <span class="n">signals</span>
@@ -67,10 +65,11 @@
 <span class="n">logger</span> <span class="o">=</span> <span class="n">getLogger</span><span class="p">(</span><span class="s">&#39;django.request&#39;</span><span class="p">)</span>
 
 
-<span class="c"># See http://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html</span>
+<span class="c"># See http://www.iana.org/assignments/http-status-codes</span>
 <span class="n">STATUS_CODE_TEXT</span> <span class="o">=</span> <span class="p">{</span>
     <span class="mi">100</span><span class="p">:</span> <span class="s">&#39;CONTINUE&#39;</span><span class="p">,</span>
     <span class="mi">101</span><span class="p">:</span> <span class="s">&#39;SWITCHING PROTOCOLS&#39;</span><span class="p">,</span>
+    <span class="mi">102</span><span class="p">:</span> <span class="s">&#39;PROCESSING&#39;</span><span class="p">,</span>
     <span class="mi">200</span><span class="p">:</span> <span class="s">&#39;OK&#39;</span><span class="p">,</span>
     <span class="mi">201</span><span class="p">:</span> <span class="s">&#39;CREATED&#39;</span><span class="p">,</span>
     <span class="mi">202</span><span class="p">:</span> <span class="s">&#39;ACCEPTED&#39;</span><span class="p">,</span>
@@ -78,6 +77,9 @@
     <span class="mi">204</span><span class="p">:</span> <span class="s">&#39;NO CONTENT&#39;</span><span class="p">,</span>
     <span class="mi">205</span><span class="p">:</span> <span class="s">&#39;RESET CONTENT&#39;</span><span class="p">,</span>
     <span class="mi">206</span><span class="p">:</span> <span class="s">&#39;PARTIAL CONTENT&#39;</span><span class="p">,</span>
+    <span class="mi">207</span><span class="p">:</span> <span class="s">&#39;MULTI-STATUS&#39;</span><span class="p">,</span>
+    <span class="mi">208</span><span class="p">:</span> <span class="s">&#39;ALREADY REPORTED&#39;</span><span class="p">,</span>
+    <span class="mi">226</span><span class="p">:</span> <span class="s">&#39;IM USED&#39;</span><span class="p">,</span>
     <span class="mi">300</span><span class="p">:</span> <span class="s">&#39;MULTIPLE CHOICES&#39;</span><span class="p">,</span>
     <span class="mi">301</span><span class="p">:</span> <span class="s">&#39;MOVED PERMANENTLY&#39;</span><span class="p">,</span>
     <span class="mi">302</span><span class="p">:</span> <span class="s">&#39;FOUND&#39;</span><span class="p">,</span>
@@ -104,12 +106,20 @@
     <span class="mi">415</span><span class="p">:</span> <span class="s">&#39;UNSUPPORTED MEDIA TYPE&#39;</span><span class="p">,</span>
     <span class="mi">416</span><span class="p">:</span> <span class="s">&#39;REQUESTED RANGE NOT SATISFIABLE&#39;</span><span class="p">,</span>
     <span class="mi">417</span><span class="p">:</span> <span class="s">&#39;EXPECTATION FAILED&#39;</span><span class="p">,</span>
+    <span class="mi">422</span><span class="p">:</span> <span class="s">&#39;UNPROCESSABLE ENTITY&#39;</span><span class="p">,</span>
+    <span class="mi">423</span><span class="p">:</span> <span class="s">&#39;LOCKED&#39;</span><span class="p">,</span>
+    <span class="mi">424</span><span class="p">:</span> <span class="s">&#39;FAILED DEPENDENCY&#39;</span><span class="p">,</span>
+    <span class="mi">426</span><span class="p">:</span> <span class="s">&#39;UPGRADE REQUIRED&#39;</span><span class="p">,</span>
     <span class="mi">500</span><span class="p">:</span> <span class="s">&#39;INTERNAL SERVER ERROR&#39;</span><span class="p">,</span>
     <span class="mi">501</span><span class="p">:</span> <span class="s">&#39;NOT IMPLEMENTED&#39;</span><span class="p">,</span>
     <span class="mi">502</span><span class="p">:</span> <span class="s">&#39;BAD GATEWAY&#39;</span><span class="p">,</span>
     <span class="mi">503</span><span class="p">:</span> <span class="s">&#39;SERVICE UNAVAILABLE&#39;</span><span class="p">,</span>
     <span class="mi">504</span><span class="p">:</span> <span class="s">&#39;GATEWAY TIMEOUT&#39;</span><span class="p">,</span>
     <span class="mi">505</span><span class="p">:</span> <span class="s">&#39;HTTP VERSION NOT SUPPORTED&#39;</span><span class="p">,</span>
+    <span class="mi">506</span><span class="p">:</span> <span class="s">&#39;VARIANT ALSO NEGOTIATES&#39;</span><span class="p">,</span>
+    <span class="mi">507</span><span class="p">:</span> <span class="s">&#39;INSUFFICIENT STORAGE&#39;</span><span class="p">,</span>
+    <span class="mi">508</span><span class="p">:</span> <span class="s">&#39;LOOP DETECTED&#39;</span><span class="p">,</span>
+    <span class="mi">510</span><span class="p">:</span> <span class="s">&#39;NOT EXTENDED&#39;</span><span class="p">,</span>
 <span class="p">}</span>
 
 <div class="viewcode-block" id="LimitedStream"><a class="viewcode-back" href="../../../../django.core.handlers.html#django.core.handlers.wsgi.LimitedStream">[docs]</a><span class="k">class</span> <span class="nc">LimitedStream</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
@@ -162,6 +172,7 @@
             <span class="n">line</span> <span class="o">=</span> <span class="n">sio</span><span class="o">.</span><span class="n">readline</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">buffer</span> <span class="o">=</span> <span class="n">sio</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
         <span class="k">return</span> <span class="n">line</span>
+
 </div>
 <span class="k">class</span> <span class="nc">WSGIRequest</span><span class="p">(</span><span class="n">http</span><span class="o">.</span><span class="n">HttpRequest</span><span class="p">):</span>
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">environ</span><span class="p">):</span>
@@ -174,7 +185,7 @@
             <span class="c"># the path like this, but should be harmless.</span>
             <span class="c">#</span>
             <span class="c"># (The comparison of path_info to script_name is to work around an</span>
-            <span class="c"># apparent bug in flup 1.0.1. Se Django ticket #8490).</span>
+            <span class="c"># apparent bug in flup 1.0.1. See Django ticket #8490).</span>
             <span class="n">path_info</span> <span class="o">=</span> <span class="s">u&#39;/&#39;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">environ</span> <span class="o">=</span> <span class="n">environ</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">path_info</span> <span class="o">=</span> <span class="n">path_info</span>
@@ -184,61 +195,20 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">META</span><span class="p">[</span><span class="s">&#39;SCRIPT_NAME&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">script_name</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">method</span> <span class="o">=</span> <span class="n">environ</span><span class="p">[</span><span class="s">&#39;REQUEST_METHOD&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">upper</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_post_parse_error</span> <span class="o">=</span> <span class="bp">False</span>
-        <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">socket</span><span class="o">.</span><span class="n">_fileobject</span><span class="p">)</span> <span class="ow">is</span> <span class="nb">type</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s">&#39;wsgi.input&#39;</span><span class="p">],</span> <span class="n">socket</span><span class="o">.</span><span class="n">_fileobject</span><span class="p">):</span>
-            <span class="c"># Under development server &#39;wsgi.input&#39; is an instance of</span>
-            <span class="c"># socket._fileobject which hangs indefinitely on reading bytes past</span>
-            <span class="c"># available count. To prevent this it&#39;s wrapped in LimitedStream</span>
-            <span class="c"># that doesn&#39;t read past Content-Length bytes.</span>
-            <span class="c">#</span>
-            <span class="c"># This is not done for other kinds of inputs (like flup&#39;s FastCGI</span>
-            <span class="c"># streams) beacuse they don&#39;t suffer from this problem and we can</span>
-            <span class="c"># avoid using another wrapper with its own .read and .readline</span>
-            <span class="c"># implementation.</span>
-            <span class="c">#</span>
-            <span class="c"># The type check is done because for some reason, AppEngine</span>
-            <span class="c"># implements _fileobject as a function, not a class.</span>
-            <span class="k">try</span><span class="p">:</span>
-                <span class="n">content_length</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;CONTENT_LENGTH&#39;</span><span class="p">,</span> <span class="mi">0</span><span class="p">))</span>
-            <span class="k">except</span> <span class="p">(</span><span class="ne">ValueError</span><span class="p">,</span> <span class="ne">TypeError</span><span class="p">):</span>
-                <span class="n">content_length</span> <span class="o">=</span> <span class="mi">0</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_stream</span> <span class="o">=</span> <span class="n">LimitedStream</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s">&#39;wsgi.input&#39;</span><span class="p">],</span> <span class="n">content_length</span><span class="p">)</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_stream</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s">&#39;wsgi.input&#39;</span><span class="p">]</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">content_length</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;CONTENT_LENGTH&#39;</span><span class="p">))</span>
+        <span class="k">except</span> <span class="p">(</span><span class="ne">ValueError</span><span class="p">,</span> <span class="ne">TypeError</span><span class="p">):</span>
+            <span class="n">content_length</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_stream</span> <span class="o">=</span> <span class="n">LimitedStream</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s">&#39;wsgi.input&#39;</span><span class="p">],</span> <span class="n">content_length</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_read_started</span> <span class="o">=</span> <span class="bp">False</span>
-
-    <span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="c"># Since this is called as part of error handling, we need to be very</span>
-        <span class="c"># robust against potentially malformed input.</span>
-        <span class="k">try</span><span class="p">:</span>
-            <span class="n">get</span> <span class="o">=</span> <span class="n">pformat</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">GET</span><span class="p">)</span>
-        <span class="k">except</span><span class="p">:</span>
-            <span class="n">get</span> <span class="o">=</span> <span class="s">&#39;&lt;could not parse&gt;&#39;</span>
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_post_parse_error</span><span class="p">:</span>
-            <span class="n">post</span> <span class="o">=</span> <span class="s">&#39;&lt;could not parse&gt;&#39;</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="k">try</span><span class="p">:</span>
-                <span class="n">post</span> <span class="o">=</span> <span class="n">pformat</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">POST</span><span class="p">)</span>
-            <span class="k">except</span><span class="p">:</span>
-                <span class="n">post</span> <span class="o">=</span> <span class="s">&#39;&lt;could not parse&gt;&#39;</span>
-        <span class="k">try</span><span class="p">:</span>
-            <span class="n">cookies</span> <span class="o">=</span> <span class="n">pformat</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">COOKIES</span><span class="p">)</span>
-        <span class="k">except</span><span class="p">:</span>
-            <span class="n">cookies</span> <span class="o">=</span> <span class="s">&#39;&lt;could not parse&gt;&#39;</span>
-        <span class="k">try</span><span class="p">:</span>
-            <span class="n">meta</span> <span class="o">=</span> <span class="n">pformat</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">META</span><span class="p">)</span>
-        <span class="k">except</span><span class="p">:</span>
-            <span class="n">meta</span> <span class="o">=</span> <span class="s">&#39;&lt;could not parse&gt;&#39;</span>
-        <span class="k">return</span> <span class="s">&#39;&lt;WSGIRequest</span><span class="se">\n</span><span class="s">GET:</span><span class="si">%s</span><span class="s">,</span><span class="se">\n</span><span class="s">POST:</span><span class="si">%s</span><span class="s">,</span><span class="se">\n</span><span class="s">COOKIES:</span><span class="si">%s</span><span class="s">,</span><span class="se">\n</span><span class="s">META:</span><span class="si">%s</span><span class="s">&gt;&#39;</span> <span class="o">%</span> \
-            <span class="p">(</span><span class="n">get</span><span class="p">,</span> <span class="n">post</span><span class="p">,</span> <span class="n">cookies</span><span class="p">,</span> <span class="n">meta</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">get_full_path</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="c"># RFC 3986 requires query string arguments to be in the ASCII range.</span>
         <span class="c"># Rather than crash if this doesn&#39;t happen, we encode defensively.</span>
         <span class="k">return</span> <span class="s">&#39;</span><span class="si">%s%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">path</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;QUERY_STRING&#39;</span><span class="p">,</span> <span class="s">&#39;&#39;</span><span class="p">)</span> <span class="ow">and</span> <span class="p">(</span><span class="s">&#39;?&#39;</span> <span class="o">+</span> <span class="n">iri_to_uri</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;QUERY_STRING&#39;</span><span class="p">,</span> <span class="s">&#39;&#39;</span><span class="p">)))</span> <span class="ow">or</span> <span class="s">&#39;&#39;</span><span class="p">)</span>
 
-    <span class="k">def</span> <span class="nf">is_secure</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="k">return</span> <span class="s">&#39;wsgi.url_scheme&#39;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">environ</span> \
-            <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s">&#39;wsgi.url_scheme&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="s">&#39;https&#39;</span>
+    <span class="k">def</span> <span class="nf">_is_secure</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="s">&#39;wsgi.url_scheme&#39;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">environ</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s">&#39;wsgi.url_scheme&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="s">&#39;https&#39;</span>
 
     <span class="k">def</span> <span class="nf">_get_request</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s">&#39;_request&#39;</span><span class="p">):</span>
@@ -281,13 +251,12 @@
     <span class="n">FILES</span> <span class="o">=</span> <span class="nb">property</span><span class="p">(</span><span class="n">_get_files</span><span class="p">)</span>
     <span class="n">REQUEST</span> <span class="o">=</span> <span class="nb">property</span><span class="p">(</span><span class="n">_get_request</span><span class="p">)</span>
 
+
 <span class="k">class</span> <span class="nc">WSGIHandler</span><span class="p">(</span><span class="n">base</span><span class="o">.</span><span class="n">BaseHandler</span><span class="p">):</span>
     <span class="n">initLock</span> <span class="o">=</span> <span class="n">Lock</span><span class="p">()</span>
     <span class="n">request_class</span> <span class="o">=</span> <span class="n">WSGIRequest</span>
 
     <span class="k">def</span> <span class="nf">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">environ</span><span class="p">,</span> <span class="n">start_response</span><span class="p">):</span>
-        <span class="kn">from</span> <span class="nn">django.conf</span> <span class="kn">import</span> <span class="n">settings</span>
-
         <span class="c"># Set up middleware if needed. We couldn&#39;t do this earlier, because</span>
         <span class="c"># settings weren&#39;t available.</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_request_middleware</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
@@ -346,7 +315,7 @@
 
     <div class="footer">
         &copy; Copyright 2012, HDKNR.COM.
-      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.2pre/660be19d7963.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.2pre/3c28de26aac2.
     </div>
   </body>
 </html>

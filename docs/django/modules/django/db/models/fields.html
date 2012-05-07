@@ -47,32 +47,32 @@
         
         
   <h1>Source code for django.db.models.fields</h1><div class="highlight"><pre>
+<span class="kn">import</span> <span class="nn">copy</span>
 <span class="kn">import</span> <span class="nn">datetime</span>
 <span class="kn">import</span> <span class="nn">decimal</span>
-<span class="kn">import</span> <span class="nn">re</span>
-<span class="kn">import</span> <span class="nn">time</span>
 <span class="kn">import</span> <span class="nn">math</span>
+<span class="kn">import</span> <span class="nn">warnings</span>
 <span class="kn">from</span> <span class="nn">itertools</span> <span class="kn">import</span> <span class="n">tee</span>
 
-<span class="kn">import</span> <span class="nn">django.utils.copycompat</span> <span class="kn">as</span> <span class="nn">copy</span>
-
 <span class="kn">from</span> <span class="nn">django.db</span> <span class="kn">import</span> <span class="n">connection</span>
-<span class="kn">from</span> <span class="nn">django.db.models.fields.subclassing</span> <span class="kn">import</span> <span class="n">LegacyConnection</span>
 <span class="kn">from</span> <span class="nn">django.db.models.query_utils</span> <span class="kn">import</span> <span class="n">QueryWrapper</span>
 <span class="kn">from</span> <span class="nn">django.conf</span> <span class="kn">import</span> <span class="n">settings</span>
 <span class="kn">from</span> <span class="nn">django</span> <span class="kn">import</span> <span class="n">forms</span>
 <span class="kn">from</span> <span class="nn">django.core</span> <span class="kn">import</span> <span class="n">exceptions</span><span class="p">,</span> <span class="n">validators</span>
 <span class="kn">from</span> <span class="nn">django.utils.datastructures</span> <span class="kn">import</span> <span class="n">DictWrapper</span>
+<span class="kn">from</span> <span class="nn">django.utils.dateparse</span> <span class="kn">import</span> <span class="n">parse_date</span><span class="p">,</span> <span class="n">parse_datetime</span><span class="p">,</span> <span class="n">parse_time</span>
 <span class="kn">from</span> <span class="nn">django.utils.functional</span> <span class="kn">import</span> <span class="n">curry</span>
 <span class="kn">from</span> <span class="nn">django.utils.text</span> <span class="kn">import</span> <span class="n">capfirst</span>
+<span class="kn">from</span> <span class="nn">django.utils</span> <span class="kn">import</span> <span class="n">timezone</span>
 <span class="kn">from</span> <span class="nn">django.utils.translation</span> <span class="kn">import</span> <span class="n">ugettext_lazy</span> <span class="k">as</span> <span class="n">_</span>
 <span class="kn">from</span> <span class="nn">django.utils.encoding</span> <span class="kn">import</span> <span class="n">smart_unicode</span><span class="p">,</span> <span class="n">force_unicode</span><span class="p">,</span> <span class="n">smart_str</span>
-<span class="kn">from</span> <span class="nn">django.utils</span> <span class="kn">import</span> <span class="n">datetime_safe</span>
+<span class="kn">from</span> <span class="nn">django.utils.ipv6</span> <span class="kn">import</span> <span class="n">clean_ipv6_address</span>
 
 <span class="k">class</span> <span class="nc">NOT_PROVIDED</span><span class="p">:</span>
     <span class="k">pass</span>
 
-<span class="c"># The values to use for &quot;blank&quot; in SelectFields. Will be appended to the start of most &quot;choices&quot; lists.</span>
+<span class="c"># The values to use for &quot;blank&quot; in SelectFields. Will be appended to the start</span>
+<span class="c"># of most &quot;choices&quot; lists.</span>
 <span class="n">BLANK_CHOICE_DASH</span> <span class="o">=</span> <span class="p">[(</span><span class="s">&quot;&quot;</span><span class="p">,</span> <span class="s">&quot;---------&quot;</span><span class="p">)]</span>
 <span class="n">BLANK_CHOICE_NONE</span> <span class="o">=</span> <span class="p">[(</span><span class="s">&quot;&quot;</span><span class="p">,</span> <span class="s">&quot;None&quot;</span><span class="p">)]</span>
 
@@ -96,7 +96,6 @@
 
 <div class="viewcode-block" id="Field"><a class="viewcode-back" href="../../../../django.db.models.fields.html#django.db.models.fields.Field">[docs]</a><span class="k">class</span> <span class="nc">Field</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;Base class for all field types&quot;&quot;&quot;</span>
-    <span class="n">__metaclass__</span> <span class="o">=</span> <span class="n">LegacyConnection</span>
 
     <span class="c"># Designates whether empty strings fundamentally are allowed at the</span>
     <span class="c"># database level.</span>
@@ -112,6 +111,8 @@
         <span class="s">&#39;invalid_choice&#39;</span><span class="p">:</span> <span class="n">_</span><span class="p">(</span><span class="s">u&#39;Value </span><span class="si">%r</span><span class="s"> is not a valid choice.&#39;</span><span class="p">),</span>
         <span class="s">&#39;null&#39;</span><span class="p">:</span> <span class="n">_</span><span class="p">(</span><span class="s">u&#39;This field cannot be null.&#39;</span><span class="p">),</span>
         <span class="s">&#39;blank&#39;</span><span class="p">:</span> <span class="n">_</span><span class="p">(</span><span class="s">u&#39;This field cannot be blank.&#39;</span><span class="p">),</span>
+        <span class="s">&#39;unique&#39;</span><span class="p">:</span> <span class="n">_</span><span class="p">(</span><span class="s">u&#39;</span><span class="si">%(model_name)s</span><span class="s"> with this </span><span class="si">%(field_label)s</span><span class="s"> &#39;</span>
+                    <span class="s">u&#39;already exists.&#39;</span><span class="p">),</span>
     <span class="p">}</span>
 
     <span class="c"># Generic field type description, usually overriden by subclasses</span>
@@ -135,13 +136,15 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">blank</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">null</span> <span class="o">=</span> <span class="n">blank</span><span class="p">,</span> <span class="n">null</span>
         <span class="c"># Oracle treats the empty string (&#39;&#39;) as null, so coerce the null</span>
         <span class="c"># option whenever &#39;&#39; is a possible value.</span>
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">empty_strings_allowed</span> <span class="ow">and</span> <span class="n">connection</span><span class="o">.</span><span class="n">features</span><span class="o">.</span><span class="n">interprets_empty_strings_as_nulls</span><span class="p">:</span>
+        <span class="k">if</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">empty_strings_allowed</span> <span class="ow">and</span>
+            <span class="n">connection</span><span class="o">.</span><span class="n">features</span><span class="o">.</span><span class="n">interprets_empty_strings_as_nulls</span><span class="p">):</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">null</span> <span class="o">=</span> <span class="bp">True</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">rel</span> <span class="o">=</span> <span class="n">rel</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">default</span> <span class="o">=</span> <span class="n">default</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">editable</span> <span class="o">=</span> <span class="n">editable</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">serialize</span> <span class="o">=</span> <span class="n">serialize</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">unique_for_date</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">unique_for_month</span> <span class="o">=</span> <span class="n">unique_for_date</span><span class="p">,</span> <span class="n">unique_for_month</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">unique_for_date</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">unique_for_month</span> <span class="o">=</span> <span class="p">(</span><span class="n">unique_for_date</span><span class="p">,</span>
+                                                       <span class="n">unique_for_month</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">unique_for_year</span> <span class="o">=</span> <span class="n">unique_for_year</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_choices</span> <span class="o">=</span> <span class="n">choices</span> <span class="ow">or</span> <span class="p">[]</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">help_text</span> <span class="o">=</span> <span class="n">help_text</span>
@@ -149,7 +152,8 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">db_tablespace</span> <span class="o">=</span> <span class="n">db_tablespace</span> <span class="ow">or</span> <span class="n">settings</span><span class="o">.</span><span class="n">DEFAULT_INDEX_TABLESPACE</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">auto_created</span> <span class="o">=</span> <span class="n">auto_created</span>
 
-        <span class="c"># Set db_index to True if the field has a relationship and doesn&#39;t explicitly set db_index.</span>
+        <span class="c"># Set db_index to True if the field has a relationship and doesn&#39;t</span>
+        <span class="c"># explicitly set db_index.</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">db_index</span> <span class="o">=</span> <span class="n">db_index</span>
 
         <span class="c"># Adjust the appropriate creation counter, and save our local copy.</span>
@@ -219,13 +223,15 @@
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_choices</span> <span class="ow">and</span> <span class="n">value</span><span class="p">:</span>
             <span class="k">for</span> <span class="n">option_key</span><span class="p">,</span> <span class="n">option_value</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">choices</span><span class="p">:</span>
                 <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">option_value</span><span class="p">,</span> <span class="p">(</span><span class="nb">list</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">)):</span>
-                    <span class="c"># This is an optgroup, so look inside the group for options.</span>
+                    <span class="c"># This is an optgroup, so look inside the group for</span>
+                    <span class="c"># options.</span>
                     <span class="k">for</span> <span class="n">optgroup_key</span><span class="p">,</span> <span class="n">optgroup_value</span> <span class="ow">in</span> <span class="n">option_value</span><span class="p">:</span>
                         <span class="k">if</span> <span class="n">value</span> <span class="o">==</span> <span class="n">optgroup_key</span><span class="p">:</span>
                             <span class="k">return</span>
                 <span class="k">elif</span> <span class="n">value</span> <span class="o">==</span> <span class="n">option_key</span><span class="p">:</span>
                     <span class="k">return</span>
-            <span class="k">raise</span> <span class="n">exceptions</span><span class="o">.</span><span class="n">ValidationError</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">error_messages</span><span class="p">[</span><span class="s">&#39;invalid_choice&#39;</span><span class="p">]</span> <span class="o">%</span> <span class="n">value</span><span class="p">)</span>
+            <span class="n">msg</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">error_messages</span><span class="p">[</span><span class="s">&#39;invalid_choice&#39;</span><span class="p">]</span> <span class="o">%</span> <span class="n">value</span>
+            <span class="k">raise</span> <span class="n">exceptions</span><span class="o">.</span><span class="n">ValidationError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="n">value</span> <span class="ow">is</span> <span class="bp">None</span> <span class="ow">and</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">null</span><span class="p">:</span>
             <span class="k">raise</span> <span class="n">exceptions</span><span class="o">.</span><span class="n">ValidationError</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">error_messages</span><span class="p">[</span><span class="s">&#39;null&#39;</span><span class="p">])</span>
@@ -235,16 +241,16 @@
 </div>
 <div class="viewcode-block" id="Field.clean"><a class="viewcode-back" href="../../../../django.db.models.fields.html#django.db.models.fields.Field.clean">[docs]</a>    <span class="k">def</span> <span class="nf">clean</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">model_instance</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Convert the value&#39;s type and run validation. Validation errors from to_python</span>
-<span class="sd">        and validate are propagated. The correct value is returned if no error is</span>
-<span class="sd">        raised.</span>
+<span class="sd">        Convert the value&#39;s type and run validation. Validation errors</span>
+<span class="sd">        from to_python and validate are propagated. The correct value is</span>
+<span class="sd">        returned if no error is raised.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">value</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">to_python</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">validate</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">model_instance</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">run_validators</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">value</span>
 </div>
-    <span class="k">def</span> <span class="nf">db_type</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">connection</span><span class="p">):</span>
+<div class="viewcode-block" id="Field.db_type"><a class="viewcode-back" href="../../../../django.db.models.fields.html#django.db.models.fields.Field.db_type">[docs]</a>    <span class="k">def</span> <span class="nf">db_type</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">connection</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Returns the database column data type for this field, for the provided</span>
 <span class="sd">        connection.</span>
@@ -255,9 +261,9 @@
         <span class="c">#</span>
         <span class="c"># A Field class can implement the get_internal_type() method to specify</span>
         <span class="c"># which *preexisting* Django Field class it&#39;s most similar to -- i.e.,</span>
-        <span class="c"># a custom field might be represented by a TEXT column type, which is the</span>
-        <span class="c"># same as the TextField Django field type, which means the custom field&#39;s</span>
-        <span class="c"># get_internal_type() returns &#39;TextField&#39;.</span>
+        <span class="c"># a custom field might be represented by a TEXT column type, which is</span>
+        <span class="c"># the same as the TextField Django field type, which means the custom</span>
+        <span class="c"># field&#39;s get_internal_type() returns &#39;TextField&#39;.</span>
         <span class="c">#</span>
         <span class="c"># But the limitation of the get_internal_type() / data_types approach</span>
         <span class="c"># is that it cannot handle database column types that aren&#39;t already</span>
@@ -266,26 +272,29 @@
         <span class="c"># exactly which wacky database column type you want to use.</span>
         <span class="n">data</span> <span class="o">=</span> <span class="n">DictWrapper</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__dict__</span><span class="p">,</span> <span class="n">connection</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">quote_name</span><span class="p">,</span> <span class="s">&quot;qn_&quot;</span><span class="p">)</span>
         <span class="k">try</span><span class="p">:</span>
-            <span class="k">return</span> <span class="n">connection</span><span class="o">.</span><span class="n">creation</span><span class="o">.</span><span class="n">data_types</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">get_internal_type</span><span class="p">()]</span> <span class="o">%</span> <span class="n">data</span>
+            <span class="k">return</span> <span class="p">(</span><span class="n">connection</span><span class="o">.</span><span class="n">creation</span><span class="o">.</span><span class="n">data_types</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">get_internal_type</span><span class="p">()]</span>
+                    <span class="o">%</span> <span class="n">data</span><span class="p">)</span>
         <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
             <span class="k">return</span> <span class="bp">None</span>
-
+</div>
+    <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">unique</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_unique</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">primary_key</span>
-    <span class="n">unique</span> <span class="o">=</span> <span class="nb">property</span><span class="p">(</span><span class="n">unique</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">set_attributes_from_name</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">name</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">name</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">attname</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">column</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_attname_column</span><span class="p">()</span>
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">verbose_name</span> <span class="ow">is</span> <span class="bp">None</span> <span class="ow">and</span> <span class="n">name</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">verbose_name</span> <span class="o">=</span> <span class="n">name</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s">&#39;_&#39;</span><span class="p">,</span> <span class="s">&#39; &#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">verbose_name</span> <span class="ow">is</span> <span class="bp">None</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">verbose_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s">&#39;_&#39;</span><span class="p">,</span> <span class="s">&#39; &#39;</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">contribute_to_class</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cls</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">set_attributes_from_name</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">model</span> <span class="o">=</span> <span class="n">cls</span>
         <span class="n">cls</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">add_field</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">choices</span><span class="p">:</span>
-            <span class="nb">setattr</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="s">&#39;get_</span><span class="si">%s</span><span class="s">_display&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">curry</span><span class="p">(</span><span class="n">cls</span><span class="o">.</span><span class="n">_get_FIELD_display</span><span class="p">,</span> <span class="n">field</span><span class="o">=</span><span class="bp">self</span><span class="p">))</span>
+            <span class="nb">setattr</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="s">&#39;get_</span><span class="si">%s</span><span class="s">_display&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+                    <span class="n">curry</span><span class="p">(</span><span class="n">cls</span><span class="o">.</span><span class="n">_get_FIELD_display</span><span class="p">,</span> <span class="n">field</span><span class="o">=</span><span class="bp">self</span><span class="p">))</span>
 
     <span class="k">def</span> <span class="nf">get_attname</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span>
@@ -302,14 +311,18 @@
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="o">.</span><span class="n">__name__</span>
 
 <div class="viewcode-block" id="Field.pre_save"><a class="viewcode-back" href="../../../../django.db.models.fields.html#django.db.models.fields.Field.pre_save">[docs]</a>    <span class="k">def</span> <span class="nf">pre_save</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">model_instance</span><span class="p">,</span> <span class="n">add</span><span class="p">):</span>
-        <span class="s">&quot;Returns field&#39;s value just before saving.&quot;</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns field&#39;s value just before saving.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">model_instance</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">attname</span><span class="p">)</span>
 </div>
 <div class="viewcode-block" id="Field.get_prep_value"><a class="viewcode-back" href="../../../../django.db.models.fields.html#django.db.models.fields.Field.get_prep_value">[docs]</a>    <span class="k">def</span> <span class="nf">get_prep_value</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
-        <span class="s">&quot;Perform preliminary non-db specific value checks and conversions.&quot;</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Perform preliminary non-db specific value checks and conversions.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="n">value</span>
 </div>
-    <span class="k">def</span> <span class="nf">get_db_prep_value</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">connection</span><span class="p">,</span> <span class="n">prepared</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+<div class="viewcode-block" id="Field.get_db_prep_value"><a class="viewcode-back" href="../../../../django.db.models.fields.html#django.db.models.fields.Field.get_db_prep_value">[docs]</a>    <span class="k">def</span> <span class="nf">get_db_prep_value</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">connection</span><span class="p">,</span> <span class="n">prepared</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Returns field&#39;s value prepared for interacting with the database</span>
 <span class="sd">        backend.</span>
 
@@ -319,13 +332,18 @@
         <span class="k">if</span> <span class="ow">not</span> <span class="n">prepared</span><span class="p">:</span>
             <span class="n">value</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_prep_value</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">value</span>
-
-    <span class="k">def</span> <span class="nf">get_db_prep_save</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">connection</span><span class="p">):</span>
-        <span class="s">&quot;Returns field&#39;s value prepared for saving into a database.&quot;</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_db_prep_value</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">connection</span><span class="o">=</span><span class="n">connection</span><span class="p">,</span> <span class="n">prepared</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span>
-
+</div>
+<div class="viewcode-block" id="Field.get_db_prep_save"><a class="viewcode-back" href="../../../../django.db.models.fields.html#django.db.models.fields.Field.get_db_prep_save">[docs]</a>    <span class="k">def</span> <span class="nf">get_db_prep_save</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">connection</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns field&#39;s value prepared for saving into a database.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_db_prep_value</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">connection</span><span class="o">=</span><span class="n">connection</span><span class="p">,</span>
+                                      <span class="n">prepared</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span>
+</div>
 <div class="viewcode-block" id="Field.get_prep_lookup"><a class="viewcode-back" href="../../../../django.db.models.fields.html#django.db.models.fields.Field.get_prep_lookup">[docs]</a>    <span class="k">def</span> <span class="nf">get_prep_lookup</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">lookup_type</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
-        <span class="s">&quot;Perform preliminary non-db specific lookup checks and conversions&quot;</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Perform preliminary non-db specific lookup checks and conversions</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="s">&#39;prepare&#39;</span><span class="p">):</span>
             <span class="k">return</span> <span class="n">value</span><span class="o">.</span><span class="n">prepare</span><span class="p">()</span>
         <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="s">&#39;_prepare&#39;</span><span class="p">):</span>
@@ -345,12 +363,16 @@
             <span class="k">try</span><span class="p">:</span>
                 <span class="k">return</span> <span class="nb">int</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
             <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
-                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s">&quot;The __year lookup type requires an integer argument&quot;</span><span class="p">)</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s">&quot;The __year lookup type requires an integer &quot;</span>
+                                 <span class="s">&quot;argument&quot;</span><span class="p">)</span>
 
         <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s">&quot;Field has invalid lookup: </span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">lookup_type</span><span class="p">)</span>
 </div>
-    <span class="k">def</span> <span class="nf">get_db_prep_lookup</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">lookup_type</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">connection</span><span class="p">,</span> <span class="n">prepared</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
-        <span class="s">&quot;Returns field&#39;s value prepared for database lookup.&quot;</span>
+<div class="viewcode-block" id="Field.get_db_prep_lookup"><a class="viewcode-back" href="../../../../django.db.models.fields.html#django.db.models.fields.Field.get_db_prep_lookup">[docs]</a>    <span class="k">def</span> <span class="nf">get_db_prep_lookup</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">lookup_type</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">connection</span><span class="p">,</span>
+                           <span class="n">prepared</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns field&#39;s value prepared for database lookup.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="n">prepared</span><span class="p">:</span>
             <span class="n">value</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_prep_lookup</span><span class="p">(</span><span class="n">lookup_type</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
         <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="s">&#39;get_compiler&#39;</span><span class="p">):</span>
@@ -366,12 +388,15 @@
                 <span class="n">sql</span><span class="p">,</span> <span class="n">params</span> <span class="o">=</span> <span class="n">value</span><span class="o">.</span><span class="n">_as_sql</span><span class="p">(</span><span class="n">connection</span><span class="o">=</span><span class="n">connection</span><span class="p">)</span>
             <span class="k">return</span> <span class="n">QueryWrapper</span><span class="p">((</span><span class="s">&#39;(</span><span class="si">%s</span><span class="s">)&#39;</span> <span class="o">%</span> <span class="n">sql</span><span class="p">),</span> <span class="n">params</span><span class="p">)</span>
 
-        <span class="k">if</span> <span class="n">lookup_type</span> <span class="ow">in</span> <span class="p">(</span><span class="s">&#39;regex&#39;</span><span class="p">,</span> <span class="s">&#39;iregex&#39;</span><span class="p">,</span> <span class="s">&#39;month&#39;</span><span class="p">,</span> <span class="s">&#39;day&#39;</span><span class="p">,</span> <span class="s">&#39;week_day&#39;</span><span class="p">,</span> <span class="s">&#39;search&#39;</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">lookup_type</span> <span class="ow">in</span> <span class="p">(</span><span class="s">&#39;regex&#39;</span><span class="p">,</span> <span class="s">&#39;iregex&#39;</span><span class="p">,</span> <span class="s">&#39;month&#39;</span><span class="p">,</span> <span class="s">&#39;day&#39;</span><span class="p">,</span> <span class="s">&#39;week_day&#39;</span><span class="p">,</span>
+                           <span class="s">&#39;search&#39;</span><span class="p">):</span>
             <span class="k">return</span> <span class="p">[</span><span class="n">value</span><span class="p">]</span>
         <span class="k">elif</span> <span class="n">lookup_type</span> <span class="ow">in</span> <span class="p">(</span><span class="s">&#39;exact&#39;</span><span class="p">,</span> <span class="s">&#39;gt&#39;</span><span class="p">,</span> <span class="s">&#39;gte&#39;</span><span class="p">,</span> <span class="s">&#39;lt&#39;</span><span class="p">,</span> <span class="s">&#39;lte&#39;</span><span class="p">):</span>
-            <span class="k">return</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">get_db_prep_value</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">connection</span><span class="o">=</span><span class="n">connection</span><span class="p">,</span> <span class="n">prepared</span><span class="o">=</span><span class="n">prepared</span><span class="p">)]</span>
+            <span class="k">return</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">get_db_prep_value</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">connection</span><span class="o">=</span><span class="n">connection</span><span class="p">,</span>
+                                           <span class="n">prepared</span><span class="o">=</span><span class="n">prepared</span><span class="p">)]</span>
         <span class="k">elif</span> <span class="n">lookup_type</span> <span class="ow">in</span> <span class="p">(</span><span class="s">&#39;range&#39;</span><span class="p">,</span> <span class="s">&#39;in&#39;</span><span class="p">):</span>
-            <span class="k">return</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">get_db_prep_value</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="n">connection</span><span class="o">=</span><span class="n">connection</span><span class="p">,</span> <span class="n">prepared</span><span class="o">=</span><span class="n">prepared</span><span class="p">)</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">value</span><span class="p">]</span>
+            <span class="k">return</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">get_db_prep_value</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="n">connection</span><span class="o">=</span><span class="n">connection</span><span class="p">,</span>
+                                           <span class="n">prepared</span><span class="o">=</span><span class="n">prepared</span><span class="p">)</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">value</span><span class="p">]</span>
         <span class="k">elif</span> <span class="n">lookup_type</span> <span class="ow">in</span> <span class="p">(</span><span class="s">&#39;contains&#39;</span><span class="p">,</span> <span class="s">&#39;icontains&#39;</span><span class="p">):</span>
             <span class="k">return</span> <span class="p">[</span><span class="s">&quot;</span><span class="si">%%%s%%</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">connection</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">prep_for_like_query</span><span class="p">(</span><span class="n">value</span><span class="p">)]</span>
         <span class="k">elif</span> <span class="n">lookup_type</span> <span class="o">==</span> <span class="s">&#39;iexact&#39;</span><span class="p">:</span>
@@ -387,18 +412,23 @@
                 <span class="k">return</span> <span class="n">connection</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">year_lookup_bounds_for_date_field</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
             <span class="k">else</span><span class="p">:</span>
                 <span class="k">return</span> <span class="n">connection</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">year_lookup_bounds</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
-
+</div>
 <div class="viewcode-block" id="Field.has_default"><a class="viewcode-back" href="../../../../django.db.models.fields.html#django.db.models.fields.Field.has_default">[docs]</a>    <span class="k">def</span> <span class="nf">has_default</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="s">&quot;Returns a boolean of whether this field has a default value.&quot;</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns a boolean of whether this field has a default value.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">default</span> <span class="ow">is</span> <span class="ow">not</span> <span class="n">NOT_PROVIDED</span>
 </div>
 <div class="viewcode-block" id="Field.get_default"><a class="viewcode-back" href="../../../../django.db.models.fields.html#django.db.models.fields.Field.get_default">[docs]</a>    <span class="k">def</span> <span class="nf">get_default</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="s">&quot;Returns the default value for this field.&quot;</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns the default value for this field.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">has_default</span><span class="p">():</span>
             <span class="k">if</span> <span class="nb">callable</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">default</span><span class="p">):</span>
                 <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">default</span><span class="p">()</span>
             <span class="k">return</span> <span class="n">force_unicode</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">default</span><span class="p">,</span> <span class="n">strings_only</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">empty_strings_allowed</span> <span class="ow">or</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">null</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">connection</span><span class="o">.</span><span class="n">features</span><span class="o">.</span><span class="n">interprets_empty_strings_as_nulls</span><span class="p">):</span>
+        <span class="k">if</span> <span class="p">(</span><span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">empty_strings_allowed</span> <span class="ow">or</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">null</span> <span class="ow">and</span>
+                   <span class="ow">not</span> <span class="n">connection</span><span class="o">.</span><span class="n">features</span><span class="o">.</span><span class="n">interprets_empty_strings_as_nulls</span><span class="p">)):</span>
             <span class="k">return</span> <span class="bp">None</span>
         <span class="k">return</span> <span class="s">&quot;&quot;</span>
 </div>
@@ -413,16 +443,24 @@
             <span class="k">return</span> <span class="n">first_choice</span> <span class="o">+</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">choices</span><span class="p">)</span>
         <span class="n">rel_model</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rel</span><span class="o">.</span><span class="n">to</span>
         <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rel</span><span class="p">,</span> <span class="s">&#39;get_related_field&#39;</span><span class="p">):</span>
-            <span class="n">lst</span> <span class="o">=</span> <span class="p">[(</span><span class="nb">getattr</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">rel</span><span class="o">.</span><span class="n">get_related_field</span><span class="p">()</span><span class="o">.</span><span class="n">attname</span><span class="p">),</span> <span class="n">smart_unicode</span><span class="p">(</span><span class="n">x</span><span class="p">))</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">rel_model</span><span class="o">.</span><span class="n">_default_manager</span><span class="o">.</span><span class="n">complex_filter</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rel</span><span class="o">.</span><span class="n">limit_choices_to</span><span class="p">)]</span>
+            <span class="n">lst</span> <span class="o">=</span> <span class="p">[(</span><span class="nb">getattr</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">rel</span><span class="o">.</span><span class="n">get_related_field</span><span class="p">()</span><span class="o">.</span><span class="n">attname</span><span class="p">),</span>
+                        <span class="n">smart_unicode</span><span class="p">(</span><span class="n">x</span><span class="p">))</span>
+                   <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">rel_model</span><span class="o">.</span><span class="n">_default_manager</span><span class="o">.</span><span class="n">complex_filter</span><span class="p">(</span>
+                       <span class="bp">self</span><span class="o">.</span><span class="n">rel</span><span class="o">.</span><span class="n">limit_choices_to</span><span class="p">)]</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="n">lst</span> <span class="o">=</span> <span class="p">[(</span><span class="n">x</span><span class="o">.</span><span class="n">_get_pk_val</span><span class="p">(),</span> <span class="n">smart_unicode</span><span class="p">(</span><span class="n">x</span><span class="p">))</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">rel_model</span><span class="o">.</span><span class="n">_default_manager</span><span class="o">.</span><span class="n">complex_filter</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rel</span><span class="o">.</span><span class="n">limit_choices_to</span><span class="p">)]</span>
+            <span class="n">lst</span> <span class="o">=</span> <span class="p">[(</span><span class="n">x</span><span class="o">.</span><span class="n">_get_pk_val</span><span class="p">(),</span> <span class="n">smart_unicode</span><span class="p">(</span><span class="n">x</span><span class="p">))</span>
+                   <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">rel_model</span><span class="o">.</span><span class="n">_default_manager</span><span class="o">.</span><span class="n">complex_filter</span><span class="p">(</span>
+                       <span class="bp">self</span><span class="o">.</span><span class="n">rel</span><span class="o">.</span><span class="n">limit_choices_to</span><span class="p">)]</span>
         <span class="k">return</span> <span class="n">first_choice</span> <span class="o">+</span> <span class="n">lst</span>
 </div>
     <span class="k">def</span> <span class="nf">get_choices_default</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_choices</span><span class="p">()</span>
 
-<div class="viewcode-block" id="Field.get_flatchoices"><a class="viewcode-back" href="../../../../django.db.models.fields.html#django.db.models.fields.Field.get_flatchoices">[docs]</a>    <span class="k">def</span> <span class="nf">get_flatchoices</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">include_blank</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">blank_choice</span><span class="o">=</span><span class="n">BLANK_CHOICE_DASH</span><span class="p">):</span>
-        <span class="s">&quot;Returns flattened choices with a default blank choice included.&quot;</span>
+<div class="viewcode-block" id="Field.get_flatchoices"><a class="viewcode-back" href="../../../../django.db.models.fields.html#django.db.models.fields.Field.get_flatchoices">[docs]</a>    <span class="k">def</span> <span class="nf">get_flatchoices</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">include_blank</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span>
+                        <span class="n">blank_choice</span><span class="o">=</span><span class="n">BLANK_CHOICE_DASH</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns flattened choices with a default blank choice included.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">first_choice</span> <span class="o">=</span> <span class="n">include_blank</span> <span class="ow">and</span> <span class="n">blank_choice</span> <span class="ow">or</span> <span class="p">[]</span>
         <span class="k">return</span> <span class="n">first_choice</span> <span class="o">+</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">flatchoices</span><span class="p">)</span>
 </div>
@@ -465,8 +503,12 @@
         <span class="nb">setattr</span><span class="p">(</span><span class="n">instance</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">data</span><span class="p">)</span>
 
 <div class="viewcode-block" id="Field.formfield"><a class="viewcode-back" href="../../../../django.db.models.fields.html#django.db.models.fields.Field.formfield">[docs]</a>    <span class="k">def</span> <span class="nf">formfield</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">form_class</span><span class="o">=</span><span class="n">forms</span><span class="o">.</span><span class="n">CharField</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
-        <span class="s">&quot;Returns a django.forms.Field instance for this database Field.&quot;</span>
-        <span class="n">defaults</span> <span class="o">=</span> <span class="p">{</span><span class="s">&#39;required&#39;</span><span class="p">:</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">blank</span><span class="p">,</span> <span class="s">&#39;label&#39;</span><span class="p">:</span> <span class="n">capfirst</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">verbose_name</span><span class="p">),</span> <span class="s">&#39;help_text&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">help_text</span><span class="p">}</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns a django.forms.Field instance for this database Field.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">defaults</span> <span class="o">=</span> <span class="p">{</span><span class="s">&#39;required&#39;</span><span class="p">:</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">blank</span><span class="p">,</span>
+                    <span class="s">&#39;label&#39;</span><span class="p">:</span> <span class="n">capfirst</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">verbose_name</span><span class="p">),</span>
+                    <span class="s">&#39;help_text&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">help_text</span><span class="p">}</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">has_default</span><span class="p">():</span>
             <span class="k">if</span> <span class="nb">callable</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">default</span><span class="p">):</span>
                 <span class="n">defaults</span><span class="p">[</span><span class="s">&#39;initial&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">default</span>
@@ -475,7 +517,8 @@
                 <span class="n">defaults</span><span class="p">[</span><span class="s">&#39;initial&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_default</span><span class="p">()</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">choices</span><span class="p">:</span>
             <span class="c"># Fields with choices get special treatment.</span>
-            <span class="n">include_blank</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">blank</span> <span class="ow">or</span> <span class="ow">not</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">has_default</span><span class="p">()</span> <span class="ow">or</span> <span class="s">&#39;initial&#39;</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="p">)</span>
+            <span class="n">include_blank</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">blank</span> <span class="ow">or</span>
+                             <span class="ow">not</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">has_default</span><span class="p">()</span> <span class="ow">or</span> <span class="s">&#39;initial&#39;</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="p">))</span>
             <span class="n">defaults</span><span class="p">[</span><span class="s">&#39;choices&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_choices</span><span class="p">(</span><span class="n">include_blank</span><span class="o">=</span><span class="n">include_blank</span><span class="p">)</span>
             <span class="n">defaults</span><span class="p">[</span><span class="s">&#39;coerce&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">to_python</span>
             <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">null</span><span class="p">:</span>
@@ -493,18 +536,32 @@
         <span class="k">return</span> <span class="n">form_class</span><span class="p">(</span><span class="o">**</span><span class="n">defaults</span><span class="p">)</span>
 </div>
 <div class="viewcode-block" id="Field.value_from_object"><a class="viewcode-back" href="../../../../django.db.models.fields.html#django.db.models.fields.Field.value_from_object">[docs]</a>    <span class="k">def</span> <span class="nf">value_from_object</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">obj</span><span class="p">):</span>
-        <span class="s">&quot;Returns the value of this field in the given model instance.&quot;</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns the value of this field in the given model instance.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">attname</span><span class="p">)</span>
-</div></div>
+</div>
+    <span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Displays the module, class and name of the field.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">path</span> <span class="o">=</span> <span class="s">&#39;</span><span class="si">%s</span><span class="s">.</span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="o">.</span><span class="n">__module__</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="o">.</span><span class="n">__name__</span><span class="p">)</span>
+        <span class="n">name</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s">&#39;name&#39;</span><span class="p">,</span> <span class="bp">None</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">name</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="s">&#39;&lt;</span><span class="si">%s</span><span class="s">: </span><span class="si">%s</span><span class="s">&gt;&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">name</span><span class="p">)</span>
+        <span class="k">return</span> <span class="s">&#39;&lt;</span><span class="si">%s</span><span class="s">&gt;&#39;</span> <span class="o">%</span> <span class="n">path</span>
+</div>
 <span class="k">class</span> <span class="nc">AutoField</span><span class="p">(</span><span class="n">Field</span><span class="p">):</span>
     <span class="n">description</span> <span class="o">=</span> <span class="n">_</span><span class="p">(</span><span class="s">&quot;Integer&quot;</span><span class="p">)</span>
 
     <span class="n">empty_strings_allowed</span> <span class="o">=</span> <span class="bp">False</span>
     <span class="n">default_error_messages</span> <span class="o">=</span> <span class="p">{</span>
-        <span class="s">&#39;invalid&#39;</span><span class="p">:</span> <span class="n">_</span><span class="p">(</span><span class="s">u&#39;This value must be an integer.&#39;</span><span class="p">),</span>
+        <span class="s">&#39;invalid&#39;</span><span class="p">:</span> <span class="n">_</span><span class="p">(</span><span class="s">u&quot;&#39;</span><span class="si">%s</span><span class="s">&#39; value must be an integer.&quot;</span><span class="p">),</span>
     <span class="p">}</span>
+
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
-        <span class="k">assert</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;primary_key&#39;</span><span class="p">,</span> <span class="bp">False</span><span class="p">)</span> <span class="ow">is</span> <span class="bp">True</span><span class="p">,</span> <span class="s">&quot;</span><span class="si">%s</span><span class="s">s must have primary_key=True.&quot;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="o">.</span><span class="n">__name__</span>
+        <span class="k">assert</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;primary_key&#39;</span><span class="p">,</span> <span class="bp">False</span><span class="p">)</span> <span class="ow">is</span> <span class="bp">True</span><span class="p">,</span> \
+               <span class="s">&quot;</span><span class="si">%s</span><span class="s">s must have primary_key=True.&quot;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="o">.</span><span class="n">__name__</span>
         <span class="n">kwargs</span><span class="p">[</span><span class="s">&#39;blank&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">True</span>
         <span class="n">Field</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
 
@@ -517,7 +574,8 @@
         <span class="k">try</span><span class="p">:</span>
             <span class="k">return</span> <span class="nb">int</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
         <span class="k">except</span> <span class="p">(</span><span class="ne">TypeError</span><span class="p">,</span> <span class="ne">ValueError</span><span class="p">):</span>
-            <span class="k">raise</span> <span class="n">exceptions</span><span class="o">.</span><span class="n">ValidationError</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">error_messages</span><span class="p">[</span><span class="s">&#39;invalid&#39;</span><span class="p">])</span>
+            <span class="n">msg</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">error_messages</span><span class="p">[</span><span class="s">&#39;invalid&#39;</span><span class="p">]</span> <span class="o">%</span> <span class="nb">str</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="n">exceptions</span><span class="o">.</span><span class="n">ValidationError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">validate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">model_instance</span><span class="p">):</span>
         <span class="k">pass</span>
@@ -528,7 +586,8 @@
         <span class="k">return</span> <span class="nb">int</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">contribute_to_class</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cls</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
-        <span class="k">assert</span> <span class="ow">not</span> <span class="n">cls</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">has_auto_field</span><span class="p">,</span> <span class="s">&quot;A model can&#39;t have more than one AutoField.&quot;</span>
+        <span class="k">assert</span> <span class="ow">not</span> <span class="n">cls</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">has_auto_field</span><span class="p">,</span> \
+               <span class="s">&quot;A model can&#39;t have more than one AutoField.&quot;</span>
         <span class="nb">super</span><span class="p">(</span><span class="n">AutoField</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">contribute_to_class</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">name</span><span class="p">)</span>
         <span class="n">cls</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">has_auto_field</span> <span class="o">=</span> <span class="bp">True</span>
         <span class="n">cls</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">auto_field</span> <span class="o">=</span> <span class="bp">self</span>
@@ -539,9 +598,10 @@
 <span class="k">class</span> <span class="nc">BooleanField</span><span class="p">(</span><span class="n">Field</span><span class="p">):</span>
     <span class="n">empty_strings_allowed</span> <span class="o">=</span> <span class="bp">False</span>
     <span class="n">default_error_messages</span> <span class="o">=</span> <span class="p">{</span>
-        <span class="s">&#39;invalid&#39;</span><span class="p">:</span> <span class="n">_</span><span class="p">(</span><span class="s">u&#39;This value must be either True or False.&#39;</span><span class="p">),</span>
+        <span class="s">&#39;invalid&#39;</span><span class="p">:</span> <span class="n">_</span><span class="p">(</span><span class="s">u&quot;&#39;</span><span class="si">%s</span><span class="s">&#39; value must be either True or False.&quot;</span><span class="p">),</span>
     <span class="p">}</span>
     <span class="n">description</span> <span class="o">=</span> <span class="n">_</span><span class="p">(</span><span class="s">&quot;Boolean (Either True or False)&quot;</span><span class="p">)</span>
+
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
         <span class="n">kwargs</span><span class="p">[</span><span class="s">&#39;blank&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">True</span>
         <span class="k">if</span> <span class="s">&#39;default&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">kwargs</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;null&#39;</span><span class="p">):</span>
@@ -560,7 +620,8 @@
             <span class="k">return</span> <span class="bp">True</span>
         <span class="k">if</span> <span class="n">value</span> <span class="ow">in</span> <span class="p">(</span><span class="s">&#39;f&#39;</span><span class="p">,</span> <span class="s">&#39;False&#39;</span><span class="p">,</span> <span class="s">&#39;0&#39;</span><span class="p">):</span>
             <span class="k">return</span> <span class="bp">False</span>
-        <span class="k">raise</span> <span class="n">exceptions</span><span class="o">.</span><span class="n">ValidationError</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">error_messages</span><span class="p">[</span><span class="s">&#39;invalid&#39;</span><span class="p">])</span>
+        <span class="n">msg</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">error_messages</span><span class="p">[</span><span class="s">&#39;invalid&#39;</span><span class="p">]</span> <span class="o">%</span> <span class="nb">str</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+        <span class="k">raise</span> <span class="n">exceptions</span><span class="o">.</span><span class="n">ValidationError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">get_prep_lookup</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">lookup_type</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
         <span class="c"># Special-case handling for filters coming from a Web request (e.g. the</span>
@@ -580,8 +641,10 @@
         <span class="c"># Unlike most fields, BooleanField figures out include_blank from</span>
         <span class="c"># self.null instead of self.blank.</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">choices</span><span class="p">:</span>
-            <span class="n">include_blank</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">null</span> <span class="ow">or</span> <span class="ow">not</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">has_default</span><span class="p">()</span> <span class="ow">or</span> <span class="s">&#39;initial&#39;</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="p">)</span>
-            <span class="n">defaults</span> <span class="o">=</span> <span class="p">{</span><span class="s">&#39;choices&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_choices</span><span class="p">(</span><span class="n">include_blank</span><span class="o">=</span><span class="n">include_blank</span><span class="p">)}</span>
+            <span class="n">include_blank</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">null</span> <span class="ow">or</span>
+                             <span class="ow">not</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">has_default</span><span class="p">()</span> <span class="ow">or</span> <span class="s">&#39;initial&#39;</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="p">))</span>
+            <span class="n">defaults</span> <span class="o">=</span> <span class="p">{</span><span class="s">&#39;choices&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_choices</span><span class="p">(</span>
+                                       <span class="n">include_blank</span><span class="o">=</span><span class="n">include_blank</span><span class="p">)}</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="n">defaults</span> <span class="o">=</span> <span class="p">{</span><span class="s">&#39;form_class&#39;</span><span class="p">:</span> <span class="n">forms</span><span class="o">.</span><span class="n">BooleanField</span><span class="p">}</span>
         <span class="n">defaults</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">kwargs</span><span class="p">)</span>
@@ -627,19 +690,19 @@
         <span class="n">defaults</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">kwargs</span><span class="p">)</span>
         <span class="k">return</span> <span class="nb">super</span><span class="p">(</span><span class="n">CommaSeparatedIntegerField</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">formfield</span><span class="p">(</span><span class="o">**</span><span class="n">defaults</span><span class="p">)</span>
 
-<span class="n">ansi_date_re</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="s">r&#39;^\d{4}-\d{1,2}-\d{1,2}$&#39;</span><span class="p">)</span>
-
 <span class="k">class</span> <span class="nc">DateField</span><span class="p">(</span><span class="n">Field</span><span class="p">):</span>
-    <span class="n">description</span> <span class="o">=</span> <span class="n">_</span><span class="p">(</span><span class="s">&quot;Date (without time)&quot;</span><span class="p">)</span>
-
     <span class="n">empty_strings_allowed</span> <span class="o">=</span> <span class="bp">False</span>
     <span class="n">default_error_messages</span> <span class="o">=</span> <span class="p">{</span>
-        <span class="s">&#39;invalid&#39;</span><span class="p">:</span> <span class="n">_</span><span class="p">(</span><span class="s">&#39;Enter a valid date in YYYY-MM-DD format.&#39;</span><span class="p">),</span>
-        <span class="s">&#39;invalid_date&#39;</span><span class="p">:</span> <span class="n">_</span><span class="p">(</span><span class="s">&#39;Invalid date: </span><span class="si">%s</span><span class="s">&#39;</span><span class="p">),</span>
+        <span class="s">&#39;invalid&#39;</span><span class="p">:</span> <span class="n">_</span><span class="p">(</span><span class="s">u&quot;&#39;</span><span class="si">%s</span><span class="s">&#39; value has an invalid date format. It must be &quot;</span>
+                     <span class="s">u&quot;in YYYY-MM-DD format.&quot;</span><span class="p">),</span>
+        <span class="s">&#39;invalid_date&#39;</span><span class="p">:</span> <span class="n">_</span><span class="p">(</span><span class="s">u&quot;&#39;</span><span class="si">%s</span><span class="s">&#39; value has the correct format (YYYY-MM-DD) &quot;</span>
+                          <span class="s">u&quot;but it is an invalid date.&quot;</span><span class="p">),</span>
     <span class="p">}</span>
-    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">verbose_name</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">auto_now</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">auto_now_add</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="n">description</span> <span class="o">=</span> <span class="n">_</span><span class="p">(</span><span class="s">&quot;Date (without time)&quot;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">verbose_name</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">auto_now</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span>
+                 <span class="n">auto_now_add</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">auto_now</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">auto_now_add</span> <span class="o">=</span> <span class="n">auto_now</span><span class="p">,</span> <span class="n">auto_now_add</span>
-        <span class="c">#HACKs : auto_now_add/auto_now should be done as a default or a pre_save.</span>
         <span class="k">if</span> <span class="n">auto_now</span> <span class="ow">or</span> <span class="n">auto_now_add</span><span class="p">:</span>
             <span class="n">kwargs</span><span class="p">[</span><span class="s">&#39;editable&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">False</span>
             <span class="n">kwargs</span><span class="p">[</span><span class="s">&#39;blank&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">True</span>
@@ -656,18 +719,18 @@
         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">datetime</span><span class="o">.</span><span class="n">date</span><span class="p">):</span>
             <span class="k">return</span> <span class="n">value</span>
 
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">ansi_date_re</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="n">value</span><span class="p">):</span>
-            <span class="k">raise</span> <span class="n">exceptions</span><span class="o">.</span><span class="n">ValidationError</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">error_messages</span><span class="p">[</span><span class="s">&#39;invalid&#39;</span><span class="p">])</span>
-        <span class="c"># Now that we have the date string in YYYY-MM-DD format, check to make</span>
-        <span class="c"># sure it&#39;s a valid date.</span>
-        <span class="c"># We could use time.strptime here and catch errors, but datetime.date</span>
-        <span class="c"># produces much friendlier error messages.</span>
-        <span class="n">year</span><span class="p">,</span> <span class="n">month</span><span class="p">,</span> <span class="n">day</span> <span class="o">=</span> <span class="nb">map</span><span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="n">value</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&#39;-&#39;</span><span class="p">))</span>
+        <span class="n">value</span> <span class="o">=</span> <span class="n">smart_str</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+
         <span class="k">try</span><span class="p">:</span>
-            <span class="k">return</span> <span class="n">datetime</span><span class="o">.</span><span class="n">date</span><span class="p">(</span><span class="n">year</span><span class="p">,</span> <span class="n">month</span><span class="p">,</span> <span class="n">day</span><span class="p">)</span>
-        <span class="k">except</span> <span class="ne">ValueError</span><span class="p">,</span> <span class="n">e</span><span class="p">:</span>
-            <span class="n">msg</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">error_messages</span><span class="p">[</span><span class="s">&#39;invalid_date&#39;</span><span class="p">]</span> <span class="o">%</span> <span class="n">_</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">))</span>
+            <span class="n">parsed</span> <span class="o">=</span> <span class="n">parse_date</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">parsed</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">parsed</span>
+        <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+            <span class="n">msg</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">error_messages</span><span class="p">[</span><span class="s">&#39;invalid_date&#39;</span><span class="p">]</span> <span class="o">%</span> <span class="n">value</span>
             <span class="k">raise</span> <span class="n">exceptions</span><span class="o">.</span><span class="n">ValidationError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+
+        <span class="n">msg</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">error_messages</span><span class="p">[</span><span class="s">&#39;invalid&#39;</span><span class="p">]</span> <span class="o">%</span> <span class="n">value</span>
+        <span class="k">raise</span> <span class="n">exceptions</span><span class="o">.</span><span class="n">ValidationError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">pre_save</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">model_instance</span><span class="p">,</span> <span class="n">add</span><span class="p">):</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">auto_now</span> <span class="ow">or</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">auto_now_add</span> <span class="ow">and</span> <span class="n">add</span><span class="p">):</span>
@@ -681,9 +744,11 @@
         <span class="nb">super</span><span class="p">(</span><span class="n">DateField</span><span class="p">,</span><span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">contribute_to_class</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">name</span><span class="p">)</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">null</span><span class="p">:</span>
             <span class="nb">setattr</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="s">&#39;get_next_by_</span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
-                <span class="n">curry</span><span class="p">(</span><span class="n">cls</span><span class="o">.</span><span class="n">_get_next_or_previous_by_FIELD</span><span class="p">,</span> <span class="n">field</span><span class="o">=</span><span class="bp">self</span><span class="p">,</span> <span class="n">is_next</span><span class="o">=</span><span class="bp">True</span><span class="p">))</span>
+                <span class="n">curry</span><span class="p">(</span><span class="n">cls</span><span class="o">.</span><span class="n">_get_next_or_previous_by_FIELD</span><span class="p">,</span> <span class="n">field</span><span class="o">=</span><span class="bp">self</span><span class="p">,</span>
+                      <span class="n">is_next</span><span class="o">=</span><span class="bp">True</span><span class="p">))</span>
             <span class="nb">setattr</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="s">&#39;get_previous_by_</span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
-                <span class="n">curry</span><span class="p">(</span><span class="n">cls</span><span class="o">.</span><span class="n">_get_next_or_previous_by_FIELD</span><span class="p">,</span> <span class="n">field</span><span class="o">=</span><span class="bp">self</span><span class="p">,</span> <span class="n">is_next</span><span class="o">=</span><span class="bp">False</span><span class="p">))</span>
+                <span class="n">curry</span><span class="p">(</span><span class="n">cls</span><span class="o">.</span><span class="n">_get_next_or_previous_by_FIELD</span><span class="p">,</span> <span class="n">field</span><span class="o">=</span><span class="bp">self</span><span class="p">,</span>
+                      <span class="n">is_next</span><span class="o">=</span><span class="bp">False</span><span class="p">))</span>
 
     <span class="k">def</span> <span class="nf">get_prep_lookup</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">lookup_type</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
         <span class="c"># For &quot;__month&quot;, &quot;__day&quot;, and &quot;__week_day&quot; lookups, convert the value</span>
@@ -703,11 +768,7 @@
 
     <span class="k">def</span> <span class="nf">value_to_string</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">obj</span><span class="p">):</span>
         <span class="n">val</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_val_from_obj</span><span class="p">(</span><span class="n">obj</span><span class="p">)</span>
-        <span class="k">if</span> <span class="n">val</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
-            <span class="n">data</span> <span class="o">=</span> <span class="s">&#39;&#39;</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="n">data</span> <span class="o">=</span> <span class="n">datetime_safe</span><span class="o">.</span><span class="n">new_date</span><span class="p">(</span><span class="n">val</span><span class="p">)</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s">&quot;%Y-%m-</span><span class="si">%d</span><span class="s">&quot;</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">data</span>
+        <span class="k">return</span> <span class="s">&#39;&#39;</span> <span class="k">if</span> <span class="n">val</span> <span class="ow">is</span> <span class="bp">None</span> <span class="k">else</span> <span class="n">val</span><span class="o">.</span><span class="n">isoformat</span><span class="p">()</span>
 
     <span class="k">def</span> <span class="nf">formfield</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
         <span class="n">defaults</span> <span class="o">=</span> <span class="p">{</span><span class="s">&#39;form_class&#39;</span><span class="p">:</span> <span class="n">forms</span><span class="o">.</span><span class="n">DateField</span><span class="p">}</span>
@@ -715,10 +776,19 @@
         <span class="k">return</span> <span class="nb">super</span><span class="p">(</span><span class="n">DateField</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">formfield</span><span class="p">(</span><span class="o">**</span><span class="n">defaults</span><span class="p">)</span>
 
 <span class="k">class</span> <span class="nc">DateTimeField</span><span class="p">(</span><span class="n">DateField</span><span class="p">):</span>
+    <span class="n">empty_strings_allowed</span> <span class="o">=</span> <span class="bp">False</span>
     <span class="n">default_error_messages</span> <span class="o">=</span> <span class="p">{</span>
-        <span class="s">&#39;invalid&#39;</span><span class="p">:</span> <span class="n">_</span><span class="p">(</span><span class="s">u&#39;Enter a valid date/time in YYYY-MM-DD HH:MM[:ss[.uuuuuu]] format.&#39;</span><span class="p">),</span>
+        <span class="s">&#39;invalid&#39;</span><span class="p">:</span> <span class="n">_</span><span class="p">(</span><span class="s">u&quot;&#39;</span><span class="si">%s</span><span class="s">&#39; value has an invalid format. It must be in &quot;</span>
+                     <span class="s">u&quot;YYYY-MM-DD HH:MM[:ss[.uuuuuu]][TZ] format.&quot;</span><span class="p">),</span>
+        <span class="s">&#39;invalid_date&#39;</span><span class="p">:</span> <span class="n">_</span><span class="p">(</span><span class="s">u&quot;&#39;</span><span class="si">%s</span><span class="s">&#39; value has the correct format &quot;</span>
+                          <span class="s">u&quot;(YYYY-MM-DD) but it is an invalid date.&quot;</span><span class="p">),</span>
+        <span class="s">&#39;invalid_datetime&#39;</span><span class="p">:</span> <span class="n">_</span><span class="p">(</span><span class="s">u&quot;&#39;</span><span class="si">%s</span><span class="s">&#39; value has the correct format &quot;</span>
+                              <span class="s">u&quot;(YYYY-MM-DD HH:MM[:ss[.uuuuuu]][TZ]) &quot;</span>
+                              <span class="s">u&quot;but it is an invalid date/time.&quot;</span><span class="p">),</span>
     <span class="p">}</span>
     <span class="n">description</span> <span class="o">=</span> <span class="n">_</span><span class="p">(</span><span class="s">&quot;Date (with time)&quot;</span><span class="p">)</span>
+
+    <span class="c"># __init__ is inherited from DateField</span>
 
     <span class="k">def</span> <span class="nf">get_internal_type</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">return</span> <span class="s">&quot;DateTimeField&quot;</span>
@@ -729,60 +799,75 @@
         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="p">):</span>
             <span class="k">return</span> <span class="n">value</span>
         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">datetime</span><span class="o">.</span><span class="n">date</span><span class="p">):</span>
-            <span class="k">return</span> <span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="p">(</span><span class="n">value</span><span class="o">.</span><span class="n">year</span><span class="p">,</span> <span class="n">value</span><span class="o">.</span><span class="n">month</span><span class="p">,</span> <span class="n">value</span><span class="o">.</span><span class="n">day</span><span class="p">)</span>
+            <span class="n">value</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="p">(</span><span class="n">value</span><span class="o">.</span><span class="n">year</span><span class="p">,</span> <span class="n">value</span><span class="o">.</span><span class="n">month</span><span class="p">,</span> <span class="n">value</span><span class="o">.</span><span class="n">day</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">settings</span><span class="o">.</span><span class="n">USE_TZ</span><span class="p">:</span>
+                <span class="c"># For backwards compatibility, interpret naive datetimes in</span>
+                <span class="c"># local time. This won&#39;t work during DST change, but we can&#39;t</span>
+                <span class="c"># do much about it, so we let the exceptions percolate up the</span>
+                <span class="c"># call stack.</span>
+                <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s">u&quot;DateTimeField received a naive datetime (</span><span class="si">%s</span><span class="s">)&quot;</span>
+                              <span class="s">u&quot; while time zone support is active.&quot;</span> <span class="o">%</span> <span class="n">value</span><span class="p">,</span>
+                              <span class="ne">RuntimeWarning</span><span class="p">)</span>
+                <span class="n">default_timezone</span> <span class="o">=</span> <span class="n">timezone</span><span class="o">.</span><span class="n">get_default_timezone</span><span class="p">()</span>
+                <span class="n">value</span> <span class="o">=</span> <span class="n">timezone</span><span class="o">.</span><span class="n">make_aware</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">default_timezone</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">value</span>
 
-        <span class="c"># Attempt to parse a datetime:</span>
         <span class="n">value</span> <span class="o">=</span> <span class="n">smart_str</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
-        <span class="c"># split usecs, because they are not recognized by strptime.</span>
-        <span class="k">if</span> <span class="s">&#39;.&#39;</span> <span class="ow">in</span> <span class="n">value</span><span class="p">:</span>
-            <span class="k">try</span><span class="p">:</span>
-                <span class="n">value</span><span class="p">,</span> <span class="n">usecs</span> <span class="o">=</span> <span class="n">value</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&#39;.&#39;</span><span class="p">)</span>
-                <span class="n">usecs</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">usecs</span><span class="p">)</span>
-            <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
-                <span class="k">raise</span> <span class="n">exceptions</span><span class="o">.</span><span class="n">ValidationError</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">error_messages</span><span class="p">[</span><span class="s">&#39;invalid&#39;</span><span class="p">])</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="n">usecs</span> <span class="o">=</span> <span class="mi">0</span>
-        <span class="n">kwargs</span> <span class="o">=</span> <span class="p">{</span><span class="s">&#39;microsecond&#39;</span><span class="p">:</span> <span class="n">usecs</span><span class="p">}</span>
-        <span class="k">try</span><span class="p">:</span> <span class="c"># Seconds are optional, so try converting seconds first.</span>
-            <span class="k">return</span> <span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="p">(</span><span class="o">*</span><span class="n">time</span><span class="o">.</span><span class="n">strptime</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="s">&#39;%Y-%m-</span><span class="si">%d</span><span class="s"> %H:%M:%S&#39;</span><span class="p">)[:</span><span class="mi">6</span><span class="p">],</span>
-                                     <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
 
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">parsed</span> <span class="o">=</span> <span class="n">parse_datetime</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">parsed</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">parsed</span>
         <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
-            <span class="k">try</span><span class="p">:</span> <span class="c"># Try without seconds.</span>
-                <span class="k">return</span> <span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="p">(</span><span class="o">*</span><span class="n">time</span><span class="o">.</span><span class="n">strptime</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="s">&#39;%Y-%m-</span><span class="si">%d</span><span class="s"> %H:%M&#39;</span><span class="p">)[:</span><span class="mi">5</span><span class="p">],</span>
-                                         <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
-            <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span> <span class="c"># Try without hour/minutes/seconds.</span>
-                <span class="k">try</span><span class="p">:</span>
-                    <span class="k">return</span> <span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="p">(</span><span class="o">*</span><span class="n">time</span><span class="o">.</span><span class="n">strptime</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="s">&#39;%Y-%m-</span><span class="si">%d</span><span class="s">&#39;</span><span class="p">)[:</span><span class="mi">3</span><span class="p">],</span>
-                                             <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
-                <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
-                    <span class="k">raise</span> <span class="n">exceptions</span><span class="o">.</span><span class="n">ValidationError</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">error_messages</span><span class="p">[</span><span class="s">&#39;invalid&#39;</span><span class="p">])</span>
+            <span class="n">msg</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">error_messages</span><span class="p">[</span><span class="s">&#39;invalid_datetime&#39;</span><span class="p">]</span> <span class="o">%</span> <span class="n">value</span>
+            <span class="k">raise</span> <span class="n">exceptions</span><span class="o">.</span><span class="n">ValidationError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">parsed</span> <span class="o">=</span> <span class="n">parse_date</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">parsed</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="p">(</span><span class="n">parsed</span><span class="o">.</span><span class="n">year</span><span class="p">,</span> <span class="n">parsed</span><span class="o">.</span><span class="n">month</span><span class="p">,</span> <span class="n">parsed</span><span class="o">.</span><span class="n">day</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+            <span class="n">msg</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">error_messages</span><span class="p">[</span><span class="s">&#39;invalid_date&#39;</span><span class="p">]</span> <span class="o">%</span> <span class="n">value</span>
+            <span class="k">raise</span> <span class="n">exceptions</span><span class="o">.</span><span class="n">ValidationError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+
+        <span class="n">msg</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">error_messages</span><span class="p">[</span><span class="s">&#39;invalid&#39;</span><span class="p">]</span> <span class="o">%</span> <span class="n">value</span>
+        <span class="k">raise</span> <span class="n">exceptions</span><span class="o">.</span><span class="n">ValidationError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">pre_save</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">model_instance</span><span class="p">,</span> <span class="n">add</span><span class="p">):</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">auto_now</span> <span class="ow">or</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">auto_now_add</span> <span class="ow">and</span> <span class="n">add</span><span class="p">):</span>
-            <span class="n">value</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span>
+            <span class="n">value</span> <span class="o">=</span> <span class="n">timezone</span><span class="o">.</span><span class="n">now</span><span class="p">()</span>
             <span class="nb">setattr</span><span class="p">(</span><span class="n">model_instance</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">attname</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
             <span class="k">return</span> <span class="n">value</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="k">return</span> <span class="nb">super</span><span class="p">(</span><span class="n">DateTimeField</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">pre_save</span><span class="p">(</span><span class="n">model_instance</span><span class="p">,</span> <span class="n">add</span><span class="p">)</span>
 
+    <span class="c"># contribute_to_class is inherited from DateField, it registers</span>
+    <span class="c"># get_next_by_FOO and get_prev_by_FOO</span>
+
+    <span class="c"># get_prep_lookup is inherited from DateField</span>
+
     <span class="k">def</span> <span class="nf">get_prep_value</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">to_python</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+        <span class="n">value</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">to_python</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">value</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span> <span class="ow">and</span> <span class="n">settings</span><span class="o">.</span><span class="n">USE_TZ</span> <span class="ow">and</span> <span class="n">timezone</span><span class="o">.</span><span class="n">is_naive</span><span class="p">(</span><span class="n">value</span><span class="p">):</span>
+            <span class="c"># For backwards compatibility, interpret naive datetimes in local</span>
+            <span class="c"># time. This won&#39;t work during DST change, but we can&#39;t do much</span>
+            <span class="c"># about it, so we let the exceptions percolate up the call stack.</span>
+            <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s">u&quot;DateTimeField received a naive datetime (</span><span class="si">%s</span><span class="s">)&quot;</span>
+                          <span class="s">u&quot; while time zone support is active.&quot;</span> <span class="o">%</span> <span class="n">value</span><span class="p">,</span>
+                          <span class="ne">RuntimeWarning</span><span class="p">)</span>
+            <span class="n">default_timezone</span> <span class="o">=</span> <span class="n">timezone</span><span class="o">.</span><span class="n">get_default_timezone</span><span class="p">()</span>
+            <span class="n">value</span> <span class="o">=</span> <span class="n">timezone</span><span class="o">.</span><span class="n">make_aware</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">default_timezone</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">value</span>
 
     <span class="k">def</span> <span class="nf">get_db_prep_value</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">connection</span><span class="p">,</span> <span class="n">prepared</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
-        <span class="c"># Casts dates into the format expected by the backend</span>
+        <span class="c"># Casts datetimes into the format expected by the backend</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="n">prepared</span><span class="p">:</span>
             <span class="n">value</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_prep_value</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">connection</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">value_to_db_datetime</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">value_to_string</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">obj</span><span class="p">):</span>
         <span class="n">val</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_val_from_obj</span><span class="p">(</span><span class="n">obj</span><span class="p">)</span>
-        <span class="k">if</span> <span class="n">val</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
-            <span class="n">data</span> <span class="o">=</span> <span class="s">&#39;&#39;</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="n">d</span> <span class="o">=</span> <span class="n">datetime_safe</span><span class="o">.</span><span class="n">new_datetime</span><span class="p">(</span><span class="n">val</span><span class="p">)</span>
-            <span class="n">data</span> <span class="o">=</span> <span class="n">d</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s">&#39;%Y-%m-</span><span class="si">%d</span><span class="s"> %H:%M:%S&#39;</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">data</span>
+        <span class="k">return</span> <span class="s">&#39;&#39;</span> <span class="k">if</span> <span class="n">val</span> <span class="ow">is</span> <span class="bp">None</span> <span class="k">else</span> <span class="n">val</span><span class="o">.</span><span class="n">isoformat</span><span class="p">()</span>
 
     <span class="k">def</span> <span class="nf">formfield</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
         <span class="n">defaults</span> <span class="o">=</span> <span class="p">{</span><span class="s">&#39;form_class&#39;</span><span class="p">:</span> <span class="n">forms</span><span class="o">.</span><span class="n">DateTimeField</span><span class="p">}</span>
@@ -792,11 +877,12 @@
 <span class="k">class</span> <span class="nc">DecimalField</span><span class="p">(</span><span class="n">Field</span><span class="p">):</span>
     <span class="n">empty_strings_allowed</span> <span class="o">=</span> <span class="bp">False</span>
     <span class="n">default_error_messages</span> <span class="o">=</span> <span class="p">{</span>
-        <span class="s">&#39;invalid&#39;</span><span class="p">:</span> <span class="n">_</span><span class="p">(</span><span class="s">u&#39;This value must be a decimal number.&#39;</span><span class="p">),</span>
+        <span class="s">&#39;invalid&#39;</span><span class="p">:</span> <span class="n">_</span><span class="p">(</span><span class="s">u&quot;&#39;</span><span class="si">%s</span><span class="s">&#39; value must be a decimal number.&quot;</span><span class="p">),</span>
     <span class="p">}</span>
     <span class="n">description</span> <span class="o">=</span> <span class="n">_</span><span class="p">(</span><span class="s">&quot;Decimal number&quot;</span><span class="p">)</span>
 
-    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">verbose_name</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">max_digits</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">decimal_places</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">verbose_name</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">max_digits</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+                 <span class="n">decimal_places</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">max_digits</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">decimal_places</span> <span class="o">=</span> <span class="n">max_digits</span><span class="p">,</span> <span class="n">decimal_places</span>
         <span class="n">Field</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">verbose_name</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
 
@@ -809,7 +895,8 @@
         <span class="k">try</span><span class="p">:</span>
             <span class="k">return</span> <span class="n">decimal</span><span class="o">.</span><span class="n">Decimal</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
         <span class="k">except</span> <span class="n">decimal</span><span class="o">.</span><span class="n">InvalidOperation</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="n">exceptions</span><span class="o">.</span><span class="n">ValidationError</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">error_messages</span><span class="p">[</span><span class="s">&#39;invalid&#39;</span><span class="p">])</span>
+            <span class="n">msg</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">error_messages</span><span class="p">[</span><span class="s">&#39;invalid&#39;</span><span class="p">]</span> <span class="o">%</span> <span class="nb">str</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="n">exceptions</span><span class="o">.</span><span class="n">ValidationError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">_format</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">basestring</span><span class="p">)</span> <span class="ow">or</span> <span class="n">value</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
@@ -856,7 +943,8 @@
         <span class="n">CharField</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">formfield</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
-        <span class="c"># As with CharField, this will cause email validation to be performed twice</span>
+        <span class="c"># As with CharField, this will cause email validation to be performed</span>
+        <span class="c"># twice.</span>
         <span class="n">defaults</span> <span class="o">=</span> <span class="p">{</span>
             <span class="s">&#39;form_class&#39;</span><span class="p">:</span> <span class="n">forms</span><span class="o">.</span><span class="n">EmailField</span><span class="p">,</span>
         <span class="p">}</span>
@@ -866,7 +954,8 @@
 <span class="k">class</span> <span class="nc">FilePathField</span><span class="p">(</span><span class="n">Field</span><span class="p">):</span>
     <span class="n">description</span> <span class="o">=</span> <span class="n">_</span><span class="p">(</span><span class="s">&quot;File path&quot;</span><span class="p">)</span>
 
-    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">verbose_name</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">path</span><span class="o">=</span><span class="s">&#39;&#39;</span><span class="p">,</span> <span class="n">match</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">recursive</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">verbose_name</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">path</span><span class="o">=</span><span class="s">&#39;&#39;</span><span class="p">,</span> <span class="n">match</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+                 <span class="n">recursive</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">path</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">match</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">recursive</span> <span class="o">=</span> <span class="n">path</span><span class="p">,</span> <span class="n">match</span><span class="p">,</span> <span class="n">recursive</span>
         <span class="n">kwargs</span><span class="p">[</span><span class="s">&#39;max_length&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;max_length&#39;</span><span class="p">,</span> <span class="mi">100</span><span class="p">)</span>
         <span class="n">Field</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">verbose_name</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
@@ -887,7 +976,7 @@
 <span class="k">class</span> <span class="nc">FloatField</span><span class="p">(</span><span class="n">Field</span><span class="p">):</span>
     <span class="n">empty_strings_allowed</span> <span class="o">=</span> <span class="bp">False</span>
     <span class="n">default_error_messages</span> <span class="o">=</span> <span class="p">{</span>
-        <span class="s">&#39;invalid&#39;</span><span class="p">:</span> <span class="n">_</span><span class="p">(</span><span class="s">&quot;This value must be a float.&quot;</span><span class="p">),</span>
+        <span class="s">&#39;invalid&#39;</span><span class="p">:</span> <span class="n">_</span><span class="p">(</span><span class="s">&quot;&#39;</span><span class="si">%s</span><span class="s">&#39; value must be a float.&quot;</span><span class="p">),</span>
     <span class="p">}</span>
     <span class="n">description</span> <span class="o">=</span> <span class="n">_</span><span class="p">(</span><span class="s">&quot;Floating point number&quot;</span><span class="p">)</span>
 
@@ -905,7 +994,8 @@
         <span class="k">try</span><span class="p">:</span>
             <span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
         <span class="k">except</span> <span class="p">(</span><span class="ne">TypeError</span><span class="p">,</span> <span class="ne">ValueError</span><span class="p">):</span>
-            <span class="k">raise</span> <span class="n">exceptions</span><span class="o">.</span><span class="n">ValidationError</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">error_messages</span><span class="p">[</span><span class="s">&#39;invalid&#39;</span><span class="p">])</span>
+            <span class="n">msg</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">error_messages</span><span class="p">[</span><span class="s">&#39;invalid&#39;</span><span class="p">]</span> <span class="o">%</span> <span class="nb">str</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="n">exceptions</span><span class="o">.</span><span class="n">ValidationError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">formfield</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
         <span class="n">defaults</span> <span class="o">=</span> <span class="p">{</span><span class="s">&#39;form_class&#39;</span><span class="p">:</span> <span class="n">forms</span><span class="o">.</span><span class="n">FloatField</span><span class="p">}</span>
@@ -915,7 +1005,7 @@
 <span class="k">class</span> <span class="nc">IntegerField</span><span class="p">(</span><span class="n">Field</span><span class="p">):</span>
     <span class="n">empty_strings_allowed</span> <span class="o">=</span> <span class="bp">False</span>
     <span class="n">default_error_messages</span> <span class="o">=</span> <span class="p">{</span>
-        <span class="s">&#39;invalid&#39;</span><span class="p">:</span> <span class="n">_</span><span class="p">(</span><span class="s">&quot;This value must be an integer.&quot;</span><span class="p">),</span>
+        <span class="s">&#39;invalid&#39;</span><span class="p">:</span> <span class="n">_</span><span class="p">(</span><span class="s">&quot;&#39;</span><span class="si">%s</span><span class="s">&#39; value must be an integer.&quot;</span><span class="p">),</span>
     <span class="p">}</span>
     <span class="n">description</span> <span class="o">=</span> <span class="n">_</span><span class="p">(</span><span class="s">&quot;Integer&quot;</span><span class="p">)</span>
 
@@ -925,9 +1015,9 @@
         <span class="k">return</span> <span class="nb">int</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">get_prep_lookup</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">lookup_type</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
-        <span class="k">if</span> <span class="p">(</span><span class="n">lookup_type</span> <span class="o">==</span> <span class="s">&#39;gte&#39;</span> <span class="ow">or</span> <span class="n">lookup_type</span> <span class="o">==</span> <span class="s">&#39;lt&#39;</span><span class="p">)</span> \
-           <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">float</span><span class="p">):</span>
-                <span class="n">value</span> <span class="o">=</span> <span class="n">math</span><span class="o">.</span><span class="n">ceil</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+        <span class="k">if</span> <span class="p">((</span><span class="n">lookup_type</span> <span class="o">==</span> <span class="s">&#39;gte&#39;</span> <span class="ow">or</span> <span class="n">lookup_type</span> <span class="o">==</span> <span class="s">&#39;lt&#39;</span><span class="p">)</span>
+            <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">float</span><span class="p">)):</span>
+            <span class="n">value</span> <span class="o">=</span> <span class="n">math</span><span class="o">.</span><span class="n">ceil</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
         <span class="k">return</span> <span class="nb">super</span><span class="p">(</span><span class="n">IntegerField</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">get_prep_lookup</span><span class="p">(</span><span class="n">lookup_type</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">get_internal_type</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
@@ -939,7 +1029,8 @@
         <span class="k">try</span><span class="p">:</span>
             <span class="k">return</span> <span class="nb">int</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
         <span class="k">except</span> <span class="p">(</span><span class="ne">TypeError</span><span class="p">,</span> <span class="ne">ValueError</span><span class="p">):</span>
-            <span class="k">raise</span> <span class="n">exceptions</span><span class="o">.</span><span class="n">ValidationError</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">error_messages</span><span class="p">[</span><span class="s">&#39;invalid&#39;</span><span class="p">])</span>
+            <span class="n">msg</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">error_messages</span><span class="p">[</span><span class="s">&#39;invalid&#39;</span><span class="p">]</span> <span class="o">%</span> <span class="nb">str</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="n">exceptions</span><span class="o">.</span><span class="n">ValidationError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">formfield</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
         <span class="n">defaults</span> <span class="o">=</span> <span class="p">{</span><span class="s">&#39;form_class&#39;</span><span class="p">:</span> <span class="n">forms</span><span class="o">.</span><span class="n">IntegerField</span><span class="p">}</span>
@@ -950,6 +1041,7 @@
     <span class="n">empty_strings_allowed</span> <span class="o">=</span> <span class="bp">False</span>
     <span class="n">description</span> <span class="o">=</span> <span class="n">_</span><span class="p">(</span><span class="s">&quot;Big (8 byte) integer&quot;</span><span class="p">)</span>
     <span class="n">MAX_BIGINT</span> <span class="o">=</span> <span class="mi">9223372036854775807</span>
+
     <span class="k">def</span> <span class="nf">get_internal_type</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">return</span> <span class="s">&quot;BigIntegerField&quot;</span>
 
@@ -961,7 +1053,8 @@
 
 <span class="k">class</span> <span class="nc">IPAddressField</span><span class="p">(</span><span class="n">Field</span><span class="p">):</span>
     <span class="n">empty_strings_allowed</span> <span class="o">=</span> <span class="bp">False</span>
-    <span class="n">description</span> <span class="o">=</span> <span class="n">_</span><span class="p">(</span><span class="s">&quot;IP address&quot;</span><span class="p">)</span>
+    <span class="n">description</span> <span class="o">=</span> <span class="n">_</span><span class="p">(</span><span class="s">&quot;IPv4 address&quot;</span><span class="p">)</span>
+
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
         <span class="n">kwargs</span><span class="p">[</span><span class="s">&#39;max_length&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="mi">15</span>
         <span class="n">Field</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
@@ -974,10 +1067,51 @@
         <span class="n">defaults</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">kwargs</span><span class="p">)</span>
         <span class="k">return</span> <span class="nb">super</span><span class="p">(</span><span class="n">IPAddressField</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">formfield</span><span class="p">(</span><span class="o">**</span><span class="n">defaults</span><span class="p">)</span>
 
+<span class="k">class</span> <span class="nc">GenericIPAddressField</span><span class="p">(</span><span class="n">Field</span><span class="p">):</span>
+    <span class="n">empty_strings_allowed</span> <span class="o">=</span> <span class="bp">True</span>
+    <span class="n">description</span> <span class="o">=</span> <span class="n">_</span><span class="p">(</span><span class="s">&quot;IP address&quot;</span><span class="p">)</span>
+    <span class="n">default_error_messages</span> <span class="o">=</span> <span class="p">{}</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">protocol</span><span class="o">=</span><span class="s">&#39;both&#39;</span><span class="p">,</span> <span class="n">unpack_ipv4</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">unpack_ipv4</span> <span class="o">=</span> <span class="n">unpack_ipv4</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">default_validators</span><span class="p">,</span> <span class="n">invalid_error_message</span> <span class="o">=</span> \
+            <span class="n">validators</span><span class="o">.</span><span class="n">ip_address_validators</span><span class="p">(</span><span class="n">protocol</span><span class="p">,</span> <span class="n">unpack_ipv4</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">default_error_messages</span><span class="p">[</span><span class="s">&#39;invalid&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">invalid_error_message</span>
+        <span class="n">kwargs</span><span class="p">[</span><span class="s">&#39;max_length&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="mi">39</span>
+        <span class="n">Field</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">get_internal_type</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="s">&quot;GenericIPAddressField&quot;</span>
+
+    <span class="k">def</span> <span class="nf">to_python</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">value</span> <span class="ow">and</span> <span class="s">&#39;:&#39;</span> <span class="ow">in</span> <span class="n">value</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">clean_ipv6_address</span><span class="p">(</span><span class="n">value</span><span class="p">,</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">unpack_ipv4</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">error_messages</span><span class="p">[</span><span class="s">&#39;invalid&#39;</span><span class="p">])</span>
+        <span class="k">return</span> <span class="n">value</span>
+
+    <span class="k">def</span> <span class="nf">get_db_prep_value</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">connection</span><span class="p">,</span> <span class="n">prepared</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">prepared</span><span class="p">:</span>
+            <span class="n">value</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_prep_value</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">value</span> <span class="ow">or</span> <span class="bp">None</span>
+
+    <span class="k">def</span> <span class="nf">get_prep_value</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">value</span> <span class="ow">and</span> <span class="s">&#39;:&#39;</span> <span class="ow">in</span> <span class="n">value</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">clean_ipv6_address</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">unpack_ipv4</span><span class="p">)</span>
+            <span class="k">except</span> <span class="n">exceptions</span><span class="o">.</span><span class="n">ValidationError</span><span class="p">:</span>
+                <span class="k">pass</span>
+        <span class="k">return</span> <span class="n">value</span>
+
+    <span class="k">def</span> <span class="nf">formfield</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="n">defaults</span> <span class="o">=</span> <span class="p">{</span><span class="s">&#39;form_class&#39;</span><span class="p">:</span> <span class="n">forms</span><span class="o">.</span><span class="n">GenericIPAddressField</span><span class="p">}</span>
+        <span class="n">defaults</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="k">return</span> <span class="nb">super</span><span class="p">(</span><span class="n">GenericIPAddressField</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">formfield</span><span class="p">(</span><span class="o">**</span><span class="n">defaults</span><span class="p">)</span>
+
+
 <span class="k">class</span> <span class="nc">NullBooleanField</span><span class="p">(</span><span class="n">Field</span><span class="p">):</span>
     <span class="n">empty_strings_allowed</span> <span class="o">=</span> <span class="bp">False</span>
     <span class="n">default_error_messages</span> <span class="o">=</span> <span class="p">{</span>
-        <span class="s">&#39;invalid&#39;</span><span class="p">:</span> <span class="n">_</span><span class="p">(</span><span class="s">&quot;This value must be either None, True or False.&quot;</span><span class="p">),</span>
+        <span class="s">&#39;invalid&#39;</span><span class="p">:</span> <span class="n">_</span><span class="p">(</span><span class="s">&quot;&#39;</span><span class="si">%s</span><span class="s">&#39; value must be either None, True or False.&quot;</span><span class="p">),</span>
     <span class="p">}</span>
     <span class="n">description</span> <span class="o">=</span> <span class="n">_</span><span class="p">(</span><span class="s">&quot;Boolean (Either True, False or None)&quot;</span><span class="p">)</span>
 
@@ -1000,7 +1134,8 @@
             <span class="k">return</span> <span class="bp">True</span>
         <span class="k">if</span> <span class="n">value</span> <span class="ow">in</span> <span class="p">(</span><span class="s">&#39;f&#39;</span><span class="p">,</span> <span class="s">&#39;False&#39;</span><span class="p">,</span> <span class="s">&#39;0&#39;</span><span class="p">):</span>
             <span class="k">return</span> <span class="bp">False</span>
-        <span class="k">raise</span> <span class="n">exceptions</span><span class="o">.</span><span class="n">ValidationError</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">error_messages</span><span class="p">[</span><span class="s">&#39;invalid&#39;</span><span class="p">])</span>
+        <span class="n">msg</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">error_messages</span><span class="p">[</span><span class="s">&#39;invalid&#39;</span><span class="p">]</span> <span class="o">%</span> <span class="nb">str</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+        <span class="k">raise</span> <span class="n">exceptions</span><span class="o">.</span><span class="n">ValidationError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">get_prep_lookup</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">lookup_type</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
         <span class="c"># Special-case handling for filters coming from a Web request (e.g. the</span>
@@ -1009,7 +1144,8 @@
         <span class="c"># constructing the list.</span>
         <span class="k">if</span> <span class="n">value</span> <span class="ow">in</span> <span class="p">(</span><span class="s">&#39;1&#39;</span><span class="p">,</span> <span class="s">&#39;0&#39;</span><span class="p">):</span>
             <span class="n">value</span> <span class="o">=</span> <span class="nb">bool</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">value</span><span class="p">))</span>
-        <span class="k">return</span> <span class="nb">super</span><span class="p">(</span><span class="n">NullBooleanField</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">get_prep_lookup</span><span class="p">(</span><span class="n">lookup_type</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
+        <span class="k">return</span> <span class="nb">super</span><span class="p">(</span><span class="n">NullBooleanField</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">get_prep_lookup</span><span class="p">(</span><span class="n">lookup_type</span><span class="p">,</span>
+                                                             <span class="n">value</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">get_prep_value</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
         <span class="k">if</span> <span class="n">value</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
@@ -1026,7 +1162,7 @@
         <span class="k">return</span> <span class="nb">super</span><span class="p">(</span><span class="n">NullBooleanField</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">formfield</span><span class="p">(</span><span class="o">**</span><span class="n">defaults</span><span class="p">)</span>
 
 <span class="k">class</span> <span class="nc">PositiveIntegerField</span><span class="p">(</span><span class="n">IntegerField</span><span class="p">):</span>
-    <span class="n">description</span> <span class="o">=</span> <span class="n">_</span><span class="p">(</span><span class="s">&quot;Integer&quot;</span><span class="p">)</span>
+    <span class="n">description</span> <span class="o">=</span> <span class="n">_</span><span class="p">(</span><span class="s">&quot;Positive integer&quot;</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">get_internal_type</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">return</span> <span class="s">&quot;PositiveIntegerField&quot;</span>
@@ -1037,7 +1173,8 @@
         <span class="k">return</span> <span class="nb">super</span><span class="p">(</span><span class="n">PositiveIntegerField</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">formfield</span><span class="p">(</span><span class="o">**</span><span class="n">defaults</span><span class="p">)</span>
 
 <span class="k">class</span> <span class="nc">PositiveSmallIntegerField</span><span class="p">(</span><span class="n">IntegerField</span><span class="p">):</span>
-    <span class="n">description</span> <span class="o">=</span> <span class="n">_</span><span class="p">(</span><span class="s">&quot;Integer&quot;</span><span class="p">)</span>
+    <span class="n">description</span> <span class="o">=</span> <span class="n">_</span><span class="p">(</span><span class="s">&quot;Positive small integer&quot;</span><span class="p">)</span>
+
     <span class="k">def</span> <span class="nf">get_internal_type</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">return</span> <span class="s">&quot;PositiveSmallIntegerField&quot;</span>
 
@@ -1047,7 +1184,8 @@
         <span class="k">return</span> <span class="nb">super</span><span class="p">(</span><span class="n">PositiveSmallIntegerField</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">formfield</span><span class="p">(</span><span class="o">**</span><span class="n">defaults</span><span class="p">)</span>
 
 <span class="k">class</span> <span class="nc">SlugField</span><span class="p">(</span><span class="n">CharField</span><span class="p">):</span>
-    <span class="n">description</span> <span class="o">=</span> <span class="n">_</span><span class="p">(</span><span class="s">&quot;String (up to </span><span class="si">%(max_length)s</span><span class="s">)&quot;</span><span class="p">)</span>
+    <span class="n">description</span> <span class="o">=</span> <span class="n">_</span><span class="p">(</span><span class="s">&quot;Slug (up to </span><span class="si">%(max_length)s</span><span class="s">)&quot;</span><span class="p">)</span>
+
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
         <span class="n">kwargs</span><span class="p">[</span><span class="s">&#39;max_length&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;max_length&#39;</span><span class="p">,</span> <span class="mi">50</span><span class="p">)</span>
         <span class="c"># Set db_index=True unless it&#39;s been set manually.</span>
@@ -1064,7 +1202,7 @@
         <span class="k">return</span> <span class="nb">super</span><span class="p">(</span><span class="n">SlugField</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">formfield</span><span class="p">(</span><span class="o">**</span><span class="n">defaults</span><span class="p">)</span>
 
 <span class="k">class</span> <span class="nc">SmallIntegerField</span><span class="p">(</span><span class="n">IntegerField</span><span class="p">):</span>
-    <span class="n">description</span> <span class="o">=</span> <span class="n">_</span><span class="p">(</span><span class="s">&quot;Integer&quot;</span><span class="p">)</span>
+    <span class="n">description</span> <span class="o">=</span> <span class="n">_</span><span class="p">(</span><span class="s">&quot;Small integer&quot;</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">get_internal_type</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">return</span> <span class="s">&quot;SmallIntegerField&quot;</span>
@@ -1086,16 +1224,21 @@
         <span class="k">return</span> <span class="nb">super</span><span class="p">(</span><span class="n">TextField</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">formfield</span><span class="p">(</span><span class="o">**</span><span class="n">defaults</span><span class="p">)</span>
 
 <span class="k">class</span> <span class="nc">TimeField</span><span class="p">(</span><span class="n">Field</span><span class="p">):</span>
-    <span class="n">description</span> <span class="o">=</span> <span class="n">_</span><span class="p">(</span><span class="s">&quot;Time&quot;</span><span class="p">)</span>
-
     <span class="n">empty_strings_allowed</span> <span class="o">=</span> <span class="bp">False</span>
     <span class="n">default_error_messages</span> <span class="o">=</span> <span class="p">{</span>
-        <span class="s">&#39;invalid&#39;</span><span class="p">:</span> <span class="n">_</span><span class="p">(</span><span class="s">&#39;Enter a valid time in HH:MM[:ss[.uuuuuu]] format.&#39;</span><span class="p">),</span>
+        <span class="s">&#39;invalid&#39;</span><span class="p">:</span> <span class="n">_</span><span class="p">(</span><span class="s">u&quot;&#39;</span><span class="si">%s</span><span class="s">&#39; value has an invalid format. It must be in &quot;</span>
+                     <span class="s">u&quot;HH:MM[:ss[.uuuuuu]] format.&quot;</span><span class="p">),</span>
+        <span class="s">&#39;invalid_time&#39;</span><span class="p">:</span> <span class="n">_</span><span class="p">(</span><span class="s">u&quot;&#39;</span><span class="si">%s</span><span class="s">&#39; value has the correct format &quot;</span>
+                          <span class="s">u&quot;(HH:MM[:ss[.uuuuuu]]) but it is an invalid time.&quot;</span><span class="p">),</span>
     <span class="p">}</span>
-    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">verbose_name</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">auto_now</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">auto_now_add</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="n">description</span> <span class="o">=</span> <span class="n">_</span><span class="p">(</span><span class="s">&quot;Time&quot;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">verbose_name</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">auto_now</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span>
+                 <span class="n">auto_now_add</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">auto_now</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">auto_now_add</span> <span class="o">=</span> <span class="n">auto_now</span><span class="p">,</span> <span class="n">auto_now_add</span>
         <span class="k">if</span> <span class="n">auto_now</span> <span class="ow">or</span> <span class="n">auto_now_add</span><span class="p">:</span>
             <span class="n">kwargs</span><span class="p">[</span><span class="s">&#39;editable&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">False</span>
+            <span class="n">kwargs</span><span class="p">[</span><span class="s">&#39;blank&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">True</span>
         <span class="n">Field</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">verbose_name</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">get_internal_type</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
@@ -1112,28 +1255,18 @@
             <span class="c"># database backend (e.g. Oracle), so we&#39;ll be accommodating.</span>
             <span class="k">return</span> <span class="n">value</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
 
-        <span class="c"># Attempt to parse a datetime:</span>
         <span class="n">value</span> <span class="o">=</span> <span class="n">smart_str</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
-        <span class="c"># split usecs, because they are not recognized by strptime.</span>
-        <span class="k">if</span> <span class="s">&#39;.&#39;</span> <span class="ow">in</span> <span class="n">value</span><span class="p">:</span>
-            <span class="k">try</span><span class="p">:</span>
-                <span class="n">value</span><span class="p">,</span> <span class="n">usecs</span> <span class="o">=</span> <span class="n">value</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&#39;.&#39;</span><span class="p">)</span>
-                <span class="n">usecs</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">usecs</span><span class="p">)</span>
-            <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
-                <span class="k">raise</span> <span class="n">exceptions</span><span class="o">.</span><span class="n">ValidationError</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">error_messages</span><span class="p">[</span><span class="s">&#39;invalid&#39;</span><span class="p">])</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="n">usecs</span> <span class="o">=</span> <span class="mi">0</span>
-        <span class="n">kwargs</span> <span class="o">=</span> <span class="p">{</span><span class="s">&#39;microsecond&#39;</span><span class="p">:</span> <span class="n">usecs</span><span class="p">}</span>
 
-        <span class="k">try</span><span class="p">:</span> <span class="c"># Seconds are optional, so try converting seconds first.</span>
-            <span class="k">return</span> <span class="n">datetime</span><span class="o">.</span><span class="n">time</span><span class="p">(</span><span class="o">*</span><span class="n">time</span><span class="o">.</span><span class="n">strptime</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="s">&#39;%H:%M:%S&#39;</span><span class="p">)[</span><span class="mi">3</span><span class="p">:</span><span class="mi">6</span><span class="p">],</span>
-                                 <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">parsed</span> <span class="o">=</span> <span class="n">parse_time</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">parsed</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">parsed</span>
         <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
-            <span class="k">try</span><span class="p">:</span> <span class="c"># Try without seconds.</span>
-                <span class="k">return</span> <span class="n">datetime</span><span class="o">.</span><span class="n">time</span><span class="p">(</span><span class="o">*</span><span class="n">time</span><span class="o">.</span><span class="n">strptime</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="s">&#39;%H:%M&#39;</span><span class="p">)[</span><span class="mi">3</span><span class="p">:</span><span class="mi">5</span><span class="p">],</span>
-                                         <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
-            <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
-                <span class="k">raise</span> <span class="n">exceptions</span><span class="o">.</span><span class="n">ValidationError</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">error_messages</span><span class="p">[</span><span class="s">&#39;invalid&#39;</span><span class="p">])</span>
+            <span class="n">msg</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">error_messages</span><span class="p">[</span><span class="s">&#39;invalid_time&#39;</span><span class="p">]</span> <span class="o">%</span> <span class="n">value</span>
+            <span class="k">raise</span> <span class="n">exceptions</span><span class="o">.</span><span class="n">ValidationError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+
+        <span class="n">msg</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">error_messages</span><span class="p">[</span><span class="s">&#39;invalid&#39;</span><span class="p">]</span> <span class="o">%</span> <span class="n">value</span>
+        <span class="k">raise</span> <span class="n">exceptions</span><span class="o">.</span><span class="n">ValidationError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">pre_save</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">model_instance</span><span class="p">,</span> <span class="n">add</span><span class="p">):</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">auto_now</span> <span class="ow">or</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">auto_now_add</span> <span class="ow">and</span> <span class="n">add</span><span class="p">):</span>
@@ -1154,11 +1287,7 @@
 
     <span class="k">def</span> <span class="nf">value_to_string</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">obj</span><span class="p">):</span>
         <span class="n">val</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_val_from_obj</span><span class="p">(</span><span class="n">obj</span><span class="p">)</span>
-        <span class="k">if</span> <span class="n">val</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
-            <span class="n">data</span> <span class="o">=</span> <span class="s">&#39;&#39;</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="n">data</span> <span class="o">=</span> <span class="n">val</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s">&quot;%H:%M:%S&quot;</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">data</span>
+        <span class="k">return</span> <span class="s">&#39;&#39;</span> <span class="k">if</span> <span class="n">val</span> <span class="ow">is</span> <span class="bp">None</span> <span class="k">else</span> <span class="n">val</span><span class="o">.</span><span class="n">isoformat</span><span class="p">()</span>
 
     <span class="k">def</span> <span class="nf">formfield</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
         <span class="n">defaults</span> <span class="o">=</span> <span class="p">{</span><span class="s">&#39;form_class&#39;</span><span class="p">:</span> <span class="n">forms</span><span class="o">.</span><span class="n">TimeField</span><span class="p">}</span>
@@ -1168,28 +1297,21 @@
 <span class="k">class</span> <span class="nc">URLField</span><span class="p">(</span><span class="n">CharField</span><span class="p">):</span>
     <span class="n">description</span> <span class="o">=</span> <span class="n">_</span><span class="p">(</span><span class="s">&quot;URL&quot;</span><span class="p">)</span>
 
-    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">verbose_name</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">verify_exists</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">verbose_name</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">verify_exists</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span>
+                 <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
         <span class="n">kwargs</span><span class="p">[</span><span class="s">&#39;max_length&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;max_length&#39;</span><span class="p">,</span> <span class="mi">200</span><span class="p">)</span>
         <span class="n">CharField</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">verbose_name</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">validators</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">validators</span><span class="o">.</span><span class="n">URLValidator</span><span class="p">(</span><span class="n">verify_exists</span><span class="o">=</span><span class="n">verify_exists</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">validators</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+            <span class="n">validators</span><span class="o">.</span><span class="n">URLValidator</span><span class="p">(</span><span class="n">verify_exists</span><span class="o">=</span><span class="n">verify_exists</span><span class="p">))</span>
 
     <span class="k">def</span> <span class="nf">formfield</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
-        <span class="c"># As with CharField, this will cause URL validation to be performed twice</span>
+        <span class="c"># As with CharField, this will cause URL validation to be performed</span>
+        <span class="c"># twice.</span>
         <span class="n">defaults</span> <span class="o">=</span> <span class="p">{</span>
             <span class="s">&#39;form_class&#39;</span><span class="p">:</span> <span class="n">forms</span><span class="o">.</span><span class="n">URLField</span><span class="p">,</span>
         <span class="p">}</span>
         <span class="n">defaults</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">kwargs</span><span class="p">)</span>
         <span class="k">return</span> <span class="nb">super</span><span class="p">(</span><span class="n">URLField</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">formfield</span><span class="p">(</span><span class="o">**</span><span class="n">defaults</span><span class="p">)</span>
-
-<span class="k">class</span> <span class="nc">XMLField</span><span class="p">(</span><span class="n">TextField</span><span class="p">):</span>
-    <span class="n">description</span> <span class="o">=</span> <span class="n">_</span><span class="p">(</span><span class="s">&quot;XML text&quot;</span><span class="p">)</span>
-
-    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">verbose_name</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">schema_path</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
-        <span class="kn">import</span> <span class="nn">warnings</span>
-        <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s">&quot;Use of XMLField has been deprecated; please use TextField instead.&quot;</span><span class="p">,</span>
-                      <span class="ne">DeprecationWarning</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">schema_path</span> <span class="o">=</span> <span class="n">schema_path</span>
-        <span class="n">Field</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">verbose_name</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
 </pre></div>
 
       </div>
@@ -1204,7 +1326,7 @@
 
     <div class="footer">
         &copy; Copyright 2012, HDKNR.COM.
-      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.2pre/660be19d7963.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.2pre/3c28de26aac2.
     </div>
   </body>
 </html>

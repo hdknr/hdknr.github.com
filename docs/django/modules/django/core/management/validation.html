@@ -52,11 +52,6 @@
 <span class="kn">from</span> <span class="nn">django.core.management.color</span> <span class="kn">import</span> <span class="n">color_style</span>
 <span class="kn">from</span> <span class="nn">django.utils.itercompat</span> <span class="kn">import</span> <span class="n">is_iterable</span>
 
-<span class="k">try</span><span class="p">:</span>
-    <span class="nb">any</span>
-<span class="k">except</span> <span class="ne">NameError</span><span class="p">:</span>
-    <span class="kn">from</span> <span class="nn">django.utils.itercompat</span> <span class="kn">import</span> <span class="nb">any</span>
-
 <span class="k">class</span> <span class="nc">ModelErrorCollection</span><span class="p">:</span>
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">outfile</span><span class="o">=</span><span class="n">sys</span><span class="o">.</span><span class="n">stdout</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">errors</span> <span class="o">=</span> <span class="p">[]</span>
@@ -93,6 +88,12 @@
                 <span class="n">e</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">opts</span><span class="p">,</span> <span class="s">&#39;&quot;</span><span class="si">%s</span><span class="s">&quot;: You can</span><span class="se">\&#39;</span><span class="s">t use &quot;id&quot; as a field name, because each model automatically gets an &quot;id&quot; field if none of the fields have primary_key=True. You need to either remove/rename your &quot;id&quot; field or add primary_key=True to a field.&#39;</span> <span class="o">%</span> <span class="n">f</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
             <span class="k">if</span> <span class="n">f</span><span class="o">.</span><span class="n">name</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s">&#39;_&#39;</span><span class="p">):</span>
                 <span class="n">e</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">opts</span><span class="p">,</span> <span class="s">&#39;&quot;</span><span class="si">%s</span><span class="s">&quot;: Field names cannot end with underscores, because this would lead to ambiguous queryset filters.&#39;</span> <span class="o">%</span> <span class="n">f</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+            <span class="k">if</span> <span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">primary_key</span> <span class="ow">and</span> <span class="n">f</span><span class="o">.</span><span class="n">null</span> <span class="ow">and</span>
+                    <span class="ow">not</span> <span class="n">connection</span><span class="o">.</span><span class="n">features</span><span class="o">.</span><span class="n">interprets_empty_strings_as_nulls</span><span class="p">):</span>
+                <span class="c"># We cannot reliably check this for backends like Oracle which</span>
+                <span class="c"># consider NULL and &#39;&#39; to be equal (and thus set up</span>
+                <span class="c"># character-based fields a little differently).</span>
+                <span class="n">e</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">opts</span><span class="p">,</span> <span class="s">&#39;&quot;</span><span class="si">%s</span><span class="s">&quot;: Primary key fields cannot have null=True.&#39;</span> <span class="o">%</span> <span class="n">f</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
             <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="n">models</span><span class="o">.</span><span class="n">CharField</span><span class="p">):</span>
                 <span class="k">try</span><span class="p">:</span>
                     <span class="n">max_length</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">max_length</span><span class="p">)</span>
@@ -120,9 +121,9 @@
                         <span class="n">mdigits_ok</span> <span class="o">=</span> <span class="bp">True</span>
                 <span class="k">except</span> <span class="p">(</span><span class="ne">ValueError</span><span class="p">,</span> <span class="ne">TypeError</span><span class="p">):</span>
                     <span class="n">e</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">opts</span><span class="p">,</span> <span class="n">mdigits_msg</span> <span class="o">%</span> <span class="n">f</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
-                <span class="n">invalid_values_msg</span> <span class="o">=</span> <span class="s">&#39;&quot;</span><span class="si">%s</span><span class="s">&quot;: DecimalFields require a &quot;max_digits&quot; attribute value that is greater than the value of the &quot;decimal_places&quot; attribute.&#39;</span>
+                <span class="n">invalid_values_msg</span> <span class="o">=</span> <span class="s">&#39;&quot;</span><span class="si">%s</span><span class="s">&quot;: DecimalFields require a &quot;max_digits&quot; attribute value that is greater than or equal to the value of the &quot;decimal_places&quot; attribute.&#39;</span>
                 <span class="k">if</span> <span class="n">decimalp_ok</span> <span class="ow">and</span> <span class="n">mdigits_ok</span><span class="p">:</span>
-                    <span class="k">if</span> <span class="n">decimal_places</span> <span class="o">&gt;=</span> <span class="n">max_digits</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="n">decimal_places</span> <span class="o">&gt;</span> <span class="n">max_digits</span><span class="p">:</span>
                         <span class="n">e</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">opts</span><span class="p">,</span> <span class="n">invalid_values_msg</span> <span class="o">%</span> <span class="n">f</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
             <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="n">models</span><span class="o">.</span><span class="n">FileField</span><span class="p">)</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">f</span><span class="o">.</span><span class="n">upload_to</span><span class="p">:</span>
                 <span class="n">e</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">opts</span><span class="p">,</span> <span class="s">&#39;&quot;</span><span class="si">%s</span><span class="s">&quot;: FileFields require an &quot;upload_to&quot; attribute.&#39;</span> <span class="o">%</span> <span class="n">f</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
@@ -331,6 +332,10 @@
                 <span class="c"># this format would be nice, but it&#39;s a little fiddly).</span>
                 <span class="k">if</span> <span class="s">&#39;__&#39;</span> <span class="ow">in</span> <span class="n">field_name</span><span class="p">:</span>
                     <span class="k">continue</span>
+                <span class="c"># Skip ordering on pk. This is always a valid order_by field</span>
+                <span class="c"># but is an alias and therefore won&#39;t be found by opts.get_field.</span>
+                <span class="k">if</span> <span class="n">field_name</span> <span class="o">==</span> <span class="s">&#39;pk&#39;</span><span class="p">:</span>
+                    <span class="k">continue</span>
                 <span class="k">try</span><span class="p">:</span>
                     <span class="n">opts</span><span class="o">.</span><span class="n">get_field</span><span class="p">(</span><span class="n">field_name</span><span class="p">,</span> <span class="n">many_to_many</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span>
                 <span class="k">except</span> <span class="n">models</span><span class="o">.</span><span class="n">FieldDoesNotExist</span><span class="p">:</span>
@@ -364,7 +369,7 @@
 
     <div class="footer">
         &copy; Copyright 2012, HDKNR.COM.
-      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.2pre/660be19d7963.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.2pre/3c28de26aac2.
     </div>
   </body>
 </html>

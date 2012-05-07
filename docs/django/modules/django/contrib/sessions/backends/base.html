@@ -28,7 +28,7 @@
     <script type="text/javascript" src="../../../../../static/doctools.js"></script>
     <script type="text/javascript" src="../../../../../static/theme_extras.js"></script>
     <link rel="top" title="Django Cheat 1 documentation" href="../../../../../index.html" />
-    <link rel="up" title="Module code" href="../../../../index.html" /> 
+    <link rel="up" title="django" href="../../../../django.html" /> 
   </head>
   <body>
       <div class="header"><h1 class="heading"><a href="../../../../../index.html">
@@ -48,9 +48,6 @@
         
   <h1>Source code for django.contrib.sessions.backends.base</h1><div class="highlight"><pre>
 <span class="kn">import</span> <span class="nn">base64</span>
-<span class="kn">import</span> <span class="nn">os</span>
-<span class="kn">import</span> <span class="nn">random</span>
-<span class="kn">import</span> <span class="nn">sys</span>
 <span class="kn">import</span> <span class="nn">time</span>
 <span class="kn">from</span> <span class="nn">datetime</span> <span class="kn">import</span> <span class="n">datetime</span><span class="p">,</span> <span class="n">timedelta</span>
 <span class="k">try</span><span class="p">:</span>
@@ -60,15 +57,10 @@
 
 <span class="kn">from</span> <span class="nn">django.conf</span> <span class="kn">import</span> <span class="n">settings</span>
 <span class="kn">from</span> <span class="nn">django.core.exceptions</span> <span class="kn">import</span> <span class="n">SuspiciousOperation</span>
-<span class="kn">from</span> <span class="nn">django.utils.hashcompat</span> <span class="kn">import</span> <span class="n">md5_constructor</span>
-<span class="kn">from</span> <span class="nn">django.utils.crypto</span> <span class="kn">import</span> <span class="n">constant_time_compare</span><span class="p">,</span> <span class="n">salted_hmac</span>
-
-<span class="c"># Use the system (hardware-based) random number generator if it exists.</span>
-<span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">random</span><span class="p">,</span> <span class="s">&#39;SystemRandom&#39;</span><span class="p">):</span>
-    <span class="n">randrange</span> <span class="o">=</span> <span class="n">random</span><span class="o">.</span><span class="n">SystemRandom</span><span class="p">()</span><span class="o">.</span><span class="n">randrange</span>
-<span class="k">else</span><span class="p">:</span>
-    <span class="n">randrange</span> <span class="o">=</span> <span class="n">random</span><span class="o">.</span><span class="n">randrange</span>
-<span class="n">MAX_SESSION_KEY</span> <span class="o">=</span> <span class="il">18446744073709551616L</span>     <span class="c"># 2 &lt;&lt; 63</span>
+<span class="kn">from</span> <span class="nn">django.utils.crypto</span> <span class="kn">import</span> <span class="n">constant_time_compare</span>
+<span class="kn">from</span> <span class="nn">django.utils.crypto</span> <span class="kn">import</span> <span class="n">get_random_string</span>
+<span class="kn">from</span> <span class="nn">django.utils.crypto</span> <span class="kn">import</span> <span class="n">salted_hmac</span>
+<span class="kn">from</span> <span class="nn">django.utils</span> <span class="kn">import</span> <span class="n">timezone</span>
 
 <div class="viewcode-block" id="CreateError"><a class="viewcode-back" href="../../../../../django.contrib.sessions.backends.html#django.contrib.sessions.backends.base.CreateError">[docs]</a><span class="k">class</span> <span class="nc">CreateError</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
@@ -102,12 +94,6 @@
     <span class="k">def</span> <span class="nf">__delitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">):</span>
         <span class="k">del</span> <span class="bp">self</span><span class="o">.</span><span class="n">_session</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">modified</span> <span class="o">=</span> <span class="bp">True</span>
-
-    <span class="k">def</span> <span class="nf">keys</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_session</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span>
-
-    <span class="k">def</span> <span class="nf">items</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_session</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
 
     <span class="k">def</span> <span class="nf">get</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_session</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">default</span><span class="p">)</span>
@@ -154,34 +140,25 @@
             <span class="k">else</span><span class="p">:</span>
                 <span class="k">return</span> <span class="n">pickle</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">pickled</span><span class="p">)</span>
         <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
-            <span class="c"># ValueError, SuspiciousOperation, unpickling exceptions</span>
-            <span class="c"># Fall back to Django 1.2 method</span>
-            <span class="c"># PendingDeprecationWarning &lt;- here to remind us to</span>
-            <span class="c"># remove this fallback in Django 1.5</span>
-            <span class="k">try</span><span class="p">:</span>
-                <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_decode_old</span><span class="p">(</span><span class="n">session_data</span><span class="p">)</span>
-            <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
-                <span class="c"># Unpickling can cause a variety of exceptions. If something happens,</span>
-                <span class="c"># just return an empty dictionary (an empty session).</span>
-                <span class="k">return</span> <span class="p">{}</span>
-
-    <span class="k">def</span> <span class="nf">_decode_old</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">session_data</span><span class="p">):</span>
-        <span class="n">encoded_data</span> <span class="o">=</span> <span class="n">base64</span><span class="o">.</span><span class="n">decodestring</span><span class="p">(</span><span class="n">session_data</span><span class="p">)</span>
-        <span class="n">pickled</span><span class="p">,</span> <span class="n">tamper_check</span> <span class="o">=</span> <span class="n">encoded_data</span><span class="p">[:</span><span class="o">-</span><span class="mi">32</span><span class="p">],</span> <span class="n">encoded_data</span><span class="p">[</span><span class="o">-</span><span class="mi">32</span><span class="p">:]</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">constant_time_compare</span><span class="p">(</span><span class="n">md5_constructor</span><span class="p">(</span><span class="n">pickled</span> <span class="o">+</span> <span class="n">settings</span><span class="o">.</span><span class="n">SECRET_KEY</span><span class="p">)</span><span class="o">.</span><span class="n">hexdigest</span><span class="p">(),</span>
-                                     <span class="n">tamper_check</span><span class="p">):</span>
-            <span class="k">raise</span> <span class="n">SuspiciousOperation</span><span class="p">(</span><span class="s">&quot;User tampered with session cookie.&quot;</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">pickle</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">pickled</span><span class="p">)</span>
+            <span class="c"># ValueError, SuspiciousOperation, unpickling exceptions. If any of</span>
+            <span class="c"># these happen, just return an empty dictionary (an empty session).</span>
+            <span class="k">return</span> <span class="p">{}</span>
 
     <span class="k">def</span> <span class="nf">update</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dict_</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_session</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">dict_</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">modified</span> <span class="o">=</span> <span class="bp">True</span>
 
     <span class="k">def</span> <span class="nf">has_key</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">):</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_session</span><span class="o">.</span><span class="n">has_key</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">key</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_session</span>
+
+    <span class="k">def</span> <span class="nf">keys</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_session</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span>
 
     <span class="k">def</span> <span class="nf">values</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_session</span><span class="o">.</span><span class="n">values</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">items</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_session</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
 
     <span class="k">def</span> <span class="nf">iterkeys</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_session</span><span class="o">.</span><span class="n">iterkeys</span><span class="p">()</span>
@@ -202,32 +179,25 @@
 
     <span class="k">def</span> <span class="nf">_get_new_session_key</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="s">&quot;Returns session key that isn&#39;t being used.&quot;</span>
-        <span class="c"># The random module is seeded when this Apache child is created.</span>
-        <span class="c"># Use settings.SECRET_KEY as added salt.</span>
-        <span class="k">try</span><span class="p">:</span>
-            <span class="n">pid</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">getpid</span><span class="p">()</span>
-        <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>
-            <span class="c"># No getpid() in Jython, for example</span>
-            <span class="n">pid</span> <span class="o">=</span> <span class="mi">1</span>
-        <span class="k">while</span> <span class="mi">1</span><span class="p">:</span>
-            <span class="n">session_key</span> <span class="o">=</span> <span class="n">md5_constructor</span><span class="p">(</span><span class="s">&quot;</span><span class="si">%s%s%s%s</span><span class="s">&quot;</span>
-                    <span class="o">%</span> <span class="p">(</span><span class="n">randrange</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">MAX_SESSION_KEY</span><span class="p">),</span> <span class="n">pid</span><span class="p">,</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">(),</span>
-                       <span class="n">settings</span><span class="o">.</span><span class="n">SECRET_KEY</span><span class="p">))</span><span class="o">.</span><span class="n">hexdigest</span><span class="p">()</span>
+        <span class="c"># Todo: move to 0-9a-z charset in 1.5</span>
+        <span class="n">hex_chars</span> <span class="o">=</span> <span class="s">&#39;1234567890abcdef&#39;</span>
+        <span class="c"># session_key should not be case sensitive because some backends</span>
+        <span class="c"># can store it on case insensitive file systems.</span>
+        <span class="k">while</span> <span class="bp">True</span><span class="p">:</span>
+            <span class="n">session_key</span> <span class="o">=</span> <span class="n">get_random_string</span><span class="p">(</span><span class="mi">32</span><span class="p">,</span> <span class="n">hex_chars</span><span class="p">)</span>
             <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">session_key</span><span class="p">):</span>
                 <span class="k">break</span>
         <span class="k">return</span> <span class="n">session_key</span>
 
-    <span class="k">def</span> <span class="nf">_get_session_key</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_session_key</span><span class="p">:</span>
-            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_session_key</span>
-        <span class="k">else</span><span class="p">:</span>
+    <span class="k">def</span> <span class="nf">_get_or_create_session_key</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_session_key</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_session_key</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_new_session_key</span><span class="p">()</span>
-            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_session_key</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_session_key</span>
 
-    <span class="k">def</span> <span class="nf">_set_session_key</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">session_key</span><span class="p">):</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_session_key</span> <span class="o">=</span> <span class="n">session_key</span>
+    <span class="k">def</span> <span class="nf">_get_session_key</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_session_key</span>
 
-    <span class="n">session_key</span> <span class="o">=</span> <span class="nb">property</span><span class="p">(</span><span class="n">_get_session_key</span><span class="p">,</span> <span class="n">_set_session_key</span><span class="p">)</span>
+    <span class="n">session_key</span> <span class="o">=</span> <span class="nb">property</span><span class="p">(</span><span class="n">_get_session_key</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">_get_session</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">no_load</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
@@ -238,7 +208,7 @@
         <span class="k">try</span><span class="p">:</span>
             <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_session_cache</span>
         <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>
-            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_session_key</span> <span class="ow">is</span> <span class="bp">None</span> <span class="ow">or</span> <span class="n">no_load</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">session_key</span> <span class="ow">is</span> <span class="bp">None</span> <span class="ow">or</span> <span class="n">no_load</span><span class="p">:</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">_session_cache</span> <span class="o">=</span> <span class="p">{}</span>
             <span class="k">else</span><span class="p">:</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">_session_cache</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">load</span><span class="p">()</span>
@@ -253,7 +223,7 @@
             <span class="k">return</span> <span class="n">settings</span><span class="o">.</span><span class="n">SESSION_COOKIE_AGE</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">expiry</span><span class="p">,</span> <span class="n">datetime</span><span class="p">):</span>
             <span class="k">return</span> <span class="n">expiry</span>
-        <span class="n">delta</span> <span class="o">=</span> <span class="n">expiry</span> <span class="o">-</span> <span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span>
+        <span class="n">delta</span> <span class="o">=</span> <span class="n">expiry</span> <span class="o">-</span> <span class="n">timezone</span><span class="o">.</span><span class="n">now</span><span class="p">()</span>
         <span class="k">return</span> <span class="n">delta</span><span class="o">.</span><span class="n">days</span> <span class="o">*</span> <span class="mi">86400</span> <span class="o">+</span> <span class="n">delta</span><span class="o">.</span><span class="n">seconds</span>
 </div>
 <div class="viewcode-block" id="SessionBase.get_expiry_date"><a class="viewcode-back" href="../../../../../django.contrib.sessions.backends.html#django.contrib.sessions.backends.base.SessionBase.get_expiry_date">[docs]</a>    <span class="k">def</span> <span class="nf">get_expiry_date</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
@@ -263,7 +233,7 @@
             <span class="k">return</span> <span class="n">expiry</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="n">expiry</span><span class="p">:</span>   <span class="c"># Checks both None and 0 cases</span>
             <span class="n">expiry</span> <span class="o">=</span> <span class="n">settings</span><span class="o">.</span><span class="n">SESSION_COOKIE_AGE</span>
-        <span class="k">return</span> <span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span> <span class="o">+</span> <span class="n">timedelta</span><span class="p">(</span><span class="n">seconds</span><span class="o">=</span><span class="n">expiry</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">timezone</span><span class="o">.</span><span class="n">now</span><span class="p">()</span> <span class="o">+</span> <span class="n">timedelta</span><span class="p">(</span><span class="n">seconds</span><span class="o">=</span><span class="n">expiry</span><span class="p">)</span>
 </div>
 <div class="viewcode-block" id="SessionBase.set_expiry"><a class="viewcode-back" href="../../../../../django.contrib.sessions.backends.html#django.contrib.sessions.backends.base.SessionBase.set_expiry">[docs]</a>    <span class="k">def</span> <span class="nf">set_expiry</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
@@ -288,7 +258,7 @@
                 <span class="k">pass</span>
             <span class="k">return</span>
         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">timedelta</span><span class="p">):</span>
-            <span class="n">value</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span> <span class="o">+</span> <span class="n">value</span>
+            <span class="n">value</span> <span class="o">=</span> <span class="n">timezone</span><span class="o">.</span><span class="n">now</span><span class="p">()</span> <span class="o">+</span> <span class="n">value</span>
         <span class="bp">self</span><span class="p">[</span><span class="s">&#39;_session_expiry&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span>
 </div>
 <div class="viewcode-block" id="SessionBase.get_expire_at_browser_close"><a class="viewcode-back" href="../../../../../django.contrib.sessions.backends.html#django.contrib.sessions.backends.base.SessionBase.get_expire_at_browser_close">[docs]</a>    <span class="k">def</span> <span class="nf">get_expire_at_browser_close</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
@@ -371,7 +341,7 @@
 
     <div class="footer">
         &copy; Copyright 2012, HDKNR.COM.
-      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.2pre/660be19d7963.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.2pre/3c28de26aac2.
     </div>
   </body>
 </html>

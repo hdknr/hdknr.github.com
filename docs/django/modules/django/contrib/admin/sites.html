@@ -47,8 +47,8 @@
         
         
   <h1>Source code for django.contrib.admin.sites</h1><div class="highlight"><pre>
-<span class="kn">import</span> <span class="nn">re</span>
-<span class="kn">from</span> <span class="nn">django</span> <span class="kn">import</span> <span class="n">http</span><span class="p">,</span> <span class="n">template</span>
+<span class="kn">from</span> <span class="nn">functools</span> <span class="kn">import</span> <span class="n">update_wrapper</span>
+<span class="kn">from</span> <span class="nn">django.http</span> <span class="kn">import</span> <span class="n">Http404</span><span class="p">,</span> <span class="n">HttpResponseRedirect</span>
 <span class="kn">from</span> <span class="nn">django.contrib.admin</span> <span class="kn">import</span> <span class="n">ModelAdmin</span><span class="p">,</span> <span class="n">actions</span>
 <span class="kn">from</span> <span class="nn">django.contrib.admin.forms</span> <span class="kn">import</span> <span class="n">AdminAuthenticationForm</span>
 <span class="kn">from</span> <span class="nn">django.contrib.auth</span> <span class="kn">import</span> <span class="n">REDIRECT_FIELD_NAME</span>
@@ -56,9 +56,8 @@
 <span class="kn">from</span> <span class="nn">django.views.decorators.csrf</span> <span class="kn">import</span> <span class="n">csrf_protect</span>
 <span class="kn">from</span> <span class="nn">django.db.models.base</span> <span class="kn">import</span> <span class="n">ModelBase</span>
 <span class="kn">from</span> <span class="nn">django.core.exceptions</span> <span class="kn">import</span> <span class="n">ImproperlyConfigured</span>
-<span class="kn">from</span> <span class="nn">django.core.urlresolvers</span> <span class="kn">import</span> <span class="n">reverse</span>
-<span class="kn">from</span> <span class="nn">django.shortcuts</span> <span class="kn">import</span> <span class="n">render_to_response</span>
-<span class="kn">from</span> <span class="nn">django.utils.functional</span> <span class="kn">import</span> <span class="n">update_wrapper</span>
+<span class="kn">from</span> <span class="nn">django.core.urlresolvers</span> <span class="kn">import</span> <span class="n">reverse</span><span class="p">,</span> <span class="n">NoReverseMatch</span>
+<span class="kn">from</span> <span class="nn">django.template.response</span> <span class="kn">import</span> <span class="n">TemplateResponse</span>
 <span class="kn">from</span> <span class="nn">django.utils.safestring</span> <span class="kn">import</span> <span class="n">mark_safe</span>
 <span class="kn">from</span> <span class="nn">django.utils.text</span> <span class="kn">import</span> <span class="n">capfirst</span>
 <span class="kn">from</span> <span class="nn">django.utils.translation</span> <span class="kn">import</span> <span class="n">ugettext</span> <span class="k">as</span> <span class="n">_</span>
@@ -89,13 +88,9 @@
     <span class="n">password_change_template</span> <span class="o">=</span> <span class="bp">None</span>
     <span class="n">password_change_done_template</span> <span class="o">=</span> <span class="bp">None</span>
 
-    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">app_name</span><span class="o">=</span><span class="s">&#39;admin&#39;</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s">&#39;admin&#39;</span><span class="p">,</span> <span class="n">app_name</span><span class="o">=</span><span class="s">&#39;admin&#39;</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_registry</span> <span class="o">=</span> <span class="p">{}</span> <span class="c"># model_class class -&gt; admin_class instance</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">root_path</span> <span class="o">=</span> <span class="bp">None</span>
-        <span class="k">if</span> <span class="n">name</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="s">&#39;admin&#39;</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">name</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">name</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">app_name</span> <span class="o">=</span> <span class="n">app_name</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_actions</span> <span class="o">=</span> <span class="p">{</span><span class="s">&#39;delete_selected&#39;</span><span class="p">:</span> <span class="n">actions</span><span class="o">.</span><span class="n">delete_selected</span><span class="p">}</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_global_actions</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_actions</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
@@ -228,7 +223,7 @@
 <span class="sd">            class MyAdminSite(AdminSite):</span>
 
 <span class="sd">                def get_urls(self):</span>
-<span class="sd">                    from django.conf.urls.defaults import patterns, url</span>
+<span class="sd">                    from django.conf.urls import patterns, url</span>
 
 <span class="sd">                    urls = super(MyAdminSite, self).get_urls()</span>
 <span class="sd">                    urls += patterns(&#39;&#39;,</span>
@@ -242,6 +237,10 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">def</span> <span class="nf">inner</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
             <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">has_permission</span><span class="p">(</span><span class="n">request</span><span class="p">):</span>
+                <span class="k">if</span> <span class="n">request</span><span class="o">.</span><span class="n">path</span> <span class="o">==</span> <span class="n">reverse</span><span class="p">(</span><span class="s">&#39;admin:logout&#39;</span><span class="p">,</span>
+                                           <span class="n">current_app</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">):</span>
+                    <span class="n">index_path</span> <span class="o">=</span> <span class="n">reverse</span><span class="p">(</span><span class="s">&#39;admin:index&#39;</span><span class="p">,</span> <span class="n">current_app</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+                    <span class="k">return</span> <span class="n">HttpResponseRedirect</span><span class="p">(</span><span class="n">index_path</span><span class="p">)</span>
                 <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">login</span><span class="p">(</span><span class="n">request</span><span class="p">)</span>
             <span class="k">return</span> <span class="n">view</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="n">cacheable</span><span class="p">:</span>
@@ -253,7 +252,7 @@
         <span class="k">return</span> <span class="n">update_wrapper</span><span class="p">(</span><span class="n">inner</span><span class="p">,</span> <span class="n">view</span><span class="p">)</span>
 </div>
     <span class="k">def</span> <span class="nf">get_urls</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="kn">from</span> <span class="nn">django.conf.urls.defaults</span> <span class="kn">import</span> <span class="n">patterns</span><span class="p">,</span> <span class="n">url</span><span class="p">,</span> <span class="n">include</span>
+        <span class="kn">from</span> <span class="nn">django.conf.urls</span> <span class="kn">import</span> <span class="n">patterns</span><span class="p">,</span> <span class="n">url</span><span class="p">,</span> <span class="n">include</span>
 
         <span class="k">if</span> <span class="n">settings</span><span class="o">.</span><span class="n">DEBUG</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">check_dependencies</span><span class="p">()</span>
@@ -304,10 +303,7 @@
 <span class="sd">        Handles the &quot;change password&quot; task -- both form display and validation.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="kn">from</span> <span class="nn">django.contrib.auth.views</span> <span class="kn">import</span> <span class="n">password_change</span>
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">root_path</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
-            <span class="n">url</span> <span class="o">=</span> <span class="s">&#39;</span><span class="si">%s</span><span class="s">password_change/done/&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">root_path</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="n">url</span> <span class="o">=</span> <span class="n">reverse</span><span class="p">(</span><span class="s">&#39;admin:password_change_done&#39;</span><span class="p">,</span> <span class="n">current_app</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+        <span class="n">url</span> <span class="o">=</span> <span class="n">reverse</span><span class="p">(</span><span class="s">&#39;admin:password_change_done&#39;</span><span class="p">,</span> <span class="n">current_app</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
         <span class="n">defaults</span> <span class="o">=</span> <span class="p">{</span>
             <span class="s">&#39;current_app&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
             <span class="s">&#39;post_change_redirect&#39;</span><span class="p">:</span> <span class="n">url</span>
@@ -366,7 +362,6 @@
         <span class="kn">from</span> <span class="nn">django.contrib.auth.views</span> <span class="kn">import</span> <span class="n">login</span>
         <span class="n">context</span> <span class="o">=</span> <span class="p">{</span>
             <span class="s">&#39;title&#39;</span><span class="p">:</span> <span class="n">_</span><span class="p">(</span><span class="s">&#39;Log in&#39;</span><span class="p">),</span>
-            <span class="s">&#39;root_path&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">root_path</span><span class="p">,</span>
             <span class="s">&#39;app_path&#39;</span><span class="p">:</span> <span class="n">request</span><span class="o">.</span><span class="n">get_full_path</span><span class="p">(),</span>
             <span class="n">REDIRECT_FIELD_NAME</span><span class="p">:</span> <span class="n">request</span><span class="o">.</span><span class="n">get_full_path</span><span class="p">(),</span>
         <span class="p">}</span>
@@ -397,17 +392,27 @@
                 <span class="c"># Check whether user has any perm for this module.</span>
                 <span class="c"># If so, add the module to the model_list.</span>
                 <span class="k">if</span> <span class="bp">True</span> <span class="ow">in</span> <span class="n">perms</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+                    <span class="n">info</span> <span class="o">=</span> <span class="p">(</span><span class="n">app_label</span><span class="p">,</span> <span class="n">model</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">module_name</span><span class="p">)</span>
                     <span class="n">model_dict</span> <span class="o">=</span> <span class="p">{</span>
                         <span class="s">&#39;name&#39;</span><span class="p">:</span> <span class="n">capfirst</span><span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">verbose_name_plural</span><span class="p">),</span>
-                        <span class="s">&#39;admin_url&#39;</span><span class="p">:</span> <span class="n">mark_safe</span><span class="p">(</span><span class="s">&#39;</span><span class="si">%s</span><span class="s">/</span><span class="si">%s</span><span class="s">/&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">app_label</span><span class="p">,</span> <span class="n">model</span><span class="o">.</span><span class="n">__name__</span><span class="o">.</span><span class="n">lower</span><span class="p">())),</span>
                         <span class="s">&#39;perms&#39;</span><span class="p">:</span> <span class="n">perms</span><span class="p">,</span>
                     <span class="p">}</span>
+                    <span class="k">if</span> <span class="n">perms</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;change&#39;</span><span class="p">,</span> <span class="bp">False</span><span class="p">):</span>
+                        <span class="k">try</span><span class="p">:</span>
+                            <span class="n">model_dict</span><span class="p">[</span><span class="s">&#39;admin_url&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">reverse</span><span class="p">(</span><span class="s">&#39;admin:</span><span class="si">%s</span><span class="s">_</span><span class="si">%s</span><span class="s">_changelist&#39;</span> <span class="o">%</span> <span class="n">info</span><span class="p">,</span> <span class="n">current_app</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+                        <span class="k">except</span> <span class="n">NoReverseMatch</span><span class="p">:</span>
+                            <span class="k">pass</span>
+                    <span class="k">if</span> <span class="n">perms</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;add&#39;</span><span class="p">,</span> <span class="bp">False</span><span class="p">):</span>
+                        <span class="k">try</span><span class="p">:</span>
+                            <span class="n">model_dict</span><span class="p">[</span><span class="s">&#39;add_url&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">reverse</span><span class="p">(</span><span class="s">&#39;admin:</span><span class="si">%s</span><span class="s">_</span><span class="si">%s</span><span class="s">_add&#39;</span> <span class="o">%</span> <span class="n">info</span><span class="p">,</span> <span class="n">current_app</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+                        <span class="k">except</span> <span class="n">NoReverseMatch</span><span class="p">:</span>
+                            <span class="k">pass</span>
                     <span class="k">if</span> <span class="n">app_label</span> <span class="ow">in</span> <span class="n">app_dict</span><span class="p">:</span>
                         <span class="n">app_dict</span><span class="p">[</span><span class="n">app_label</span><span class="p">][</span><span class="s">&#39;models&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">model_dict</span><span class="p">)</span>
                     <span class="k">else</span><span class="p">:</span>
                         <span class="n">app_dict</span><span class="p">[</span><span class="n">app_label</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
                             <span class="s">&#39;name&#39;</span><span class="p">:</span> <span class="n">app_label</span><span class="o">.</span><span class="n">title</span><span class="p">(),</span>
-                            <span class="s">&#39;app_url&#39;</span><span class="p">:</span> <span class="n">app_label</span> <span class="o">+</span> <span class="s">&#39;/&#39;</span><span class="p">,</span>
+                            <span class="s">&#39;app_url&#39;</span><span class="p">:</span> <span class="n">reverse</span><span class="p">(</span><span class="s">&#39;admin:app_list&#39;</span><span class="p">,</span> <span class="n">kwargs</span><span class="o">=</span><span class="p">{</span><span class="s">&#39;app_label&#39;</span><span class="p">:</span> <span class="n">app_label</span><span class="p">},</span> <span class="n">current_app</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">),</span>
                             <span class="s">&#39;has_module_perms&#39;</span><span class="p">:</span> <span class="n">has_module_perms</span><span class="p">,</span>
                             <span class="s">&#39;models&#39;</span><span class="p">:</span> <span class="p">[</span><span class="n">model_dict</span><span class="p">],</span>
                         <span class="p">}</span>
@@ -423,13 +428,11 @@
         <span class="n">context</span> <span class="o">=</span> <span class="p">{</span>
             <span class="s">&#39;title&#39;</span><span class="p">:</span> <span class="n">_</span><span class="p">(</span><span class="s">&#39;Site administration&#39;</span><span class="p">),</span>
             <span class="s">&#39;app_list&#39;</span><span class="p">:</span> <span class="n">app_list</span><span class="p">,</span>
-            <span class="s">&#39;root_path&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">root_path</span><span class="p">,</span>
         <span class="p">}</span>
         <span class="n">context</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">extra_context</span> <span class="ow">or</span> <span class="p">{})</span>
-        <span class="n">context_instance</span> <span class="o">=</span> <span class="n">template</span><span class="o">.</span><span class="n">RequestContext</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="n">current_app</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">render_to_response</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">index_template</span> <span class="ow">or</span> <span class="s">&#39;admin/index.html&#39;</span><span class="p">,</span> <span class="n">context</span><span class="p">,</span>
-            <span class="n">context_instance</span><span class="o">=</span><span class="n">context_instance</span>
-        <span class="p">)</span>
+        <span class="k">return</span> <span class="n">TemplateResponse</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="p">[</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">index_template</span> <span class="ow">or</span> <span class="s">&#39;admin/index.html&#39;</span><span class="p">,</span>
+        <span class="p">],</span> <span class="n">context</span><span class="p">,</span> <span class="n">current_app</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
 </div>
     <span class="k">def</span> <span class="nf">app_index</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">request</span><span class="p">,</span> <span class="n">app_label</span><span class="p">,</span> <span class="n">extra_context</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
         <span class="n">user</span> <span class="o">=</span> <span class="n">request</span><span class="o">.</span><span class="n">user</span>
@@ -443,11 +446,21 @@
                     <span class="c"># Check whether user has any perm for this module.</span>
                     <span class="c"># If so, add the module to the model_list.</span>
                     <span class="k">if</span> <span class="bp">True</span> <span class="ow">in</span> <span class="n">perms</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+                        <span class="n">info</span> <span class="o">=</span> <span class="p">(</span><span class="n">app_label</span><span class="p">,</span> <span class="n">model</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">module_name</span><span class="p">)</span>
                         <span class="n">model_dict</span> <span class="o">=</span> <span class="p">{</span>
                             <span class="s">&#39;name&#39;</span><span class="p">:</span> <span class="n">capfirst</span><span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">verbose_name_plural</span><span class="p">),</span>
-                            <span class="s">&#39;admin_url&#39;</span><span class="p">:</span> <span class="s">&#39;</span><span class="si">%s</span><span class="s">/&#39;</span> <span class="o">%</span> <span class="n">model</span><span class="o">.</span><span class="n">__name__</span><span class="o">.</span><span class="n">lower</span><span class="p">(),</span>
                             <span class="s">&#39;perms&#39;</span><span class="p">:</span> <span class="n">perms</span><span class="p">,</span>
                         <span class="p">}</span>
+                        <span class="k">if</span> <span class="n">perms</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;change&#39;</span><span class="p">,</span> <span class="bp">False</span><span class="p">):</span>
+                            <span class="k">try</span><span class="p">:</span>
+                                <span class="n">model_dict</span><span class="p">[</span><span class="s">&#39;admin_url&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">reverse</span><span class="p">(</span><span class="s">&#39;admin:</span><span class="si">%s</span><span class="s">_</span><span class="si">%s</span><span class="s">_changelist&#39;</span> <span class="o">%</span> <span class="n">info</span><span class="p">,</span> <span class="n">current_app</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+                            <span class="k">except</span> <span class="n">NoReverseMatch</span><span class="p">:</span>
+                                <span class="k">pass</span>
+                        <span class="k">if</span> <span class="n">perms</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;add&#39;</span><span class="p">,</span> <span class="bp">False</span><span class="p">):</span>
+                            <span class="k">try</span><span class="p">:</span>
+                                <span class="n">model_dict</span><span class="p">[</span><span class="s">&#39;add_url&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">reverse</span><span class="p">(</span><span class="s">&#39;admin:</span><span class="si">%s</span><span class="s">_</span><span class="si">%s</span><span class="s">_add&#39;</span> <span class="o">%</span> <span class="n">info</span><span class="p">,</span> <span class="n">current_app</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+                            <span class="k">except</span> <span class="n">NoReverseMatch</span><span class="p">:</span>
+                                <span class="k">pass</span>
                         <span class="k">if</span> <span class="n">app_dict</span><span class="p">:</span>
                             <span class="n">app_dict</span><span class="p">[</span><span class="s">&#39;models&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">model_dict</span><span class="p">),</span>
                         <span class="k">else</span><span class="p">:</span>
@@ -461,20 +474,19 @@
                                 <span class="s">&#39;models&#39;</span><span class="p">:</span> <span class="p">[</span><span class="n">model_dict</span><span class="p">],</span>
                             <span class="p">}</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="n">app_dict</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="n">http</span><span class="o">.</span><span class="n">Http404</span><span class="p">(</span><span class="s">&#39;The requested admin page does not exist.&#39;</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="n">Http404</span><span class="p">(</span><span class="s">&#39;The requested admin page does not exist.&#39;</span><span class="p">)</span>
         <span class="c"># Sort the models alphabetically within each app.</span>
         <span class="n">app_dict</span><span class="p">[</span><span class="s">&#39;models&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="p">[</span><span class="s">&#39;name&#39;</span><span class="p">])</span>
         <span class="n">context</span> <span class="o">=</span> <span class="p">{</span>
             <span class="s">&#39;title&#39;</span><span class="p">:</span> <span class="n">_</span><span class="p">(</span><span class="s">&#39;</span><span class="si">%s</span><span class="s"> administration&#39;</span><span class="p">)</span> <span class="o">%</span> <span class="n">capfirst</span><span class="p">(</span><span class="n">app_label</span><span class="p">),</span>
             <span class="s">&#39;app_list&#39;</span><span class="p">:</span> <span class="p">[</span><span class="n">app_dict</span><span class="p">],</span>
-            <span class="s">&#39;root_path&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">root_path</span><span class="p">,</span>
         <span class="p">}</span>
         <span class="n">context</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">extra_context</span> <span class="ow">or</span> <span class="p">{})</span>
-        <span class="n">context_instance</span> <span class="o">=</span> <span class="n">template</span><span class="o">.</span><span class="n">RequestContext</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="n">current_app</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">render_to_response</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">app_index_template</span> <span class="ow">or</span> <span class="p">(</span><span class="s">&#39;admin/</span><span class="si">%s</span><span class="s">/app_index.html&#39;</span> <span class="o">%</span> <span class="n">app_label</span><span class="p">,</span>
-            <span class="s">&#39;admin/app_index.html&#39;</span><span class="p">),</span> <span class="n">context</span><span class="p">,</span>
-            <span class="n">context_instance</span><span class="o">=</span><span class="n">context_instance</span>
-        <span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">TemplateResponse</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">app_index_template</span> <span class="ow">or</span> <span class="p">[</span>
+            <span class="s">&#39;admin/</span><span class="si">%s</span><span class="s">/app_index.html&#39;</span> <span class="o">%</span> <span class="n">app_label</span><span class="p">,</span>
+            <span class="s">&#39;admin/app_index.html&#39;</span>
+        <span class="p">],</span> <span class="n">context</span><span class="p">,</span> <span class="n">current_app</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
 
 <span class="c"># This global object represents the default admin site, for the common case.</span>
 <span class="c"># You can instantiate AdminSite in your own code to create a custom admin site.</span></div>
@@ -493,7 +505,7 @@
 
     <div class="footer">
         &copy; Copyright 2012, HDKNR.COM.
-      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.2pre/660be19d7963.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.2pre/3c28de26aac2.
     </div>
   </body>
 </html>

@@ -83,6 +83,7 @@ syncdb
 :: 
 
     (main)hdknr@sqg:~/remote$ python manage.py schemamigration  membership --initial
+
     Creating migrations directory at '/home/hdknr/ve/main/src/remote/membership/migrations'...
     Creating __init__.py in '/home/hdknr/ve/main/src/remote/membership/migrations'...
      + Added model membership.Member
@@ -97,6 +98,7 @@ syncdb
 ::
 
     (main)hdknr@sqg:~/remote$ svn status
+
     M       settings.py
     ?       membership/migrations
 

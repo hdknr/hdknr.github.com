@@ -28,7 +28,7 @@
     <script type="text/javascript" src="../../../static/doctools.js"></script>
     <script type="text/javascript" src="../../../static/theme_extras.js"></script>
     <link rel="top" title="Django Cheat 1 documentation" href="../../../index.html" />
-    <link rel="up" title="Module code" href="../../index.html" /> 
+    <link rel="up" title="django" href="../../django.html" /> 
   </head>
   <body>
       <div class="header"><h1 class="heading"><a href="../../../index.html">
@@ -51,25 +51,27 @@
 
 <span class="kn">import</span> <span class="nn">re</span>
 <span class="kn">import</span> <span class="nn">string</span>
+<span class="kn">import</span> <span class="nn">urllib</span>
+<span class="kn">import</span> <span class="nn">urlparse</span>
 
 <span class="kn">from</span> <span class="nn">django.utils.safestring</span> <span class="kn">import</span> <span class="n">SafeData</span><span class="p">,</span> <span class="n">mark_safe</span>
-<span class="kn">from</span> <span class="nn">django.utils.encoding</span> <span class="kn">import</span> <span class="n">force_unicode</span>
+<span class="kn">from</span> <span class="nn">django.utils.encoding</span> <span class="kn">import</span> <span class="n">smart_str</span><span class="p">,</span> <span class="n">force_unicode</span>
 <span class="kn">from</span> <span class="nn">django.utils.functional</span> <span class="kn">import</span> <span class="n">allow_lazy</span>
-<span class="kn">from</span> <span class="nn">django.utils.http</span> <span class="kn">import</span> <span class="n">urlquote</span>
+<span class="kn">from</span> <span class="nn">django.utils.text</span> <span class="kn">import</span> <span class="n">normalize_newlines</span>
 
 <span class="c"># Configuration for urlize() function.</span>
-<span class="n">LEADING_PUNCTUATION</span>  <span class="o">=</span> <span class="p">[</span><span class="s">&#39;(&#39;</span><span class="p">,</span> <span class="s">&#39;&lt;&#39;</span><span class="p">,</span> <span class="s">&#39;&amp;lt;&#39;</span><span class="p">]</span>
-<span class="n">TRAILING_PUNCTUATION</span> <span class="o">=</span> <span class="p">[</span><span class="s">&#39;.&#39;</span><span class="p">,</span> <span class="s">&#39;,&#39;</span><span class="p">,</span> <span class="s">&#39;)&#39;</span><span class="p">,</span> <span class="s">&#39;&gt;&#39;</span><span class="p">,</span> <span class="s">&#39;</span><span class="se">\n</span><span class="s">&#39;</span><span class="p">,</span> <span class="s">&#39;&amp;gt;&#39;</span><span class="p">]</span>
+<span class="n">TRAILING_PUNCTUATION</span> <span class="o">=</span> <span class="p">[</span><span class="s">&#39;.&#39;</span><span class="p">,</span> <span class="s">&#39;,&#39;</span><span class="p">,</span> <span class="s">&#39;:&#39;</span><span class="p">,</span> <span class="s">&#39;;&#39;</span><span class="p">]</span>
+<span class="n">WRAPPING_PUNCTUATION</span> <span class="o">=</span> <span class="p">[(</span><span class="s">&#39;(&#39;</span><span class="p">,</span> <span class="s">&#39;)&#39;</span><span class="p">),</span> <span class="p">(</span><span class="s">&#39;&lt;&#39;</span><span class="p">,</span> <span class="s">&#39;&gt;&#39;</span><span class="p">),</span> <span class="p">(</span><span class="s">&#39;&amp;lt;&#39;</span><span class="p">,</span> <span class="s">&#39;&amp;gt;&#39;</span><span class="p">)]</span>
 
 <span class="c"># List of possible strings used for bullets in bulleted lists.</span>
-<span class="n">DOTS</span> <span class="o">=</span> <span class="p">[</span><span class="s">&#39;&amp;middot;&#39;</span><span class="p">,</span> <span class="s">&#39;*&#39;</span><span class="p">,</span> <span class="s">&#39;</span><span class="se">\xe2\x80\xa2</span><span class="s">&#39;</span><span class="p">,</span> <span class="s">&#39;&amp;#149;&#39;</span><span class="p">,</span> <span class="s">&#39;&amp;bull;&#39;</span><span class="p">,</span> <span class="s">&#39;&amp;#8226;&#39;</span><span class="p">]</span>
+<span class="n">DOTS</span> <span class="o">=</span> <span class="p">[</span><span class="s">u&#39;&amp;middot;&#39;</span><span class="p">,</span> <span class="s">u&#39;*&#39;</span><span class="p">,</span> <span class="s">u&#39;</span><span class="se">\u2022</span><span class="s">&#39;</span><span class="p">,</span> <span class="s">u&#39;&amp;#149;&#39;</span><span class="p">,</span> <span class="s">u&#39;&amp;bull;&#39;</span><span class="p">,</span> <span class="s">u&#39;&amp;#8226;&#39;</span><span class="p">]</span>
 
 <span class="n">unencoded_ampersands_re</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="s">r&#39;&amp;(?!(\w+|#\d+);)&#39;</span><span class="p">)</span>
+<span class="n">unquoted_percents_re</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="s">r&#39;%(?![0-9A-Fa-f]{2})&#39;</span><span class="p">)</span>
 <span class="n">word_split_re</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="s">r&#39;(\s+)&#39;</span><span class="p">)</span>
-<span class="n">punctuation_re</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="s">&#39;^(?P&lt;lead&gt;(?:</span><span class="si">%s</span><span class="s">)*)(?P&lt;middle&gt;.*?)(?P&lt;trail&gt;(?:</span><span class="si">%s</span><span class="s">)*)$&#39;</span> <span class="o">%</span> \
-    <span class="p">(</span><span class="s">&#39;|&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="n">re</span><span class="o">.</span><span class="n">escape</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">LEADING_PUNCTUATION</span><span class="p">]),</span>
-    <span class="s">&#39;|&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="n">re</span><span class="o">.</span><span class="n">escape</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">TRAILING_PUNCTUATION</span><span class="p">])))</span>
-<span class="n">simple_email_re</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="s">r&#39;^\S+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9._-]+$&#39;</span><span class="p">)</span>
+<span class="n">simple_url_re</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="s">r&#39;^https?://\w&#39;</span><span class="p">)</span>
+<span class="n">simple_url_2_re</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="s">r&#39;^www\.|^(?!http)\w[^@]+\.(com|edu|gov|int|mil|net|org)$&#39;</span><span class="p">)</span>
+<span class="n">simple_email_re</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="s">r&#39;^\S+@\S+\.\S+$&#39;</span><span class="p">)</span>
 <span class="n">link_target_attribute_re</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="s">r&#39;(&lt;a [^&gt;]*?)target=[^\s&gt;]+&#39;</span><span class="p">)</span>
 <span class="n">html_gunk_re</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="s">r&#39;(?:&lt;br clear=&quot;all&quot;&gt;|&lt;i&gt;&lt;\/i&gt;|&lt;b&gt;&lt;\/b&gt;|&lt;em&gt;&lt;\/em&gt;|&lt;strong&gt;&lt;\/strong&gt;|&lt;\/?smallcaps&gt;|&lt;\/?uppercase&gt;)&#39;</span><span class="p">,</span> <span class="n">re</span><span class="o">.</span><span class="n">IGNORECASE</span><span class="p">)</span>
 <span class="n">hard_coded_bullets_re</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="s">r&#39;((?:&lt;p&gt;(?:</span><span class="si">%s</span><span class="s">).*?[a-zA-Z].*?&lt;/p&gt;\s*)+)&#39;</span> <span class="o">%</span> <span class="s">&#39;|&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="n">re</span><span class="o">.</span><span class="n">escape</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">DOTS</span><span class="p">]),</span> <span class="n">re</span><span class="o">.</span><span class="n">DOTALL</span><span class="p">)</span>
@@ -119,7 +121,7 @@
 </div>
 <div class="viewcode-block" id="linebreaks"><a class="viewcode-back" href="../../../django.utils.html#django.utils.html.linebreaks">[docs]</a><span class="k">def</span> <span class="nf">linebreaks</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">autoescape</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;Converts newlines into &lt;p&gt; and &lt;br /&gt;s.&quot;&quot;&quot;</span>
-    <span class="n">value</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="s">r&#39;\r\n|\r|\n&#39;</span><span class="p">,</span> <span class="s">&#39;</span><span class="se">\n</span><span class="s">&#39;</span><span class="p">,</span> <span class="n">force_unicode</span><span class="p">(</span><span class="n">value</span><span class="p">))</span> <span class="c"># normalize newlines</span>
+    <span class="n">value</span> <span class="o">=</span> <span class="n">normalize_newlines</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
     <span class="n">paras</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&#39;</span><span class="se">\n</span><span class="s">{2,}&#39;</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
     <span class="k">if</span> <span class="n">autoescape</span><span class="p">:</span>
         <span class="n">paras</span> <span class="o">=</span> <span class="p">[</span><span class="s">u&#39;&lt;p&gt;</span><span class="si">%s</span><span class="s">&lt;/p&gt;&#39;</span> <span class="o">%</span> <span class="n">escape</span><span class="p">(</span><span class="n">p</span><span class="p">)</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s">&#39;</span><span class="se">\n</span><span class="s">&#39;</span><span class="p">,</span> <span class="s">&#39;&lt;br /&gt;&#39;</span><span class="p">)</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">paras</span><span class="p">]</span>
@@ -148,14 +150,33 @@
     <span class="k">return</span> <span class="n">unencoded_ampersands_re</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="s">&#39;&amp;amp;&#39;</span><span class="p">,</span> <span class="n">force_unicode</span><span class="p">(</span><span class="n">value</span><span class="p">))</span></div>
 <span class="n">fix_ampersands</span> <span class="o">=</span> <span class="n">allow_lazy</span><span class="p">(</span><span class="n">fix_ampersands</span><span class="p">,</span> <span class="nb">unicode</span><span class="p">)</span>
 
+<div class="viewcode-block" id="smart_urlquote"><a class="viewcode-back" href="../../../django.utils.html#django.utils.html.smart_urlquote">[docs]</a><span class="k">def</span> <span class="nf">smart_urlquote</span><span class="p">(</span><span class="n">url</span><span class="p">):</span>
+    <span class="s">&quot;Quotes a URL if it isn&#39;t already quoted.&quot;</span>
+    <span class="c"># Handle IDN before quoting.</span>
+    <span class="n">scheme</span><span class="p">,</span> <span class="n">netloc</span><span class="p">,</span> <span class="n">path</span><span class="p">,</span> <span class="n">query</span><span class="p">,</span> <span class="n">fragment</span> <span class="o">=</span> <span class="n">urlparse</span><span class="o">.</span><span class="n">urlsplit</span><span class="p">(</span><span class="n">url</span><span class="p">)</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">netloc</span> <span class="o">=</span> <span class="n">netloc</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s">&#39;idna&#39;</span><span class="p">)</span> <span class="c"># IDN -&gt; ACE</span>
+    <span class="k">except</span> <span class="ne">UnicodeError</span><span class="p">:</span> <span class="c"># invalid domain part</span>
+        <span class="k">pass</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">url</span> <span class="o">=</span> <span class="n">urlparse</span><span class="o">.</span><span class="n">urlunsplit</span><span class="p">((</span><span class="n">scheme</span><span class="p">,</span> <span class="n">netloc</span><span class="p">,</span> <span class="n">path</span><span class="p">,</span> <span class="n">query</span><span class="p">,</span> <span class="n">fragment</span><span class="p">))</span>
+
+    <span class="c"># An URL is considered unquoted if it contains no % characters or</span>
+    <span class="c"># contains a % not followed by two hexadecimal digits. See #9655.</span>
+    <span class="k">if</span> <span class="s">&#39;%&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">url</span> <span class="ow">or</span> <span class="n">unquoted_percents_re</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="n">url</span><span class="p">):</span>
+        <span class="c"># See http://bugs.python.org/issue2637</span>
+        <span class="n">url</span> <span class="o">=</span> <span class="n">urllib</span><span class="o">.</span><span class="n">quote</span><span class="p">(</span><span class="n">smart_str</span><span class="p">(</span><span class="n">url</span><span class="p">),</span> <span class="n">safe</span><span class="o">=</span><span class="s">&#39;!*</span><span class="se">\&#39;</span><span class="s">();:@&amp;=+$,/?#[]~&#39;</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">force_unicode</span><span class="p">(</span><span class="n">url</span><span class="p">)</span>
+</div>
 <div class="viewcode-block" id="urlize"><a class="viewcode-back" href="../../../django.utils.html#django.utils.html.urlize">[docs]</a><span class="k">def</span> <span class="nf">urlize</span><span class="p">(</span><span class="n">text</span><span class="p">,</span> <span class="n">trim_url_limit</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">nofollow</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">autoescape</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Converts any URLs in text into clickable links.</span>
 
-<span class="sd">    Works on http://, https://, www. links and links ending in .org, .net or</span>
-<span class="sd">    .com. Links can have trailing punctuation (periods, commas, close-parens)</span>
-<span class="sd">    and leading punctuation (opening parens) and it&#39;ll still do the right</span>
-<span class="sd">    thing.</span>
+<span class="sd">    Works on http://, https://, www. links, and also on links ending in one of</span>
+<span class="sd">    the original seven gTLDs (.com, .edu, .gov, .int, .mil, .net, and .org).</span>
+<span class="sd">    Links can have trailing punctuation (periods, commas, close-parens) and</span>
+<span class="sd">    leading punctuation (opening parens) and it&#39;ll still do the right thing.</span>
 
 <span class="sd">    If trim_url_limit is not None, the URLs in link text longer than this limit</span>
 <span class="sd">    will truncated to trim_url_limit-3 characters and appended with an elipsis.</span>
@@ -168,24 +189,41 @@
     <span class="n">trim_url</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">,</span> <span class="n">limit</span><span class="o">=</span><span class="n">trim_url_limit</span><span class="p">:</span> <span class="n">limit</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span> <span class="ow">and</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="o">&gt;</span> <span class="n">limit</span> <span class="ow">and</span> <span class="p">(</span><span class="s">&#39;</span><span class="si">%s</span><span class="s">...&#39;</span> <span class="o">%</span> <span class="n">x</span><span class="p">[:</span><span class="nb">max</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">limit</span> <span class="o">-</span> <span class="mi">3</span><span class="p">)]))</span> <span class="ow">or</span> <span class="n">x</span>
     <span class="n">safe_input</span> <span class="o">=</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">text</span><span class="p">,</span> <span class="n">SafeData</span><span class="p">)</span>
     <span class="n">words</span> <span class="o">=</span> <span class="n">word_split_re</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">force_unicode</span><span class="p">(</span><span class="n">text</span><span class="p">))</span>
-    <span class="n">nofollow_attr</span> <span class="o">=</span> <span class="n">nofollow</span> <span class="ow">and</span> <span class="s">&#39; rel=&quot;nofollow&quot;&#39;</span> <span class="ow">or</span> <span class="s">&#39;&#39;</span>
     <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">word</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">words</span><span class="p">):</span>
         <span class="n">match</span> <span class="o">=</span> <span class="bp">None</span>
         <span class="k">if</span> <span class="s">&#39;.&#39;</span> <span class="ow">in</span> <span class="n">word</span> <span class="ow">or</span> <span class="s">&#39;@&#39;</span> <span class="ow">in</span> <span class="n">word</span> <span class="ow">or</span> <span class="s">&#39;:&#39;</span> <span class="ow">in</span> <span class="n">word</span><span class="p">:</span>
-            <span class="n">match</span> <span class="o">=</span> <span class="n">punctuation_re</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="n">word</span><span class="p">)</span>
-        <span class="k">if</span> <span class="n">match</span><span class="p">:</span>
-            <span class="n">lead</span><span class="p">,</span> <span class="n">middle</span><span class="p">,</span> <span class="n">trail</span> <span class="o">=</span> <span class="n">match</span><span class="o">.</span><span class="n">groups</span><span class="p">()</span>
+            <span class="c"># Deal with punctuation.</span>
+            <span class="n">lead</span><span class="p">,</span> <span class="n">middle</span><span class="p">,</span> <span class="n">trail</span> <span class="o">=</span> <span class="s">&#39;&#39;</span><span class="p">,</span> <span class="n">word</span><span class="p">,</span> <span class="s">&#39;&#39;</span>
+            <span class="k">for</span> <span class="n">punctuation</span> <span class="ow">in</span> <span class="n">TRAILING_PUNCTUATION</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">middle</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="n">punctuation</span><span class="p">):</span>
+                    <span class="n">middle</span> <span class="o">=</span> <span class="n">middle</span><span class="p">[:</span><span class="o">-</span><span class="nb">len</span><span class="p">(</span><span class="n">punctuation</span><span class="p">)]</span>
+                    <span class="n">trail</span> <span class="o">=</span> <span class="n">punctuation</span> <span class="o">+</span> <span class="n">trail</span>
+            <span class="k">for</span> <span class="n">opening</span><span class="p">,</span> <span class="n">closing</span> <span class="ow">in</span> <span class="n">WRAPPING_PUNCTUATION</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">middle</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="n">opening</span><span class="p">):</span>
+                    <span class="n">middle</span> <span class="o">=</span> <span class="n">middle</span><span class="p">[</span><span class="nb">len</span><span class="p">(</span><span class="n">opening</span><span class="p">):]</span>
+                    <span class="n">lead</span> <span class="o">=</span> <span class="n">lead</span> <span class="o">+</span> <span class="n">opening</span>
+                <span class="c"># Keep parentheses at the end only if they&#39;re balanced.</span>
+                <span class="k">if</span> <span class="p">(</span><span class="n">middle</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="n">closing</span><span class="p">)</span>
+                    <span class="ow">and</span> <span class="n">middle</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="n">closing</span><span class="p">)</span> <span class="o">==</span> <span class="n">middle</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="n">opening</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span><span class="p">):</span>
+                    <span class="n">middle</span> <span class="o">=</span> <span class="n">middle</span><span class="p">[:</span><span class="o">-</span><span class="nb">len</span><span class="p">(</span><span class="n">closing</span><span class="p">)]</span>
+                    <span class="n">trail</span> <span class="o">=</span> <span class="n">closing</span> <span class="o">+</span> <span class="n">trail</span>
+
             <span class="c"># Make URL we want to point to.</span>
             <span class="n">url</span> <span class="o">=</span> <span class="bp">None</span>
-            <span class="k">if</span> <span class="n">middle</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s">&#39;http://&#39;</span><span class="p">)</span> <span class="ow">or</span> <span class="n">middle</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s">&#39;https://&#39;</span><span class="p">):</span>
-                <span class="n">url</span> <span class="o">=</span> <span class="n">urlquote</span><span class="p">(</span><span class="n">middle</span><span class="p">,</span> <span class="n">safe</span><span class="o">=</span><span class="s">&#39;/&amp;=:;#?+*&#39;</span><span class="p">)</span>
-            <span class="k">elif</span> <span class="n">middle</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s">&#39;www.&#39;</span><span class="p">)</span> <span class="ow">or</span> <span class="p">(</span><span class="s">&#39;@&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">middle</span> <span class="ow">and</span> \
-                    <span class="n">middle</span> <span class="ow">and</span> <span class="n">middle</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="ow">in</span> <span class="n">string</span><span class="o">.</span><span class="n">ascii_letters</span> <span class="o">+</span> <span class="n">string</span><span class="o">.</span><span class="n">digits</span> <span class="ow">and</span> \
-                    <span class="p">(</span><span class="n">middle</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s">&#39;.org&#39;</span><span class="p">)</span> <span class="ow">or</span> <span class="n">middle</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s">&#39;.net&#39;</span><span class="p">)</span> <span class="ow">or</span> <span class="n">middle</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s">&#39;.com&#39;</span><span class="p">))):</span>
-                <span class="n">url</span> <span class="o">=</span> <span class="n">urlquote</span><span class="p">(</span><span class="s">&#39;http://</span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">middle</span><span class="p">,</span> <span class="n">safe</span><span class="o">=</span><span class="s">&#39;/&amp;=:;#?+*&#39;</span><span class="p">)</span>
-            <span class="k">elif</span> <span class="s">&#39;@&#39;</span> <span class="ow">in</span> <span class="n">middle</span> <span class="ow">and</span> <span class="ow">not</span> <span class="s">&#39;:&#39;</span> <span class="ow">in</span> <span class="n">middle</span> <span class="ow">and</span> <span class="n">simple_email_re</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="n">middle</span><span class="p">):</span>
-                <span class="n">url</span> <span class="o">=</span> <span class="s">&#39;mailto:</span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">middle</span>
+            <span class="n">nofollow_attr</span> <span class="o">=</span> <span class="s">&#39; rel=&quot;nofollow&quot;&#39;</span> <span class="k">if</span> <span class="n">nofollow</span> <span class="k">else</span> <span class="s">&#39;&#39;</span>
+            <span class="k">if</span> <span class="n">simple_url_re</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="n">middle</span><span class="p">):</span>
+                <span class="n">url</span> <span class="o">=</span> <span class="n">smart_urlquote</span><span class="p">(</span><span class="n">middle</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="n">simple_url_2_re</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="n">middle</span><span class="p">):</span>
+                <span class="n">url</span> <span class="o">=</span> <span class="n">smart_urlquote</span><span class="p">(</span><span class="s">&#39;http://</span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">middle</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="ow">not</span> <span class="s">&#39;:&#39;</span> <span class="ow">in</span> <span class="n">middle</span> <span class="ow">and</span> <span class="n">simple_email_re</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="n">middle</span><span class="p">):</span>
+                <span class="n">local</span><span class="p">,</span> <span class="n">domain</span> <span class="o">=</span> <span class="n">middle</span><span class="o">.</span><span class="n">rsplit</span><span class="p">(</span><span class="s">&#39;@&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="n">domain</span> <span class="o">=</span> <span class="n">domain</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s">&#39;idna&#39;</span><span class="p">)</span>
+                <span class="k">except</span> <span class="ne">UnicodeError</span><span class="p">:</span>
+                    <span class="k">continue</span>
+                <span class="n">url</span> <span class="o">=</span> <span class="s">&#39;mailto:</span><span class="si">%s</span><span class="s">@</span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">local</span><span class="p">,</span> <span class="n">domain</span><span class="p">)</span>
                 <span class="n">nofollow_attr</span> <span class="o">=</span> <span class="s">&#39;&#39;</span>
+
             <span class="c"># Make link.</span>
             <span class="k">if</span> <span class="n">url</span><span class="p">:</span>
                 <span class="n">trimmed</span> <span class="o">=</span> <span class="n">trim_url</span><span class="p">(</span><span class="n">middle</span><span class="p">)</span>
@@ -229,14 +267,14 @@
     <span class="n">text</span> <span class="o">=</span> <span class="n">html_gunk_re</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="s">&#39;&#39;</span><span class="p">,</span> <span class="n">text</span><span class="p">)</span>
     <span class="c"># Convert hard-coded bullets into HTML unordered lists.</span>
     <span class="k">def</span> <span class="nf">replace_p_tags</span><span class="p">(</span><span class="n">match</span><span class="p">):</span>
-        <span class="n">s</span> <span class="o">=</span> <span class="n">match</span><span class="o">.</span><span class="n">group</span><span class="p">()</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s">&#39;&lt;/p&gt;&#39;</span><span class="p">,</span> <span class="s">&#39;&lt;/li&gt;&#39;</span><span class="p">)</span>
+        <span class="n">s</span> <span class="o">=</span> <span class="n">match</span><span class="o">.</span><span class="n">group</span><span class="p">()</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s">u&#39;&lt;/p&gt;&#39;</span><span class="p">,</span> <span class="s">u&#39;&lt;/li&gt;&#39;</span><span class="p">)</span>
         <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">DOTS</span><span class="p">:</span>
-            <span class="n">s</span> <span class="o">=</span> <span class="n">s</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s">&#39;&lt;p&gt;</span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">d</span><span class="p">,</span> <span class="s">&#39;&lt;li&gt;&#39;</span><span class="p">)</span>
+            <span class="n">s</span> <span class="o">=</span> <span class="n">s</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s">u&#39;&lt;p&gt;</span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">d</span><span class="p">,</span> <span class="s">u&#39;&lt;li&gt;&#39;</span><span class="p">)</span>
         <span class="k">return</span> <span class="s">u&#39;&lt;ul&gt;</span><span class="se">\n</span><span class="si">%s</span><span class="se">\n</span><span class="s">&lt;/ul&gt;&#39;</span> <span class="o">%</span> <span class="n">s</span>
     <span class="n">text</span> <span class="o">=</span> <span class="n">hard_coded_bullets_re</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="n">replace_p_tags</span><span class="p">,</span> <span class="n">text</span><span class="p">)</span>
     <span class="c"># Remove stuff like &quot;&lt;p&gt;&amp;nbsp;&amp;nbsp;&lt;/p&gt;&quot;, but only if it&#39;s at the bottom</span>
     <span class="c"># of the text.</span>
-    <span class="n">text</span> <span class="o">=</span> <span class="n">trailing_empty_content_re</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="s">&#39;&#39;</span><span class="p">,</span> <span class="n">text</span><span class="p">)</span>
+    <span class="n">text</span> <span class="o">=</span> <span class="n">trailing_empty_content_re</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="s">u&#39;&#39;</span><span class="p">,</span> <span class="n">text</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">text</span></div>
 <span class="n">clean_html</span> <span class="o">=</span> <span class="n">allow_lazy</span><span class="p">(</span><span class="n">clean_html</span><span class="p">,</span> <span class="nb">unicode</span><span class="p">)</span>
 </pre></div>
@@ -253,7 +291,7 @@
 
     <div class="footer">
         &copy; Copyright 2012, HDKNR.COM.
-      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.2pre/660be19d7963.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.2pre/3c28de26aac2.
     </div>
   </body>
 </html>

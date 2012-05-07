@@ -47,14 +47,18 @@
         
         
   <h1>Source code for django.db.models.sql.compiler</h1><div class="highlight"><pre>
+<span class="kn">from</span> <span class="nn">itertools</span> <span class="kn">import</span> <span class="n">izip</span>
+
 <span class="kn">from</span> <span class="nn">django.core.exceptions</span> <span class="kn">import</span> <span class="n">FieldError</span>
-<span class="kn">from</span> <span class="nn">django.db</span> <span class="kn">import</span> <span class="n">connections</span>
+<span class="kn">from</span> <span class="nn">django.db</span> <span class="kn">import</span> <span class="n">transaction</span>
 <span class="kn">from</span> <span class="nn">django.db.backends.util</span> <span class="kn">import</span> <span class="n">truncate_name</span>
+<span class="kn">from</span> <span class="nn">django.db.models.query_utils</span> <span class="kn">import</span> <span class="n">select_related_descend</span>
 <span class="kn">from</span> <span class="nn">django.db.models.sql.constants</span> <span class="kn">import</span> <span class="o">*</span>
 <span class="kn">from</span> <span class="nn">django.db.models.sql.datastructures</span> <span class="kn">import</span> <span class="n">EmptyResultSet</span>
 <span class="kn">from</span> <span class="nn">django.db.models.sql.expressions</span> <span class="kn">import</span> <span class="n">SQLEvaluator</span>
-<span class="kn">from</span> <span class="nn">django.db.models.sql.query</span> <span class="kn">import</span> <span class="n">get_proxied_model</span><span class="p">,</span> <span class="n">get_order_dir</span><span class="p">,</span> \
-     <span class="n">select_related_descend</span><span class="p">,</span> <span class="n">Query</span>
+<span class="kn">from</span> <span class="nn">django.db.models.sql.query</span> <span class="kn">import</span> <span class="n">get_order_dir</span><span class="p">,</span> <span class="n">Query</span>
+<span class="kn">from</span> <span class="nn">django.db.utils</span> <span class="kn">import</span> <span class="n">DatabaseError</span>
+
 
 <span class="k">class</span> <span class="nc">SQLCompiler</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">query</span><span class="p">,</span> <span class="n">connection</span><span class="p">,</span> <span class="n">using</span><span class="p">):</span>
@@ -68,6 +72,8 @@
 <span class="sd">        Does any necessary class setup immediately prior to producing SQL. This</span>
 <span class="sd">        is for things that can&#39;t necessarily be done in __init__ because we</span>
 <span class="sd">        might not have all the pieces in place at that time.</span>
+<span class="sd">        # TODO: after the query has been executed, the altered state should be</span>
+<span class="sd">        # cleaned. We are not using a clone() of the query here.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">query</span><span class="o">.</span><span class="n">tables</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">query</span><span class="o">.</span><span class="n">join</span><span class="p">((</span><span class="bp">None</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">query</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">db_table</span><span class="p">,</span> <span class="bp">None</span><span class="p">,</span> <span class="bp">None</span><span class="p">))</span>
@@ -105,11 +111,19 @@
             <span class="k">return</span> <span class="s">&#39;&#39;</span><span class="p">,</span> <span class="p">()</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">pre_sql_setup</span><span class="p">()</span>
+        <span class="c"># After executing the query, we must get rid of any joins the query</span>
+        <span class="c"># setup created. So, take note of alias counts before the query ran.</span>
+        <span class="c"># However we do not want to get rid of stuff done in pre_sql_setup(),</span>
+        <span class="c"># as the pre_sql_setup will modify query state in a way that forbids</span>
+        <span class="c"># another run of it.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">refcounts_before</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">query</span><span class="o">.</span><span class="n">alias_refcount</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
         <span class="n">out_cols</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_columns</span><span class="p">(</span><span class="n">with_col_aliases</span><span class="p">)</span>
         <span class="n">ordering</span><span class="p">,</span> <span class="n">ordering_group_by</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_ordering</span><span class="p">()</span>
 
-        <span class="c"># This must come after &#39;select&#39; and &#39;ordering&#39; -- see docstring of</span>
-        <span class="c"># get_from_clause() for details.</span>
+        <span class="n">distinct_fields</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_distinct</span><span class="p">()</span>
+
+        <span class="c"># This must come after &#39;select&#39;, &#39;ordering&#39; and &#39;distinct&#39; -- see</span>
+        <span class="c"># docstring of get_from_clause() for details.</span>
         <span class="n">from_</span><span class="p">,</span> <span class="n">f_params</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_from_clause</span><span class="p">()</span>
 
         <span class="n">qn</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">quote_name_unless_alias</span>
@@ -121,8 +135,10 @@
             <span class="n">params</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">val</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
 
         <span class="n">result</span> <span class="o">=</span> <span class="p">[</span><span class="s">&#39;SELECT&#39;</span><span class="p">]</span>
+
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">query</span><span class="o">.</span><span class="n">distinct</span><span class="p">:</span>
-            <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s">&#39;DISTINCT&#39;</span><span class="p">)</span>
+            <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">distinct_sql</span><span class="p">(</span><span class="n">distinct_fields</span><span class="p">))</span>
+
         <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s">&#39;, &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">out_cols</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">query</span><span class="o">.</span><span class="n">ordering_aliases</span><span class="p">))</span>
 
         <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s">&#39;FROM&#39;</span><span class="p">)</span>
@@ -135,6 +151,9 @@
 
         <span class="n">grouping</span><span class="p">,</span> <span class="n">gb_params</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_grouping</span><span class="p">()</span>
         <span class="k">if</span> <span class="n">grouping</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">distinct_fields</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span>
+                    <span class="s">&quot;annotate() + distinct(fields) not implemented.&quot;</span><span class="p">)</span>
             <span class="k">if</span> <span class="n">ordering</span><span class="p">:</span>
                 <span class="c"># If the backend can&#39;t group by PK (i.e., any database</span>
                 <span class="c"># other than MySQL), then any fields mentioned in the</span>
@@ -165,6 +184,17 @@
                     <span class="k">if</span> <span class="n">val</span><span class="p">:</span>
                         <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s">&#39;LIMIT </span><span class="si">%d</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">val</span><span class="p">)</span>
                 <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s">&#39;OFFSET </span><span class="si">%d</span><span class="s">&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">query</span><span class="o">.</span><span class="n">low_mark</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">query</span><span class="o">.</span><span class="n">select_for_update</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">features</span><span class="o">.</span><span class="n">has_select_for_update</span><span class="p">:</span>
+            <span class="c"># If we&#39;ve been asked for a NOWAIT query but the backend does not support it,</span>
+            <span class="c"># raise a DatabaseError otherwise we could get an unexpected deadlock.</span>
+            <span class="n">nowait</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">query</span><span class="o">.</span><span class="n">select_for_update_nowait</span>
+            <span class="k">if</span> <span class="n">nowait</span> <span class="ow">and</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">features</span><span class="o">.</span><span class="n">has_select_for_update_nowait</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">DatabaseError</span><span class="p">(</span><span class="s">&#39;NOWAIT is not supported on this database backend.&#39;</span><span class="p">)</span>
+            <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">for_update_sql</span><span class="p">(</span><span class="n">nowait</span><span class="o">=</span><span class="n">nowait</span><span class="p">))</span>
+
+        <span class="c"># Finally do cleanup - get rid of the joins we created above.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">query</span><span class="o">.</span><span class="n">reset_refcounts</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">refcounts_before</span><span class="p">)</span>
 
         <span class="k">return</span> <span class="s">&#39; &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">result</span><span class="p">),</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">params</span><span class="p">)</span>
 
@@ -208,7 +238,7 @@
                 <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">col</span><span class="p">,</span> <span class="p">(</span><span class="nb">list</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">)):</span>
                     <span class="n">alias</span><span class="p">,</span> <span class="n">column</span> <span class="o">=</span> <span class="n">col</span>
                     <span class="n">table</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">query</span><span class="o">.</span><span class="n">alias_map</span><span class="p">[</span><span class="n">alias</span><span class="p">][</span><span class="n">TABLE_NAME</span><span class="p">]</span>
-                    <span class="k">if</span> <span class="n">table</span> <span class="ow">in</span> <span class="n">only_load</span> <span class="ow">and</span> <span class="n">col</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">only_load</span><span class="p">[</span><span class="n">table</span><span class="p">]:</span>
+                    <span class="k">if</span> <span class="n">table</span> <span class="ow">in</span> <span class="n">only_load</span> <span class="ow">and</span> <span class="n">column</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">only_load</span><span class="p">[</span><span class="n">table</span><span class="p">]:</span>
                         <span class="k">continue</span>
                     <span class="n">r</span> <span class="o">=</span> <span class="s">&#39;</span><span class="si">%s</span><span class="s">.</span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">qn</span><span class="p">(</span><span class="n">alias</span><span class="p">),</span> <span class="n">qn</span><span class="p">(</span><span class="n">column</span><span class="p">))</span>
                     <span class="k">if</span> <span class="n">with_aliases</span><span class="p">:</span>
@@ -285,7 +315,7 @@
         <span class="n">aliases</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
         <span class="n">only_load</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">deferred_to_columns</span><span class="p">()</span>
         <span class="c"># Skip all proxy to the root proxied model</span>
-        <span class="n">proxied_model</span> <span class="o">=</span> <span class="n">get_proxied_model</span><span class="p">(</span><span class="n">opts</span><span class="p">)</span>
+        <span class="n">proxied_model</span> <span class="o">=</span> <span class="n">opts</span><span class="o">.</span><span class="n">concrete_model</span>
 
         <span class="k">if</span> <span class="n">start_alias</span><span class="p">:</span>
             <span class="n">seen</span> <span class="o">=</span> <span class="p">{</span><span class="bp">None</span><span class="p">:</span> <span class="n">start_alias</span><span class="p">}</span>
@@ -329,6 +359,26 @@
                     <span class="n">col_aliases</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">field</span><span class="o">.</span><span class="n">column</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">result</span><span class="p">,</span> <span class="n">aliases</span>
 
+    <span class="k">def</span> <span class="nf">get_distinct</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns a quoted list of fields to use in DISTINCT ON part of the query.</span>
+
+<span class="sd">        Note that this method can alter the tables in the query, and thus it</span>
+<span class="sd">        must be called before get_from_clause().</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">qn</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">quote_name_unless_alias</span>
+        <span class="n">qn2</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">quote_name</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">opts</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">query</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">_meta</span>
+
+        <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">query</span><span class="o">.</span><span class="n">distinct_fields</span><span class="p">:</span>
+            <span class="n">parts</span> <span class="o">=</span> <span class="n">name</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">LOOKUP_SEP</span><span class="p">)</span>
+            <span class="n">field</span><span class="p">,</span> <span class="n">col</span><span class="p">,</span> <span class="n">alias</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_setup_joins</span><span class="p">(</span><span class="n">parts</span><span class="p">,</span> <span class="n">opts</span><span class="p">,</span> <span class="bp">None</span><span class="p">)</span>
+            <span class="n">col</span><span class="p">,</span> <span class="n">alias</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_final_join_removal</span><span class="p">(</span><span class="n">col</span><span class="p">,</span> <span class="n">alias</span><span class="p">)</span>
+            <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s">&quot;</span><span class="si">%s</span><span class="s">.</span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">qn</span><span class="p">(</span><span class="n">alias</span><span class="p">),</span> <span class="n">qn2</span><span class="p">(</span><span class="n">col</span><span class="p">)))</span>
+        <span class="k">return</span> <span class="n">result</span>
+
+
     <span class="k">def</span> <span class="nf">get_ordering</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Returns a tuple containing a list representing the SQL elements in the</span>
@@ -346,7 +396,9 @@
         <span class="k">elif</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">query</span><span class="o">.</span><span class="n">default_ordering</span><span class="p">:</span>
             <span class="n">ordering</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">query</span><span class="o">.</span><span class="n">order_by</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="n">ordering</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">query</span><span class="o">.</span><span class="n">order_by</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">query</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">ordering</span>
+            <span class="n">ordering</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">query</span><span class="o">.</span><span class="n">order_by</span>
+                        <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">query</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">ordering</span>
+                        <span class="ow">or</span> <span class="p">[])</span>
         <span class="n">qn</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">quote_name_unless_alias</span>
         <span class="n">qn2</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">quote_name</span>
         <span class="n">distinct</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">query</span><span class="o">.</span><span class="n">distinct</span>
@@ -421,21 +473,7 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">name</span><span class="p">,</span> <span class="n">order</span> <span class="o">=</span> <span class="n">get_order_dir</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">default_order</span><span class="p">)</span>
         <span class="n">pieces</span> <span class="o">=</span> <span class="n">name</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">LOOKUP_SEP</span><span class="p">)</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">alias</span><span class="p">:</span>
-            <span class="n">alias</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">query</span><span class="o">.</span><span class="n">get_initial_alias</span><span class="p">()</span>
-        <span class="n">field</span><span class="p">,</span> <span class="n">target</span><span class="p">,</span> <span class="n">opts</span><span class="p">,</span> <span class="n">joins</span><span class="p">,</span> <span class="n">last</span><span class="p">,</span> <span class="n">extra</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">query</span><span class="o">.</span><span class="n">setup_joins</span><span class="p">(</span><span class="n">pieces</span><span class="p">,</span>
-                <span class="n">opts</span><span class="p">,</span> <span class="n">alias</span><span class="p">,</span> <span class="bp">False</span><span class="p">)</span>
-        <span class="n">alias</span> <span class="o">=</span> <span class="n">joins</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
-        <span class="n">col</span> <span class="o">=</span> <span class="n">target</span><span class="o">.</span><span class="n">column</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">field</span><span class="o">.</span><span class="n">rel</span><span class="p">:</span>
-            <span class="c"># To avoid inadvertent trimming of a necessary alias, use the</span>
-            <span class="c"># refcount to show that we are referencing a non-relation field on</span>
-            <span class="c"># the model.</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">query</span><span class="o">.</span><span class="n">ref_alias</span><span class="p">(</span><span class="n">alias</span><span class="p">)</span>
-
-        <span class="c"># Must use left outer joins for nullable fields and their relations.</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">query</span><span class="o">.</span><span class="n">promote_alias_chain</span><span class="p">(</span><span class="n">joins</span><span class="p">,</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">query</span><span class="o">.</span><span class="n">alias_map</span><span class="p">[</span><span class="n">joins</span><span class="p">[</span><span class="mi">0</span><span class="p">]][</span><span class="n">JOIN_TYPE</span><span class="p">]</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">query</span><span class="o">.</span><span class="n">LOUTER</span><span class="p">)</span>
+        <span class="n">field</span><span class="p">,</span> <span class="n">col</span><span class="p">,</span> <span class="n">alias</span><span class="p">,</span> <span class="n">joins</span><span class="p">,</span> <span class="n">opts</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_setup_joins</span><span class="p">(</span><span class="n">pieces</span><span class="p">,</span> <span class="n">opts</span><span class="p">,</span> <span class="n">alias</span><span class="p">)</span>
 
         <span class="c"># If we get to this point and the field is a relation to another model,</span>
         <span class="c"># append the default ordering for that model.</span>
@@ -453,11 +491,47 @@
                 <span class="n">results</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">find_ordering_name</span><span class="p">(</span><span class="n">item</span><span class="p">,</span> <span class="n">opts</span><span class="p">,</span> <span class="n">alias</span><span class="p">,</span>
                         <span class="n">order</span><span class="p">,</span> <span class="n">already_seen</span><span class="p">))</span>
             <span class="k">return</span> <span class="n">results</span>
+        <span class="n">col</span><span class="p">,</span> <span class="n">alias</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_final_join_removal</span><span class="p">(</span><span class="n">col</span><span class="p">,</span> <span class="n">alias</span><span class="p">)</span>
+        <span class="k">return</span> <span class="p">[(</span><span class="n">alias</span><span class="p">,</span> <span class="n">col</span><span class="p">,</span> <span class="n">order</span><span class="p">)]</span>
 
+    <span class="k">def</span> <span class="nf">_setup_joins</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pieces</span><span class="p">,</span> <span class="n">opts</span><span class="p">,</span> <span class="n">alias</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        A helper method for get_ordering and get_distinct. This method will</span>
+<span class="sd">        call query.setup_joins, handle refcounts and then promote the joins.</span>
+
+<span class="sd">        Note that get_ordering and get_distinct must produce same target</span>
+<span class="sd">        columns on same input, as the prefixes of get_ordering and get_distinct</span>
+<span class="sd">        must match. Executing SQL where this is not true is an error.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">alias</span><span class="p">:</span>
+            <span class="n">alias</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">query</span><span class="o">.</span><span class="n">get_initial_alias</span><span class="p">()</span>
+        <span class="n">field</span><span class="p">,</span> <span class="n">target</span><span class="p">,</span> <span class="n">opts</span><span class="p">,</span> <span class="n">joins</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">query</span><span class="o">.</span><span class="n">setup_joins</span><span class="p">(</span><span class="n">pieces</span><span class="p">,</span>
+                <span class="n">opts</span><span class="p">,</span> <span class="n">alias</span><span class="p">,</span> <span class="bp">False</span><span class="p">)</span>
+        <span class="n">alias</span> <span class="o">=</span> <span class="n">joins</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+        <span class="n">col</span> <span class="o">=</span> <span class="n">target</span><span class="o">.</span><span class="n">column</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">field</span><span class="o">.</span><span class="n">rel</span><span class="p">:</span>
+            <span class="c"># To avoid inadvertent trimming of a necessary alias, use the</span>
+            <span class="c"># refcount to show that we are referencing a non-relation field on</span>
+            <span class="c"># the model.</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">query</span><span class="o">.</span><span class="n">ref_alias</span><span class="p">(</span><span class="n">alias</span><span class="p">)</span>
+
+        <span class="c"># Must use left outer joins for nullable fields and their relations.</span>
+        <span class="c"># Ordering or distinct must not affect the returned set, and INNER</span>
+        <span class="c"># JOINS for nullable fields could do this.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">query</span><span class="o">.</span><span class="n">promote_alias_chain</span><span class="p">(</span><span class="n">joins</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">query</span><span class="o">.</span><span class="n">alias_map</span><span class="p">[</span><span class="n">joins</span><span class="p">[</span><span class="mi">0</span><span class="p">]][</span><span class="n">JOIN_TYPE</span><span class="p">]</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">query</span><span class="o">.</span><span class="n">LOUTER</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">field</span><span class="p">,</span> <span class="n">col</span><span class="p">,</span> <span class="n">alias</span><span class="p">,</span> <span class="n">joins</span><span class="p">,</span> <span class="n">opts</span>
+
+    <span class="k">def</span> <span class="nf">_final_join_removal</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">col</span><span class="p">,</span> <span class="n">alias</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        A helper method for get_distinct and get_ordering. This method will</span>
+<span class="sd">        trim extra not-needed joins from the tail of the join chain.</span>
+
+<span class="sd">        This is very similar to what is done in trim_joins, but we will</span>
+<span class="sd">        trim LEFT JOINS here. It would be a good idea to consolidate this</span>
+<span class="sd">        method and query.trim_joins().</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="n">alias</span><span class="p">:</span>
-            <span class="c"># We have to do the same &quot;final join&quot; optimisation as in</span>
-            <span class="c"># add_filter, since the final column might not otherwise be part of</span>
-            <span class="c"># the select set (so we can&#39;t order on it).</span>
             <span class="k">while</span> <span class="mi">1</span><span class="p">:</span>
                 <span class="n">join</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">query</span><span class="o">.</span><span class="n">alias_map</span><span class="p">[</span><span class="n">alias</span><span class="p">]</span>
                 <span class="k">if</span> <span class="n">col</span> <span class="o">!=</span> <span class="n">join</span><span class="p">[</span><span class="n">RHS_JOIN_COL</span><span class="p">]:</span>
@@ -465,7 +539,7 @@
                 <span class="bp">self</span><span class="o">.</span><span class="n">query</span><span class="o">.</span><span class="n">unref_alias</span><span class="p">(</span><span class="n">alias</span><span class="p">)</span>
                 <span class="n">alias</span> <span class="o">=</span> <span class="n">join</span><span class="p">[</span><span class="n">LHS_ALIAS</span><span class="p">]</span>
                 <span class="n">col</span> <span class="o">=</span> <span class="n">join</span><span class="p">[</span><span class="n">LHS_JOIN_COL</span><span class="p">]</span>
-        <span class="k">return</span> <span class="p">[(</span><span class="n">alias</span><span class="p">,</span> <span class="n">col</span><span class="p">,</span> <span class="n">order</span><span class="p">)]</span>
+        <span class="k">return</span> <span class="n">col</span><span class="p">,</span> <span class="n">alias</span>
 
     <span class="k">def</span> <span class="nf">get_from_clause</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
@@ -475,8 +549,8 @@
 <span class="sd">        from-clause via a &quot;select&quot;.</span>
 
 <span class="sd">        This should only be called after any SQL construction methods that</span>
-<span class="sd">        might change the tables we need. This means the select columns and</span>
-<span class="sd">        ordering must be done first.</span>
+<span class="sd">        might change the tables we need. This means the select columns,</span>
+<span class="sd">        ordering and distinct must be done first.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">result</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="n">qn</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">quote_name_unless_alias</span>
@@ -532,7 +606,11 @@
                 <span class="n">params</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">extra_params</span><span class="p">)</span>
             <span class="n">cols</span> <span class="o">=</span> <span class="p">(</span><span class="n">group_by</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">query</span><span class="o">.</span><span class="n">select</span> <span class="o">+</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">query</span><span class="o">.</span><span class="n">related_select_cols</span> <span class="o">+</span> <span class="n">extra_selects</span><span class="p">)</span>
+            <span class="n">seen</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
             <span class="k">for</span> <span class="n">col</span> <span class="ow">in</span> <span class="n">cols</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">col</span> <span class="ow">in</span> <span class="n">seen</span><span class="p">:</span>
+                    <span class="k">continue</span>
+                <span class="n">seen</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">col</span><span class="p">)</span>
                 <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">col</span><span class="p">,</span> <span class="p">(</span><span class="nb">list</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">)):</span>
                     <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s">&#39;</span><span class="si">%s</span><span class="s">.</span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">qn</span><span class="p">(</span><span class="n">col</span><span class="p">[</span><span class="mi">0</span><span class="p">]),</span> <span class="n">qn</span><span class="p">(</span><span class="n">col</span><span class="p">[</span><span class="mi">1</span><span class="p">])))</span>
                 <span class="k">elif</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">col</span><span class="p">,</span> <span class="s">&#39;as_sql&#39;</span><span class="p">):</span>
@@ -726,6 +804,11 @@
         <span class="n">resolve_columns</span> <span class="o">=</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s">&#39;resolve_columns&#39;</span><span class="p">)</span>
         <span class="n">fields</span> <span class="o">=</span> <span class="bp">None</span>
         <span class="n">has_aggregate_select</span> <span class="o">=</span> <span class="nb">bool</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">query</span><span class="o">.</span><span class="n">aggregate_select</span><span class="p">)</span>
+        <span class="c"># Set transaction dirty if we&#39;re using SELECT FOR UPDATE to ensure</span>
+        <span class="c"># a subsequent commit/rollback is executed, so any database locks</span>
+        <span class="c"># are released.</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">query</span><span class="o">.</span><span class="n">select_for_update</span> <span class="ow">and</span> <span class="n">transaction</span><span class="o">.</span><span class="n">is_managed</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">using</span><span class="p">):</span>
+            <span class="n">transaction</span><span class="o">.</span><span class="n">set_dirty</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">using</span><span class="p">)</span>
         <span class="k">for</span> <span class="n">rows</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">execute_sql</span><span class="p">(</span><span class="n">MULTI</span><span class="p">):</span>
             <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">rows</span><span class="p">:</span>
                 <span class="k">if</span> <span class="n">resolve_columns</span><span class="p">:</span>
@@ -824,20 +907,56 @@
         <span class="n">qn</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">quote_name</span>
         <span class="n">opts</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">query</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">_meta</span>
         <span class="n">result</span> <span class="o">=</span> <span class="p">[</span><span class="s">&#39;INSERT INTO </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">qn</span><span class="p">(</span><span class="n">opts</span><span class="o">.</span><span class="n">db_table</span><span class="p">)]</span>
-        <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s">&#39;(</span><span class="si">%s</span><span class="s">)&#39;</span> <span class="o">%</span> <span class="s">&#39;, &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="n">qn</span><span class="p">(</span><span class="n">c</span><span class="p">)</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">query</span><span class="o">.</span><span class="n">columns</span><span class="p">]))</span>
-        <span class="n">values</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">placeholder</span><span class="p">(</span><span class="o">*</span><span class="n">v</span><span class="p">)</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">query</span><span class="o">.</span><span class="n">values</span><span class="p">]</span>
-        <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s">&#39;VALUES (</span><span class="si">%s</span><span class="s">)&#39;</span> <span class="o">%</span> <span class="s">&#39;, &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">values</span><span class="p">))</span>
-        <span class="n">params</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">query</span><span class="o">.</span><span class="n">params</span>
+
+        <span class="n">has_fields</span> <span class="o">=</span> <span class="nb">bool</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">query</span><span class="o">.</span><span class="n">fields</span><span class="p">)</span>
+        <span class="n">fields</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">query</span><span class="o">.</span><span class="n">fields</span> <span class="k">if</span> <span class="n">has_fields</span> <span class="k">else</span> <span class="p">[</span><span class="n">opts</span><span class="o">.</span><span class="n">pk</span><span class="p">]</span>
+        <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s">&#39;(</span><span class="si">%s</span><span class="s">)&#39;</span> <span class="o">%</span> <span class="s">&#39;, &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="n">qn</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">column</span><span class="p">)</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">fields</span><span class="p">]))</span>
+
+        <span class="k">if</span> <span class="n">has_fields</span><span class="p">:</span>
+            <span class="n">params</span> <span class="o">=</span> <span class="n">values</span> <span class="o">=</span> <span class="p">[</span>
+                <span class="p">[</span>
+                    <span class="n">f</span><span class="o">.</span><span class="n">get_db_prep_save</span><span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">f</span><span class="o">.</span><span class="n">attname</span><span class="p">)</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">query</span><span class="o">.</span><span class="n">raw</span> <span class="k">else</span> <span class="n">f</span><span class="o">.</span><span class="n">pre_save</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="bp">True</span><span class="p">),</span> <span class="n">connection</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">connection</span><span class="p">)</span>
+                    <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">fields</span>
+                <span class="p">]</span>
+                <span class="k">for</span> <span class="n">obj</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">query</span><span class="o">.</span><span class="n">objs</span>
+            <span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">values</span> <span class="o">=</span> <span class="p">[[</span><span class="bp">self</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">pk_default_value</span><span class="p">()]</span> <span class="k">for</span> <span class="n">obj</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">query</span><span class="o">.</span><span class="n">objs</span><span class="p">]</span>
+            <span class="n">params</span> <span class="o">=</span> <span class="p">[[]]</span>
+            <span class="n">fields</span> <span class="o">=</span> <span class="p">[</span><span class="bp">None</span><span class="p">]</span>
+        <span class="n">can_bulk</span> <span class="o">=</span> <span class="p">(</span><span class="ow">not</span> <span class="nb">any</span><span class="p">(</span><span class="nb">hasattr</span><span class="p">(</span><span class="n">field</span><span class="p">,</span> <span class="s">&quot;get_placeholder&quot;</span><span class="p">)</span> <span class="k">for</span> <span class="n">field</span> <span class="ow">in</span> <span class="n">fields</span><span class="p">)</span> <span class="ow">and</span>
+            <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">return_id</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">features</span><span class="o">.</span><span class="n">has_bulk_insert</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">can_bulk</span><span class="p">:</span>
+            <span class="n">placeholders</span> <span class="o">=</span> <span class="p">[[</span><span class="s">&quot;</span><span class="si">%s</span><span class="s">&quot;</span><span class="p">]</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="n">fields</span><span class="p">)]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">placeholders</span> <span class="o">=</span> <span class="p">[</span>
+                <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">placeholder</span><span class="p">(</span><span class="n">field</span><span class="p">,</span> <span class="n">v</span><span class="p">)</span> <span class="k">for</span> <span class="n">field</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">izip</span><span class="p">(</span><span class="n">fields</span><span class="p">,</span> <span class="n">val</span><span class="p">)]</span>
+                <span class="k">for</span> <span class="n">val</span> <span class="ow">in</span> <span class="n">values</span>
+            <span class="p">]</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">return_id</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">features</span><span class="o">.</span><span class="n">can_return_id_from_insert</span><span class="p">:</span>
+            <span class="n">params</span> <span class="o">=</span> <span class="n">params</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
             <span class="n">col</span> <span class="o">=</span> <span class="s">&quot;</span><span class="si">%s</span><span class="s">.</span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">qn</span><span class="p">(</span><span class="n">opts</span><span class="o">.</span><span class="n">db_table</span><span class="p">),</span> <span class="n">qn</span><span class="p">(</span><span class="n">opts</span><span class="o">.</span><span class="n">pk</span><span class="o">.</span><span class="n">column</span><span class="p">))</span>
+            <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s">&quot;VALUES (</span><span class="si">%s</span><span class="s">)&quot;</span> <span class="o">%</span> <span class="s">&quot;, &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">placeholders</span><span class="p">[</span><span class="mi">0</span><span class="p">]))</span>
             <span class="n">r_fmt</span><span class="p">,</span> <span class="n">r_params</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">return_insert_id</span><span class="p">()</span>
             <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">r_fmt</span> <span class="o">%</span> <span class="n">col</span><span class="p">)</span>
-            <span class="n">params</span> <span class="o">=</span> <span class="n">params</span> <span class="o">+</span> <span class="n">r_params</span>
-        <span class="k">return</span> <span class="s">&#39; &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">result</span><span class="p">),</span> <span class="n">params</span>
+            <span class="n">params</span> <span class="o">+=</span> <span class="n">r_params</span>
+            <span class="k">return</span> <span class="p">[(</span><span class="s">&quot; &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">result</span><span class="p">),</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">params</span><span class="p">))]</span>
+        <span class="k">if</span> <span class="n">can_bulk</span><span class="p">:</span>
+            <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">bulk_insert_sql</span><span class="p">(</span><span class="n">fields</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">values</span><span class="p">)))</span>
+            <span class="k">return</span> <span class="p">[(</span><span class="s">&quot; &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">result</span><span class="p">),</span> <span class="nb">tuple</span><span class="p">([</span><span class="n">v</span> <span class="k">for</span> <span class="n">val</span> <span class="ow">in</span> <span class="n">values</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">val</span><span class="p">]))]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="p">[</span>
+                <span class="p">(</span><span class="s">&quot; &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">result</span> <span class="o">+</span> <span class="p">[</span><span class="s">&quot;VALUES (</span><span class="si">%s</span><span class="s">)&quot;</span> <span class="o">%</span> <span class="s">&quot;, &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">p</span><span class="p">)]),</span> <span class="n">vals</span><span class="p">)</span>
+                <span class="k">for</span> <span class="n">p</span><span class="p">,</span> <span class="n">vals</span> <span class="ow">in</span> <span class="n">izip</span><span class="p">(</span><span class="n">placeholders</span><span class="p">,</span> <span class="n">params</span><span class="p">)</span>
+            <span class="p">]</span>
 
     <span class="k">def</span> <span class="nf">execute_sql</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">return_id</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+        <span class="k">assert</span> <span class="ow">not</span> <span class="p">(</span><span class="n">return_id</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">query</span><span class="o">.</span><span class="n">objs</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">1</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">return_id</span> <span class="o">=</span> <span class="n">return_id</span>
-        <span class="n">cursor</span> <span class="o">=</span> <span class="nb">super</span><span class="p">(</span><span class="n">SQLInsertCompiler</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">execute_sql</span><span class="p">(</span><span class="bp">None</span><span class="p">)</span>
+        <span class="n">cursor</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">cursor</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">sql</span><span class="p">,</span> <span class="n">params</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">as_sql</span><span class="p">():</span>
+            <span class="n">cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">sql</span><span class="p">,</span> <span class="n">params</span><span class="p">)</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="n">return_id</span> <span class="ow">and</span> <span class="n">cursor</span><span class="p">):</span>
             <span class="k">return</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">features</span><span class="o">.</span><span class="n">can_return_id_from_insert</span><span class="p">:</span>
@@ -866,8 +985,6 @@
 <span class="sd">        Creates the SQL for this query. Returns the SQL string and list of</span>
 <span class="sd">        parameters.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="kn">from</span> <span class="nn">django.db.models.base</span> <span class="kn">import</span> <span class="n">Model</span>
-
         <span class="bp">self</span><span class="o">.</span><span class="n">pre_sql_setup</span><span class="p">()</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">query</span><span class="o">.</span><span class="n">values</span><span class="p">:</span>
             <span class="k">return</span> <span class="s">&#39;&#39;</span><span class="p">,</span> <span class="p">()</span>
@@ -978,6 +1095,7 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="n">qn</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
             <span class="n">qn</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">quote_name_unless_alias</span>
+
         <span class="n">sql</span> <span class="o">=</span> <span class="p">(</span><span class="s">&#39;SELECT </span><span class="si">%s</span><span class="s"> FROM (</span><span class="si">%s</span><span class="s">) subquery&#39;</span> <span class="o">%</span> <span class="p">(</span>
             <span class="s">&#39;, &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span>
                 <span class="n">aggregate</span><span class="o">.</span><span class="n">as_sql</span><span class="p">(</span><span class="n">qn</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">connection</span><span class="p">)</span>
@@ -1043,7 +1161,7 @@
 
     <div class="footer">
         &copy; Copyright 2012, HDKNR.COM.
-      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.2pre/660be19d7963.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.2pre/3c28de26aac2.
     </div>
   </body>
 </html>

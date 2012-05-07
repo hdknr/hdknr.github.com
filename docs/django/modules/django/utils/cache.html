@@ -28,7 +28,7 @@
     <script type="text/javascript" src="../../../static/doctools.js"></script>
     <script type="text/javascript" src="../../../static/theme_extras.js"></script>
     <link rel="top" title="Django Cheat 1 documentation" href="../../../index.html" />
-    <link rel="up" title="Module code" href="../../index.html" /> 
+    <link rel="up" title="django" href="../../django.html" /> 
   </head>
   <body>
       <div class="header"><h1 class="heading"><a href="../../../index.html">
@@ -66,16 +66,16 @@
 <span class="sd">&quot;Accept-language&quot; header.</span>
 <span class="sd">&quot;&quot;&quot;</span>
 
+<span class="kn">import</span> <span class="nn">hashlib</span>
 <span class="kn">import</span> <span class="nn">re</span>
 <span class="kn">import</span> <span class="nn">time</span>
 
 <span class="kn">from</span> <span class="nn">django.conf</span> <span class="kn">import</span> <span class="n">settings</span>
 <span class="kn">from</span> <span class="nn">django.core.cache</span> <span class="kn">import</span> <span class="n">get_cache</span>
-<span class="kn">from</span> <span class="nn">django.utils.encoding</span> <span class="kn">import</span> <span class="n">smart_str</span><span class="p">,</span> <span class="n">iri_to_uri</span>
+<span class="kn">from</span> <span class="nn">django.utils.encoding</span> <span class="kn">import</span> <span class="n">smart_str</span><span class="p">,</span> <span class="n">iri_to_uri</span><span class="p">,</span> <span class="n">force_unicode</span>
 <span class="kn">from</span> <span class="nn">django.utils.http</span> <span class="kn">import</span> <span class="n">http_date</span>
-<span class="kn">from</span> <span class="nn">django.utils.hashcompat</span> <span class="kn">import</span> <span class="n">md5_constructor</span>
+<span class="kn">from</span> <span class="nn">django.utils.timezone</span> <span class="kn">import</span> <span class="n">get_current_timezone_name</span>
 <span class="kn">from</span> <span class="nn">django.utils.translation</span> <span class="kn">import</span> <span class="n">get_language</span>
-<span class="kn">from</span> <span class="nn">django.http</span> <span class="kn">import</span> <span class="n">HttpRequest</span>
 
 <span class="n">cc_delim_re</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="s">r&#39;\s*,\s*&#39;</span><span class="p">)</span>
 
@@ -142,6 +142,10 @@
         <span class="k">except</span> <span class="p">(</span><span class="ne">ValueError</span><span class="p">,</span> <span class="ne">TypeError</span><span class="p">):</span>
             <span class="k">pass</span>
 </div>
+<span class="k">def</span> <span class="nf">_set_response_etag</span><span class="p">(</span><span class="n">response</span><span class="p">):</span>
+    <span class="n">response</span><span class="p">[</span><span class="s">&#39;ETag&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s">&#39;&quot;</span><span class="si">%s</span><span class="s">&quot;&#39;</span> <span class="o">%</span> <span class="n">hashlib</span><span class="o">.</span><span class="n">md5</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">content</span><span class="p">)</span><span class="o">.</span><span class="n">hexdigest</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">response</span>
+
 <div class="viewcode-block" id="patch_response_headers"><a class="viewcode-back" href="../../../django.utils.html#django.utils.cache.patch_response_headers">[docs]</a><span class="k">def</span> <span class="nf">patch_response_headers</span><span class="p">(</span><span class="n">response</span><span class="p">,</span> <span class="n">cache_timeout</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Adds some useful headers to the given HttpResponse object:</span>
@@ -157,7 +161,10 @@
     <span class="k">if</span> <span class="n">cache_timeout</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
         <span class="n">cache_timeout</span> <span class="o">=</span> <span class="mi">0</span> <span class="c"># Can&#39;t have max-age negative</span>
     <span class="k">if</span> <span class="n">settings</span><span class="o">.</span><span class="n">USE_ETAGS</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">response</span><span class="o">.</span><span class="n">has_header</span><span class="p">(</span><span class="s">&#39;ETag&#39;</span><span class="p">):</span>
-        <span class="n">response</span><span class="p">[</span><span class="s">&#39;ETag&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s">&#39;&quot;</span><span class="si">%s</span><span class="s">&quot;&#39;</span> <span class="o">%</span> <span class="n">md5_constructor</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">content</span><span class="p">)</span><span class="o">.</span><span class="n">hexdigest</span><span class="p">()</span>
+        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">response</span><span class="p">,</span> <span class="s">&#39;render&#39;</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">callable</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">render</span><span class="p">):</span>
+            <span class="n">response</span><span class="o">.</span><span class="n">add_post_render_callback</span><span class="p">(</span><span class="n">_set_response_etag</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">response</span> <span class="o">=</span> <span class="n">_set_response_etag</span><span class="p">(</span><span class="n">response</span><span class="p">)</span>
     <span class="k">if</span> <span class="ow">not</span> <span class="n">response</span><span class="o">.</span><span class="n">has_header</span><span class="p">(</span><span class="s">&#39;Last-Modified&#39;</span><span class="p">):</span>
         <span class="n">response</span><span class="p">[</span><span class="s">&#39;Last-Modified&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">http_date</span><span class="p">()</span>
     <span class="k">if</span> <span class="ow">not</span> <span class="n">response</span><span class="o">.</span><span class="n">has_header</span><span class="p">(</span><span class="s">&#39;Expires&#39;</span><span class="p">):</span>
@@ -200,29 +207,36 @@
     <span class="k">return</span> <span class="n">header_query</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">in</span> <span class="n">existing_headers</span>
 </div>
 <span class="k">def</span> <span class="nf">_i18n_cache_key_suffix</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="n">cache_key</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;If enabled, returns the cache key ending with a locale.&quot;&quot;&quot;</span>
-    <span class="k">if</span> <span class="n">settings</span><span class="o">.</span><span class="n">USE_I18N</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;If necessary, adds the current locale or time zone to the cache key.&quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">settings</span><span class="o">.</span><span class="n">USE_I18N</span> <span class="ow">or</span> <span class="n">settings</span><span class="o">.</span><span class="n">USE_L10N</span><span class="p">:</span>
         <span class="c"># first check if LocaleMiddleware or another middleware added</span>
         <span class="c"># LANGUAGE_CODE to request, then fall back to the active language</span>
         <span class="c"># which in turn can also fall back to settings.LANGUAGE_CODE</span>
         <span class="n">cache_key</span> <span class="o">+=</span> <span class="s">&#39;.</span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="s">&#39;LANGUAGE_CODE&#39;</span><span class="p">,</span> <span class="n">get_language</span><span class="p">())</span>
+    <span class="k">if</span> <span class="n">settings</span><span class="o">.</span><span class="n">USE_TZ</span><span class="p">:</span>
+        <span class="c"># The datetime module doesn&#39;t restrict the output of tzname().</span>
+        <span class="c"># Windows is known to use non-standard, locale-dependant names.</span>
+        <span class="c"># User-defined tzinfo classes may return absolutely anything.</span>
+        <span class="c"># Hence this paranoid conversion to create a valid cache key.</span>
+        <span class="n">tz_name</span> <span class="o">=</span> <span class="n">force_unicode</span><span class="p">(</span><span class="n">get_current_timezone_name</span><span class="p">(),</span> <span class="n">errors</span><span class="o">=</span><span class="s">&#39;ignore&#39;</span><span class="p">)</span>
+        <span class="n">cache_key</span> <span class="o">+=</span> <span class="s">&#39;.</span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">tz_name</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s">&#39;ascii&#39;</span><span class="p">,</span> <span class="s">&#39;ignore&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s">&#39; &#39;</span><span class="p">,</span> <span class="s">&#39;_&#39;</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">cache_key</span>
 
 <span class="k">def</span> <span class="nf">_generate_cache_key</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="n">method</span><span class="p">,</span> <span class="n">headerlist</span><span class="p">,</span> <span class="n">key_prefix</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;Returns a cache key from the headers given in the header list.&quot;&quot;&quot;</span>
-    <span class="n">ctx</span> <span class="o">=</span> <span class="n">md5_constructor</span><span class="p">()</span>
+    <span class="n">ctx</span> <span class="o">=</span> <span class="n">hashlib</span><span class="o">.</span><span class="n">md5</span><span class="p">()</span>
     <span class="k">for</span> <span class="n">header</span> <span class="ow">in</span> <span class="n">headerlist</span><span class="p">:</span>
         <span class="n">value</span> <span class="o">=</span> <span class="n">request</span><span class="o">.</span><span class="n">META</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">header</span><span class="p">,</span> <span class="bp">None</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">value</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
             <span class="n">ctx</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
-    <span class="n">path</span> <span class="o">=</span> <span class="n">md5_constructor</span><span class="p">(</span><span class="n">iri_to_uri</span><span class="p">(</span><span class="n">request</span><span class="o">.</span><span class="n">get_full_path</span><span class="p">()))</span>
+    <span class="n">path</span> <span class="o">=</span> <span class="n">hashlib</span><span class="o">.</span><span class="n">md5</span><span class="p">(</span><span class="n">iri_to_uri</span><span class="p">(</span><span class="n">request</span><span class="o">.</span><span class="n">get_full_path</span><span class="p">()))</span>
     <span class="n">cache_key</span> <span class="o">=</span> <span class="s">&#39;views.decorators.cache.cache_page.</span><span class="si">%s</span><span class="s">.</span><span class="si">%s</span><span class="s">.</span><span class="si">%s</span><span class="s">.</span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="p">(</span>
-        <span class="n">key_prefix</span><span class="p">,</span> <span class="n">request</span><span class="o">.</span><span class="n">method</span><span class="p">,</span> <span class="n">path</span><span class="o">.</span><span class="n">hexdigest</span><span class="p">(),</span> <span class="n">ctx</span><span class="o">.</span><span class="n">hexdigest</span><span class="p">())</span>
+        <span class="n">key_prefix</span><span class="p">,</span> <span class="n">method</span><span class="p">,</span> <span class="n">path</span><span class="o">.</span><span class="n">hexdigest</span><span class="p">(),</span> <span class="n">ctx</span><span class="o">.</span><span class="n">hexdigest</span><span class="p">())</span>
     <span class="k">return</span> <span class="n">_i18n_cache_key_suffix</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="n">cache_key</span><span class="p">)</span>
 
 <span class="k">def</span> <span class="nf">_generate_cache_header_key</span><span class="p">(</span><span class="n">key_prefix</span><span class="p">,</span> <span class="n">request</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;Returns a cache key for the header cache.&quot;&quot;&quot;</span>
-    <span class="n">path</span> <span class="o">=</span> <span class="n">md5_constructor</span><span class="p">(</span><span class="n">iri_to_uri</span><span class="p">(</span><span class="n">request</span><span class="o">.</span><span class="n">get_full_path</span><span class="p">()))</span>
+    <span class="n">path</span> <span class="o">=</span> <span class="n">hashlib</span><span class="o">.</span><span class="n">md5</span><span class="p">(</span><span class="n">iri_to_uri</span><span class="p">(</span><span class="n">request</span><span class="o">.</span><span class="n">get_full_path</span><span class="p">()))</span>
     <span class="n">cache_key</span> <span class="o">=</span> <span class="s">&#39;views.decorators.cache.cache_header.</span><span class="si">%s</span><span class="s">.</span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="p">(</span>
         <span class="n">key_prefix</span><span class="p">,</span> <span class="n">path</span><span class="o">.</span><span class="n">hexdigest</span><span class="p">())</span>
     <span class="k">return</span> <span class="n">_i18n_cache_key_suffix</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="n">cache_key</span><span class="p">)</span>
@@ -299,7 +313,7 @@
 
     <div class="footer">
         &copy; Copyright 2012, HDKNR.COM.
-      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.2pre/660be19d7963.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.2pre/3c28de26aac2.
     </div>
   </body>
 </html>

@@ -56,14 +56,16 @@
 <span class="sd">all about the internals of models in order to get the information it needs.</span>
 <span class="sd">&quot;&quot;&quot;</span>
 
-<span class="kn">from</span> <span class="nn">django.utils.copycompat</span> <span class="kn">import</span> <span class="n">deepcopy</span>
-<span class="kn">from</span> <span class="nn">django.utils.tree</span> <span class="kn">import</span> <span class="n">Node</span>
+<span class="kn">import</span> <span class="nn">copy</span>
+
 <span class="kn">from</span> <span class="nn">django.utils.datastructures</span> <span class="kn">import</span> <span class="n">SortedDict</span>
 <span class="kn">from</span> <span class="nn">django.utils.encoding</span> <span class="kn">import</span> <span class="n">force_unicode</span>
+<span class="kn">from</span> <span class="nn">django.utils.tree</span> <span class="kn">import</span> <span class="n">Node</span>
 <span class="kn">from</span> <span class="nn">django.db</span> <span class="kn">import</span> <span class="n">connections</span><span class="p">,</span> <span class="n">DEFAULT_DB_ALIAS</span>
 <span class="kn">from</span> <span class="nn">django.db.models</span> <span class="kn">import</span> <span class="n">signals</span>
+<span class="kn">from</span> <span class="nn">django.db.models.expressions</span> <span class="kn">import</span> <span class="n">ExpressionNode</span>
 <span class="kn">from</span> <span class="nn">django.db.models.fields</span> <span class="kn">import</span> <span class="n">FieldDoesNotExist</span>
-<span class="kn">from</span> <span class="nn">django.db.models.query_utils</span> <span class="kn">import</span> <span class="n">select_related_descend</span><span class="p">,</span> <span class="n">InvalidQuery</span>
+<span class="kn">from</span> <span class="nn">django.db.models.query_utils</span> <span class="kn">import</span> <span class="n">InvalidQuery</span>
 <span class="kn">from</span> <span class="nn">django.db.models.sql</span> <span class="kn">import</span> <span class="n">aggregates</span> <span class="k">as</span> <span class="n">base_aggregates_module</span>
 <span class="kn">from</span> <span class="nn">django.db.models.sql.constants</span> <span class="kn">import</span> <span class="o">*</span>
 <span class="kn">from</span> <span class="nn">django.db.models.sql.datastructures</span> <span class="kn">import</span> <span class="n">EmptyResultSet</span><span class="p">,</span> <span class="n">Empty</span><span class="p">,</span> <span class="n">MultiJoin</span>
@@ -123,7 +125,7 @@
         <span class="k">return</span> <span class="nb">iter</span><span class="p">(</span><span class="n">result</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="k">return</span> <span class="s">&quot;&lt;RawQuery: </span><span class="si">%r</span><span class="s">&gt;&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sql</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">)</span>
+        <span class="k">return</span> <span class="s">&quot;&lt;RawQuery: </span><span class="si">%r</span><span class="s">&gt;&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sql</span> <span class="o">%</span> <span class="nb">tuple</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">))</span>
 
     <span class="k">def</span> <span class="nf">_execute_query</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">cursor</span> <span class="o">=</span> <span class="n">connections</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">using</span><span class="p">]</span><span class="o">.</span><span class="n">cursor</span><span class="p">()</span>
@@ -147,7 +149,7 @@
 
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">model</span><span class="p">,</span> <span class="n">where</span><span class="o">=</span><span class="n">WhereNode</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">model</span> <span class="o">=</span> <span class="n">model</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">alias_refcount</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">alias_refcount</span> <span class="o">=</span> <span class="n">SortedDict</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">alias_map</span> <span class="o">=</span> <span class="p">{}</span>     <span class="c"># Maps alias to join information</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">table_map</span> <span class="o">=</span> <span class="p">{}</span>     <span class="c"># Maps table names to list of aliases.</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">join_map</span> <span class="o">=</span> <span class="p">{}</span>
@@ -174,6 +176,9 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">order_by</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">low_mark</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">high_mark</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span> <span class="bp">None</span>  <span class="c"># Used for offset/limit</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">distinct</span> <span class="o">=</span> <span class="bp">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">distinct_fields</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">select_for_update</span> <span class="o">=</span> <span class="bp">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">select_for_update_nowait</span> <span class="o">=</span> <span class="bp">False</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">select_related</span> <span class="o">=</span> <span class="bp">False</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">related_select_cols</span> <span class="o">=</span> <span class="p">[]</span>
 
@@ -203,14 +208,21 @@
     <span class="k">def</span> <span class="nf">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Returns the query as a string of SQL with the parameter values</span>
-<span class="sd">        substituted in.</span>
+<span class="sd">        substituted in (use sql_with_params() to see the unsubstituted string).</span>
 
 <span class="sd">        Parameter values won&#39;t necessarily be quoted correctly, since that is</span>
 <span class="sd">        done by the database interface at execution time.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">sql</span><span class="p">,</span> <span class="n">params</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_compiler</span><span class="p">(</span><span class="n">DEFAULT_DB_ALIAS</span><span class="p">)</span><span class="o">.</span><span class="n">as_sql</span><span class="p">()</span>
+        <span class="n">sql</span><span class="p">,</span> <span class="n">params</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">sql_with_params</span><span class="p">()</span>
         <span class="k">return</span> <span class="n">sql</span> <span class="o">%</span> <span class="n">params</span>
 
+<div class="viewcode-block" id="Query.sql_with_params"><a class="viewcode-back" href="../../../../../django.db.models.sql.html#django.db.models.sql.query.Query.sql_with_params">[docs]</a>    <span class="k">def</span> <span class="nf">sql_with_params</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns the query as an SQL string and the parameters that will be</span>
+<span class="sd">        subsituted into the query.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_compiler</span><span class="p">(</span><span class="n">DEFAULT_DB_ALIAS</span><span class="p">)</span><span class="o">.</span><span class="n">as_sql</span><span class="p">()</span>
+</div>
     <span class="k">def</span> <span class="nf">__deepcopy__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">memo</span><span class="p">):</span>
         <span class="n">result</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">clone</span><span class="p">(</span><span class="n">memo</span><span class="o">=</span><span class="n">memo</span><span class="p">)</span>
         <span class="n">memo</span><span class="p">[</span><span class="nb">id</span><span class="p">(</span><span class="bp">self</span><span class="p">)]</span> <span class="o">=</span> <span class="n">result</span>
@@ -293,19 +305,22 @@
         <span class="n">obj</span><span class="o">.</span><span class="n">dupe_avoidance</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dupe_avoidance</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
         <span class="n">obj</span><span class="o">.</span><span class="n">select</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">select</span><span class="p">[:]</span>
         <span class="n">obj</span><span class="o">.</span><span class="n">tables</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tables</span><span class="p">[:]</span>
-        <span class="n">obj</span><span class="o">.</span><span class="n">where</span> <span class="o">=</span> <span class="n">deepcopy</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">where</span><span class="p">,</span> <span class="n">memo</span><span class="o">=</span><span class="n">memo</span><span class="p">)</span>
+        <span class="n">obj</span><span class="o">.</span><span class="n">where</span> <span class="o">=</span> <span class="n">copy</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">where</span><span class="p">,</span> <span class="n">memo</span><span class="o">=</span><span class="n">memo</span><span class="p">)</span>
         <span class="n">obj</span><span class="o">.</span><span class="n">where_class</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">where_class</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">group_by</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
             <span class="n">obj</span><span class="o">.</span><span class="n">group_by</span> <span class="o">=</span> <span class="bp">None</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="n">obj</span><span class="o">.</span><span class="n">group_by</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">group_by</span><span class="p">[:]</span>
-        <span class="n">obj</span><span class="o">.</span><span class="n">having</span> <span class="o">=</span> <span class="n">deepcopy</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">having</span><span class="p">,</span> <span class="n">memo</span><span class="o">=</span><span class="n">memo</span><span class="p">)</span>
+        <span class="n">obj</span><span class="o">.</span><span class="n">having</span> <span class="o">=</span> <span class="n">copy</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">having</span><span class="p">,</span> <span class="n">memo</span><span class="o">=</span><span class="n">memo</span><span class="p">)</span>
         <span class="n">obj</span><span class="o">.</span><span class="n">order_by</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">order_by</span><span class="p">[:]</span>
         <span class="n">obj</span><span class="o">.</span><span class="n">low_mark</span><span class="p">,</span> <span class="n">obj</span><span class="o">.</span><span class="n">high_mark</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">low_mark</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">high_mark</span>
         <span class="n">obj</span><span class="o">.</span><span class="n">distinct</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">distinct</span>
+        <span class="n">obj</span><span class="o">.</span><span class="n">distinct_fields</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">distinct_fields</span><span class="p">[:]</span>
+        <span class="n">obj</span><span class="o">.</span><span class="n">select_for_update</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">select_for_update</span>
+        <span class="n">obj</span><span class="o">.</span><span class="n">select_for_update_nowait</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">select_for_update_nowait</span>
         <span class="n">obj</span><span class="o">.</span><span class="n">select_related</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">select_related</span>
         <span class="n">obj</span><span class="o">.</span><span class="n">related_select_cols</span> <span class="o">=</span> <span class="p">[]</span>
-        <span class="n">obj</span><span class="o">.</span><span class="n">aggregates</span> <span class="o">=</span> <span class="n">deepcopy</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">aggregates</span><span class="p">,</span> <span class="n">memo</span><span class="o">=</span><span class="n">memo</span><span class="p">)</span>
+        <span class="n">obj</span><span class="o">.</span><span class="n">aggregates</span> <span class="o">=</span> <span class="n">copy</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">aggregates</span><span class="p">,</span> <span class="n">memo</span><span class="o">=</span><span class="n">memo</span><span class="p">)</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">aggregate_select_mask</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
             <span class="n">obj</span><span class="o">.</span><span class="n">aggregate_select_mask</span> <span class="o">=</span> <span class="bp">None</span>
         <span class="k">else</span><span class="p">:</span>
@@ -328,12 +343,13 @@
             <span class="n">obj</span><span class="o">.</span><span class="n">_extra_select_cache</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_extra_select_cache</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
         <span class="n">obj</span><span class="o">.</span><span class="n">extra_tables</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">extra_tables</span>
         <span class="n">obj</span><span class="o">.</span><span class="n">extra_order_by</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">extra_order_by</span>
-        <span class="n">obj</span><span class="o">.</span><span class="n">deferred_loading</span> <span class="o">=</span> <span class="n">deepcopy</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">deferred_loading</span><span class="p">,</span> <span class="n">memo</span><span class="o">=</span><span class="n">memo</span><span class="p">)</span>
+        <span class="n">obj</span><span class="o">.</span><span class="n">deferred_loading</span> <span class="o">=</span> <span class="n">copy</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">deferred_loading</span><span class="p">,</span> <span class="n">memo</span><span class="o">=</span><span class="n">memo</span><span class="p">)</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">filter_is_sticky</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">used_aliases</span><span class="p">:</span>
             <span class="n">obj</span><span class="o">.</span><span class="n">used_aliases</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">used_aliases</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="n">obj</span><span class="o">.</span><span class="n">used_aliases</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
         <span class="n">obj</span><span class="o">.</span><span class="n">filter_is_sticky</span> <span class="o">=</span> <span class="bp">False</span>
+
         <span class="n">obj</span><span class="o">.</span><span class="n">__dict__</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">kwargs</span><span class="p">)</span>
         <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="s">&#39;_setup_query&#39;</span><span class="p">):</span>
             <span class="n">obj</span><span class="o">.</span><span class="n">_setup_query</span><span class="p">()</span>
@@ -409,6 +425,7 @@
 
         <span class="n">query</span><span class="o">.</span><span class="n">clear_ordering</span><span class="p">(</span><span class="bp">True</span><span class="p">)</span>
         <span class="n">query</span><span class="o">.</span><span class="n">clear_limits</span><span class="p">()</span>
+        <span class="n">query</span><span class="o">.</span><span class="n">select_for_update</span> <span class="o">=</span> <span class="bp">False</span>
         <span class="n">query</span><span class="o">.</span><span class="n">select_related</span> <span class="o">=</span> <span class="bp">False</span>
         <span class="n">query</span><span class="o">.</span><span class="n">related_select_cols</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="n">query</span><span class="o">.</span><span class="n">related_select_fields</span> <span class="o">=</span> <span class="p">[]</span>
@@ -428,7 +445,7 @@
 <span class="sd">        Performs a COUNT() query using the current filter constraints.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">obj</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">clone</span><span class="p">()</span>
-        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">select</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">aggregate_select</span><span class="p">:</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">select</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">aggregate_select</span> <span class="ow">or</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">distinct</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">distinct_fields</span><span class="p">):</span>
             <span class="c"># If a select clause exists, then the query has already started to</span>
             <span class="c"># specify the columns that are to be returned.</span>
             <span class="c"># In this case, we need to use a subquery to evaluate the count.</span>
@@ -487,6 +504,8 @@
                 <span class="s">&quot;Cannot combine queries once a slice has been taken.&quot;</span>
         <span class="k">assert</span> <span class="bp">self</span><span class="o">.</span><span class="n">distinct</span> <span class="o">==</span> <span class="n">rhs</span><span class="o">.</span><span class="n">distinct</span><span class="p">,</span> \
             <span class="s">&quot;Cannot combine a unique query with a non-unique query.&quot;</span>
+        <span class="k">assert</span> <span class="bp">self</span><span class="o">.</span><span class="n">distinct_fields</span> <span class="o">==</span> <span class="n">rhs</span><span class="o">.</span><span class="n">distinct_fields</span><span class="p">,</span> \
+            <span class="s">&quot;Cannot combine queries with different distinct fields.&quot;</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">remove_inherited_models</span><span class="p">()</span>
         <span class="c"># Work out how to relabel the rhs aliases, if necessary.</span>
@@ -499,7 +518,11 @@
                 <span class="c"># An unused alias.</span>
                 <span class="k">continue</span>
             <span class="n">promote</span> <span class="o">=</span> <span class="p">(</span><span class="n">rhs</span><span class="o">.</span><span class="n">alias_map</span><span class="p">[</span><span class="n">alias</span><span class="p">][</span><span class="n">JOIN_TYPE</span><span class="p">]</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">LOUTER</span><span class="p">)</span>
-            <span class="n">new_alias</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">rhs</span><span class="o">.</span><span class="n">rev_join_map</span><span class="p">[</span><span class="n">alias</span><span class="p">],</span>
+            <span class="n">lhs</span><span class="p">,</span> <span class="n">table</span><span class="p">,</span> <span class="n">lhs_col</span><span class="p">,</span> <span class="n">col</span> <span class="o">=</span> <span class="n">rhs</span><span class="o">.</span><span class="n">rev_join_map</span><span class="p">[</span><span class="n">alias</span><span class="p">]</span>
+            <span class="c"># If the left side of the join was already relabeled, use the</span>
+            <span class="c"># updated alias.</span>
+            <span class="n">lhs</span> <span class="o">=</span> <span class="n">change_map</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">lhs</span><span class="p">,</span> <span class="n">lhs</span><span class="p">)</span>
+            <span class="n">new_alias</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">join</span><span class="p">((</span><span class="n">lhs</span><span class="p">,</span> <span class="n">table</span><span class="p">,</span> <span class="n">lhs_col</span><span class="p">,</span> <span class="n">col</span><span class="p">),</span>
                     <span class="p">(</span><span class="n">conjunction</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">first</span><span class="p">),</span> <span class="n">used</span><span class="p">,</span> <span class="n">promote</span><span class="p">,</span> <span class="ow">not</span> <span class="n">conjunction</span><span class="p">)</span>
             <span class="n">used</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">new_alias</span><span class="p">)</span>
             <span class="n">change_map</span><span class="p">[</span><span class="n">alias</span><span class="p">]</span> <span class="o">=</span> <span class="n">new_alias</span>
@@ -534,7 +557,7 @@
         <span class="c"># Now relabel a copy of the rhs where-clause and add it to the current</span>
         <span class="c"># one.</span>
         <span class="k">if</span> <span class="n">rhs</span><span class="o">.</span><span class="n">where</span><span class="p">:</span>
-            <span class="n">w</span> <span class="o">=</span> <span class="n">deepcopy</span><span class="p">(</span><span class="n">rhs</span><span class="o">.</span><span class="n">where</span><span class="p">)</span>
+            <span class="n">w</span> <span class="o">=</span> <span class="n">copy</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="n">rhs</span><span class="o">.</span><span class="n">where</span><span class="p">)</span>
             <span class="n">w</span><span class="o">.</span><span class="n">relabel_aliases</span><span class="p">(</span><span class="n">change_map</span><span class="p">)</span>
             <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">where</span><span class="p">:</span>
                 <span class="c"># Since &#39;self&#39; matches everything, add an explicit &quot;include</span>
@@ -555,7 +578,7 @@
             <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">col</span><span class="p">,</span> <span class="p">(</span><span class="nb">list</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">)):</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">select</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">change_map</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">col</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">col</span><span class="p">[</span><span class="mi">0</span><span class="p">]),</span> <span class="n">col</span><span class="p">[</span><span class="mi">1</span><span class="p">]))</span>
             <span class="k">else</span><span class="p">:</span>
-                <span class="n">item</span> <span class="o">=</span> <span class="n">deepcopy</span><span class="p">(</span><span class="n">col</span><span class="p">)</span>
+                <span class="n">item</span> <span class="o">=</span> <span class="n">copy</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="n">col</span><span class="p">)</span>
                 <span class="n">item</span><span class="o">.</span><span class="n">relabel_aliases</span><span class="p">(</span><span class="n">change_map</span><span class="p">)</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">select</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">item</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">select_fields</span> <span class="o">=</span> <span class="n">rhs</span><span class="o">.</span><span class="n">select_fields</span><span class="p">[:]</span>
@@ -599,10 +622,9 @@
         <span class="n">field_names</span><span class="p">,</span> <span class="n">defer</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">deferred_loading</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="n">field_names</span><span class="p">:</span>
             <span class="k">return</span>
-        <span class="n">columns</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
         <span class="n">orig_opts</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">_meta</span>
         <span class="n">seen</span> <span class="o">=</span> <span class="p">{}</span>
-        <span class="n">must_include</span> <span class="o">=</span> <span class="p">{</span><span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="p">:</span> <span class="nb">set</span><span class="p">([</span><span class="n">orig_opts</span><span class="o">.</span><span class="n">pk</span><span class="p">])}</span>
+        <span class="n">must_include</span> <span class="o">=</span> <span class="p">{</span><span class="n">orig_opts</span><span class="o">.</span><span class="n">concrete_model</span><span class="p">:</span> <span class="nb">set</span><span class="p">([</span><span class="n">orig_opts</span><span class="o">.</span><span class="n">pk</span><span class="p">])}</span>
         <span class="k">for</span> <span class="n">field_name</span> <span class="ow">in</span> <span class="n">field_names</span><span class="p">:</span>
             <span class="n">parts</span> <span class="o">=</span> <span class="n">field_name</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">LOOKUP_SEP</span><span class="p">)</span>
             <span class="n">cur_model</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span>
@@ -610,7 +632,7 @@
             <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">parts</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]:</span>
                 <span class="n">old_model</span> <span class="o">=</span> <span class="n">cur_model</span>
                 <span class="n">source</span> <span class="o">=</span> <span class="n">opts</span><span class="o">.</span><span class="n">get_field_by_name</span><span class="p">(</span><span class="n">name</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
-                <span class="n">cur_model</span> <span class="o">=</span> <span class="n">opts</span><span class="o">.</span><span class="n">get_field_by_name</span><span class="p">(</span><span class="n">name</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">rel</span><span class="o">.</span><span class="n">to</span>
+                <span class="n">cur_model</span> <span class="o">=</span> <span class="n">source</span><span class="o">.</span><span class="n">rel</span><span class="o">.</span><span class="n">to</span>
                 <span class="n">opts</span> <span class="o">=</span> <span class="n">cur_model</span><span class="o">.</span><span class="n">_meta</span>
                 <span class="c"># Even if we&#39;re &quot;just passing through&quot; this model, we must add</span>
                 <span class="c"># both the current model&#39;s pk and the related reference field</span>
@@ -703,9 +725,9 @@
         <span class="sd">&quot;&quot;&quot; Increases the reference count for this alias. &quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">alias_refcount</span><span class="p">[</span><span class="n">alias</span><span class="p">]</span> <span class="o">+=</span> <span class="mi">1</span>
 </div>
-<div class="viewcode-block" id="Query.unref_alias"><a class="viewcode-back" href="../../../../../django.db.models.sql.html#django.db.models.sql.query.Query.unref_alias">[docs]</a>    <span class="k">def</span> <span class="nf">unref_alias</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">alias</span><span class="p">):</span>
+<div class="viewcode-block" id="Query.unref_alias"><a class="viewcode-back" href="../../../../../django.db.models.sql.html#django.db.models.sql.query.Query.unref_alias">[docs]</a>    <span class="k">def</span> <span class="nf">unref_alias</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">alias</span><span class="p">,</span> <span class="n">amount</span><span class="o">=</span><span class="mi">1</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot; Decreases the reference count for this alias. &quot;&quot;&quot;</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">alias_refcount</span><span class="p">[</span><span class="n">alias</span><span class="p">]</span> <span class="o">-=</span> <span class="mi">1</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">alias_refcount</span><span class="p">[</span><span class="n">alias</span><span class="p">]</span> <span class="o">-=</span> <span class="n">amount</span>
 </div>
 <div class="viewcode-block" id="Query.promote_alias"><a class="viewcode-back" href="../../../../../django.db.models.sql.html#django.db.models.sql.query.Query.promote_alias">[docs]</a>    <span class="k">def</span> <span class="nf">promote_alias</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">alias</span><span class="p">,</span> <span class="n">unconditional</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
@@ -733,6 +755,15 @@
         <span class="k">for</span> <span class="n">alias</span> <span class="ow">in</span> <span class="n">chain</span><span class="p">:</span>
             <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">promote_alias</span><span class="p">(</span><span class="n">alias</span><span class="p">,</span> <span class="n">must_promote</span><span class="p">):</span>
                 <span class="n">must_promote</span> <span class="o">=</span> <span class="bp">True</span>
+</div>
+<div class="viewcode-block" id="Query.reset_refcounts"><a class="viewcode-back" href="../../../../../django.db.models.sql.html#django.db.models.sql.query.Query.reset_refcounts">[docs]</a>    <span class="k">def</span> <span class="nf">reset_refcounts</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">to_counts</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        This method will reset reference counts for aliases so that they match</span>
+<span class="sd">        the value passed in :param to_counts:.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">alias</span><span class="p">,</span> <span class="n">cur_refcount</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">alias_refcount</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">unref_amount</span> <span class="o">=</span> <span class="n">cur_refcount</span> <span class="o">-</span> <span class="n">to_counts</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">alias</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">unref_alias</span><span class="p">(</span><span class="n">alias</span><span class="p">,</span> <span class="n">unref_amount</span><span class="p">)</span>
 </div>
 <div class="viewcode-block" id="Query.promote_unused_aliases"><a class="viewcode-back" href="../../../../../django.db.models.sql.html#django.db.models.sql.query.Query.promote_unused_aliases">[docs]</a>    <span class="k">def</span> <span class="nf">promote_unused_aliases</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">initial_refcounts</span><span class="p">,</span> <span class="n">used_aliases</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
@@ -837,7 +868,7 @@
         <span class="k">assert</span> <span class="n">current</span> <span class="o">&lt;</span> <span class="nb">ord</span><span class="p">(</span><span class="s">&#39;Z&#39;</span><span class="p">)</span>
         <span class="n">prefix</span> <span class="o">=</span> <span class="nb">chr</span><span class="p">(</span><span class="n">current</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">alias_prefix</span> <span class="o">=</span> <span class="n">prefix</span>
-        <span class="n">change_map</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">change_map</span> <span class="o">=</span> <span class="n">SortedDict</span><span class="p">()</span>
         <span class="k">for</span> <span class="n">pos</span><span class="p">,</span> <span class="n">alias</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tables</span><span class="p">):</span>
             <span class="k">if</span> <span class="n">alias</span> <span class="ow">in</span> <span class="n">exceptions</span><span class="p">:</span>
                 <span class="k">continue</span>
@@ -861,7 +892,8 @@
 <div class="viewcode-block" id="Query.count_active_tables"><a class="viewcode-back" href="../../../../../django.db.models.sql.html#django.db.models.sql.query.Query.count_active_tables">[docs]</a>    <span class="k">def</span> <span class="nf">count_active_tables</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Returns the number of tables in this query with a non-zero reference</span>
-<span class="sd">        count.</span>
+<span class="sd">        count. Note that after execution, the reference counts are zeroed, so</span>
+<span class="sd">        tables added in compiler will not be seen by this method.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="nb">len</span><span class="p">([</span><span class="mi">1</span> <span class="k">for</span> <span class="n">count</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">alias_refcount</span><span class="o">.</span><span class="n">itervalues</span><span class="p">()</span> <span class="k">if</span> <span class="n">count</span><span class="p">])</span>
 </div>
@@ -960,7 +992,7 @@
         <span class="n">seen</span> <span class="o">=</span> <span class="p">{</span><span class="bp">None</span><span class="p">:</span> <span class="n">root_alias</span><span class="p">}</span>
 
         <span class="c"># Skip all proxy to the root proxied model</span>
-        <span class="n">proxied_model</span> <span class="o">=</span> <span class="n">get_proxied_model</span><span class="p">(</span><span class="n">opts</span><span class="p">)</span>
+        <span class="n">proxied_model</span> <span class="o">=</span> <span class="n">opts</span><span class="o">.</span><span class="n">concrete_model</span>
 
         <span class="k">for</span> <span class="n">field</span><span class="p">,</span> <span class="n">model</span> <span class="ow">in</span> <span class="n">opts</span><span class="o">.</span><span class="n">get_fields_with_model</span><span class="p">():</span>
             <span class="k">if</span> <span class="n">model</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">seen</span><span class="p">:</span>
@@ -1075,11 +1107,31 @@
         <span class="k">if</span> <span class="ow">not</span> <span class="n">parts</span><span class="p">:</span>
             <span class="k">raise</span> <span class="n">FieldError</span><span class="p">(</span><span class="s">&quot;Cannot parse keyword query </span><span class="si">%r</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">arg</span><span class="p">)</span>
 
-        <span class="c"># Work out the lookup type and remove it from &#39;parts&#39;, if necessary.</span>
-        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">parts</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span> <span class="ow">or</span> <span class="n">parts</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">query_terms</span><span class="p">:</span>
-            <span class="n">lookup_type</span> <span class="o">=</span> <span class="s">&#39;exact&#39;</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="n">lookup_type</span> <span class="o">=</span> <span class="n">parts</span><span class="o">.</span><span class="n">pop</span><span class="p">()</span>
+        <span class="c"># Work out the lookup type and remove it from the end of &#39;parts&#39;,</span>
+        <span class="c"># if necessary.</span>
+        <span class="n">lookup_type</span> <span class="o">=</span> <span class="s">&#39;exact&#39;</span> <span class="c"># Default lookup type</span>
+        <span class="n">num_parts</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">parts</span><span class="p">)</span>
+        <span class="k">if</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">parts</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span> <span class="ow">and</span> <span class="n">parts</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">query_terms</span>
+            <span class="ow">and</span> <span class="n">arg</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">aggregates</span><span class="p">):</span>
+            <span class="c"># Traverse the lookup query to distinguish related fields from</span>
+            <span class="c"># lookup types.</span>
+            <span class="n">lookup_model</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span>
+            <span class="k">for</span> <span class="n">counter</span><span class="p">,</span> <span class="n">field_name</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">parts</span><span class="p">):</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="n">lookup_field</span> <span class="o">=</span> <span class="n">lookup_model</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">get_field</span><span class="p">(</span><span class="n">field_name</span><span class="p">)</span>
+                <span class="k">except</span> <span class="n">FieldDoesNotExist</span><span class="p">:</span>
+                    <span class="c"># Not a field. Bail out.</span>
+                    <span class="n">lookup_type</span> <span class="o">=</span> <span class="n">parts</span><span class="o">.</span><span class="n">pop</span><span class="p">()</span>
+                    <span class="k">break</span>
+                <span class="c"># Unless we&#39;re at the end of the list of lookups, let&#39;s attempt</span>
+                <span class="c"># to continue traversing relations.</span>
+                <span class="k">if</span> <span class="p">(</span><span class="n">counter</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">num_parts</span><span class="p">:</span>
+                    <span class="k">try</span><span class="p">:</span>
+                        <span class="n">lookup_model</span> <span class="o">=</span> <span class="n">lookup_field</span><span class="o">.</span><span class="n">rel</span><span class="o">.</span><span class="n">to</span>
+                    <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>
+                        <span class="c"># Not a related field. Bail out.</span>
+                        <span class="n">lookup_type</span> <span class="o">=</span> <span class="n">parts</span><span class="o">.</span><span class="n">pop</span><span class="p">()</span>
+                        <span class="k">break</span>
 
         <span class="c"># By default, this is a WHERE clause. If an aggregate is referenced</span>
         <span class="c"># in the value, the filter will be promoted to a HAVING</span>
@@ -1094,19 +1146,19 @@
             <span class="n">value</span> <span class="o">=</span> <span class="bp">True</span>
         <span class="k">elif</span> <span class="nb">callable</span><span class="p">(</span><span class="n">value</span><span class="p">):</span>
             <span class="n">value</span> <span class="o">=</span> <span class="n">value</span><span class="p">()</span>
-        <span class="k">elif</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="s">&#39;evaluate&#39;</span><span class="p">):</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">ExpressionNode</span><span class="p">):</span>
             <span class="c"># If value is a query expression, evaluate it</span>
             <span class="n">value</span> <span class="o">=</span> <span class="n">SQLEvaluator</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span>
             <span class="n">having_clause</span> <span class="o">=</span> <span class="n">value</span><span class="o">.</span><span class="n">contains_aggregate</span>
 
-        <span class="k">if</span> <span class="n">parts</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">aggregates</span><span class="p">:</span>
-            <span class="n">aggregate</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">aggregates</span><span class="p">[</span><span class="n">parts</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span>
-            <span class="n">entry</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">where_class</span><span class="p">()</span>
-            <span class="n">entry</span><span class="o">.</span><span class="n">add</span><span class="p">((</span><span class="n">aggregate</span><span class="p">,</span> <span class="n">lookup_type</span><span class="p">,</span> <span class="n">value</span><span class="p">),</span> <span class="n">AND</span><span class="p">)</span>
-            <span class="k">if</span> <span class="n">negate</span><span class="p">:</span>
-                <span class="n">entry</span><span class="o">.</span><span class="n">negate</span><span class="p">()</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">having</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">entry</span><span class="p">,</span> <span class="n">connector</span><span class="p">)</span>
-            <span class="k">return</span>
+        <span class="k">for</span> <span class="n">alias</span><span class="p">,</span> <span class="n">aggregate</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">aggregates</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="k">if</span> <span class="n">alias</span> <span class="ow">in</span> <span class="p">(</span><span class="n">parts</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">LOOKUP_SEP</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">parts</span><span class="p">)):</span>
+                <span class="n">entry</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">where_class</span><span class="p">()</span>
+                <span class="n">entry</span><span class="o">.</span><span class="n">add</span><span class="p">((</span><span class="n">aggregate</span><span class="p">,</span> <span class="n">lookup_type</span><span class="p">,</span> <span class="n">value</span><span class="p">),</span> <span class="n">AND</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">negate</span><span class="p">:</span>
+                    <span class="n">entry</span><span class="o">.</span><span class="n">negate</span><span class="p">()</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">having</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">entry</span><span class="p">,</span> <span class="n">connector</span><span class="p">)</span>
+                <span class="k">return</span>
 
         <span class="n">opts</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_meta</span><span class="p">()</span>
         <span class="n">alias</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_initial_alias</span><span class="p">()</span>
@@ -1114,8 +1166,9 @@
 
         <span class="k">try</span><span class="p">:</span>
             <span class="n">field</span><span class="p">,</span> <span class="n">target</span><span class="p">,</span> <span class="n">opts</span><span class="p">,</span> <span class="n">join_list</span><span class="p">,</span> <span class="n">last</span><span class="p">,</span> <span class="n">extra_filters</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">setup_joins</span><span class="p">(</span>
-                    <span class="n">parts</span><span class="p">,</span> <span class="n">opts</span><span class="p">,</span> <span class="n">alias</span><span class="p">,</span> <span class="bp">True</span><span class="p">,</span> <span class="n">allow_many</span><span class="p">,</span> <span class="n">can_reuse</span><span class="o">=</span><span class="n">can_reuse</span><span class="p">,</span>
-                    <span class="n">negate</span><span class="o">=</span><span class="n">negate</span><span class="p">,</span> <span class="n">process_extras</span><span class="o">=</span><span class="n">process_extras</span><span class="p">)</span>
+                    <span class="n">parts</span><span class="p">,</span> <span class="n">opts</span><span class="p">,</span> <span class="n">alias</span><span class="p">,</span> <span class="bp">True</span><span class="p">,</span> <span class="n">allow_many</span><span class="p">,</span> <span class="n">allow_explicit_fk</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span>
+                    <span class="n">can_reuse</span><span class="o">=</span><span class="n">can_reuse</span><span class="p">,</span> <span class="n">negate</span><span class="o">=</span><span class="n">negate</span><span class="p">,</span>
+                    <span class="n">process_extras</span><span class="o">=</span><span class="n">process_extras</span><span class="p">)</span>
         <span class="k">except</span> <span class="n">MultiJoin</span><span class="p">,</span> <span class="n">e</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">split_exclude</span><span class="p">(</span><span class="n">filter_expr</span><span class="p">,</span> <span class="n">LOOKUP_SEP</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">parts</span><span class="p">[:</span><span class="n">e</span><span class="o">.</span><span class="n">level</span><span class="p">]),</span>
                     <span class="n">can_reuse</span><span class="p">)</span>
@@ -1134,7 +1187,10 @@
 
         <span class="c"># Process the join list to see if we can remove any inner joins from</span>
         <span class="c"># the far end (fewer tables in a query is better).</span>
-        <span class="n">col</span><span class="p">,</span> <span class="n">alias</span><span class="p">,</span> <span class="n">join_list</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">trim_joins</span><span class="p">(</span><span class="n">target</span><span class="p">,</span> <span class="n">join_list</span><span class="p">,</span> <span class="n">last</span><span class="p">,</span> <span class="n">trim</span><span class="p">)</span>
+        <span class="n">nonnull_comparison</span> <span class="o">=</span> <span class="p">(</span><span class="n">lookup_type</span> <span class="o">==</span> <span class="s">&#39;isnull&#39;</span> <span class="ow">and</span> <span class="n">value</span> <span class="ow">is</span> <span class="bp">False</span><span class="p">)</span>
+        <span class="n">col</span><span class="p">,</span> <span class="n">alias</span><span class="p">,</span> <span class="n">join_list</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">trim_joins</span><span class="p">(</span><span class="n">target</span><span class="p">,</span> <span class="n">join_list</span><span class="p">,</span> <span class="n">last</span><span class="p">,</span> <span class="n">trim</span><span class="p">,</span>
+                <span class="n">nonnull_comparison</span><span class="p">)</span>
+
         <span class="k">if</span> <span class="n">connector</span> <span class="o">==</span> <span class="n">OR</span><span class="p">:</span>
             <span class="c"># Some joins may need to be promoted when adding a new filter to a</span>
             <span class="c"># disjunction. We walk the list of new joins and where it diverges</span>
@@ -1274,7 +1330,7 @@
 <span class="sd">        case). Finally, &#39;negate&#39; is used in the same sense as for add_filter()</span>
 <span class="sd">        -- it indicates an exclude() filter, or something similar. It is only</span>
 <span class="sd">        passed in here so that it can be passed to a field&#39;s extra_filter() for</span>
-<span class="sd">        customised behaviour.</span>
+<span class="sd">        customized behavior.</span>
 
 <span class="sd">        Returns the final field involved in the join, the target database</span>
 <span class="sd">        column (used for any &#39;where&#39; constraint), the final &#39;opts&#39; value and the</span>
@@ -1315,7 +1371,7 @@
             <span class="k">if</span> <span class="n">model</span><span class="p">:</span>
                 <span class="c"># The field lives on a base class of the current model.</span>
                 <span class="c"># Skip the chain of proxy to the concrete proxied model</span>
-                <span class="n">proxied_model</span> <span class="o">=</span> <span class="n">get_proxied_model</span><span class="p">(</span><span class="n">opts</span><span class="p">)</span>
+                <span class="n">proxied_model</span> <span class="o">=</span> <span class="n">opts</span><span class="o">.</span><span class="n">concrete_model</span>
 
                 <span class="k">for</span> <span class="n">int_model</span> <span class="ow">in</span> <span class="n">opts</span><span class="o">.</span><span class="n">get_base_chain</span><span class="p">(</span><span class="n">model</span><span class="p">):</span>
                     <span class="k">if</span> <span class="n">int_model</span> <span class="ow">is</span> <span class="n">proxied_model</span><span class="p">:</span>
@@ -1471,19 +1527,19 @@
 
         <span class="k">return</span> <span class="n">field</span><span class="p">,</span> <span class="n">target</span><span class="p">,</span> <span class="n">opts</span><span class="p">,</span> <span class="n">joins</span><span class="p">,</span> <span class="n">last</span><span class="p">,</span> <span class="n">extra_filters</span>
 </div>
-<div class="viewcode-block" id="Query.trim_joins"><a class="viewcode-back" href="../../../../../django.db.models.sql.html#django.db.models.sql.query.Query.trim_joins">[docs]</a>    <span class="k">def</span> <span class="nf">trim_joins</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">target</span><span class="p">,</span> <span class="n">join_list</span><span class="p">,</span> <span class="n">last</span><span class="p">,</span> <span class="n">trim</span><span class="p">):</span>
+<div class="viewcode-block" id="Query.trim_joins"><a class="viewcode-back" href="../../../../../django.db.models.sql.html#django.db.models.sql.query.Query.trim_joins">[docs]</a>    <span class="k">def</span> <span class="nf">trim_joins</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">target</span><span class="p">,</span> <span class="n">join_list</span><span class="p">,</span> <span class="n">last</span><span class="p">,</span> <span class="n">trim</span><span class="p">,</span> <span class="n">nonnull_check</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Sometimes joins at the end of a multi-table sequence can be trimmed. If</span>
 <span class="sd">        the final join is against the same column as we are comparing against,</span>
 <span class="sd">        and is an inner join, we can go back one step in a join chain and</span>
 <span class="sd">        compare against the LHS of the join instead (and then repeat the</span>
-<span class="sd">        optimization). The result, potentially, involves less table joins.</span>
+<span class="sd">        optimization). The result, potentially, involves fewer table joins.</span>
 
 <span class="sd">        The &#39;target&#39; parameter is the final field being joined to, &#39;join_list&#39;</span>
 <span class="sd">        is the full list of join aliases.</span>
 
 <span class="sd">        The &#39;last&#39; list contains offsets into &#39;join_list&#39;, corresponding to</span>
-<span class="sd">        each component of the filter.  Many-to-many relations, for example, add</span>
+<span class="sd">        each component of the filter. Many-to-many relations, for example, add</span>
 <span class="sd">        two tables to the join list and we want to deal with both tables the</span>
 <span class="sd">        same way, so &#39;last&#39; has an entry for the first of the two tables and</span>
 <span class="sd">        then the table immediately after the second table, in that case.</span>
@@ -1492,6 +1548,11 @@
 <span class="sd">        trimmed before anything. See the documentation of add_filter() for</span>
 <span class="sd">        details about this.</span>
 
+<span class="sd">        The &#39;nonnull_check&#39; parameter is True when we are using inner joins</span>
+<span class="sd">        between tables explicitly to exclude NULL entries. In that case, the</span>
+<span class="sd">        tables shouldn&#39;t be trimmed, because the very action of joining to them</span>
+<span class="sd">        alters the result set.</span>
+
 <span class="sd">        Returns the final active column and table alias and the new active</span>
 <span class="sd">        join_list.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
@@ -1499,7 +1560,7 @@
         <span class="n">penultimate</span> <span class="o">=</span> <span class="n">last</span><span class="o">.</span><span class="n">pop</span><span class="p">()</span>
         <span class="k">if</span> <span class="n">penultimate</span> <span class="o">==</span> <span class="n">final</span><span class="p">:</span>
             <span class="n">penultimate</span> <span class="o">=</span> <span class="n">last</span><span class="o">.</span><span class="n">pop</span><span class="p">()</span>
-        <span class="k">if</span> <span class="n">trim</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">join_list</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">trim</span> <span class="ow">and</span> <span class="n">final</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
             <span class="n">extra</span> <span class="o">=</span> <span class="n">join_list</span><span class="p">[</span><span class="n">penultimate</span><span class="p">:]</span>
             <span class="n">join_list</span> <span class="o">=</span> <span class="n">join_list</span><span class="p">[:</span><span class="n">penultimate</span><span class="p">]</span>
             <span class="n">final</span> <span class="o">=</span> <span class="n">penultimate</span>
@@ -1512,12 +1573,13 @@
         <span class="n">alias</span> <span class="o">=</span> <span class="n">join_list</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
         <span class="k">while</span> <span class="n">final</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
             <span class="n">join</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">alias_map</span><span class="p">[</span><span class="n">alias</span><span class="p">]</span>
-            <span class="k">if</span> <span class="n">col</span> <span class="o">!=</span> <span class="n">join</span><span class="p">[</span><span class="n">RHS_JOIN_COL</span><span class="p">]</span> <span class="ow">or</span> <span class="n">join</span><span class="p">[</span><span class="n">JOIN_TYPE</span><span class="p">]</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">INNER</span><span class="p">:</span>
+            <span class="k">if</span> <span class="p">(</span><span class="n">col</span> <span class="o">!=</span> <span class="n">join</span><span class="p">[</span><span class="n">RHS_JOIN_COL</span><span class="p">]</span> <span class="ow">or</span> <span class="n">join</span><span class="p">[</span><span class="n">JOIN_TYPE</span><span class="p">]</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">INNER</span> <span class="ow">or</span>
+                    <span class="n">nonnull_check</span><span class="p">):</span>
                 <span class="k">break</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">unref_alias</span><span class="p">(</span><span class="n">alias</span><span class="p">)</span>
             <span class="n">alias</span> <span class="o">=</span> <span class="n">join</span><span class="p">[</span><span class="n">LHS_ALIAS</span><span class="p">]</span>
             <span class="n">col</span> <span class="o">=</span> <span class="n">join</span><span class="p">[</span><span class="n">LHS_JOIN_COL</span><span class="p">]</span>
-            <span class="n">join_list</span> <span class="o">=</span> <span class="n">join_list</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+            <span class="n">join_list</span><span class="o">.</span><span class="n">pop</span><span class="p">()</span>
             <span class="n">final</span> <span class="o">-=</span> <span class="mi">1</span>
             <span class="k">if</span> <span class="n">final</span> <span class="o">==</span> <span class="n">penultimate</span><span class="p">:</span>
                 <span class="n">penultimate</span> <span class="o">=</span> <span class="n">last</span><span class="o">.</span><span class="n">pop</span><span class="p">()</span>
@@ -1614,6 +1676,13 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">select</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">select_fields</span> <span class="o">=</span> <span class="p">[]</span>
+</div>
+<div class="viewcode-block" id="Query.add_distinct_fields"><a class="viewcode-back" href="../../../../../django.db.models.sql.html#django.db.models.sql.query.Query.add_distinct_fields">[docs]</a>    <span class="k">def</span> <span class="nf">add_distinct_fields</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">field_names</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Adds and resolves the given fields to the query&#39;s &quot;distinct on&quot; clause.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">distinct_fields</span> <span class="o">=</span> <span class="n">field_names</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">distinct</span> <span class="o">=</span> <span class="bp">True</span>
 </div>
 <div class="viewcode-block" id="Query.add_fields"><a class="viewcode-back" href="../../../../../django.db.models.sql.html#django.db.models.sql.query.Query.add_fields">[docs]</a>    <span class="k">def</span> <span class="nf">add_fields</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">field_names</span><span class="p">,</span> <span class="n">allow_m2m</span><span class="o">=</span><span class="bp">True</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
@@ -1811,13 +1880,18 @@
 <span class="sd">        existing immediate values, but respects existing deferrals.)</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">existing</span><span class="p">,</span> <span class="n">defer</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">deferred_loading</span>
+        <span class="n">field_names</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">field_names</span><span class="p">)</span>
+        <span class="k">if</span> <span class="s">&#39;pk&#39;</span> <span class="ow">in</span> <span class="n">field_names</span><span class="p">:</span>
+            <span class="n">field_names</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="s">&#39;pk&#39;</span><span class="p">)</span>
+            <span class="n">field_names</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">pk</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+
         <span class="k">if</span> <span class="n">defer</span><span class="p">:</span>
             <span class="c"># Remove any existing deferred names from the current set before</span>
             <span class="c"># setting the new names.</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">deferred_loading</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">field_names</span><span class="p">)</span><span class="o">.</span><span class="n">difference</span><span class="p">(</span><span class="n">existing</span><span class="p">),</span> <span class="bp">False</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">deferred_loading</span> <span class="o">=</span> <span class="n">field_names</span><span class="o">.</span><span class="n">difference</span><span class="p">(</span><span class="n">existing</span><span class="p">),</span> <span class="bp">False</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="c"># Replace any existing &quot;immediate load&quot; field names.</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">deferred_loading</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">field_names</span><span class="p">),</span> <span class="bp">False</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">deferred_loading</span> <span class="o">=</span> <span class="n">field_names</span><span class="p">,</span> <span class="bp">False</span>
 </div>
 <div class="viewcode-block" id="Query.get_loaded_field_names"><a class="viewcode-back" href="../../../../../django.db.models.sql.html#django.db.models.sql.query.Query.get_loaded_field_names">[docs]</a>    <span class="k">def</span> <span class="nf">get_loaded_field_names</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
@@ -1962,14 +2036,6 @@
         <span class="n">data</span><span class="p">[</span><span class="n">key</span><span class="p">]</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
     <span class="k">else</span><span class="p">:</span>
         <span class="n">data</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="nb">set</span><span class="p">([</span><span class="n">value</span><span class="p">])</span>
-
-<span class="k">def</span> <span class="nf">get_proxied_model</span><span class="p">(</span><span class="n">opts</span><span class="p">):</span>
-    <span class="n">int_opts</span> <span class="o">=</span> <span class="n">opts</span>
-    <span class="n">proxied_model</span> <span class="o">=</span> <span class="bp">None</span>
-    <span class="k">while</span> <span class="n">int_opts</span><span class="o">.</span><span class="n">proxy</span><span class="p">:</span>
-        <span class="n">proxied_model</span> <span class="o">=</span> <span class="n">int_opts</span><span class="o">.</span><span class="n">proxy_for_model</span>
-        <span class="n">int_opts</span> <span class="o">=</span> <span class="n">proxied_model</span><span class="o">.</span><span class="n">_meta</span>
-    <span class="k">return</span> <span class="n">proxied_model</span>
 </pre></div>
 
       </div>
@@ -1984,7 +2050,7 @@
 
     <div class="footer">
         &copy; Copyright 2012, HDKNR.COM.
-      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.2pre/660be19d7963.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.2pre/3c28de26aac2.
     </div>
   </body>
 </html>

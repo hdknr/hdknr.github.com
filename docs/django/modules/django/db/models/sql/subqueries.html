@@ -52,13 +52,13 @@
 <span class="sd">&quot;&quot;&quot;</span>
 
 <span class="kn">from</span> <span class="nn">django.core.exceptions</span> <span class="kn">import</span> <span class="n">FieldError</span>
-<span class="kn">from</span> <span class="nn">django.db</span> <span class="kn">import</span> <span class="n">connections</span>
 <span class="kn">from</span> <span class="nn">django.db.models.fields</span> <span class="kn">import</span> <span class="n">DateField</span><span class="p">,</span> <span class="n">FieldDoesNotExist</span>
 <span class="kn">from</span> <span class="nn">django.db.models.sql.constants</span> <span class="kn">import</span> <span class="o">*</span>
 <span class="kn">from</span> <span class="nn">django.db.models.sql.datastructures</span> <span class="kn">import</span> <span class="n">Date</span>
-<span class="kn">from</span> <span class="nn">django.db.models.sql.expressions</span> <span class="kn">import</span> <span class="n">SQLEvaluator</span>
 <span class="kn">from</span> <span class="nn">django.db.models.sql.query</span> <span class="kn">import</span> <span class="n">Query</span>
 <span class="kn">from</span> <span class="nn">django.db.models.sql.where</span> <span class="kn">import</span> <span class="n">AND</span><span class="p">,</span> <span class="n">Constraint</span>
+<span class="kn">from</span> <span class="nn">django.utils.functional</span> <span class="kn">import</span> <span class="n">Promise</span>
+<span class="kn">from</span> <span class="nn">django.utils.encoding</span> <span class="kn">import</span> <span class="n">force_unicode</span>
 
 
 <span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s">&#39;DeleteQuery&#39;</span><span class="p">,</span> <span class="s">&#39;UpdateQuery&#39;</span><span class="p">,</span> <span class="s">&#39;InsertQuery&#39;</span><span class="p">,</span> <span class="s">&#39;DateQuery&#39;</span><span class="p">,</span>
@@ -89,7 +89,7 @@
         <span class="k">for</span> <span class="n">offset</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">pk_list</span><span class="p">),</span> <span class="n">GET_ITERATOR_CHUNK_SIZE</span><span class="p">):</span>
             <span class="n">where</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">where_class</span><span class="p">()</span>
             <span class="n">where</span><span class="o">.</span><span class="n">add</span><span class="p">((</span><span class="n">Constraint</span><span class="p">(</span><span class="bp">None</span><span class="p">,</span> <span class="n">field</span><span class="o">.</span><span class="n">column</span><span class="p">,</span> <span class="n">field</span><span class="p">),</span> <span class="s">&#39;in&#39;</span><span class="p">,</span>
-                    <span class="n">pk_list</span><span class="p">[</span><span class="n">offset</span> <span class="p">:</span> <span class="n">offset</span> <span class="o">+</span> <span class="n">GET_ITERATOR_CHUNK_SIZE</span><span class="p">]),</span> <span class="n">AND</span><span class="p">)</span>
+                    <span class="n">pk_list</span><span class="p">[</span><span class="n">offset</span><span class="p">:</span><span class="n">offset</span> <span class="o">+</span> <span class="n">GET_ITERATOR_CHUNK_SIZE</span><span class="p">]),</span> <span class="n">AND</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">do_query</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">db_table</span><span class="p">,</span> <span class="n">where</span><span class="p">,</span> <span class="n">using</span><span class="o">=</span><span class="n">using</span><span class="p">)</span>
 </div></div>
 <div class="viewcode-block" id="UpdateQuery"><a class="viewcode-back" href="../../../../../django.db.models.sql.html#django.db.models.sql.subqueries.UpdateQuery">[docs]</a><span class="k">class</span> <span class="nc">UpdateQuery</span><span class="p">(</span><span class="n">Query</span><span class="p">):</span>
@@ -118,14 +118,13 @@
         <span class="k">return</span> <span class="nb">super</span><span class="p">(</span><span class="n">UpdateQuery</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">clone</span><span class="p">(</span><span class="n">klass</span><span class="p">,</span>
                 <span class="n">related_updates</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">related_updates</span><span class="o">.</span><span class="n">copy</span><span class="p">(),</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
 
-
     <span class="k">def</span> <span class="nf">update_batch</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pk_list</span><span class="p">,</span> <span class="n">values</span><span class="p">,</span> <span class="n">using</span><span class="p">):</span>
         <span class="n">pk_field</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">pk</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">add_update_values</span><span class="p">(</span><span class="n">values</span><span class="p">)</span>
         <span class="k">for</span> <span class="n">offset</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">pk_list</span><span class="p">),</span> <span class="n">GET_ITERATOR_CHUNK_SIZE</span><span class="p">):</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">where</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">where_class</span><span class="p">()</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">where</span><span class="o">.</span><span class="n">add</span><span class="p">((</span><span class="n">Constraint</span><span class="p">(</span><span class="bp">None</span><span class="p">,</span> <span class="n">pk_field</span><span class="o">.</span><span class="n">column</span><span class="p">,</span> <span class="n">pk_field</span><span class="p">),</span> <span class="s">&#39;in&#39;</span><span class="p">,</span>
-                    <span class="n">pk_list</span><span class="p">[</span><span class="n">offset</span> <span class="p">:</span> <span class="n">offset</span> <span class="o">+</span> <span class="n">GET_ITERATOR_CHUNK_SIZE</span><span class="p">]),</span>
+                    <span class="n">pk_list</span><span class="p">[</span><span class="n">offset</span><span class="p">:</span><span class="n">offset</span> <span class="o">+</span> <span class="n">GET_ITERATOR_CHUNK_SIZE</span><span class="p">]),</span>
                     <span class="n">AND</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">get_compiler</span><span class="p">(</span><span class="n">using</span><span class="p">)</span><span class="o">.</span><span class="n">execute_sql</span><span class="p">(</span><span class="bp">None</span><span class="p">)</span>
 
@@ -152,6 +151,10 @@
 <span class="sd">        Used by add_update_values() as well as the &quot;fast&quot; update path when</span>
 <span class="sd">        saving models.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c"># Check that no Promise object passes to the query. Refs #10498.</span>
+        <span class="n">values_seq</span> <span class="o">=</span> <span class="p">[(</span><span class="n">value</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">value</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">force_unicode</span><span class="p">(</span><span class="n">value</span><span class="p">[</span><span class="mi">2</span><span class="p">]))</span>
+                      <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span> <span class="n">Promise</span><span class="p">)</span> <span class="k">else</span> <span class="n">value</span>
+                      <span class="k">for</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">values_seq</span><span class="p">]</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">values</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">values_seq</span><span class="p">)</span>
 </div>
 <div class="viewcode-block" id="UpdateQuery.add_related_update"><a class="viewcode-back" href="../../../../../django.db.models.sql.html#django.db.models.sql.subqueries.UpdateQuery.add_related_update">[docs]</a>    <span class="k">def</span> <span class="nf">add_related_update</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">model</span><span class="p">,</span> <span class="n">field</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
@@ -187,20 +190,19 @@
 
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
         <span class="nb">super</span><span class="p">(</span><span class="n">InsertQuery</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">columns</span> <span class="o">=</span> <span class="p">[]</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">values</span> <span class="o">=</span> <span class="p">[]</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">params</span> <span class="o">=</span> <span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">fields</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">objs</span> <span class="o">=</span> <span class="p">[]</span>
 
     <span class="k">def</span> <span class="nf">clone</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">klass</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
         <span class="n">extras</span> <span class="o">=</span> <span class="p">{</span>
-            <span class="s">&#39;columns&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">columns</span><span class="p">[:],</span>
-            <span class="s">&#39;values&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">values</span><span class="p">[:],</span>
-            <span class="s">&#39;params&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span>
+            <span class="s">&#39;fields&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">fields</span><span class="p">[:],</span>
+            <span class="s">&#39;objs&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">objs</span><span class="p">[:],</span>
+            <span class="s">&#39;raw&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">raw</span><span class="p">,</span>
         <span class="p">}</span>
         <span class="n">extras</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">kwargs</span><span class="p">)</span>
         <span class="k">return</span> <span class="nb">super</span><span class="p">(</span><span class="n">InsertQuery</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">clone</span><span class="p">(</span><span class="n">klass</span><span class="p">,</span> <span class="o">**</span><span class="n">extras</span><span class="p">)</span>
 
-    <span class="k">def</span> <span class="nf">insert_values</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">insert_values</span><span class="p">,</span> <span class="n">raw_values</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">insert_values</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fields</span><span class="p">,</span> <span class="n">objs</span><span class="p">,</span> <span class="n">raw</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Set up the insert query from the &#39;insert_values&#39; dictionary. The</span>
 <span class="sd">        dictionary gives the model field names and their target values.</span>
@@ -210,16 +212,15 @@
 <span class="sd">        parameters. This provides a way to insert NULL and DEFAULT keywords</span>
 <span class="sd">        into the query, for example.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">placeholders</span><span class="p">,</span> <span class="n">values</span> <span class="o">=</span> <span class="p">[],</span> <span class="p">[]</span>
-        <span class="k">for</span> <span class="n">field</span><span class="p">,</span> <span class="n">val</span> <span class="ow">in</span> <span class="n">insert_values</span><span class="p">:</span>
-            <span class="n">placeholders</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">field</span><span class="p">,</span> <span class="n">val</span><span class="p">))</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">columns</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">field</span><span class="o">.</span><span class="n">column</span><span class="p">)</span>
-            <span class="n">values</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">val</span><span class="p">)</span>
-        <span class="k">if</span> <span class="n">raw_values</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">values</span><span class="o">.</span><span class="n">extend</span><span class="p">([(</span><span class="bp">None</span><span class="p">,</span> <span class="n">v</span><span class="p">)</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">values</span><span class="p">])</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">params</span> <span class="o">+=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">values</span><span class="p">)</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">values</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">placeholders</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">fields</span> <span class="o">=</span> <span class="n">fields</span>
+        <span class="c"># Check that no Promise object reaches the DB. Refs #10498.</span>
+        <span class="k">for</span> <span class="n">field</span> <span class="ow">in</span> <span class="n">fields</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">obj</span> <span class="ow">in</span> <span class="n">objs</span><span class="p">:</span>
+                <span class="n">value</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">field</span><span class="o">.</span><span class="n">attname</span><span class="p">)</span>
+                <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">Promise</span><span class="p">):</span>
+                    <span class="nb">setattr</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">field</span><span class="o">.</span><span class="n">attname</span><span class="p">,</span> <span class="n">force_unicode</span><span class="p">(</span><span class="n">value</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">objs</span> <span class="o">=</span> <span class="n">objs</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">raw</span> <span class="o">=</span> <span class="n">raw</span>
 
 <div class="viewcode-block" id="DateQuery"><a class="viewcode-back" href="../../../../../django.db.models.sql.html#django.db.models.sql.subqueries.DateQuery">[docs]</a><span class="k">class</span> <span class="nc">DateQuery</span><span class="p">(</span><span class="n">Query</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
@@ -284,7 +285,7 @@
 
     <div class="footer">
         &copy; Copyright 2012, HDKNR.COM.
-      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.2pre/660be19d7963.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.2pre/3c28de26aac2.
     </div>
   </body>
 </html>

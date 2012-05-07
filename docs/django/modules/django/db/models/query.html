@@ -51,16 +51,17 @@
 <span class="sd">The main QuerySet implementation. This provides the public API for the ORM.</span>
 <span class="sd">&quot;&quot;&quot;</span>
 
-<span class="kn">from</span> <span class="nn">itertools</span> <span class="kn">import</span> <span class="n">izip</span>
+<span class="kn">import</span> <span class="nn">copy</span>
+<span class="kn">import</span> <span class="nn">itertools</span>
+<span class="kn">import</span> <span class="nn">sys</span>
 
 <span class="kn">from</span> <span class="nn">django.db</span> <span class="kn">import</span> <span class="n">connections</span><span class="p">,</span> <span class="n">router</span><span class="p">,</span> <span class="n">transaction</span><span class="p">,</span> <span class="n">IntegrityError</span>
-<span class="kn">from</span> <span class="nn">django.db.models.aggregates</span> <span class="kn">import</span> <span class="n">Aggregate</span>
-<span class="kn">from</span> <span class="nn">django.db.models.fields</span> <span class="kn">import</span> <span class="n">DateField</span>
+<span class="kn">from</span> <span class="nn">django.db.models.fields</span> <span class="kn">import</span> <span class="n">AutoField</span>
 <span class="kn">from</span> <span class="nn">django.db.models.query_utils</span> <span class="kn">import</span> <span class="p">(</span><span class="n">Q</span><span class="p">,</span> <span class="n">select_related_descend</span><span class="p">,</span>
     <span class="n">deferred_class_factory</span><span class="p">,</span> <span class="n">InvalidQuery</span><span class="p">)</span>
 <span class="kn">from</span> <span class="nn">django.db.models.deletion</span> <span class="kn">import</span> <span class="n">Collector</span>
-<span class="kn">from</span> <span class="nn">django.db.models</span> <span class="kn">import</span> <span class="n">signals</span><span class="p">,</span> <span class="n">sql</span>
-<span class="kn">from</span> <span class="nn">django.utils.copycompat</span> <span class="kn">import</span> <span class="n">deepcopy</span>
+<span class="kn">from</span> <span class="nn">django.db.models</span> <span class="kn">import</span> <span class="n">sql</span>
+<span class="kn">from</span> <span class="nn">django.utils.functional</span> <span class="kn">import</span> <span class="n">partition</span>
 
 <span class="c"># Used to control how many objects are worked with at once in some cases (e.g.</span>
 <span class="c"># when deleting objects).</span>
@@ -86,6 +87,8 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">_iter</span> <span class="o">=</span> <span class="bp">None</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_sticky_filter</span> <span class="o">=</span> <span class="bp">False</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_for_write</span> <span class="o">=</span> <span class="bp">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_prefetch_related_lookups</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_prefetch_done</span> <span class="o">=</span> <span class="bp">False</span>
 
     <span class="c">########################</span>
     <span class="c"># PYTHON MAGIC METHODS #</span>
@@ -100,7 +103,7 @@
             <span class="k">if</span> <span class="n">k</span> <span class="ow">in</span> <span class="p">(</span><span class="s">&#39;_iter&#39;</span><span class="p">,</span><span class="s">&#39;_result_cache&#39;</span><span class="p">):</span>
                 <span class="n">obj</span><span class="o">.</span><span class="n">__dict__</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="bp">None</span>
             <span class="k">else</span><span class="p">:</span>
-                <span class="n">obj</span><span class="o">.</span><span class="n">__dict__</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">deepcopy</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="n">memo</span><span class="p">)</span>
+                <span class="n">obj</span><span class="o">.</span><span class="n">__dict__</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">copy</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="n">memo</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">obj</span>
 
     <span class="k">def</span> <span class="nf">__getstate__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
@@ -131,9 +134,17 @@
                 <span class="bp">self</span><span class="o">.</span><span class="n">_result_cache</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">iterator</span><span class="p">())</span>
         <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">_iter</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_result_cache</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_iter</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_prefetch_related_lookups</span> <span class="ow">and</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_prefetch_done</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_prefetch_related_objects</span><span class="p">()</span>
         <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_result_cache</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">__iter__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_prefetch_related_lookups</span> <span class="ow">and</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_prefetch_done</span><span class="p">:</span>
+            <span class="c"># We need all the results in order to be able to do the prefetch</span>
+            <span class="c"># in one go. To minimize code duplication, we use the __len__</span>
+            <span class="c"># code path which also forces this, and also does the prefetch</span>
+            <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_result_cache</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_iter</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">iterator</span><span class="p">()</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_result_cache</span> <span class="o">=</span> <span class="p">[]</span>
@@ -156,6 +167,12 @@
                 <span class="bp">self</span><span class="o">.</span><span class="n">_fill_cache</span><span class="p">()</span>
 
     <span class="k">def</span> <span class="nf">__nonzero__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_prefetch_related_lookups</span> <span class="ow">and</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_prefetch_done</span><span class="p">:</span>
+            <span class="c"># We need all the results in order to be able to do the prefetch</span>
+            <span class="c"># in one go. To minimize code duplication, we use the __len__</span>
+            <span class="c"># code path which also forces this, and also does the prefetch</span>
+            <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_result_cache</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
             <span class="k">return</span> <span class="nb">bool</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_result_cache</span><span class="p">)</span>
         <span class="k">try</span><span class="p">:</span>
@@ -265,7 +282,9 @@
 <span class="sd">        An iterator over the results from applying this QuerySet to the</span>
 <span class="sd">        database.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">fill_cache</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">query</span><span class="o">.</span><span class="n">select_related</span>
+        <span class="n">fill_cache</span> <span class="o">=</span> <span class="bp">False</span>
+        <span class="k">if</span> <span class="n">connections</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">db</span><span class="p">]</span><span class="o">.</span><span class="n">features</span><span class="o">.</span><span class="n">supports_select_related</span><span class="p">:</span>
+            <span class="n">fill_cache</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">query</span><span class="o">.</span><span class="n">select_related</span>
         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">fill_cache</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
             <span class="n">requested</span> <span class="o">=</span> <span class="n">fill_cache</span>
         <span class="k">else</span><span class="p">:</span>
@@ -278,10 +297,6 @@
         <span class="n">only_load</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">query</span><span class="o">.</span><span class="n">get_loaded_field_names</span><span class="p">()</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="n">fill_cache</span><span class="p">:</span>
             <span class="n">fields</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">fields</span>
-            <span class="n">pk_idx</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">pk_index</span><span class="p">()</span>
-
-        <span class="n">index_start</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">extra_select</span><span class="p">)</span>
-        <span class="n">aggregate_start</span> <span class="o">=</span> <span class="n">index_start</span> <span class="o">+</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">fields</span><span class="p">)</span>
 
         <span class="n">load_fields</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="c"># If only/defer clauses have been specified,</span>
@@ -290,9 +305,6 @@
             <span class="k">for</span> <span class="n">field</span><span class="p">,</span> <span class="n">model</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">get_fields_with_model</span><span class="p">():</span>
                 <span class="k">if</span> <span class="n">model</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
                     <span class="n">model</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span>
-                <span class="k">if</span> <span class="n">field</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">pk</span><span class="p">:</span>
-                    <span class="c"># Record the index of the primary key when it is found</span>
-                    <span class="n">pk_idx</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">load_fields</span><span class="p">)</span>
                 <span class="k">try</span><span class="p">:</span>
                     <span class="k">if</span> <span class="n">field</span><span class="o">.</span><span class="n">name</span> <span class="ow">in</span> <span class="n">only_load</span><span class="p">[</span><span class="n">model</span><span class="p">]:</span>
                         <span class="c"># Add a field that has been explicitly included</span>
@@ -301,6 +313,9 @@
                     <span class="c"># Model wasn&#39;t explicitly listed in the only_load table</span>
                     <span class="c"># Therefore, we need to load all fields from this model</span>
                     <span class="n">load_fields</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">field</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+
+        <span class="n">index_start</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">extra_select</span><span class="p">)</span>
+        <span class="n">aggregate_start</span> <span class="o">=</span> <span class="n">index_start</span> <span class="o">+</span> <span class="nb">len</span><span class="p">(</span><span class="n">load_fields</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">fields</span><span class="p">)</span>
 
         <span class="n">skip</span> <span class="o">=</span> <span class="bp">None</span>
         <span class="k">if</span> <span class="n">load_fields</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">fill_cache</span><span class="p">:</span>
@@ -319,16 +334,16 @@
         <span class="n">db</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">db</span>
         <span class="n">model</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span>
         <span class="n">compiler</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">query</span><span class="o">.</span><span class="n">get_compiler</span><span class="p">(</span><span class="n">using</span><span class="o">=</span><span class="n">db</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">fill_cache</span><span class="p">:</span>
+            <span class="n">klass_info</span> <span class="o">=</span> <span class="n">get_klass_info</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">max_depth</span><span class="o">=</span><span class="n">max_depth</span><span class="p">,</span>
+                                        <span class="n">requested</span><span class="o">=</span><span class="n">requested</span><span class="p">,</span> <span class="n">only_load</span><span class="o">=</span><span class="n">only_load</span><span class="p">)</span>
         <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">compiler</span><span class="o">.</span><span class="n">results_iter</span><span class="p">():</span>
             <span class="k">if</span> <span class="n">fill_cache</span><span class="p">:</span>
-                <span class="n">obj</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">get_cached_row</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">row</span><span class="p">,</span>
-                            <span class="n">index_start</span><span class="p">,</span> <span class="n">using</span><span class="o">=</span><span class="n">db</span><span class="p">,</span> <span class="n">max_depth</span><span class="o">=</span><span class="n">max_depth</span><span class="p">,</span>
-                            <span class="n">requested</span><span class="o">=</span><span class="n">requested</span><span class="p">,</span> <span class="n">offset</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">aggregate_select</span><span class="p">),</span>
-                            <span class="n">only_load</span><span class="o">=</span><span class="n">only_load</span><span class="p">)</span>
+                <span class="n">obj</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">get_cached_row</span><span class="p">(</span><span class="n">row</span><span class="p">,</span> <span class="n">index_start</span><span class="p">,</span> <span class="n">db</span><span class="p">,</span> <span class="n">klass_info</span><span class="p">,</span>
+                                        <span class="n">offset</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">aggregate_select</span><span class="p">))</span>
             <span class="k">else</span><span class="p">:</span>
                 <span class="k">if</span> <span class="n">skip</span><span class="p">:</span>
                     <span class="n">row_data</span> <span class="o">=</span> <span class="n">row</span><span class="p">[</span><span class="n">index_start</span><span class="p">:</span><span class="n">aggregate_start</span><span class="p">]</span>
-                    <span class="n">pk_val</span> <span class="o">=</span> <span class="n">row_data</span><span class="p">[</span><span class="n">pk_idx</span><span class="p">]</span>
                     <span class="n">obj</span> <span class="o">=</span> <span class="n">model_cls</span><span class="p">(</span><span class="o">**</span><span class="nb">dict</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">init_list</span><span class="p">,</span> <span class="n">row_data</span><span class="p">)))</span>
                 <span class="k">else</span><span class="p">:</span>
                     <span class="c"># Omit aggregates in object creation.</span>
@@ -358,6 +373,8 @@
 <span class="sd">        If args is present the expression is passed as a kwarg using</span>
 <span class="sd">        the Aggregate object&#39;s default alias.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">query</span><span class="o">.</span><span class="n">distinct_fields</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s">&quot;aggregate() + distinct(fields) not implemented.&quot;</span><span class="p">)</span>
         <span class="k">for</span> <span class="n">arg</span> <span class="ow">in</span> <span class="n">args</span><span class="p">:</span>
             <span class="n">kwargs</span><span class="p">[</span><span class="n">arg</span><span class="o">.</span><span class="n">default_alias</span><span class="p">]</span> <span class="o">=</span> <span class="n">arg</span>
 
@@ -409,6 +426,53 @@
         <span class="n">obj</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">force_insert</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">using</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">db</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">obj</span>
 </div>
+<div class="viewcode-block" id="QuerySet.bulk_create"><a class="viewcode-back" href="../../../../django.db.models.html#django.db.models.query.QuerySet.bulk_create">[docs]</a>    <span class="k">def</span> <span class="nf">bulk_create</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">objs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Inserts each of the instances into the database. This does *not* call</span>
+<span class="sd">        save() on each of the instances, does not send any pre/post save</span>
+<span class="sd">        signals, and does not set the primary key attribute if it is an</span>
+<span class="sd">        autoincrement field.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c"># So this case is fun. When you bulk insert you don&#39;t get the primary</span>
+        <span class="c"># keys back (if it&#39;s an autoincrement), so you can&#39;t insert into the</span>
+        <span class="c"># child tables which references this. There are two workarounds, 1)</span>
+        <span class="c"># this could be implemented if you didn&#39;t have an autoincrement pk,</span>
+        <span class="c"># and 2) you could do it by doing O(n) normal inserts into the parent</span>
+        <span class="c"># tables to get the primary keys back, and then doing a single bulk</span>
+        <span class="c"># insert into the childmost table. We&#39;re punting on these for now</span>
+        <span class="c"># because they are relatively rare cases.</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">parents</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s">&quot;Can&#39;t bulk create an inherited model&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">objs</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">objs</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_for_write</span> <span class="o">=</span> <span class="bp">True</span>
+        <span class="n">connection</span> <span class="o">=</span> <span class="n">connections</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">db</span><span class="p">]</span>
+        <span class="n">fields</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">local_fields</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">transaction</span><span class="o">.</span><span class="n">is_managed</span><span class="p">(</span><span class="n">using</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">db</span><span class="p">):</span>
+            <span class="n">transaction</span><span class="o">.</span><span class="n">enter_transaction_management</span><span class="p">(</span><span class="n">using</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">db</span><span class="p">)</span>
+            <span class="n">forced_managed</span> <span class="o">=</span> <span class="bp">True</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">forced_managed</span> <span class="o">=</span> <span class="bp">False</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">if</span> <span class="p">(</span><span class="n">connection</span><span class="o">.</span><span class="n">features</span><span class="o">.</span><span class="n">can_combine_inserts_with_and_without_auto_increment_pk</span>
+                <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">has_auto_field</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">_base_manager</span><span class="o">.</span><span class="n">_insert</span><span class="p">(</span><span class="n">objs</span><span class="p">,</span> <span class="n">fields</span><span class="o">=</span><span class="n">fields</span><span class="p">,</span> <span class="n">using</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">db</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">objs_with_pk</span><span class="p">,</span> <span class="n">objs_without_pk</span> <span class="o">=</span> <span class="n">partition</span><span class="p">(</span><span class="k">lambda</span> <span class="n">o</span><span class="p">:</span> <span class="n">o</span><span class="o">.</span><span class="n">pk</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">,</span> <span class="n">objs</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">objs_with_pk</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">_base_manager</span><span class="o">.</span><span class="n">_insert</span><span class="p">(</span><span class="n">objs_with_pk</span><span class="p">,</span> <span class="n">fields</span><span class="o">=</span><span class="n">fields</span><span class="p">,</span> <span class="n">using</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">db</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">objs_without_pk</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">_base_manager</span><span class="o">.</span><span class="n">_insert</span><span class="p">(</span><span class="n">objs_without_pk</span><span class="p">,</span> <span class="n">fields</span><span class="o">=</span><span class="p">[</span><span class="n">f</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">fields</span> <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="n">AutoField</span><span class="p">)],</span> <span class="n">using</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">db</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">forced_managed</span><span class="p">:</span>
+                <span class="n">transaction</span><span class="o">.</span><span class="n">commit</span><span class="p">(</span><span class="n">using</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">db</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">transaction</span><span class="o">.</span><span class="n">commit_unless_managed</span><span class="p">(</span><span class="n">using</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">db</span><span class="p">)</span>
+        <span class="k">finally</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">forced_managed</span><span class="p">:</span>
+                <span class="n">transaction</span><span class="o">.</span><span class="n">leave_transaction_management</span><span class="p">(</span><span class="n">using</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">db</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">objs</span>
+</div>
 <div class="viewcode-block" id="QuerySet.get_or_create"><a class="viewcode-back" href="../../../../django.db.models.html#django.db.models.query.QuerySet.get_or_create">[docs]</a>    <span class="k">def</span> <span class="nf">get_or_create</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Looks up an object with the given kwargs, creating one if necessary.</span>
@@ -436,10 +500,12 @@
                 <span class="k">return</span> <span class="n">obj</span><span class="p">,</span> <span class="bp">True</span>
             <span class="k">except</span> <span class="n">IntegrityError</span><span class="p">,</span> <span class="n">e</span><span class="p">:</span>
                 <span class="n">transaction</span><span class="o">.</span><span class="n">savepoint_rollback</span><span class="p">(</span><span class="n">sid</span><span class="p">,</span> <span class="n">using</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">db</span><span class="p">)</span>
+                <span class="n">exc_info</span> <span class="o">=</span> <span class="n">sys</span><span class="o">.</span><span class="n">exc_info</span><span class="p">()</span>
                 <span class="k">try</span><span class="p">:</span>
                     <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="o">**</span><span class="n">lookup</span><span class="p">),</span> <span class="bp">False</span>
                 <span class="k">except</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">DoesNotExist</span><span class="p">:</span>
-                    <span class="k">raise</span> <span class="n">e</span>
+                    <span class="c"># Re-raise the IntegrityError with its original traceback.</span>
+                    <span class="k">raise</span> <span class="n">exc_info</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="bp">None</span><span class="p">,</span> <span class="n">exc_info</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
 </div>
 <div class="viewcode-block" id="QuerySet.latest"><a class="viewcode-back" href="../../../../django.db.models.html#django.db.models.query.QuerySet.latest">[docs]</a>    <span class="k">def</span> <span class="nf">latest</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">field_name</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
@@ -452,6 +518,7 @@
                 <span class="s">&quot;Cannot change a query once a slice has been taken.&quot;</span>
         <span class="n">obj</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_clone</span><span class="p">()</span>
         <span class="n">obj</span><span class="o">.</span><span class="n">query</span><span class="o">.</span><span class="n">set_limits</span><span class="p">(</span><span class="n">high</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">obj</span><span class="o">.</span><span class="n">query</span><span class="o">.</span><span class="n">clear_ordering</span><span class="p">()</span>
         <span class="n">obj</span><span class="o">.</span><span class="n">query</span><span class="o">.</span><span class="n">add_ordering</span><span class="p">(</span><span class="s">&#39;-</span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">latest_by</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">obj</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
 </div>
@@ -462,14 +529,12 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">assert</span> <span class="bp">self</span><span class="o">.</span><span class="n">query</span><span class="o">.</span><span class="n">can_filter</span><span class="p">(),</span> \
                 <span class="s">&quot;Cannot use &#39;limit&#39; or &#39;offset&#39; with in_bulk&quot;</span>
-        <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">id_list</span><span class="p">,</span> <span class="p">(</span><span class="nb">tuple</span><span class="p">,</span>  <span class="nb">list</span><span class="p">,</span> <span class="nb">set</span><span class="p">,</span> <span class="nb">frozenset</span><span class="p">)),</span> \
-                <span class="s">&quot;in_bulk() must be provided with a list of IDs.&quot;</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="n">id_list</span><span class="p">:</span>
             <span class="k">return</span> <span class="p">{}</span>
         <span class="n">qs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_clone</span><span class="p">()</span>
         <span class="n">qs</span><span class="o">.</span><span class="n">query</span><span class="o">.</span><span class="n">add_filter</span><span class="p">((</span><span class="s">&#39;pk__in&#39;</span><span class="p">,</span> <span class="n">id_list</span><span class="p">))</span>
         <span class="n">qs</span><span class="o">.</span><span class="n">query</span><span class="o">.</span><span class="n">clear_ordering</span><span class="p">(</span><span class="n">force_empty</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
-        <span class="k">return</span> <span class="nb">dict</span><span class="p">([(</span><span class="n">obj</span><span class="o">.</span><span class="n">_get_pk_val</span><span class="p">(),</span> <span class="n">obj</span><span class="p">)</span> <span class="k">for</span> <span class="n">obj</span> <span class="ow">in</span> <span class="n">qs</span><span class="o">.</span><span class="n">iterator</span><span class="p">()])</span>
+        <span class="k">return</span> <span class="nb">dict</span><span class="p">([(</span><span class="n">obj</span><span class="o">.</span><span class="n">_get_pk_val</span><span class="p">(),</span> <span class="n">obj</span><span class="p">)</span> <span class="k">for</span> <span class="n">obj</span> <span class="ow">in</span> <span class="n">qs</span><span class="p">])</span>
 </div>
 <div class="viewcode-block" id="QuerySet.delete"><a class="viewcode-back" href="../../../../django.db.models.html#django.db.models.query.QuerySet.delete">[docs]</a>    <span class="k">def</span> <span class="nf">delete</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
@@ -486,6 +551,7 @@
         <span class="n">del_query</span><span class="o">.</span><span class="n">_for_write</span> <span class="o">=</span> <span class="bp">True</span>
 
         <span class="c"># Disable non-supported fields.</span>
+        <span class="n">del_query</span><span class="o">.</span><span class="n">query</span><span class="o">.</span><span class="n">select_for_update</span> <span class="o">=</span> <span class="bp">False</span>
         <span class="n">del_query</span><span class="o">.</span><span class="n">query</span><span class="o">.</span><span class="n">select_related</span> <span class="o">=</span> <span class="bp">False</span>
         <span class="n">del_query</span><span class="o">.</span><span class="n">query</span><span class="o">.</span><span class="n">clear_ordering</span><span class="p">()</span>
 
@@ -544,6 +610,11 @@
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_result_cache</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
             <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">query</span><span class="o">.</span><span class="n">has_results</span><span class="p">(</span><span class="n">using</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">db</span><span class="p">)</span>
         <span class="k">return</span> <span class="nb">bool</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_result_cache</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_prefetch_related_objects</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c"># This method can only be called once the result cache has been filled.</span>
+        <span class="n">prefetch_related_objects</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_result_cache</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_prefetch_related_lookups</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_prefetch_done</span> <span class="o">=</span> <span class="bp">True</span>
 
     <span class="c">##################################################</span>
     <span class="c"># PUBLIC METHODS THAT RETURN A QUERYSET SUBCLASS #</span>
@@ -634,6 +705,18 @@
         <span class="k">else</span><span class="p">:</span>
             <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_filter_or_exclude</span><span class="p">(</span><span class="bp">None</span><span class="p">,</span> <span class="o">**</span><span class="n">filter_obj</span><span class="p">)</span>
 </div>
+<div class="viewcode-block" id="QuerySet.select_for_update"><a class="viewcode-back" href="../../../../django.db.models.html#django.db.models.query.QuerySet.select_for_update">[docs]</a>    <span class="k">def</span> <span class="nf">select_for_update</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns a new QuerySet instance that will select objects with a</span>
+<span class="sd">        FOR UPDATE lock.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c"># Default to false for nowait</span>
+        <span class="n">nowait</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s">&#39;nowait&#39;</span><span class="p">,</span> <span class="bp">False</span><span class="p">)</span>
+        <span class="n">obj</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_clone</span><span class="p">()</span>
+        <span class="n">obj</span><span class="o">.</span><span class="n">query</span><span class="o">.</span><span class="n">select_for_update</span> <span class="o">=</span> <span class="bp">True</span>
+        <span class="n">obj</span><span class="o">.</span><span class="n">query</span><span class="o">.</span><span class="n">select_for_update_nowait</span> <span class="o">=</span> <span class="n">nowait</span>
+        <span class="k">return</span> <span class="n">obj</span>
+</div>
 <div class="viewcode-block" id="QuerySet.select_related"><a class="viewcode-back" href="../../../../django.db.models.html#django.db.models.query.QuerySet.select_related">[docs]</a>    <span class="k">def</span> <span class="nf">select_related</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">fields</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Returns a new QuerySet instance that will select related objects.</span>
@@ -655,6 +738,23 @@
         <span class="k">if</span> <span class="n">depth</span><span class="p">:</span>
             <span class="n">obj</span><span class="o">.</span><span class="n">query</span><span class="o">.</span><span class="n">max_depth</span> <span class="o">=</span> <span class="n">depth</span>
         <span class="k">return</span> <span class="n">obj</span>
+</div>
+<div class="viewcode-block" id="QuerySet.prefetch_related"><a class="viewcode-back" href="../../../../django.db.models.html#django.db.models.query.QuerySet.prefetch_related">[docs]</a>    <span class="k">def</span> <span class="nf">prefetch_related</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">lookups</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns a new QuerySet instance that will prefetch the specified</span>
+<span class="sd">        Many-To-One and Many-To-Many related objects when the QuerySet is</span>
+<span class="sd">        evaluated.</span>
+
+<span class="sd">        When prefetch_related() is called more than once, the list of lookups to</span>
+<span class="sd">        prefetch is appended to. If prefetch_related(None) is called, the</span>
+<span class="sd">        the list is cleared.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">clone</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_clone</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">lookups</span> <span class="o">==</span> <span class="p">(</span><span class="bp">None</span><span class="p">,):</span>
+            <span class="n">clone</span><span class="o">.</span><span class="n">_prefetch_related_lookups</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">clone</span><span class="o">.</span><span class="n">_prefetch_related_lookups</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">lookups</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">clone</span>
 </div>
 <div class="viewcode-block" id="QuerySet.dup_select_related"><a class="viewcode-back" href="../../../../django.db.models.html#django.db.models.query.QuerySet.dup_select_related">[docs]</a>    <span class="k">def</span> <span class="nf">dup_select_related</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
@@ -705,12 +805,14 @@
         <span class="n">obj</span><span class="o">.</span><span class="n">query</span><span class="o">.</span><span class="n">add_ordering</span><span class="p">(</span><span class="o">*</span><span class="n">field_names</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">obj</span>
 </div>
-<div class="viewcode-block" id="QuerySet.distinct"><a class="viewcode-back" href="../../../../django.db.models.html#django.db.models.query.QuerySet.distinct">[docs]</a>    <span class="k">def</span> <span class="nf">distinct</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">true_or_false</span><span class="o">=</span><span class="bp">True</span><span class="p">):</span>
+<div class="viewcode-block" id="QuerySet.distinct"><a class="viewcode-back" href="../../../../django.db.models.html#django.db.models.query.QuerySet.distinct">[docs]</a>    <span class="k">def</span> <span class="nf">distinct</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">field_names</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Returns a new QuerySet instance that will select only distinct results.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">assert</span> <span class="bp">self</span><span class="o">.</span><span class="n">query</span><span class="o">.</span><span class="n">can_filter</span><span class="p">(),</span> \
+                <span class="s">&quot;Cannot create distinct fields once a slice has been taken.&quot;</span>
         <span class="n">obj</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_clone</span><span class="p">()</span>
-        <span class="n">obj</span><span class="o">.</span><span class="n">query</span><span class="o">.</span><span class="n">distinct</span> <span class="o">=</span> <span class="n">true_or_false</span>
+        <span class="n">obj</span><span class="o">.</span><span class="n">query</span><span class="o">.</span><span class="n">add_distinct_fields</span><span class="p">(</span><span class="o">*</span><span class="n">field_names</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">obj</span>
 </div>
 <div class="viewcode-block" id="QuerySet.extra"><a class="viewcode-back" href="../../../../django.db.models.html#django.db.models.query.QuerySet.extra">[docs]</a>    <span class="k">def</span> <span class="nf">extra</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">select</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">where</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">params</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">tables</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
@@ -763,7 +865,7 @@
 </div>
 <div class="viewcode-block" id="QuerySet.using"><a class="viewcode-back" href="../../../../django.db.models.html#django.db.models.query.QuerySet.using">[docs]</a>    <span class="k">def</span> <span class="nf">using</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">alias</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Selects which database this QuerySet should excecute it&#39;s query against.</span>
+<span class="sd">        Selects which database this QuerySet should excecute its query against.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">clone</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_clone</span><span class="p">()</span>
         <span class="n">clone</span><span class="o">.</span><span class="n">_db</span> <span class="o">=</span> <span class="n">alias</span>
@@ -805,6 +907,7 @@
             <span class="n">query</span><span class="o">.</span><span class="n">filter_is_sticky</span> <span class="o">=</span> <span class="bp">True</span>
         <span class="n">c</span> <span class="o">=</span> <span class="n">klass</span><span class="p">(</span><span class="n">model</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="p">,</span> <span class="n">query</span><span class="o">=</span><span class="n">query</span><span class="p">,</span> <span class="n">using</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_db</span><span class="p">)</span>
         <span class="n">c</span><span class="o">.</span><span class="n">_for_write</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_for_write</span>
+        <span class="n">c</span><span class="o">.</span><span class="n">_prefetch_related_lookups</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_prefetch_related_lookups</span><span class="p">[:]</span>
         <span class="n">c</span><span class="o">.</span><span class="n">__dict__</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">kwargs</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">setup</span> <span class="ow">and</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">c</span><span class="p">,</span> <span class="s">&#39;_setup_query&#39;</span><span class="p">):</span>
             <span class="n">c</span><span class="o">.</span><span class="n">_setup_query</span><span class="p">()</span>
@@ -869,6 +972,7 @@
     <span class="c"># When used as part of a nested query, a queryset will never be an &quot;always</span>
     <span class="c"># empty&quot; result.</span>
     <span class="n">value_annotation</span> <span class="o">=</span> <span class="bp">True</span>
+
 </div>
 <span class="k">class</span> <span class="nc">ValuesQuerySet</span><span class="p">(</span><span class="n">QuerySet</span><span class="p">):</span>
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
@@ -998,6 +1102,7 @@
             <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s">&#39;Cannot use a multi-field </span><span class="si">%s</span><span class="s"> as a filter value.&#39;</span>
                     <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="o">.</span><span class="n">__name__</span><span class="p">)</span>
         <span class="k">return</span> <span class="bp">self</span>
+
 
 <span class="k">class</span> <span class="nc">ValuesListQuerySet</span><span class="p">(</span><span class="n">ValuesQuerySet</span><span class="p">):</span>
     <span class="k">def</span> <span class="nf">iterator</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
@@ -1130,7 +1235,7 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="bp">self</span>
 
-    <span class="k">def</span> <span class="nf">distinct</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">true_or_false</span><span class="o">=</span><span class="bp">True</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">distinct</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fields</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Always returns EmptyQuerySet.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
@@ -1169,26 +1274,28 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="mi">0</span>
 
+    <span class="k">def</span> <span class="nf">aggregate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Return a dict mapping the aggregate names to None</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">arg</span> <span class="ow">in</span> <span class="n">args</span><span class="p">:</span>
+            <span class="n">kwargs</span><span class="p">[</span><span class="n">arg</span><span class="o">.</span><span class="n">default_alias</span><span class="p">]</span> <span class="o">=</span> <span class="n">arg</span>
+        <span class="k">return</span> <span class="nb">dict</span><span class="p">([(</span><span class="n">key</span><span class="p">,</span> <span class="bp">None</span><span class="p">)</span> <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="p">])</span>
+
     <span class="c"># EmptyQuerySet is always an empty result in where-clauses (and similar</span>
     <span class="c"># situations).</span>
     <span class="n">value_annotation</span> <span class="o">=</span> <span class="bp">False</span>
 
-
-<div class="viewcode-block" id="get_cached_row"><a class="viewcode-back" href="../../../../django.db.models.html#django.db.models.query.get_cached_row">[docs]</a><span class="k">def</span> <span class="nf">get_cached_row</span><span class="p">(</span><span class="n">klass</span><span class="p">,</span> <span class="n">row</span><span class="p">,</span> <span class="n">index_start</span><span class="p">,</span> <span class="n">using</span><span class="p">,</span> <span class="n">max_depth</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">cur_depth</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
-                   <span class="n">requested</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">offset</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">only_load</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">local_only</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+<div class="viewcode-block" id="get_klass_info"><a class="viewcode-back" href="../../../../django.db.models.html#django.db.models.query.get_klass_info">[docs]</a><span class="k">def</span> <span class="nf">get_klass_info</span><span class="p">(</span><span class="n">klass</span><span class="p">,</span> <span class="n">max_depth</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">cur_depth</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">requested</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+                   <span class="n">only_load</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">local_only</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Helper function that recursively returns an object with the specified</span>
-<span class="sd">    related attributes already populated.</span>
-
-<span class="sd">    This method may be called recursively to populate deep select_related()</span>
-<span class="sd">    clauses.</span>
+<span class="sd">    Helper function that recursively returns an information for a klass, to be</span>
+<span class="sd">    used in get_cached_row.  It exists just to compute this information only</span>
+<span class="sd">    once for entire queryset. Otherwise it would be computed for each row, which</span>
+<span class="sd">    leads to poor perfomance on large querysets.</span>
 
 <span class="sd">    Arguments:</span>
 <span class="sd">     * klass - the class to retrieve (and instantiate)</span>
-<span class="sd">     * row - the row of data returned by the database cursor</span>
-<span class="sd">     * index_start - the index of the row at which data for this</span>
-<span class="sd">       object is known to start</span>
-<span class="sd">     * using - the database alias on which the query is being executed.</span>
 <span class="sd">     * max_depth - the maximum depth to which a select_related()</span>
 <span class="sd">       relationship should be explored.</span>
 <span class="sd">     * cur_depth - the current depth in the select_related() tree.</span>
@@ -1197,22 +1304,18 @@
 <span class="sd">       that is to be retrieved. keys are field names; values are</span>
 <span class="sd">       dictionaries describing the keys on that related object that</span>
 <span class="sd">       are themselves to be select_related().</span>
-<span class="sd">     * offset - the number of additional fields that are known to</span>
-<span class="sd">       exist in `row` for `klass`. This usually means the number of</span>
-<span class="sd">       annotated results on `klass`.</span>
 <span class="sd">     * only_load - if the query has had only() or defer() applied,</span>
 <span class="sd">       this is the list of field names that will be returned. If None,</span>
 <span class="sd">       the full field list for `klass` can be assumed.</span>
-<span class="sd">     * local_only - Only populate local fields. This is used when building</span>
+<span class="sd">     * local_only - Only populate local fields. This is used when</span>
 <span class="sd">       following reverse select-related relations</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">if</span> <span class="n">max_depth</span> <span class="ow">and</span> <span class="n">requested</span> <span class="ow">is</span> <span class="bp">None</span> <span class="ow">and</span> <span class="n">cur_depth</span> <span class="o">&gt;</span> <span class="n">max_depth</span><span class="p">:</span>
         <span class="c"># We&#39;ve recursed deeply enough; stop now.</span>
         <span class="k">return</span> <span class="bp">None</span>
 
-    <span class="n">restricted</span> <span class="o">=</span> <span class="n">requested</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span>
     <span class="k">if</span> <span class="n">only_load</span><span class="p">:</span>
-        <span class="n">load_fields</span> <span class="o">=</span> <span class="n">only_load</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">klass</span><span class="p">)</span>
+        <span class="n">load_fields</span> <span class="o">=</span> <span class="n">only_load</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">klass</span><span class="p">)</span> <span class="ow">or</span> <span class="nb">set</span><span class="p">()</span>
         <span class="c"># When we create the object, we will also be creating populating</span>
         <span class="c"># all the parent classes, so traverse the parent classes looking</span>
         <span class="c"># for fields that must be included on load.</span>
@@ -1222,6 +1325,7 @@
                 <span class="n">load_fields</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">fields</span><span class="p">)</span>
     <span class="k">else</span><span class="p">:</span>
         <span class="n">load_fields</span> <span class="o">=</span> <span class="bp">None</span>
+
     <span class="k">if</span> <span class="n">load_fields</span><span class="p">:</span>
         <span class="c"># Handle deferred fields.</span>
         <span class="n">skip</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
@@ -1236,52 +1340,97 @@
                 <span class="n">init_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">field</span><span class="o">.</span><span class="n">attname</span><span class="p">)</span>
         <span class="c"># Retrieve all the requested fields</span>
         <span class="n">field_count</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">init_list</span><span class="p">)</span>
-        <span class="n">fields</span> <span class="o">=</span> <span class="n">row</span><span class="p">[</span><span class="n">index_start</span> <span class="p">:</span> <span class="n">index_start</span> <span class="o">+</span> <span class="n">field_count</span><span class="p">]</span>
-        <span class="c"># If all the select_related columns are None, then the related</span>
-        <span class="c"># object must be non-existent - set the relation to None.</span>
-        <span class="c"># Otherwise, construct the related object.</span>
-        <span class="k">if</span> <span class="n">fields</span> <span class="o">==</span> <span class="p">(</span><span class="bp">None</span><span class="p">,)</span> <span class="o">*</span> <span class="n">field_count</span><span class="p">:</span>
-            <span class="n">obj</span> <span class="o">=</span> <span class="bp">None</span>
-        <span class="k">elif</span> <span class="n">skip</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">skip</span><span class="p">:</span>
             <span class="n">klass</span> <span class="o">=</span> <span class="n">deferred_class_factory</span><span class="p">(</span><span class="n">klass</span><span class="p">,</span> <span class="n">skip</span><span class="p">)</span>
-            <span class="n">obj</span> <span class="o">=</span> <span class="n">klass</span><span class="p">(</span><span class="o">**</span><span class="nb">dict</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">init_list</span><span class="p">,</span> <span class="n">fields</span><span class="p">)))</span>
+            <span class="n">field_names</span> <span class="o">=</span> <span class="n">init_list</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="n">obj</span> <span class="o">=</span> <span class="n">klass</span><span class="p">(</span><span class="o">*</span><span class="n">fields</span><span class="p">)</span>
-
+            <span class="n">field_names</span> <span class="o">=</span> <span class="p">()</span>
     <span class="k">else</span><span class="p">:</span>
         <span class="c"># Load all fields on klass</span>
-        <span class="k">if</span> <span class="n">local_only</span><span class="p">:</span>
+
+        <span class="c"># We trying to not populate field_names variable for perfomance reason.</span>
+        <span class="c"># If field_names variable is set, it is used to instantiate desired fields,</span>
+        <span class="c"># by passing **dict(zip(field_names, fields)) as kwargs to Model.__init__ method.</span>
+        <span class="c"># But kwargs version of Model.__init__ is slower, so we should avoid using</span>
+        <span class="c"># it when it is not really neccesary.</span>
+        <span class="k">if</span> <span class="n">local_only</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">klass</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">local_fields</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="n">klass</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">fields</span><span class="p">):</span>
+            <span class="n">field_count</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">klass</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">local_fields</span><span class="p">)</span>
             <span class="n">field_names</span> <span class="o">=</span> <span class="p">[</span><span class="n">f</span><span class="o">.</span><span class="n">attname</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">klass</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">local_fields</span><span class="p">]</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="n">field_names</span> <span class="o">=</span> <span class="p">[</span><span class="n">f</span><span class="o">.</span><span class="n">attname</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">klass</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">fields</span><span class="p">]</span>
-        <span class="n">field_count</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">field_names</span><span class="p">)</span>
-        <span class="n">fields</span> <span class="o">=</span> <span class="n">row</span><span class="p">[</span><span class="n">index_start</span> <span class="p">:</span> <span class="n">index_start</span> <span class="o">+</span> <span class="n">field_count</span><span class="p">]</span>
-        <span class="c"># If all the select_related columns are None, then the related</span>
-        <span class="c"># object must be non-existent - set the relation to None.</span>
-        <span class="c"># Otherwise, construct the related object.</span>
-        <span class="k">if</span> <span class="n">fields</span> <span class="o">==</span> <span class="p">(</span><span class="bp">None</span><span class="p">,)</span> <span class="o">*</span> <span class="n">field_count</span><span class="p">:</span>
-            <span class="n">obj</span> <span class="o">=</span> <span class="bp">None</span>
-        <span class="k">else</span><span class="p">:</span>
+            <span class="n">field_count</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">klass</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">fields</span><span class="p">)</span>
+            <span class="n">field_names</span> <span class="o">=</span> <span class="p">()</span>
+
+    <span class="n">restricted</span> <span class="o">=</span> <span class="n">requested</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span>
+
+    <span class="n">related_fields</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">klass</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">fields</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">select_related_descend</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="n">restricted</span><span class="p">,</span> <span class="n">requested</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">restricted</span><span class="p">:</span>
+                <span class="nb">next</span> <span class="o">=</span> <span class="n">requested</span><span class="p">[</span><span class="n">f</span><span class="o">.</span><span class="n">name</span><span class="p">]</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="nb">next</span> <span class="o">=</span> <span class="bp">None</span>
+            <span class="n">klass_info</span> <span class="o">=</span> <span class="n">get_klass_info</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">rel</span><span class="o">.</span><span class="n">to</span><span class="p">,</span> <span class="n">max_depth</span><span class="o">=</span><span class="n">max_depth</span><span class="p">,</span> <span class="n">cur_depth</span><span class="o">=</span><span class="n">cur_depth</span><span class="o">+</span><span class="mi">1</span><span class="p">,</span>
+                                        <span class="n">requested</span><span class="o">=</span><span class="nb">next</span><span class="p">,</span> <span class="n">only_load</span><span class="o">=</span><span class="n">only_load</span><span class="p">)</span>
+            <span class="n">related_fields</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">f</span><span class="p">,</span> <span class="n">klass_info</span><span class="p">))</span>
+
+    <span class="n">reverse_related_fields</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">if</span> <span class="n">restricted</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">o</span> <span class="ow">in</span> <span class="n">klass</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">get_all_related_objects</span><span class="p">():</span>
+            <span class="k">if</span> <span class="n">o</span><span class="o">.</span><span class="n">field</span><span class="o">.</span><span class="n">unique</span> <span class="ow">and</span> <span class="n">select_related_descend</span><span class="p">(</span><span class="n">o</span><span class="o">.</span><span class="n">field</span><span class="p">,</span> <span class="n">restricted</span><span class="p">,</span> <span class="n">requested</span><span class="p">,</span> <span class="n">reverse</span><span class="o">=</span><span class="bp">True</span><span class="p">):</span>
+                <span class="nb">next</span> <span class="o">=</span> <span class="n">requested</span><span class="p">[</span><span class="n">o</span><span class="o">.</span><span class="n">field</span><span class="o">.</span><span class="n">related_query_name</span><span class="p">()]</span>
+                <span class="n">klass_info</span> <span class="o">=</span> <span class="n">get_klass_info</span><span class="p">(</span><span class="n">o</span><span class="o">.</span><span class="n">model</span><span class="p">,</span> <span class="n">max_depth</span><span class="o">=</span><span class="n">max_depth</span><span class="p">,</span> <span class="n">cur_depth</span><span class="o">=</span><span class="n">cur_depth</span><span class="o">+</span><span class="mi">1</span><span class="p">,</span>
+                                            <span class="n">requested</span><span class="o">=</span><span class="nb">next</span><span class="p">,</span> <span class="n">only_load</span><span class="o">=</span><span class="n">only_load</span><span class="p">,</span> <span class="n">local_only</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+                <span class="n">reverse_related_fields</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">o</span><span class="o">.</span><span class="n">field</span><span class="p">,</span> <span class="n">klass_info</span><span class="p">))</span>
+
+    <span class="k">return</span> <span class="n">klass</span><span class="p">,</span> <span class="n">field_names</span><span class="p">,</span> <span class="n">field_count</span><span class="p">,</span> <span class="n">related_fields</span><span class="p">,</span> <span class="n">reverse_related_fields</span>
+
+</div>
+<div class="viewcode-block" id="get_cached_row"><a class="viewcode-back" href="../../../../django.db.models.html#django.db.models.query.get_cached_row">[docs]</a><span class="k">def</span> <span class="nf">get_cached_row</span><span class="p">(</span><span class="n">row</span><span class="p">,</span> <span class="n">index_start</span><span class="p">,</span> <span class="n">using</span><span class="p">,</span>  <span class="n">klass_info</span><span class="p">,</span> <span class="n">offset</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Helper function that recursively returns an object with the specified</span>
+<span class="sd">    related attributes already populated.</span>
+
+<span class="sd">    This method may be called recursively to populate deep select_related()</span>
+<span class="sd">    clauses.</span>
+
+<span class="sd">    Arguments:</span>
+<span class="sd">         * row - the row of data returned by the database cursor</span>
+<span class="sd">         * index_start - the index of the row at which data for this</span>
+<span class="sd">           object is known to start</span>
+<span class="sd">         * offset - the number of additional fields that are known to</span>
+<span class="sd">           exist in row for `klass`. This usually means the number of</span>
+<span class="sd">           annotated results on `klass`.</span>
+<span class="sd">        * using - the database alias on which the query is being executed.</span>
+<span class="sd">         * klass_info - result of the get_klass_info function</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">klass_info</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">None</span>
+    <span class="n">klass</span><span class="p">,</span> <span class="n">field_names</span><span class="p">,</span> <span class="n">field_count</span><span class="p">,</span> <span class="n">related_fields</span><span class="p">,</span> <span class="n">reverse_related_fields</span> <span class="o">=</span> <span class="n">klass_info</span>
+
+    <span class="n">fields</span> <span class="o">=</span> <span class="n">row</span><span class="p">[</span><span class="n">index_start</span> <span class="p">:</span> <span class="n">index_start</span> <span class="o">+</span> <span class="n">field_count</span><span class="p">]</span>
+    <span class="c"># If all the select_related columns are None, then the related</span>
+    <span class="c"># object must be non-existent - set the relation to None.</span>
+    <span class="c"># Otherwise, construct the related object.</span>
+    <span class="k">if</span> <span class="n">fields</span> <span class="o">==</span> <span class="p">(</span><span class="bp">None</span><span class="p">,)</span> <span class="o">*</span> <span class="n">field_count</span><span class="p">:</span>
+        <span class="n">obj</span> <span class="o">=</span> <span class="bp">None</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">field_names</span><span class="p">:</span>
             <span class="n">obj</span> <span class="o">=</span> <span class="n">klass</span><span class="p">(</span><span class="o">**</span><span class="nb">dict</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">field_names</span><span class="p">,</span> <span class="n">fields</span><span class="p">)))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">obj</span> <span class="o">=</span> <span class="n">klass</span><span class="p">(</span><span class="o">*</span><span class="n">fields</span><span class="p">)</span>
 
     <span class="c"># If an object was retrieved, set the database state.</span>
     <span class="k">if</span> <span class="n">obj</span><span class="p">:</span>
         <span class="n">obj</span><span class="o">.</span><span class="n">_state</span><span class="o">.</span><span class="n">db</span> <span class="o">=</span> <span class="n">using</span>
         <span class="n">obj</span><span class="o">.</span><span class="n">_state</span><span class="o">.</span><span class="n">adding</span> <span class="o">=</span> <span class="bp">False</span>
 
+    <span class="c"># Instantiate related fields</span>
     <span class="n">index_end</span> <span class="o">=</span> <span class="n">index_start</span> <span class="o">+</span> <span class="n">field_count</span> <span class="o">+</span> <span class="n">offset</span>
     <span class="c"># Iterate over each related object, populating any</span>
     <span class="c"># select_related() fields</span>
-    <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">klass</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">fields</span><span class="p">:</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">select_related_descend</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="n">restricted</span><span class="p">,</span> <span class="n">requested</span><span class="p">):</span>
-            <span class="k">continue</span>
-        <span class="k">if</span> <span class="n">restricted</span><span class="p">:</span>
-            <span class="nb">next</span> <span class="o">=</span> <span class="n">requested</span><span class="p">[</span><span class="n">f</span><span class="o">.</span><span class="n">name</span><span class="p">]</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="nb">next</span> <span class="o">=</span> <span class="bp">None</span>
+    <span class="k">for</span> <span class="n">f</span><span class="p">,</span> <span class="n">klass_info</span> <span class="ow">in</span> <span class="n">related_fields</span><span class="p">:</span>
         <span class="c"># Recursively retrieve the data for the related object</span>
-        <span class="n">cached_row</span> <span class="o">=</span> <span class="n">get_cached_row</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">rel</span><span class="o">.</span><span class="n">to</span><span class="p">,</span> <span class="n">row</span><span class="p">,</span> <span class="n">index_end</span><span class="p">,</span> <span class="n">using</span><span class="p">,</span>
-                <span class="n">max_depth</span><span class="p">,</span> <span class="n">cur_depth</span><span class="o">+</span><span class="mi">1</span><span class="p">,</span> <span class="nb">next</span><span class="p">,</span> <span class="n">only_load</span><span class="o">=</span><span class="n">only_load</span><span class="p">)</span>
+        <span class="n">cached_row</span> <span class="o">=</span> <span class="n">get_cached_row</span><span class="p">(</span><span class="n">row</span><span class="p">,</span> <span class="n">index_end</span><span class="p">,</span> <span class="n">using</span><span class="p">,</span> <span class="n">klass_info</span><span class="p">)</span>
         <span class="c"># If the recursive descent found an object, populate the</span>
         <span class="c"># descriptor caches relevant to the object</span>
         <span class="k">if</span> <span class="n">cached_row</span><span class="p">:</span>
@@ -1298,45 +1447,35 @@
     <span class="c"># Now do the same, but for reverse related objects.</span>
     <span class="c"># Only handle the restricted case - i.e., don&#39;t do a depth</span>
     <span class="c"># descent into reverse relations unless explicitly requested</span>
-    <span class="k">if</span> <span class="n">restricted</span><span class="p">:</span>
-        <span class="n">related_fields</span> <span class="o">=</span> <span class="p">[</span>
-            <span class="p">(</span><span class="n">o</span><span class="o">.</span><span class="n">field</span><span class="p">,</span> <span class="n">o</span><span class="o">.</span><span class="n">model</span><span class="p">)</span>
-            <span class="k">for</span> <span class="n">o</span> <span class="ow">in</span> <span class="n">klass</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">get_all_related_objects</span><span class="p">()</span>
-            <span class="k">if</span> <span class="n">o</span><span class="o">.</span><span class="n">field</span><span class="o">.</span><span class="n">unique</span>
-        <span class="p">]</span>
-        <span class="k">for</span> <span class="n">f</span><span class="p">,</span> <span class="n">model</span> <span class="ow">in</span> <span class="n">related_fields</span><span class="p">:</span>
-            <span class="k">if</span> <span class="ow">not</span> <span class="n">select_related_descend</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="n">restricted</span><span class="p">,</span> <span class="n">requested</span><span class="p">,</span> <span class="n">reverse</span><span class="o">=</span><span class="bp">True</span><span class="p">):</span>
-                <span class="k">continue</span>
-            <span class="nb">next</span> <span class="o">=</span> <span class="n">requested</span><span class="p">[</span><span class="n">f</span><span class="o">.</span><span class="n">related_query_name</span><span class="p">()]</span>
-            <span class="c"># Recursively retrieve the data for the related object</span>
-            <span class="n">cached_row</span> <span class="o">=</span> <span class="n">get_cached_row</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">row</span><span class="p">,</span> <span class="n">index_end</span><span class="p">,</span> <span class="n">using</span><span class="p">,</span>
-                <span class="n">max_depth</span><span class="p">,</span> <span class="n">cur_depth</span><span class="o">+</span><span class="mi">1</span><span class="p">,</span> <span class="nb">next</span><span class="p">,</span> <span class="n">only_load</span><span class="o">=</span><span class="n">only_load</span><span class="p">,</span> <span class="n">local_only</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
-            <span class="c"># If the recursive descent found an object, populate the</span>
-            <span class="c"># descriptor caches relevant to the object</span>
-            <span class="k">if</span> <span class="n">cached_row</span><span class="p">:</span>
-                <span class="n">rel_obj</span><span class="p">,</span> <span class="n">index_end</span> <span class="o">=</span> <span class="n">cached_row</span>
-                <span class="k">if</span> <span class="n">obj</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
-                    <span class="c"># If the field is unique, populate the</span>
-                    <span class="c"># reverse descriptor cache</span>
-                    <span class="nb">setattr</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">f</span><span class="o">.</span><span class="n">related</span><span class="o">.</span><span class="n">get_cache_name</span><span class="p">(),</span> <span class="n">rel_obj</span><span class="p">)</span>
-                <span class="k">if</span> <span class="n">rel_obj</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
-                    <span class="c"># If the related object exists, populate</span>
-                    <span class="c"># the descriptor cache.</span>
-                    <span class="nb">setattr</span><span class="p">(</span><span class="n">rel_obj</span><span class="p">,</span> <span class="n">f</span><span class="o">.</span><span class="n">get_cache_name</span><span class="p">(),</span> <span class="n">obj</span><span class="p">)</span>
-                    <span class="c"># Now populate all the non-local field values</span>
-                    <span class="c"># on the related object</span>
-                    <span class="k">for</span> <span class="n">rel_field</span><span class="p">,</span><span class="n">rel_model</span> <span class="ow">in</span> <span class="n">rel_obj</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">get_fields_with_model</span><span class="p">():</span>
-                        <span class="k">if</span> <span class="n">rel_model</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
-                            <span class="nb">setattr</span><span class="p">(</span><span class="n">rel_obj</span><span class="p">,</span> <span class="n">rel_field</span><span class="o">.</span><span class="n">attname</span><span class="p">,</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">rel_field</span><span class="o">.</span><span class="n">attname</span><span class="p">))</span>
-                            <span class="c"># populate the field cache for any related object</span>
-                            <span class="c"># that has already been retrieved</span>
-                            <span class="k">if</span> <span class="n">rel_field</span><span class="o">.</span><span class="n">rel</span><span class="p">:</span>
-                                <span class="k">try</span><span class="p">:</span>
-                                    <span class="n">cached_obj</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">rel_field</span><span class="o">.</span><span class="n">get_cache_name</span><span class="p">())</span>
-                                    <span class="nb">setattr</span><span class="p">(</span><span class="n">rel_obj</span><span class="p">,</span> <span class="n">rel_field</span><span class="o">.</span><span class="n">get_cache_name</span><span class="p">(),</span> <span class="n">cached_obj</span><span class="p">)</span>
-                                <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>
-                                    <span class="c"># Related object hasn&#39;t been cached yet</span>
-                                    <span class="k">pass</span>
+    <span class="k">for</span> <span class="n">f</span><span class="p">,</span> <span class="n">klass_info</span> <span class="ow">in</span> <span class="n">reverse_related_fields</span><span class="p">:</span>
+        <span class="c"># Recursively retrieve the data for the related object</span>
+        <span class="n">cached_row</span> <span class="o">=</span> <span class="n">get_cached_row</span><span class="p">(</span><span class="n">row</span><span class="p">,</span> <span class="n">index_end</span><span class="p">,</span> <span class="n">using</span><span class="p">,</span> <span class="n">klass_info</span><span class="p">)</span>
+        <span class="c"># If the recursive descent found an object, populate the</span>
+        <span class="c"># descriptor caches relevant to the object</span>
+        <span class="k">if</span> <span class="n">cached_row</span><span class="p">:</span>
+            <span class="n">rel_obj</span><span class="p">,</span> <span class="n">index_end</span> <span class="o">=</span> <span class="n">cached_row</span>
+            <span class="k">if</span> <span class="n">obj</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+                <span class="c"># If the field is unique, populate the</span>
+                <span class="c"># reverse descriptor cache</span>
+                <span class="nb">setattr</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">f</span><span class="o">.</span><span class="n">related</span><span class="o">.</span><span class="n">get_cache_name</span><span class="p">(),</span> <span class="n">rel_obj</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">rel_obj</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+                <span class="c"># If the related object exists, populate</span>
+                <span class="c"># the descriptor cache.</span>
+                <span class="nb">setattr</span><span class="p">(</span><span class="n">rel_obj</span><span class="p">,</span> <span class="n">f</span><span class="o">.</span><span class="n">get_cache_name</span><span class="p">(),</span> <span class="n">obj</span><span class="p">)</span>
+                <span class="c"># Now populate all the non-local field values</span>
+                <span class="c"># on the related object</span>
+                <span class="k">for</span> <span class="n">rel_field</span><span class="p">,</span> <span class="n">rel_model</span> <span class="ow">in</span> <span class="n">rel_obj</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">get_fields_with_model</span><span class="p">():</span>
+                    <span class="k">if</span> <span class="n">rel_model</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+                        <span class="nb">setattr</span><span class="p">(</span><span class="n">rel_obj</span><span class="p">,</span> <span class="n">rel_field</span><span class="o">.</span><span class="n">attname</span><span class="p">,</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">rel_field</span><span class="o">.</span><span class="n">attname</span><span class="p">))</span>
+                        <span class="c"># populate the field cache for any related object</span>
+                        <span class="c"># that has already been retrieved</span>
+                        <span class="k">if</span> <span class="n">rel_field</span><span class="o">.</span><span class="n">rel</span><span class="p">:</span>
+                            <span class="k">try</span><span class="p">:</span>
+                                <span class="n">cached_obj</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">rel_field</span><span class="o">.</span><span class="n">get_cache_name</span><span class="p">())</span>
+                                <span class="nb">setattr</span><span class="p">(</span><span class="n">rel_obj</span><span class="p">,</span> <span class="n">rel_field</span><span class="o">.</span><span class="n">get_cache_name</span><span class="p">(),</span> <span class="n">cached_obj</span><span class="p">)</span>
+                            <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>
+                                <span class="c"># Related object hasn&#39;t been cached yet</span>
+                                <span class="k">pass</span>
     <span class="k">return</span> <span class="n">obj</span><span class="p">,</span> <span class="n">index_end</span>
 
 </div>
@@ -1422,7 +1561,7 @@
             <span class="k">yield</span> <span class="n">instance</span>
 
     <span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="k">return</span> <span class="s">&quot;&lt;RawQuerySet: </span><span class="si">%r</span><span class="s">&gt;&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">raw_query</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">)</span>
+        <span class="k">return</span> <span class="s">&quot;&lt;RawQuerySet: </span><span class="si">%r</span><span class="s">&gt;&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">raw_query</span> <span class="o">%</span> <span class="nb">tuple</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">))</span>
 
     <span class="k">def</span> <span class="nf">__getitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">k</span><span class="p">):</span>
         <span class="k">return</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="p">)[</span><span class="n">k</span><span class="p">]</span>
@@ -1473,16 +1612,233 @@
                 <span class="n">name</span><span class="p">,</span> <span class="n">column</span> <span class="o">=</span> <span class="n">field</span><span class="o">.</span><span class="n">get_attname_column</span><span class="p">()</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">_model_fields</span><span class="p">[</span><span class="n">converter</span><span class="p">(</span><span class="n">column</span><span class="p">)]</span> <span class="o">=</span> <span class="n">field</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_model_fields</span>
+
 </div></div>
-<div class="viewcode-block" id="insert_query"><a class="viewcode-back" href="../../../../django.db.models.html#django.db.models.query.insert_query">[docs]</a><span class="k">def</span> <span class="nf">insert_query</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">values</span><span class="p">,</span> <span class="n">return_id</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">raw_values</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">using</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+<div class="viewcode-block" id="insert_query"><a class="viewcode-back" href="../../../../django.db.models.html#django.db.models.query.insert_query">[docs]</a><span class="k">def</span> <span class="nf">insert_query</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">objs</span><span class="p">,</span> <span class="n">fields</span><span class="p">,</span> <span class="n">return_id</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">raw</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">using</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Inserts a new record for the given model. This provides an interface to</span>
 <span class="sd">    the InsertQuery class and is how Model.save() is implemented. It is not</span>
 <span class="sd">    part of the public API.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">query</span> <span class="o">=</span> <span class="n">sql</span><span class="o">.</span><span class="n">InsertQuery</span><span class="p">(</span><span class="n">model</span><span class="p">)</span>
-    <span class="n">query</span><span class="o">.</span><span class="n">insert_values</span><span class="p">(</span><span class="n">values</span><span class="p">,</span> <span class="n">raw_values</span><span class="p">)</span>
-    <span class="k">return</span> <span class="n">query</span><span class="o">.</span><span class="n">get_compiler</span><span class="p">(</span><span class="n">using</span><span class="o">=</span><span class="n">using</span><span class="p">)</span><span class="o">.</span><span class="n">execute_sql</span><span class="p">(</span><span class="n">return_id</span><span class="p">)</span></div>
+    <span class="n">query</span><span class="o">.</span><span class="n">insert_values</span><span class="p">(</span><span class="n">fields</span><span class="p">,</span> <span class="n">objs</span><span class="p">,</span> <span class="n">raw</span><span class="o">=</span><span class="n">raw</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">query</span><span class="o">.</span><span class="n">get_compiler</span><span class="p">(</span><span class="n">using</span><span class="o">=</span><span class="n">using</span><span class="p">)</span><span class="o">.</span><span class="n">execute_sql</span><span class="p">(</span><span class="n">return_id</span><span class="p">)</span>
+
+</div>
+<div class="viewcode-block" id="prefetch_related_objects"><a class="viewcode-back" href="../../../../django.db.models.html#django.db.models.query.prefetch_related_objects">[docs]</a><span class="k">def</span> <span class="nf">prefetch_related_objects</span><span class="p">(</span><span class="n">result_cache</span><span class="p">,</span> <span class="n">related_lookups</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Helper function for prefetch_related functionality</span>
+
+<span class="sd">    Populates prefetched objects caches for a list of results</span>
+<span class="sd">    from a QuerySet</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="kn">from</span> <span class="nn">django.db.models.sql.constants</span> <span class="kn">import</span> <span class="n">LOOKUP_SEP</span>
+
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">result_cache</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="k">return</span> <span class="c"># nothing to do</span>
+
+    <span class="n">model</span> <span class="o">=</span> <span class="n">result_cache</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">__class__</span>
+
+    <span class="c"># We need to be able to dynamically add to the list of prefetch_related</span>
+    <span class="c"># lookups that we look up (see below).  So we need some book keeping to</span>
+    <span class="c"># ensure we don&#39;t do duplicate work.</span>
+    <span class="n">done_lookups</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span> <span class="c"># list of lookups like foo__bar__baz</span>
+    <span class="n">done_queries</span> <span class="o">=</span> <span class="p">{}</span>    <span class="c"># dictionary of things like &#39;foo__bar&#39;: [results]</span>
+
+    <span class="n">auto_lookups</span> <span class="o">=</span> <span class="p">[]</span> <span class="c"># we add to this as we go through.</span>
+    <span class="n">followed_descriptors</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span> <span class="c"># recursion protection</span>
+
+    <span class="n">all_lookups</span> <span class="o">=</span> <span class="n">itertools</span><span class="o">.</span><span class="n">chain</span><span class="p">(</span><span class="n">related_lookups</span><span class="p">,</span> <span class="n">auto_lookups</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">lookup</span> <span class="ow">in</span> <span class="n">all_lookups</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">lookup</span> <span class="ow">in</span> <span class="n">done_lookups</span><span class="p">:</span>
+            <span class="c"># We&#39;ve done exactly this already, skip the whole thing</span>
+            <span class="k">continue</span>
+        <span class="n">done_lookups</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">lookup</span><span class="p">)</span>
+
+        <span class="c"># Top level, the list of objects to decorate is the the result cache</span>
+        <span class="c"># from the primary QuerySet. It won&#39;t be for deeper levels.</span>
+        <span class="n">obj_list</span> <span class="o">=</span> <span class="n">result_cache</span>
+
+        <span class="n">attrs</span> <span class="o">=</span> <span class="n">lookup</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">LOOKUP_SEP</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">level</span><span class="p">,</span> <span class="n">attr</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">attrs</span><span class="p">):</span>
+            <span class="c"># Prepare main instances</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">obj_list</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">break</span>
+
+            <span class="n">good_objects</span> <span class="o">=</span> <span class="bp">True</span>
+            <span class="k">for</span> <span class="n">obj</span> <span class="ow">in</span> <span class="n">obj_list</span><span class="p">:</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="s">&#39;_prefetched_objects_cache&#39;</span><span class="p">):</span>
+                    <span class="k">try</span><span class="p">:</span>
+                        <span class="n">obj</span><span class="o">.</span><span class="n">_prefetched_objects_cache</span> <span class="o">=</span> <span class="p">{}</span>
+                    <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>
+                        <span class="c"># Must be in a QuerySet subclass that is not returning</span>
+                        <span class="c"># Model instances, either in Django or 3rd</span>
+                        <span class="c"># party. prefetch_related() doesn&#39;t make sense, so quit</span>
+                        <span class="c"># now.</span>
+                        <span class="n">good_objects</span> <span class="o">=</span> <span class="bp">False</span>
+                        <span class="k">break</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="c"># We already did this list</span>
+                    <span class="k">break</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">good_objects</span><span class="p">:</span>
+                <span class="k">break</span>
+
+            <span class="c"># Descend down tree</span>
+
+            <span class="c"># We assume that objects retrieved are homogenous (which is the premise</span>
+            <span class="c"># of prefetch_related), so what applies to first object applies to all.</span>
+            <span class="n">first_obj</span> <span class="o">=</span> <span class="n">obj_list</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">prefetcher</span><span class="p">,</span> <span class="n">descriptor</span><span class="p">,</span> <span class="n">attr_found</span><span class="p">,</span> <span class="n">is_fetched</span> <span class="o">=</span> <span class="n">get_prefetcher</span><span class="p">(</span><span class="n">first_obj</span><span class="p">,</span> <span class="n">attr</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">attr_found</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">AttributeError</span><span class="p">(</span><span class="s">&quot;Cannot find &#39;</span><span class="si">%s</span><span class="s">&#39; on </span><span class="si">%s</span><span class="s"> object, &#39;</span><span class="si">%s</span><span class="s">&#39; is an invalid &quot;</span>
+                                     <span class="s">&quot;parameter to prefetch_related()&quot;</span> <span class="o">%</span>
+                                     <span class="p">(</span><span class="n">attr</span><span class="p">,</span> <span class="n">first_obj</span><span class="o">.</span><span class="n">__class__</span><span class="o">.</span><span class="n">__name__</span><span class="p">,</span> <span class="n">lookup</span><span class="p">))</span>
+
+            <span class="k">if</span> <span class="n">level</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">attrs</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span> <span class="ow">and</span> <span class="n">prefetcher</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+                <span class="c"># Last one, this *must* resolve to something that supports</span>
+                <span class="c"># prefetching, otherwise there is no point adding it and the</span>
+                <span class="c"># developer asking for it has made a mistake.</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s">&quot;&#39;</span><span class="si">%s</span><span class="s">&#39; does not resolve to a item that supports &quot;</span>
+                                 <span class="s">&quot;prefetching - this is an invalid parameter to &quot;</span>
+                                 <span class="s">&quot;prefetch_related().&quot;</span> <span class="o">%</span> <span class="n">lookup</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">prefetcher</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">is_fetched</span><span class="p">:</span>
+                <span class="c"># Check we didn&#39;t do this already</span>
+                <span class="n">current_lookup</span> <span class="o">=</span> <span class="n">LOOKUP_SEP</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">attrs</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="n">level</span><span class="o">+</span><span class="mi">1</span><span class="p">])</span>
+                <span class="k">if</span> <span class="n">current_lookup</span> <span class="ow">in</span> <span class="n">done_queries</span><span class="p">:</span>
+                    <span class="n">obj_list</span> <span class="o">=</span> <span class="n">done_queries</span><span class="p">[</span><span class="n">current_lookup</span><span class="p">]</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">obj_list</span><span class="p">,</span> <span class="n">additional_prl</span> <span class="o">=</span> <span class="n">prefetch_one_level</span><span class="p">(</span><span class="n">obj_list</span><span class="p">,</span> <span class="n">prefetcher</span><span class="p">,</span> <span class="n">attr</span><span class="p">)</span>
+                    <span class="c"># We need to ensure we don&#39;t keep adding lookups from the</span>
+                    <span class="c"># same relationships to stop infinite recursion. So, if we</span>
+                    <span class="c"># are already on an automatically added lookup, don&#39;t add</span>
+                    <span class="c"># the new lookups from relationships we&#39;ve seen already.</span>
+                    <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="n">lookup</span> <span class="ow">in</span> <span class="n">auto_lookups</span> <span class="ow">and</span>
+                            <span class="n">descriptor</span> <span class="ow">in</span> <span class="n">followed_descriptors</span><span class="p">):</span>
+                        <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">additional_prl</span><span class="p">:</span>
+                            <span class="n">new_prl</span> <span class="o">=</span> <span class="n">LOOKUP_SEP</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="n">current_lookup</span><span class="p">,</span> <span class="n">f</span><span class="p">])</span>
+                            <span class="n">auto_lookups</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">new_prl</span><span class="p">)</span>
+                        <span class="n">done_queries</span><span class="p">[</span><span class="n">current_lookup</span><span class="p">]</span> <span class="o">=</span> <span class="n">obj_list</span>
+                    <span class="n">followed_descriptors</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">descriptor</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="c"># Either a singly related object that has already been fetched</span>
+                <span class="c"># (e.g. via select_related), or hopefully some other property</span>
+                <span class="c"># that doesn&#39;t support prefetching but needs to be traversed.</span>
+
+                <span class="c"># We replace the current list of parent objects with that list.</span>
+                <span class="n">obj_list</span> <span class="o">=</span> <span class="p">[</span><span class="nb">getattr</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">attr</span><span class="p">)</span> <span class="k">for</span> <span class="n">obj</span> <span class="ow">in</span> <span class="n">obj_list</span><span class="p">]</span>
+
+                <span class="c"># Filter out &#39;None&#39; so that we can continue with nullable</span>
+                <span class="c"># relations.</span>
+                <span class="n">obj_list</span> <span class="o">=</span> <span class="p">[</span><span class="n">obj</span> <span class="k">for</span> <span class="n">obj</span> <span class="ow">in</span> <span class="n">obj_list</span> <span class="k">if</span> <span class="n">obj</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">]</span>
+
+</div>
+<div class="viewcode-block" id="get_prefetcher"><a class="viewcode-back" href="../../../../django.db.models.html#django.db.models.query.get_prefetcher">[docs]</a><span class="k">def</span> <span class="nf">get_prefetcher</span><span class="p">(</span><span class="n">instance</span><span class="p">,</span> <span class="n">attr</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    For the attribute &#39;attr&#39; on the given instance, finds</span>
+<span class="sd">    an object that has a get_prefetch_query_set().</span>
+<span class="sd">    Returns a 4 tuple containing:</span>
+<span class="sd">    (the object with get_prefetch_query_set (or None),</span>
+<span class="sd">     the descriptor object representing this relationship (or None),</span>
+<span class="sd">     a boolean that is False if the attribute was not found at all,</span>
+<span class="sd">     a boolean that is True if the attribute has already been fetched)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">prefetcher</span> <span class="o">=</span> <span class="bp">None</span>
+    <span class="n">attr_found</span> <span class="o">=</span> <span class="bp">False</span>
+    <span class="n">is_fetched</span> <span class="o">=</span> <span class="bp">False</span>
+
+    <span class="c"># For singly related objects, we have to avoid getting the attribute</span>
+    <span class="c"># from the object, as this will trigger the query. So we first try</span>
+    <span class="c"># on the class, in order to get the descriptor object.</span>
+    <span class="n">rel_obj_descriptor</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">instance</span><span class="o">.</span><span class="n">__class__</span><span class="p">,</span> <span class="n">attr</span><span class="p">,</span> <span class="bp">None</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">rel_obj_descriptor</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">rel_obj</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">instance</span><span class="p">,</span> <span class="n">attr</span><span class="p">)</span>
+            <span class="n">attr_found</span> <span class="o">=</span> <span class="bp">True</span>
+        <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>
+            <span class="k">pass</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">attr_found</span> <span class="o">=</span> <span class="bp">True</span>
+        <span class="k">if</span> <span class="n">rel_obj_descriptor</span><span class="p">:</span>
+            <span class="c"># singly related object, descriptor object has the</span>
+            <span class="c"># get_prefetch_query_set() method.</span>
+            <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">rel_obj_descriptor</span><span class="p">,</span> <span class="s">&#39;get_prefetch_query_set&#39;</span><span class="p">):</span>
+                <span class="n">prefetcher</span> <span class="o">=</span> <span class="n">rel_obj_descriptor</span>
+                <span class="k">if</span> <span class="n">rel_obj_descriptor</span><span class="o">.</span><span class="n">is_cached</span><span class="p">(</span><span class="n">instance</span><span class="p">):</span>
+                    <span class="n">is_fetched</span> <span class="o">=</span> <span class="bp">True</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="c"># descriptor doesn&#39;t support prefetching, so we go ahead and get</span>
+                <span class="c"># the attribute on the instance rather than the class to</span>
+                <span class="c"># support many related managers</span>
+                <span class="n">rel_obj</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">instance</span><span class="p">,</span> <span class="n">attr</span><span class="p">)</span>
+                <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">rel_obj</span><span class="p">,</span> <span class="s">&#39;get_prefetch_query_set&#39;</span><span class="p">):</span>
+                    <span class="n">prefetcher</span> <span class="o">=</span> <span class="n">rel_obj</span>
+    <span class="k">return</span> <span class="n">prefetcher</span><span class="p">,</span> <span class="n">rel_obj_descriptor</span><span class="p">,</span> <span class="n">attr_found</span><span class="p">,</span> <span class="n">is_fetched</span>
+
+</div>
+<div class="viewcode-block" id="prefetch_one_level"><a class="viewcode-back" href="../../../../django.db.models.html#django.db.models.query.prefetch_one_level">[docs]</a><span class="k">def</span> <span class="nf">prefetch_one_level</span><span class="p">(</span><span class="n">instances</span><span class="p">,</span> <span class="n">prefetcher</span><span class="p">,</span> <span class="n">attname</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Helper function for prefetch_related_objects</span>
+
+<span class="sd">    Runs prefetches on all instances using the prefetcher object,</span>
+<span class="sd">    assigning results to relevant caches in instance.</span>
+
+<span class="sd">    The prefetched objects are returned, along with any additional</span>
+<span class="sd">    prefetches that must be done due to prefetch_related lookups</span>
+<span class="sd">    found from default managers.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c"># prefetcher must have a method get_prefetch_query_set() which takes a list</span>
+    <span class="c"># of instances, and returns a tuple:</span>
+
+    <span class="c"># (queryset of instances of self.model that are related to passed in instances,</span>
+    <span class="c">#  callable that gets value to be matched for returned instances,</span>
+    <span class="c">#  callable that gets value to be matched for passed in instances,</span>
+    <span class="c">#  boolean that is True for singly related objects,</span>
+    <span class="c">#  cache name to assign to).</span>
+
+    <span class="c"># The &#39;values to be matched&#39; must be hashable as they will be used</span>
+    <span class="c"># in a dictionary.</span>
+
+    <span class="n">rel_qs</span><span class="p">,</span> <span class="n">rel_obj_attr</span><span class="p">,</span> <span class="n">instance_attr</span><span class="p">,</span> <span class="n">single</span><span class="p">,</span> <span class="n">cache_name</span> <span class="o">=</span>\
+        <span class="n">prefetcher</span><span class="o">.</span><span class="n">get_prefetch_query_set</span><span class="p">(</span><span class="n">instances</span><span class="p">)</span>
+    <span class="c"># We have to handle the possibility that the default manager itself added</span>
+    <span class="c"># prefetch_related lookups to the QuerySet we just got back. We don&#39;t want to</span>
+    <span class="c"># trigger the prefetch_related functionality by evaluating the query.</span>
+    <span class="c"># Rather, we need to merge in the prefetch_related lookups.</span>
+    <span class="n">additional_prl</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">rel_qs</span><span class="p">,</span> <span class="s">&#39;_prefetch_related_lookups&#39;</span><span class="p">,</span> <span class="p">[])</span>
+    <span class="k">if</span> <span class="n">additional_prl</span><span class="p">:</span>
+        <span class="c"># Don&#39;t need to clone because the manager should have given us a fresh</span>
+        <span class="c"># instance, so we access an internal instead of using public interface</span>
+        <span class="c"># for performance reasons.</span>
+        <span class="n">rel_qs</span><span class="o">.</span><span class="n">_prefetch_related_lookups</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="n">all_related_objects</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">rel_qs</span><span class="p">)</span>
+
+    <span class="n">rel_obj_cache</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">for</span> <span class="n">rel_obj</span> <span class="ow">in</span> <span class="n">all_related_objects</span><span class="p">:</span>
+        <span class="n">rel_attr_val</span> <span class="o">=</span> <span class="n">rel_obj_attr</span><span class="p">(</span><span class="n">rel_obj</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">rel_attr_val</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">rel_obj_cache</span><span class="p">:</span>
+            <span class="n">rel_obj_cache</span><span class="p">[</span><span class="n">rel_attr_val</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">rel_obj_cache</span><span class="p">[</span><span class="n">rel_attr_val</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">rel_obj</span><span class="p">)</span>
+
+    <span class="k">for</span> <span class="n">obj</span> <span class="ow">in</span> <span class="n">instances</span><span class="p">:</span>
+        <span class="n">instance_attr_val</span> <span class="o">=</span> <span class="n">instance_attr</span><span class="p">(</span><span class="n">obj</span><span class="p">)</span>
+        <span class="n">vals</span> <span class="o">=</span> <span class="n">rel_obj_cache</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">instance_attr_val</span><span class="p">,</span> <span class="p">[])</span>
+        <span class="k">if</span> <span class="n">single</span><span class="p">:</span>
+            <span class="c"># Need to assign to single cache on instance</span>
+            <span class="k">if</span> <span class="n">vals</span><span class="p">:</span>
+                <span class="nb">setattr</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">cache_name</span><span class="p">,</span> <span class="n">vals</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c"># Multi, attribute represents a manager with an .all() method that</span>
+            <span class="c"># returns a QuerySet</span>
+            <span class="n">qs</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">attname</span><span class="p">)</span><span class="o">.</span><span class="n">all</span><span class="p">()</span>
+            <span class="n">qs</span><span class="o">.</span><span class="n">_result_cache</span> <span class="o">=</span> <span class="n">vals</span>
+            <span class="c"># We don&#39;t want the individual qs doing prefetch_related now, since we</span>
+            <span class="c"># have merged this into the current work.</span>
+            <span class="n">qs</span><span class="o">.</span><span class="n">_prefetch_done</span> <span class="o">=</span> <span class="bp">True</span>
+            <span class="n">obj</span><span class="o">.</span><span class="n">_prefetched_objects_cache</span><span class="p">[</span><span class="n">cache_name</span><span class="p">]</span> <span class="o">=</span> <span class="n">qs</span>
+    <span class="k">return</span> <span class="n">all_related_objects</span><span class="p">,</span> <span class="n">additional_prl</span></div>
 </pre></div>
 
       </div>
@@ -1497,7 +1853,7 @@
 
     <div class="footer">
         &copy; Copyright 2012, HDKNR.COM.
-      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.2pre/660be19d7963.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.2pre/3c28de26aac2.
     </div>
   </body>
 </html>

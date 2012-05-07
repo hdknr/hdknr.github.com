@@ -28,7 +28,7 @@
     <script type="text/javascript" src="../../../static/doctools.js"></script>
     <script type="text/javascript" src="../../../static/theme_extras.js"></script>
     <link rel="top" title="Django Cheat 1 documentation" href="../../../index.html" />
-    <link rel="up" title="Module code" href="../../index.html" /> 
+    <link rel="up" title="django" href="../../django.html" /> 
   </head>
   <body>
       <div class="header"><h1 class="heading"><a href="../../../index.html">
@@ -51,9 +51,11 @@
 <span class="sd">Views and functions for serving static files. These are only to be used</span>
 <span class="sd">during development, and SHOULD NOT be used in a production setting.</span>
 <span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">with_statement</span>
 
 <span class="kn">import</span> <span class="nn">mimetypes</span>
 <span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">stat</span>
 <span class="kn">import</span> <span class="nn">posixpath</span>
 <span class="kn">import</span> <span class="nn">re</span>
 <span class="kn">import</span> <span class="nn">urllib</span>
@@ -61,6 +63,7 @@
 <span class="kn">from</span> <span class="nn">django.http</span> <span class="kn">import</span> <span class="n">Http404</span><span class="p">,</span> <span class="n">HttpResponse</span><span class="p">,</span> <span class="n">HttpResponseRedirect</span><span class="p">,</span> <span class="n">HttpResponseNotModified</span>
 <span class="kn">from</span> <span class="nn">django.template</span> <span class="kn">import</span> <span class="n">loader</span><span class="p">,</span> <span class="n">Template</span><span class="p">,</span> <span class="n">Context</span><span class="p">,</span> <span class="n">TemplateDoesNotExist</span>
 <span class="kn">from</span> <span class="nn">django.utils.http</span> <span class="kn">import</span> <span class="n">http_date</span><span class="p">,</span> <span class="n">parse_http_date</span>
+<span class="kn">from</span> <span class="nn">django.utils.translation</span> <span class="kn">import</span> <span class="n">ugettext</span> <span class="k">as</span> <span class="n">_</span><span class="p">,</span> <span class="n">ugettext_noop</span>
 
 <div class="viewcode-block" id="serve"><a class="viewcode-back" href="../../../django.views.html#django.views.static.serve">[docs]</a><span class="k">def</span> <span class="nf">serve</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="n">path</span><span class="p">,</span> <span class="n">document_root</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">show_indexes</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
@@ -95,9 +98,9 @@
     <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isdir</span><span class="p">(</span><span class="n">fullpath</span><span class="p">):</span>
         <span class="k">if</span> <span class="n">show_indexes</span><span class="p">:</span>
             <span class="k">return</span> <span class="n">directory_index</span><span class="p">(</span><span class="n">newpath</span><span class="p">,</span> <span class="n">fullpath</span><span class="p">)</span>
-        <span class="k">raise</span> <span class="n">Http404</span><span class="p">(</span><span class="s">&quot;Directory indexes are not allowed here.&quot;</span><span class="p">)</span>
+        <span class="k">raise</span> <span class="n">Http404</span><span class="p">(</span><span class="n">_</span><span class="p">(</span><span class="s">u&quot;Directory indexes are not allowed here.&quot;</span><span class="p">))</span>
     <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">fullpath</span><span class="p">):</span>
-        <span class="k">raise</span> <span class="n">Http404</span><span class="p">(</span><span class="s">&#39;&quot;</span><span class="si">%s</span><span class="s">&quot; does not exist&#39;</span> <span class="o">%</span> <span class="n">fullpath</span><span class="p">)</span>
+        <span class="k">raise</span> <span class="n">Http404</span><span class="p">(</span><span class="n">_</span><span class="p">(</span><span class="s">u&#39;&quot;</span><span class="si">%(path)s</span><span class="s">&quot; does not exist&#39;</span><span class="p">)</span> <span class="o">%</span> <span class="p">{</span><span class="s">&#39;path&#39;</span><span class="p">:</span> <span class="n">fullpath</span><span class="p">})</span>
     <span class="c"># Respect the If-Modified-Since header.</span>
     <span class="n">statobj</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">stat</span><span class="p">(</span><span class="n">fullpath</span><span class="p">)</span>
     <span class="n">mimetype</span><span class="p">,</span> <span class="n">encoding</span> <span class="o">=</span> <span class="n">mimetypes</span><span class="o">.</span><span class="n">guess_type</span><span class="p">(</span><span class="n">fullpath</span><span class="p">)</span>
@@ -105,25 +108,28 @@
     <span class="k">if</span> <span class="ow">not</span> <span class="n">was_modified_since</span><span class="p">(</span><span class="n">request</span><span class="o">.</span><span class="n">META</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;HTTP_IF_MODIFIED_SINCE&#39;</span><span class="p">),</span>
                               <span class="n">statobj</span><span class="o">.</span><span class="n">st_mtime</span><span class="p">,</span> <span class="n">statobj</span><span class="o">.</span><span class="n">st_size</span><span class="p">):</span>
         <span class="k">return</span> <span class="n">HttpResponseNotModified</span><span class="p">(</span><span class="n">mimetype</span><span class="o">=</span><span class="n">mimetype</span><span class="p">)</span>
-    <span class="n">response</span> <span class="o">=</span> <span class="n">HttpResponse</span><span class="p">(</span><span class="nb">open</span><span class="p">(</span><span class="n">fullpath</span><span class="p">,</span> <span class="s">&#39;rb&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">read</span><span class="p">(),</span> <span class="n">mimetype</span><span class="o">=</span><span class="n">mimetype</span><span class="p">)</span>
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">fullpath</span><span class="p">,</span> <span class="s">&#39;rb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+        <span class="n">response</span> <span class="o">=</span> <span class="n">HttpResponse</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">(),</span> <span class="n">mimetype</span><span class="o">=</span><span class="n">mimetype</span><span class="p">)</span>
     <span class="n">response</span><span class="p">[</span><span class="s">&quot;Last-Modified&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">http_date</span><span class="p">(</span><span class="n">statobj</span><span class="o">.</span><span class="n">st_mtime</span><span class="p">)</span>
-    <span class="n">response</span><span class="p">[</span><span class="s">&quot;Content-Length&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">statobj</span><span class="o">.</span><span class="n">st_size</span>
+    <span class="k">if</span> <span class="n">stat</span><span class="o">.</span><span class="n">S_ISREG</span><span class="p">(</span><span class="n">statobj</span><span class="o">.</span><span class="n">st_mode</span><span class="p">):</span>
+        <span class="n">response</span><span class="p">[</span><span class="s">&quot;Content-Length&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">statobj</span><span class="o">.</span><span class="n">st_size</span>
     <span class="k">if</span> <span class="n">encoding</span><span class="p">:</span>
         <span class="n">response</span><span class="p">[</span><span class="s">&quot;Content-Encoding&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">encoding</span>
     <span class="k">return</span> <span class="n">response</span>
 
 </div>
 <span class="n">DEFAULT_DIRECTORY_INDEX_TEMPLATE</span> <span class="o">=</span> <span class="s">&quot;&quot;&quot;</span>
-<span class="s">&lt;!DOCTYPE html PUBLIC &quot;-//W3C//DTD XHTML 1.0 Transitional//EN&quot; &quot;http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd&quot;&gt;</span>
-<span class="s">&lt;html xmlns=&quot;http://www.w3.org/1999/xhtml&quot; xml:lang=&quot;en&quot; lang=&quot;en&quot;&gt;</span>
+<span class="s">{</span><span class="si">% lo</span><span class="s">ad i18n %}</span>
+<span class="s">&lt;!DOCTYPE html&gt;</span>
+<span class="s">&lt;html lang=&quot;en&quot;&gt;</span>
 <span class="s">  &lt;head&gt;</span>
 <span class="s">    &lt;meta http-equiv=&quot;Content-type&quot; content=&quot;text/html; charset=utf-8&quot; /&gt;</span>
 <span class="s">    &lt;meta http-equiv=&quot;Content-Language&quot; content=&quot;en-us&quot; /&gt;</span>
 <span class="s">    &lt;meta name=&quot;robots&quot; content=&quot;NONE,NOARCHIVE&quot; /&gt;</span>
-<span class="s">    &lt;title&gt;Index of {{ directory }}&lt;/title&gt;</span>
+<span class="s">    &lt;title&gt;{% blocktrans %}Index of {{ directory }}{</span><span class="si">% e</span><span class="s">ndblocktrans %}&lt;/title&gt;</span>
 <span class="s">  &lt;/head&gt;</span>
 <span class="s">  &lt;body&gt;</span>
-<span class="s">    &lt;h1&gt;Index of {{ directory }}&lt;/h1&gt;</span>
+<span class="s">    &lt;h1&gt;{% blocktrans %}Index of {{ directory }}{</span><span class="si">% e</span><span class="s">ndblocktrans %}&lt;/h1&gt;</span>
 <span class="s">    &lt;ul&gt;</span>
 <span class="s">      {</span><span class="si">% i</span><span class="s">fnotequal directory &quot;/&quot; %}</span>
 <span class="s">      &lt;li&gt;&lt;a href=&quot;../&quot;&gt;../&lt;/a&gt;&lt;/li&gt;</span>
@@ -135,6 +141,7 @@
 <span class="s">  &lt;/body&gt;</span>
 <span class="s">&lt;/html&gt;</span>
 <span class="s">&quot;&quot;&quot;</span>
+<span class="n">template_translatable</span> <span class="o">=</span> <span class="n">ugettext_noop</span><span class="p">(</span><span class="s">u&quot;Index of </span><span class="si">%(directory)s</span><span class="s">&quot;</span><span class="p">)</span>
 
 <span class="k">def</span> <span class="nf">directory_index</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">fullpath</span><span class="p">):</span>
     <span class="k">try</span><span class="p">:</span>
@@ -196,7 +203,7 @@
 
     <div class="footer">
         &copy; Copyright 2012, HDKNR.COM.
-      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.2pre/660be19d7963.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.2pre/3c28de26aac2.
     </div>
   </body>
 </html>

@@ -49,10 +49,12 @@
   <h1>Source code for django.db.backends.util</h1><div class="highlight"><pre>
 <span class="kn">import</span> <span class="nn">datetime</span>
 <span class="kn">import</span> <span class="nn">decimal</span>
+<span class="kn">import</span> <span class="nn">hashlib</span>
 <span class="kn">from</span> <span class="nn">time</span> <span class="kn">import</span> <span class="n">time</span>
 
-<span class="kn">from</span> <span class="nn">django.utils.hashcompat</span> <span class="kn">import</span> <span class="n">md5_constructor</span>
+<span class="kn">from</span> <span class="nn">django.conf</span> <span class="kn">import</span> <span class="n">settings</span>
 <span class="kn">from</span> <span class="nn">django.utils.log</span> <span class="kn">import</span> <span class="n">getLogger</span>
+<span class="kn">from</span> <span class="nn">django.utils.timezone</span> <span class="kn">import</span> <span class="n">utc</span>
 
 
 <span class="n">logger</span> <span class="o">=</span> <span class="n">getLogger</span><span class="p">(</span><span class="s">&#39;django.db.backends&#39;</span><span class="p">)</span>
@@ -63,9 +65,12 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">cursor</span> <span class="o">=</span> <span class="n">cursor</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">db</span> <span class="o">=</span> <span class="n">db</span>
 
-    <span class="k">def</span> <span class="nf">__getattr__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">attr</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">set_dirty</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">db</span><span class="o">.</span><span class="n">is_managed</span><span class="p">():</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">db</span><span class="o">.</span><span class="n">set_dirty</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">__getattr__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">attr</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">set_dirty</span><span class="p">()</span>
         <span class="k">if</span> <span class="n">attr</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">__dict__</span><span class="p">:</span>
             <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">__dict__</span><span class="p">[</span><span class="n">attr</span><span class="p">]</span>
         <span class="k">else</span><span class="p">:</span>
@@ -78,6 +83,7 @@
 <span class="k">class</span> <span class="nc">CursorDebugWrapper</span><span class="p">(</span><span class="n">CursorWrapper</span><span class="p">):</span>
 
     <span class="k">def</span> <span class="nf">execute</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sql</span><span class="p">,</span> <span class="n">params</span><span class="o">=</span><span class="p">()):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">set_dirty</span><span class="p">()</span>
         <span class="n">start</span> <span class="o">=</span> <span class="n">time</span><span class="p">()</span>
         <span class="k">try</span><span class="p">:</span>
             <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">sql</span><span class="p">,</span> <span class="n">params</span><span class="p">)</span>
@@ -90,22 +96,27 @@
                 <span class="s">&#39;time&#39;</span><span class="p">:</span> <span class="s">&quot;</span><span class="si">%.3f</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">duration</span><span class="p">,</span>
             <span class="p">})</span>
             <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&#39;(</span><span class="si">%.3f</span><span class="s">) </span><span class="si">%s</span><span class="s">; args=</span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">duration</span><span class="p">,</span> <span class="n">sql</span><span class="p">,</span> <span class="n">params</span><span class="p">),</span>
-                <span class="n">extra</span><span class="o">=</span><span class="p">{</span><span class="s">&#39;duration&#39;</span><span class="p">:</span><span class="n">duration</span><span class="p">,</span> <span class="s">&#39;sql&#39;</span><span class="p">:</span><span class="n">sql</span><span class="p">,</span> <span class="s">&#39;params&#39;</span><span class="p">:</span><span class="n">params</span><span class="p">}</span>
+                <span class="n">extra</span><span class="o">=</span><span class="p">{</span><span class="s">&#39;duration&#39;</span><span class="p">:</span> <span class="n">duration</span><span class="p">,</span> <span class="s">&#39;sql&#39;</span><span class="p">:</span> <span class="n">sql</span><span class="p">,</span> <span class="s">&#39;params&#39;</span><span class="p">:</span> <span class="n">params</span><span class="p">}</span>
             <span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">executemany</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sql</span><span class="p">,</span> <span class="n">param_list</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">set_dirty</span><span class="p">()</span>
         <span class="n">start</span> <span class="o">=</span> <span class="n">time</span><span class="p">()</span>
         <span class="k">try</span><span class="p">:</span>
             <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">cursor</span><span class="o">.</span><span class="n">executemany</span><span class="p">(</span><span class="n">sql</span><span class="p">,</span> <span class="n">param_list</span><span class="p">)</span>
         <span class="k">finally</span><span class="p">:</span>
             <span class="n">stop</span> <span class="o">=</span> <span class="n">time</span><span class="p">()</span>
             <span class="n">duration</span> <span class="o">=</span> <span class="n">stop</span> <span class="o">-</span> <span class="n">start</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">times</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">param_list</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">TypeError</span><span class="p">:</span>           <span class="c"># param_list could be an iterator</span>
+                <span class="n">times</span> <span class="o">=</span> <span class="s">&#39;?&#39;</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">db</span><span class="o">.</span><span class="n">queries</span><span class="o">.</span><span class="n">append</span><span class="p">({</span>
-                <span class="s">&#39;sql&#39;</span><span class="p">:</span> <span class="s">&#39;</span><span class="si">%s</span><span class="s"> times: </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">param_list</span><span class="p">),</span> <span class="n">sql</span><span class="p">),</span>
+                <span class="s">&#39;sql&#39;</span><span class="p">:</span> <span class="s">&#39;</span><span class="si">%s</span><span class="s"> times: </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">times</span><span class="p">,</span> <span class="n">sql</span><span class="p">),</span>
                 <span class="s">&#39;time&#39;</span><span class="p">:</span> <span class="s">&quot;</span><span class="si">%.3f</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">duration</span><span class="p">,</span>
             <span class="p">})</span>
             <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&#39;(</span><span class="si">%.3f</span><span class="s">) </span><span class="si">%s</span><span class="s">; args=</span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">duration</span><span class="p">,</span> <span class="n">sql</span><span class="p">,</span> <span class="n">param_list</span><span class="p">),</span>
-                <span class="n">extra</span><span class="o">=</span><span class="p">{</span><span class="s">&#39;duration&#39;</span><span class="p">:</span><span class="n">duration</span><span class="p">,</span> <span class="s">&#39;sql&#39;</span><span class="p">:</span><span class="n">sql</span><span class="p">,</span> <span class="s">&#39;params&#39;</span><span class="p">:</span><span class="n">param_list</span><span class="p">}</span>
+                <span class="n">extra</span><span class="o">=</span><span class="p">{</span><span class="s">&#39;duration&#39;</span><span class="p">:</span> <span class="n">duration</span><span class="p">,</span> <span class="s">&#39;sql&#39;</span><span class="p">:</span> <span class="n">sql</span><span class="p">,</span> <span class="s">&#39;params&#39;</span><span class="p">:</span> <span class="n">param_list</span><span class="p">}</span>
             <span class="p">)</span>
 
 
@@ -148,13 +159,10 @@
         <span class="n">seconds</span><span class="p">,</span> <span class="n">microseconds</span> <span class="o">=</span> <span class="n">seconds</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&#39;.&#39;</span><span class="p">)</span>
     <span class="k">else</span><span class="p">:</span>
         <span class="n">microseconds</span> <span class="o">=</span> <span class="s">&#39;0&#39;</span>
+    <span class="n">tzinfo</span> <span class="o">=</span> <span class="n">utc</span> <span class="k">if</span> <span class="n">settings</span><span class="o">.</span><span class="n">USE_TZ</span> <span class="k">else</span> <span class="bp">None</span>
     <span class="k">return</span> <span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">dates</span><span class="p">[</span><span class="mi">0</span><span class="p">]),</span> <span class="nb">int</span><span class="p">(</span><span class="n">dates</span><span class="p">[</span><span class="mi">1</span><span class="p">]),</span> <span class="nb">int</span><span class="p">(</span><span class="n">dates</span><span class="p">[</span><span class="mi">2</span><span class="p">]),</span>
-        <span class="nb">int</span><span class="p">(</span><span class="n">times</span><span class="p">[</span><span class="mi">0</span><span class="p">]),</span> <span class="nb">int</span><span class="p">(</span><span class="n">times</span><span class="p">[</span><span class="mi">1</span><span class="p">]),</span> <span class="nb">int</span><span class="p">(</span><span class="n">seconds</span><span class="p">),</span> <span class="nb">int</span><span class="p">((</span><span class="n">microseconds</span> <span class="o">+</span> <span class="s">&#39;000000&#39;</span><span class="p">)[:</span><span class="mi">6</span><span class="p">]))</span>
-
-<span class="k">def</span> <span class="nf">typecast_boolean</span><span class="p">(</span><span class="n">s</span><span class="p">):</span>
-    <span class="k">if</span> <span class="n">s</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span> <span class="k">return</span> <span class="bp">None</span>
-    <span class="k">if</span> <span class="ow">not</span> <span class="n">s</span><span class="p">:</span> <span class="k">return</span> <span class="bp">False</span>
-    <span class="k">return</span> <span class="nb">str</span><span class="p">(</span><span class="n">s</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s">&#39;t&#39;</span>
+        <span class="nb">int</span><span class="p">(</span><span class="n">times</span><span class="p">[</span><span class="mi">0</span><span class="p">]),</span> <span class="nb">int</span><span class="p">(</span><span class="n">times</span><span class="p">[</span><span class="mi">1</span><span class="p">]),</span> <span class="nb">int</span><span class="p">(</span><span class="n">seconds</span><span class="p">),</span>
+        <span class="nb">int</span><span class="p">((</span><span class="n">microseconds</span> <span class="o">+</span> <span class="s">&#39;000000&#39;</span><span class="p">)[:</span><span class="mi">6</span><span class="p">]),</span> <span class="n">tzinfo</span><span class="p">)</span>
 
 <span class="k">def</span> <span class="nf">typecast_decimal</span><span class="p">(</span><span class="n">s</span><span class="p">):</span>
     <span class="k">if</span> <span class="n">s</span> <span class="ow">is</span> <span class="bp">None</span> <span class="ow">or</span> <span class="n">s</span> <span class="o">==</span> <span class="s">&#39;&#39;</span><span class="p">:</span>
@@ -164,9 +172,6 @@
 <span class="c">###############################################</span>
 <span class="c"># Converters from Python to database (string) #</span>
 <span class="c">###############################################</span>
-
-<span class="k">def</span> <span class="nf">rev_typecast_boolean</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">d</span><span class="p">):</span>
-    <span class="k">return</span> <span class="n">obj</span> <span class="ow">and</span> <span class="s">&#39;1&#39;</span> <span class="ow">or</span> <span class="s">&#39;0&#39;</span>
 
 <span class="k">def</span> <span class="nf">rev_typecast_decimal</span><span class="p">(</span><span class="n">d</span><span class="p">):</span>
     <span class="k">if</span> <span class="n">d</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
@@ -179,9 +184,8 @@
     <span class="k">if</span> <span class="n">length</span> <span class="ow">is</span> <span class="bp">None</span> <span class="ow">or</span> <span class="nb">len</span><span class="p">(</span><span class="n">name</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="n">length</span><span class="p">:</span>
         <span class="k">return</span> <span class="n">name</span>
 
-    <span class="nb">hash</span> <span class="o">=</span> <span class="n">md5_constructor</span><span class="p">(</span><span class="n">name</span><span class="p">)</span><span class="o">.</span><span class="n">hexdigest</span><span class="p">()[:</span><span class="n">hash_len</span><span class="p">]</span>
-
-    <span class="k">return</span> <span class="s">&#39;</span><span class="si">%s%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">name</span><span class="p">[:</span><span class="n">length</span><span class="o">-</span><span class="n">hash_len</span><span class="p">],</span> <span class="nb">hash</span><span class="p">)</span>
+    <span class="n">hsh</span> <span class="o">=</span> <span class="n">hashlib</span><span class="o">.</span><span class="n">md5</span><span class="p">(</span><span class="n">name</span><span class="p">)</span><span class="o">.</span><span class="n">hexdigest</span><span class="p">()[:</span><span class="n">hash_len</span><span class="p">]</span>
+    <span class="k">return</span> <span class="s">&#39;</span><span class="si">%s%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">name</span><span class="p">[:</span><span class="n">length</span><span class="o">-</span><span class="n">hash_len</span><span class="p">],</span> <span class="n">hsh</span><span class="p">)</span>
 </div>
 <div class="viewcode-block" id="format_number"><a class="viewcode-back" href="../../../../django.db.backends.html#django.db.backends.util.format_number">[docs]</a><span class="k">def</span> <span class="nf">format_number</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">max_digits</span><span class="p">,</span> <span class="n">decimal_places</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
@@ -208,7 +212,7 @@
 
     <div class="footer">
         &copy; Copyright 2012, HDKNR.COM.
-      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.2pre/660be19d7963.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.2pre/3c28de26aac2.
     </div>
   </body>
 </html>

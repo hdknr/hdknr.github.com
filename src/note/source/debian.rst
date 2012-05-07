@@ -2,6 +2,7 @@
 Debian Linux
 =========================
 
+
 .. glossary::
 
     Debian
