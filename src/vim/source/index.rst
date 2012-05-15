@@ -12,6 +12,7 @@ Contents:
     :maxdepth: 2
 
     replace 
+    keys
 
 
 Indices and tables

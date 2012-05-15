@@ -21,6 +21,14 @@ HTTP
 
     tools_requests
 
+Others
+=============================
+
+.. toctree::
+        :maxdepth: 2
+
+    tools_security
+
 Development
 =============================
 
@@ -39,3 +47,4 @@ Deployment
        :maxdepth: 2
 
     tools_modwsgi
+

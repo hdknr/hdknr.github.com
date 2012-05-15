@@ -12,6 +12,7 @@ Misc
     :maxdepth: 2
 
     x509
+    pkcs
     css
     swd
     python
@@ -57,7 +58,8 @@ Windows:
     :maxdepth: 2
 
     active_directory
-
+    entity_framework
+    
 Indices and tables
 ==================
 
