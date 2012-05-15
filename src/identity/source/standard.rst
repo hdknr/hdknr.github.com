@@ -2,6 +2,8 @@
 OpenID Connect Standard 1.0
 ============================
 
+.. contents:: Connect Standard
+
 Based on `OpenID Connect Standard 1.0 - draft 07 <http://openid.bitbucket.org/openid-connect-standard-1_0.html>`_
 (December 22, 2011)
 
@@ -11,8 +13,6 @@ Based on `OpenID Connect Standard 1.0 - draft 07 <http://openid.bitbucket.org/op
 .. _standard_abstract:
 
 .. include:: standard/abstract.rst 
-
-.. contents:: Table of Contents
 
 .. _standard_1:
 

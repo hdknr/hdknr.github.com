@@ -200,7 +200,9 @@ Connect
         (TBD)
 
     Implicit Grant Flow
-        (TBD)
+        - For :doc:`oauth` , :ref:`oauth_4_2`
+        - For :doc:`basic` , :ref:`basic_3_2`
+        - For :doc:`standard` , :ref:`standard_2_2_3`
 
     Query Fragment
         (TBD)

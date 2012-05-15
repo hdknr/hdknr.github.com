@@ -147,7 +147,7 @@ at_hash/c_hash
 - A proof this `id_token`_ is issued at the same OpenID session 
   when an :term:`access_token` to UserInfo Endpoint 
   or :term:`code` for Access Token Request  was issued.
-- **REQUIRED** for the :term:`Implictt Flow`
+- **REQUIRED** for the :term:`Implicit Flow`
 - creation
 
     1. provide a hash function specified in the :term:`JWS` header 
@@ -181,6 +181,9 @@ acr
 
 - Authentication Context Class Reference : one in [1,2,3,4]
 
+Level of Assurance
+~~~~~~~~~~~~~~~~~~~~
+
 .. list-table:: LoA 
 
     *   -   Level
@@ -204,6 +207,9 @@ acr
         -   Very High
         -   Very high confidence in the asserted identity
 
+
+ISO29115
+~~~~~~~~~~~
 
 .. list-table:: ISO29115 Matrix
 
@@ -230,6 +236,9 @@ acr
         -   (TBD)
         -   (TBD)
         -   (TBD)
+
+Resource
+~~~~~~~~~
 
 - Level specified in http://www.iso.org/iso/iso_catalogue/catalogue_tc/catalogue_detail.htm?csnumber=45138
 - http://tools.ietf.org/html/draft-johansson-loa-registry-06
