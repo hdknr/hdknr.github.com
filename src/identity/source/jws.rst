@@ -2,9 +2,11 @@
 JSON Web Signature (JWS)
 ========================================
 
-Based on http://tools.ietf.org/html/draft-jones-json-web-signature-03
-( or http://self-issued.info/docs/draft-jones-json-web-signature-03.html )
-(October 30, 2011)
+Based on http://tools.ietf.org/html/draft-ietf-jose-json-web-signature-02
+( May 12, 2012 )
+
+..  note::
+    JWS is being standardized undeer :term:`JOSE` Working Group.
 
 .. _jws.abstract:
 
