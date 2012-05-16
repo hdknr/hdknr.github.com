@@ -183,6 +183,8 @@ acr
 
 - Authentication Context Class Reference : one in [1,2,3,4]
 
+    - **2** is proper level when an average issuer should consent to ?
+
 - Audiences can register its default `acr`_ preference as :term:`default_acr` via :doc:`reg`.
 - If some entity discovers this issuer, 
   the issuer must return the list of `acr`_ in acrs_supported ( :ref:`discovery.table.1` ) of the :doc:`discovery` response .
