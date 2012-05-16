@@ -23,6 +23,7 @@ OAuth
     oauth_mac
     oauth_reg
     oauth_res
+    oauth_usecases
     oauth_milestones
 
 OpenID/Connect
@@ -64,6 +65,7 @@ JOSE and JWT
     jwa
     jws_js
     jwe_js
+
 Related
 ---------------
 
