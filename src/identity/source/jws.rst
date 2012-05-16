@@ -38,6 +38,22 @@ Based on http://tools.ietf.org/html/draft-jones-json-web-signature-03
 
 .. include:: jws/4.1.rst 
 
+.. _jws.4.1.1:
+
+.. include:: jws/4.1.1.rst 
+
+.. _jws.4.1.2:
+
+.. include:: jws/4.1.2.rst 
+
+.. _jws.4.1.3:
+
+.. include:: jws/4.1.3.rst 
+
+.. _jws.4.1.4:
+
+.. include:: jws/4.1.4.rst 
+
 .. _jws.4.2:
 
 .. include:: jws/4.2.rst 
