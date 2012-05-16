@@ -21,7 +21,9 @@ OAuth
     oauth_jwt_bearer
     oauth_saml2_bearer
     oauth_mac
+    oauth_reg
     oauth_res
+    oauth_milestones
 
 OpenID/Connect
 ---------------
