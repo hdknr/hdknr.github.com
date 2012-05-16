@@ -72,8 +72,11 @@ Connect
 
     Authentication Context Class Reference
     Authentication Context Class References
+    authentication context class reference
         `Supported SAML Authentication Context Classes and Strengths
         <http://technohidelic.posterous.com/supported-saml-authentication-context-classes>`_
+
+        - :ref:`python.acr`
 
     Entity Authentication Assurance Level
         (TBD)( :ref:`messages_1_1` )

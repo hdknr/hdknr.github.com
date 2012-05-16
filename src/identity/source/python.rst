@@ -176,10 +176,19 @@ at_hash/c_hash
 Conformance
 ---------------
 
+.. _python.acr:
+
 acr
 ^^^^
 
 - Authentication Context Class Reference : one in [1,2,3,4]
+
+- Audiences can register its default `acr`_ preference as :term:`default_acr` via :doc:`reg`.
+- If some entity discovers this issuer, 
+  the issuer must return the list of `acr`_ in acrs_supported ( :ref:`discovery.table.1` ) of the :doc:`discovery` response .
+- Also an audience can specify a required `acr`_ in :term:`OpenID Request Object`. 
+- Then the issuer returns `acr`_ in `id_token`_  if `acr`_ was requested.
+- Finally the audience checks the `acr`_ in the `id_token`_ .   
 
 Level of Assurance
 ~~~~~~~~~~~~~~~~~~~~
