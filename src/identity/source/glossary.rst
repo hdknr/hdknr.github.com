@@ -438,9 +438,17 @@ SAML
         (TBD)
 
 
-    Der
-        (TBD)
+    DER
+        Distinguished Encoding Rules to encode :term:`ASN.1`
 
+    BER
+        Basic Encoding Rule to encode :term:`ASN.1` structure in octet stream.
+        
+    CER
+        Canonical Encoding Rules to encode :term:`ASN.1`
+
+    PER
+        acking Encoding Rules to encode :term:`ASN.1`
 
     Holder-Of-Key
         (TBD)
@@ -760,10 +768,17 @@ Others
     Specification Required
         ( TODO ) (:ref:`oauth_11_2` )
 
-Specs
-=======
+JOSE and JSON 
+================
 
 .. glossary::
+
+    JOSE
+        Javascript Object Signing and Encryption
+
+        - Charter : https://datatracker.ietf.org/wg/jose/charter/
+        - Drafts : https://datatracker.ietf.org/wg/jose/
+        - List : http://www.ietf.org/mail-archive/web/jose/current/maillist.html
 
     JWT
         :doc:`jwt`
@@ -773,6 +788,12 @@ Specs
 
     JWE
         :doc:`jwe`
+
+    JWA
+        :doc:`jwa`
+
+    PKIX
+        Public Key Infrastracuture (X.509)
 
 Attacks
 ==========
