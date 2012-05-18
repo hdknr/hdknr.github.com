@@ -120,7 +120,8 @@ Implementation
 .. toctree::
     :maxdepth: 1
 
-    python
+    impl_id_token
+    impl_jws
 
 Indices and tables
 ==================

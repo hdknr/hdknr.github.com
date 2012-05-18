@@ -28,6 +28,7 @@ Others
         :maxdepth: 2
 
     tools_security
+    tools_m2crypto
 
 Development
 =============================

@@ -1,8 +1,8 @@
-======================
-Python Implementation
-======================
+==========================
+ID Token:Implementation
+==========================
 
-.. contents:: Python
+.. contents:: ID Token Implementation
 
 serialization
 ====================
@@ -253,8 +253,5 @@ Resource
 
 - Level specified in http://www.iso.org/iso/iso_catalogue/catalogue_tc/catalogue_detail.htm?csnumber=45138
 - http://tools.ietf.org/html/draft-johansson-loa-registry-06
-
-JWS
-======
 
 

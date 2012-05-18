@@ -56,6 +56,22 @@ Based on http://tools.ietf.org/html/draft-ietf-jose-json-web-signature-02
 
 .. include:: jws/4.1.4.rst 
 
+.. _jws.4.1.5:
+
+.. include:: jws/4.1.5.rst 
+
+.. _jws.4.1.6:
+
+.. include:: jws/4.1.6.rst 
+
+.. _jws.4.1.7:
+
+.. include:: jws/4.1.7.rst 
+
+.. _jws.4.1.8:
+
+.. include:: jws/4.1.8.rst 
+
 .. _jws.4.2:
 
 .. include:: jws/4.2.rst 

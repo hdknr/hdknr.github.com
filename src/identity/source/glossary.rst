@@ -1229,6 +1229,10 @@ JWT
     GCM
         Galois/Counter Mode, as defined in [:term:`FIPS‑197`] and [:term:`NIST‑800‑38D`]
 
+    ECDH
+        - http://technohidelic.posterous.com/elliptic-curve-diffiehellman-wikipedia-the-fr
+        (TBD) 
+
     
 
 MAC Scheme

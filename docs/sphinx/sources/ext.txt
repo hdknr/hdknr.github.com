@@ -30,8 +30,15 @@ Sphinxの sphinx.ext.intersphinx の mod を参照する(セクションヘッ�
 
     :mod:`sphinx.ext.intersphinx <sphinx:sphinx.ext.intersphinx>` 
 
+.. note::
+    これだとうまく行っていないような気がする::
+        
+        :mod:`<sphinx:sphinx.ext.intersphinx>` 
+            
 また、 Sphinxの用語":term:`sphinx:builder`" にリンクするには以下のようにします :
 
 .. code-block:: rst
 
     :term:`sphinx:builder`
+
+

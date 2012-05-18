@@ -307,5 +307,6 @@ import docutils
 docutils.parsers.rst.roles.DEFAULT_INTERPRETED_ROLE = 'title-reference'
 #
 intersphinx_mapping.update({
-    'django': ('https://docs.djangoproject.com/en/1.3/',None),
+    'django': ('http://docs.djangoproject.com/en/dev/', 'http://docs.djangoproject.com/en/dev/_objects/'),
+    'pythonjp':('http://www.python.jp/doc/release/',None),
 })
