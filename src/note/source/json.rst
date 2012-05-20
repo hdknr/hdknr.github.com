@@ -2,8 +2,10 @@
 JSON
 ========
 
-2.5.  Strings
-============================
+- "The application/json Media Type for JavaScript Object Notation (JSON)"(:rfc:`4627`)
+
+2.5. Strings
+================================================
 
 The representation of strings is similar to conventions used in the C
 family of programming languages.  
@@ -28,14 +30,15 @@ The hexadecimal letters A though F can be upper or lowercase.
 So, for example, 
 a string containing only a single reverse solidus character may be represented as "\u005C".
 
+.. _unicode_bmp: http://ja.wikipedia.org/wiki/%E5%9F%BA%E6%9C%AC%E5%A4%9A%E8%A8%80%E8%AA%9E%E9%9D%A2
+
 全ての文字はエスケープ可能です。
-`基本多面言語(BMP)(U+0000からU+FFFFまで）<unicode_bmp>`_  にある文字であれば６文字シーケンスで
+`基本多面言語(BMP)(U+0000からU+FFFFまで） <unicode_bmp>`_  にある文字であれば６文字シーケンスで
 表現することが可能です:
 リバースソリダス, 英子文字のuそして文字のコードポイントをエンコードする４つの16進数文字が続きます。
 16審のAからFは英大文字でも小文字でもいいです
 なので、例えば、１個のリバースソリダス文字は "\u005C"で表現できます。
 
-.. _unicode_bmp : http://ja.wikipedia.org/wiki/%E5%9F%BA%E6%9C%AC%E5%A4%9A%E8%A8%80%E8%AA%9E%E9%9D%A2
 
 Alternatively, 
 there are two-character sequence escape representations of some popular characters.  
@@ -51,7 +54,7 @@ encoding the UTF-16 surrogate pair.
 So, for example, 
 a string containing only the G clef character (U+1D11E) may be represented as "\uD834\uDD1E".
 
- `基本多面言語<unicode_bmp>`_ に無い拡張文字をエスケープするには、
+`基本多面言語 <unicode_bmp>`_ に無い拡張文字をエスケープするには、
 UTF-16サロゲートペアをエンコードする12文字のシーケンスで表現されます。
 例えば、ト音記号(G clef character)(U+1D11E)の１文字は "\uD834\uDD1E" で表現されます。
 
@@ -77,4 +80,5 @@ UTF-16サロゲートペアをエンコードする12文字のシーケンスで
          quotation-mark = %x22      ; "
 
          unescaped = %x20-21 / %x23-5B / %x5D-10FFFF
+
 

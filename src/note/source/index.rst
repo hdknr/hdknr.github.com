@@ -19,6 +19,7 @@ Misc
     mysql
     cookie
     aws
+    json
 
 Tools:
 
