@@ -4,6 +4,10 @@ JOSE JWS:Implementation
 
 .. contents:: JOSE JWS Implementation
 
+.. todo::
+
+    - HMAC must be implemented
+    - ECDSA must be implemented
 
 JWS Token
 ==========
@@ -108,19 +112,15 @@ To do those, JWS header provides the following X.509 parameters.  {See :ref:`jws
 
 Fingerprint of specifed :term:`PEM` certificate.
 
-.. code-block:: python
+Python
+^^^^^^^^^^^^
 
-        from M2Crypto import X509
-        import utils
-        def x5t(cert_string,format=0): 
-            ''' format 
-                = 0 (M2Crypto.X509.DER_FORMAT)
-                = 1 (M2Crypto.X509.PEM_FORMAT) 
-            '''
-            cert = X509.load_cert_string(cert_string,format)
-            return utils.to_base64url(
-                    utils.from_hex_string(
-                        cert.get_fingerprint(md='sha1')) )
+.. include:: python/thumprint.rst
+
+C#
+^^^^^^^^^^^^
+
+.. include:: csharp/thumprint.rst
 
 
 Sign/Verify with RSA Key and X.509 Certificate

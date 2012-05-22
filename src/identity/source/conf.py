@@ -300,7 +300,7 @@ exclude_patterns = ['oauth/*.rst',
                     'oauth_responses/*.rst',
                     'discussion/*.rst',
                     'locale',
-                    'pyton/*.rst',
+                    'python/*.rst',
                     'csharp/*.rst',
                     ]
 #
