@@ -299,7 +299,10 @@ exclude_patterns = ['oauth/*.rst',
                     'bearer/*.rst',
                     'oauth_responses/*.rst',
                     'discussion/*.rst',
-                    'locale',]
+                    'locale',
+                    'pyton/*.rst',
+                    'csharp/*.rst',
+                    ]
 #
 # GETTEXT
 locale_dirs = ["locale"]
