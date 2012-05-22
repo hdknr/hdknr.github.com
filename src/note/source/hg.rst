@@ -4,6 +4,94 @@ Mercurial
 
 .. contents:: Mercurial
 
+Basic
+=======
+
+changeset
+---------
+
+- **cset**
+- http://mercurial.selenic.com/wiki/ChangeSet
+- 単一不可分な変更
+- commit すると changeset が作られます( checkin ともいいます )。
+- `head`_ ではありません。
+- root : 親無し changeset
+
+metainfo
+^^^^^^^^^^
+
+- nodeid
+- 変更ファイル一覧
+- commiter:誰が
+- commnet :なぜ
+- time/date,tz : いつ
+- `branch`_ 名 : デフォルトが `default`_ 
+
+marge changeset
+------------------------
+
+- 複数の `changeset`_ をマージした１つのチェンジセット。
+- つまり複数の paranet を持つ。
+
+
+revision
+----------
+
+- `changeset`_ の番号
+
+head
+-------
+
+- マージされていないチェンジセット
+
+tip
+----
+
+リポジトリおいて最も新しく追加された `revision`_ であると同時に、最も新しく変更された `head`_ のこと
+
+default
+--------
+
+デフォルトブランチ
+
+- svn :  trunk
+- git :  maste
+
+branch
+-------
+
+- http://mercurial.selenic.com/wiki/Branch
+- "diverged line of development"
+
+branchは3つの方法で作成される
+
+- レポジトリクローン
+- `anonymous branch`_
+- `named branch`_
+
+anonymous branch
+-------------------------
+
+- 匿名ブランチ , 名無しブランチ
+- 共通の親から派生した2つ以上のリビジョン
+- 次の場合に作られる
+
+    - ある親リビジョンnから派生したリビジョンn+1をcommitした後に、同じ親からリビジョンn+2を作成したとき
+    - リモートリポジトリの更新をpullしたとき
+
+named branch
+--------------
+
+- ある親から派生したリビジョンとその子孫につけられる名前
+- リポジトリは初期状態で単一の名前付きブランチ(`default`_)を持っている
+- また、そのブランチのHEADリビジョンを指す。
+
+
+multiple heads
+---------------------
+
+- `anonymous branch`_ が複数できている状態の事
+
 Cheat
 ======
 
