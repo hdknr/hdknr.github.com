@@ -94,7 +94,7 @@ Scheduled
         - Proposed Standard
 
     *   - 2012/12
-        - OAuth Use Cases
+        - :doc:`OAuth Use Cases <oauth_usecases>`
         - IESG 
         - Informational RFC 
           [Starting point for the work will be http://tools.ietf.org/html/draft-zeltsan-oauth-use-cases]

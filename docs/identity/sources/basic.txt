@@ -2,6 +2,8 @@
 OpenID Connect Basic Client 1.0
 ======================================
 
+.. contents:: Connect Basic Client
+
 Based on `OpenID Connect Basic Client 1.0 - draft 15(October 30, 2011) <http://openid.bitbucket.org/openid-connect-basic-1_0.html>`_
 ( `Cache <_static/specs/openid.bitbucket.org/openid-connect-basic-1_0.html>`_ )
 

@@ -11,12 +11,13 @@ JWS Token
 base64url
 ----------
 
-Python:
+Python
+^^^^^^^^^^^^
 
 .. include:: python/base64url.rst
 
 C#:
-
+^^^^^^^^^^^^
 
 .. include:: csharp/base64url.rst
 
@@ -26,72 +27,30 @@ Token
 create_jws_token_rsa()
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
-.. code-block:: python
+Python
+~~~~~~~~~~~~
 
-    import json
+.. include:: python/jws_sign_rsa.rst
 
-    def create_jws_token_rsa(header,payload ,pem_private_key):    
-        ''' 
-            :param header: JWS Header JSON
-            :param payload: JWS Payload in JSON
-            :param pem_private_key: RSA Private Key in PEM format    
-        '''    
-        jws_header= json.dumps( header )        #dumps produdes utf8 string by default
-        jws_payload= json.dumps( payload ) 
+C#
+~~~~~~~~~~~~
 
-        encoded_jws_header = to_base64url(jws_header)
-        encoded_jws_payload= to_base64url(jws_payload)
+.. include:: csharp/jws_sign_rsa.rst
 
-        jws_secured_input = "%s.%s" % ( encoded_jws_header, encoded_jws_payload )
-        jws_signature = rsa_sign(pem_private_key,header['alg'],jws_secured_input )
-
-        encoded_jws_signature = to_base64url(jws_signature) 
-        jws_token = "%s.%s.%s" % ( encoded_jws_header,encoded_jws_payload, encoded_jws_signature ) 
-
-        return jws_token
-
-
-.. code-block:: python
-
-    token = create_jws_token_rsa(
-            {"typ":"JWT","alg":"RS256"},
-            {"iss":"alice","aud":"bob","user_id":"charlie"},
-            Idp.objects.get(issuer="me").private_key            #: Load private key
-            )
 
 verify_jws_token_rsa()
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
-.. code-block:: python
+Python
+~~~~~~~~~~~~~~~
 
-    def verify_jws_token_rsa(jws_token,pem_x509): 
-        ''' 
-            :param jws_token:  JWS Token
-            :param pem_x509:   X.509 Certificate
-        '''
-        (encoded_jws_header,encoded_jws_payload,encoded_jws_signature) = jws_token.split('.')
+.. include:: python/jws_verify_rsa.rst
 
-        jws_header = from_base64url(encoded_jws_header)
-        jws_payload = from_base64url(encoded_jws_payload)
-        jws_signature=from_base64url(encoded_jws_signature)
+C#
+~~~~~~
 
-        jws_secured_input = "%s.%s" % ( encoded_jws_header, encoded_jws_payload )
-        header = json.loads(jws_header)
+.. include:: csharp/jws_verify_rsa.rst
 
-        is_valid = rsa_verify(pem_x509,header['alg'],jws_secured_input, jws_signature )
-       
-        return is_valid==1,header,json.loads(jws_payload) 
-
-.. todo::
-    pem_x509 can be None for session wise certificate negotiation.
-    There should be the other utility which fetch and validate the certficate
-    based on **header** decoded from **jws_token** .
-
-.. code-block:: python
-    
-    (is_valid,header,payload) = verify_jws_token_rsa(       
-                                    token,
-                                    Op.objects.get(issuer="alice").x509_cert_cache ) 
 
 So what is rsa_sign() and rsa_verify() ?
 
@@ -172,26 +131,72 @@ sha_name()
 
 - select proper SHA digest function for **alg** .
 
-.. code-block:: python
+Python
+~~~~~~~~~~~~~
 
-    import re
+.. include:: python/sha_name.rst
 
-    def sha_name(alg):
-        ''' 
-            :param alg: Algorithms defined in JWA
-        '''
-        return "sha%(bits)s" % re.search(r'[HRE]S(?P<bits>\d+)$',alg).groupdict()
+C#
+~~~~~~~~~~~~~
+
+.. include:: csharp/sha_name.rst
 
 rsa_sign()
 ^^^^^^^^^^^^^^^^
 
-Python:
+Python
+~~~~~~~~~~~~~~~~~~~~
 
 .. include:: python/rsa_sign.rst
+
+C#
+~~~~~~~~~~~~~~~~~~~~
+
+.. include:: csharp/rsa_sign.rst
 
 rsa_verify()
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
-Python:
+Python
+~~~~~~~~~~~
 
 .. include:: python/rsa_verify.rst
+
+C#
+~~~~~~~~~~~
+
+.. include:: csharp/rsa_verify.rst
+
+
+PEM in C#
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+Because it's not easy to read PEM formatted data in Microsoft library,
+BouncyCastle can be used to load X.509 certificate and private key.
+
+X.509 Certificate im PEM
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. include:: csharp/pem_cert.rst
+
+DER Private Key im PEM
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. include:: csharp/pem_key.rst
+
+
+
+
+Libraries
+========================
+
+Python
+----------
+
+.. include:: python/lib.rst
+
+C#
+----------
+
+.. include:: csharp/lib.rst
+
