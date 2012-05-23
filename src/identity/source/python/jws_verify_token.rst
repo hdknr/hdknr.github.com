@@ -1,6 +1,6 @@
 .. code-block:: python
 
-    def verify_jws_token(jws_token,secret,pem_x509): 
+    def jws_verify_token(jws_token,secret,pem_x509): 
         ''' 
             :param jws_token:  JWS Token
             :param secret:  Shared Secret for HMAC

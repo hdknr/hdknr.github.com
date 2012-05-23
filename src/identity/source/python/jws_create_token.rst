@@ -2,7 +2,7 @@
 
     import json
 
-    def create_jws_token(header,payload ,secret,pem_private_key):    
+    def jws_create_token(header,payload ,secret,pem_private_key):    
         ''' 
             :param header: JWS Header JSON
             :param payload: JWS Payload in JSON
