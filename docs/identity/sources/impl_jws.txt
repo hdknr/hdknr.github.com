@@ -6,7 +6,6 @@ JOSE JWS:Implementation
 
 .. todo::
 
-    - HMAC must be implemented
     - ECDSA must be implemented
 
 JWS Token
@@ -28,38 +27,40 @@ C#:
 Token
 ------
 
-create_jws_token_rsa()
+jws_create_token()
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
 Python
 ~~~~~~~~~~~~
 
-.. include:: python/jws_sign_rsa.rst
+.. include:: python/jws_create_token.rst
 
 C#
 ~~~~~~~~~~~~
 
-.. include:: csharp/jws_sign_rsa.rst
+.. include:: csharp/jws_create_token.rst
 
 
-verify_jws_token_rsa()
+jws_verify_token()
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
 Python
 ~~~~~~~~~~~~~~~
 
-.. include:: python/jws_verify_rsa.rst
+.. include:: python/jws_verify_token.rst
 
 C#
 ~~~~~~
 
-.. include:: csharp/jws_verify_rsa.rst
+.. include:: csharp/jws_verify_token.rst
 
 
-So what is rsa_sign() and rsa_verify() ?
+So what is _sign() and _verify() ?
+Actula funcitons will vary based on "alg"orithm paramter:
+rsa_sign() and rsa_vefiy() for RSA, hmac_sign() and hamc_verify for HMAC. 
 
-X.509
-======
+RSA and X.509
+==================
 
 Key negotiation in advance
 -------------------------------
@@ -185,7 +186,46 @@ DER Private Key im PEM
 .. include:: csharp/pem_key.rst
 
 
+HMAC and Shared Secret
+=================================
 
+Shared Secrete negotiation  on Client  Registartion
+------------------------------------------------------------
+
+Audience must register his shared secret as :term:`client_secret` on :doc:`reg`  process.
+
+Signature?
+------------
+
+No. JWS Signature for HMAC is not signature actually.
+Verifier must repeat the same hmac_sign() process as creator did  
+and check if JWS Signature value produced by the verifier is exactly same as the one received.
+
+hmac_sign()
+--------------
+
+Python
+^^^^^^^^^
+
+.. include:: python/hmac_sign.rst
+
+C#
+^^^^^^^^^
+
+.. include:: csharp/hmac_sign.rst
+
+hmac_verify()
+--------------
+
+Python
+^^^^^^^^^
+
+.. include:: python/hmac_verify.rst
+
+C#
+^^^^^^^^^
+
+.. include:: csharp/hmac_verify.rst
 
 Libraries
 ========================
