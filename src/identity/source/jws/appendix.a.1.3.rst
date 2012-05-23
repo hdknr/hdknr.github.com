@@ -6,17 +6,19 @@ Next we validate the decoded results.
 Since the :term:`alg` parameter in the header is "HS256", 
 we validate the HMAC SHA-256 signature contained in the :term:`JWS Signature`. 
 If any of the validation steps fail, 
-the signed content MUST be rejected.
+the JWS MUST be rejected.
 
-First, we validate that the JWS Header string is legal JSON.
+First, 
+we validate that the JWS Header string is legal JSON.
 
-To validate the signature, 
+To validate the HMAC value, 
 we repeat the previous process of using the correct key 
-and the UTF-8 representation of the :term:`JWS Signing Input` 
-as input to a SHA-256 HMAC function 
+and the UTF-8 representation of the :term:`JWS Secured Input`
+(which is the same as the ASCII representation) 
+as input to the HMAC SHA-256 function 
 and then taking the output and determining 
-if it matches the :term:`JWS Signature`. 
+if it matches the :term:`JWS Signature`.  
 
-If it matches exactly, the signature has been validated.
+If it matches exactly, the HMAC has been validated.
 
-(v.03)
+(jose-jws draft 02)

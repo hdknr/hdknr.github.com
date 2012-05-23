@@ -1,6 +1,8 @@
 .. code-block:: csharp
 
-        public static bool RsaVerify(string x509_pem, string alg, 
+        public static bool RsaVerify(string secret, // ignored for RSA
+                                string x509_pem, 
+                                string alg, 
                                 byte[] secure_input, byte[] signature)
         {
             RsaKeyParameters pubkey = (RsaKeyParameters)CertificateFromPem(x509_pem).GetPublicKey();

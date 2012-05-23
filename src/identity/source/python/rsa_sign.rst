@@ -3,8 +3,9 @@
     from M2Crypto import RSA,util
     import hashlib
 
-    def rsa_sign(private_key_pem, alg, secure_input ,passphrase=None):
+    def rsa_sign(secret,private_key_pem, alg, secure_input ,passphrase=None):
         '''
+            :param secret: ignored for RSA
             :param private_key_pem: PEM string of private key of signer
             :param alg: Algorithms defined in JWA
             :param secure_input: Message for digest input
