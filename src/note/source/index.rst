@@ -29,6 +29,7 @@ Tools:
     git
     hg
     tmux
+    graphviz
 
 Linux Commands:
 
