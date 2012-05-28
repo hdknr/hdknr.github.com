@@ -37,3 +37,43 @@ def dh_check(dh, codes):
         };
         
     '''
+
+def ecdsa_sign( type,dgst):
+    ''' ECDSA_sign_ex のラッパー。kinv= NULL,rp=NUL
+
+        :param type: タイプ
+        :param dgst: ダイジェスト
+        :return: ECDSA_SIG構造体
+
+
+        - http://www.openssl.org/docs/crypto/ecdsa.html
+
+    .. code-block:: c
+
+         struct
+         {
+            BIGNUM *r;
+            BIGNUM *s;
+         } ECDSA_SIG;
+
+    .. code-block:: c
+
+        /* openssl/ossl_typ.h  */
+
+        typedef struct bignum_st BIGNUM;
+
+        /* openssl/bn.h */
+
+        #define BN_ULONG    unsigned long                   //  8byte
+        struct bignum_st        
+        {   
+            BN_ULONG *d;    /* Pointer to an array of 'BN_BITS2' bit chunks. */
+            int top;        /* Index of last used d +1. */
+
+            /* The next are internal book keeping for bn_expand. */
+            int dmax;   /* Size of the d array. */
+            int neg;    /* one if the number is negative */
+            int flags;
+        };
+    
+    '''      

@@ -304,3 +304,8 @@ if os.uname()[0]=='Darwin':
 else:
     seqdiag_fontpath = '/usr/share/fonts/truetype/ipafont/ipagp.ttf'
 
+#
+PRJ_PATH= os.path.dirname( os.path.abspath(__file__))
+sys.path.insert(0, os.path.join(os.path.dirname(PRJ_PATH ),'app'))
+sys.path.insert(0, os.path.join(os.path.dirname(PRJ_PATH ),'app/app'))
+os.environ['DJANGO_SETTINGS_MODULE'] = 'app.settings'

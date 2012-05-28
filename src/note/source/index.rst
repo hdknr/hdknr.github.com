@@ -11,8 +11,6 @@ Misc
 .. toctree::
     :maxdepth: 2
 
-    x509
-    pkcs
     css
     swd
     python
@@ -20,6 +18,15 @@ Misc
     cookie
     aws
     json
+
+Security:
+
+.. toctree::
+    :maxdepth: 2
+
+    x509
+    pkcs
+    openssl
 
 Tools:
 
