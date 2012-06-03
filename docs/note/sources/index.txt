@@ -27,6 +27,7 @@ Security:
     x509
     pkcs
     openssl
+    ecc
 
 Tools:
 

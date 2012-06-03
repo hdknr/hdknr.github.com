@@ -36,3 +36,12 @@ rsyncの確認 ~/.ssh/authorized_keys ::
     ;;
     esac
     
+その他
+=========
+
+RSAキー作成
+------------------
+
+::
+
+    $ ssh-keygen -t rsa -b 2048

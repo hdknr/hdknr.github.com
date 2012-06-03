@@ -25,7 +25,8 @@ import sys, os
 
 # Add any Sphinx extension module names here, as strings. They can be extensions
 # coming with Sphinx (named 'sphinx.ext.*') or your custom ones.
-extensions = ['sphinx.ext.autodoc', 'sphinx.ext.doctest', 'sphinx.ext.intersphinx', 'sphinx.ext.todo', 'sphinx.ext.coverage', 'sphinx.ext.pngmath', 'sphinx.ext.ifconfig', 'sphinx.ext.viewcode']
+extensions = ['sphinx.ext.autodoc', 'sphinx.ext.doctest', 'sphinx.ext.intersphinx', 'sphinx.ext.todo', 'sphinx.ext.coverage', 
+              'sphinx.ext.pngmath', 'sphinx.ext.ifconfig', 'sphinx.ext.viewcode']
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
@@ -309,3 +310,8 @@ PRJ_PATH= os.path.dirname( os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(os.path.dirname(PRJ_PATH ),'app'))
 sys.path.insert(0, os.path.join(os.path.dirname(PRJ_PATH ),'app/app'))
 os.environ['DJANGO_SETTINGS_MODULE'] = 'app.settings'
+#
+# pngmath
+if os.uname()[0]=='Darwin':
+    pngmath_latex = '/usr/texbin/latex'
+    pngmath_dvipng = '/usr/texbin/dvipng'

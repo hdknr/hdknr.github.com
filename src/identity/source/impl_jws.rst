@@ -227,6 +227,10 @@ C#
 
 .. include:: csharp/hmac_verify.rst
 
+
+ECDSA
+==========
+
 Libraries
 ========================
 

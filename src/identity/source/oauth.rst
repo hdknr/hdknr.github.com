@@ -2,13 +2,13 @@
 The OAuth 2.0 Authorization Protocol
 ========================================================
 
-Based on `The OAuth 2.0 Authorization Protocol draft-ietf-oauth-v2-22 <http://tools.ietf.org/html/draft-ietf-oauth-v2-22>`_
+Based on `The OAuth 2.0 Authorization Protocol draft-ietf-oauth-v2-22 <http://tools.ietf.org/html/draft-ietf-oauth-v2-26>`_
 
 .. todo::
 
-    Checke the Draft 23.-  January 21, 2012
+    Checke the Draft 26.-  May 1, 2012 
 
-        - http://tools.ietf.org/html/draft-ietf-oauth-v2-23 
+        - http://tools.ietf.org/html/draft-ietf-oauth-v2-26
 
 .. _oauth_abstract:
 
