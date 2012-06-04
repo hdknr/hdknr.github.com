@@ -4,6 +4,22 @@ MySQL
 
 .. contents:: MySQL
 
+Install
+=========
+
+:doc:`debian`
+
+.. code-block:: bash
+
+    $ sudo aptitude install mysql-server -y
+    $ sudo aptitude install libmysqlclient-dev -y
+
+:doc:`python` binding
+
+.. code-block:: bash
+
+    $ pip install MySQL-python
+
 management
 ===============
 

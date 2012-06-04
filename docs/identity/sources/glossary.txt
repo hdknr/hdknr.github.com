@@ -675,6 +675,7 @@ Others
     Implicit Flow
         ( TODO ) 
 
+    Code Flow
     Authorization Code Flow
         ( TODO )
 
@@ -768,6 +769,13 @@ Others
     Specification Required
         ( TODO ) (:ref:`oauth_11_2` )
 
+    UTC
+        `Universal Time, Coordinated <http://en.wikipedia.org/wiki/UTC>`_ 
+        (`in Japanese <ja.wikipedia.org/wiki/UTC>`_ ). 
+
+        "UTC is synonymous with GMT(Greenwich Mean Time ), 
+        but GMT is no longer precisely defined by the scientific community."
+        
 JOSE and JSON 
 ================
 
@@ -1202,6 +1210,13 @@ JWT
     RSASSA-PKCS1-V1_5
         (TBD)
     
+    SHA-2
+        SHA-2 is a set of cryptographic hash functions 
+        (SHA-224, :term:`SHA-256`, :term:`SHA-384`, :term:`SHA-512`) 
+        designed by the National Security Agency (NSA) 
+        and published in 2001 by the NIST as a U.S. Federal Information Processing Standard.
+        (`Wikipedia <http://en.wikipedia.org/wiki/SHA-2>`_ )
+
     SHA-256
         (TBD)
     
@@ -1230,8 +1245,7 @@ JWT
         Galois/Counter Mode, as defined in [:term:`FIPS‑197`] and [:term:`NIST‑800‑38D`]
 
     ECDH
-        - http://technohidelic.posterous.com/elliptic-curve-diffiehellman-wikipedia-the-fr
-        (TBD) 
+        - http://technohidelic.posterous.com/elliptic-curve-diffiehellman-wikipedia-the-fr (TBD) 
 
     
 
