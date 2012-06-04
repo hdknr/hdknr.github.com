@@ -9,7 +9,8 @@ Entity Framework
 ============
 
 - "ツール">"Library Package Manager" > "Package Manager Console" でPackage Manager Console を開く
-- プロンプトにコマンドを投入してインストール。
+- プロンプトにコマンドを投入して `パッケージ <http://nuget.org/packages/EntityFramework/4.3.1>`_ 
+  パッケージのインストール。
 
 ::
 
@@ -184,7 +185,33 @@ One-To-Oneリレーションでは １方が **プリンシパルエンド** (pr
     GO
 
 
+
+コマンド
+=========
     
+- Enable-Migrations: Enables Code First Migrations をプロジェクトで有効にする
+- Add-Migration: ペンディングのモデル修正のマイグレーションスクリプトをスキャフォールドする
+- Update-Database: ペンディングされたマイグレーションをデータベースに適用
+- `Get-Migrations`_ : データベースに適用されたマイグレーションを表示する。
+
+Get-Migrations
+-----------------
+
+::
+
+    PM> Get-Migrations -Verbose
+    Using NuGet project 'AdConnect'.
+    Using StartUp project 'AdConnect'.
+    Retrieving migrations that have been applied to the target database.
+    Target database is: 'AdConnect.Models.ConnectContext' 
+    (DataSource: .\SQLEXPRESS, Provider: System.Data.SqlClient, Origin: Convention).
+    201206040429540_NonceTime
+    201206030843292_First
+
+ヘルプ::
+
+    PM> get-help Get-Migrations -full.
+
 How To
 ===================
 
@@ -205,4 +232,11 @@ How To
 - `Control/View <http://note.harajuku-tech.org/aspnet-controller-and-view>`_
 - `DirectoryサービスでActive Directoryにアクセス <http://note.harajuku-tech.org/systemdirectoryservices>`_
 
+- http://www.asp.net/entity-framework
+- ADO.NET Entity Framework (http://msdn.microsoft.com/en-us/library/bb399572.aspx)
 
+CodePlex
+----------
+
+- Entity Framework Contrib (http://efcontrib.codeplex.com/)
+- Tutorial: ADO.NET Entity Framework ( http://adoeftutorial.codeplex.com/ )
