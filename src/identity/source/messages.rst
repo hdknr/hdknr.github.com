@@ -2,18 +2,19 @@
 OpenID Connect Messages 1.0
 ==============================
 
+.. contents:: Table of Contents
+
 Based on `OpenID Connect Messages 1.0 - draft 07 <http://openid.bitbucket.org/openid-connect-messages-1_0.html>`_
 (   December 22, 2011 )
 
 .. todo::
 
-    Check Draft 9, March 15, 2012
+    Check Draft 10, May 25, 2012
 
 .. _messages_abstract:
 
 .. include:: messages/abstract.rst
 
-.. contents:: Table of Contents
 
 .. _messages_1:
 

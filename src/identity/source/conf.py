@@ -302,6 +302,7 @@ exclude_patterns = ['oauth/*.rst',
                     'locale',
                     'python/*.rst',
                     'csharp/*.rst',
+                    'common/*.rst',
                     ]
 #
 # GETTEXT
