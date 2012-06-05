@@ -185,6 +185,85 @@ One-To-Oneリレーションでは １方が **プリンシパルエンド** (pr
     GO
 
 
+Metadata
+=========
+
+メタデータ取得はめんどくさい気がする。
+DbContextをObjetContextに変換して、MetadataWorkspaceにアクセスすることでメタデータの操作をする。
+MetadataWorkspaceからモデルクラスの名前(Name)が等しいEntitySetをクエリするとそのテーブルのメタデータ
+にアクセスできるっぽい。
+
+.. code-block:: csharp
+
+    using System;
+    using System.Collections.Generic;
+    using System.Linq;
+    using System.Web;
+    
+    // メターデータ系のネームスペース
+    using System.Data.Entity;
+    using System.Data.Objects;
+    using System.Data.Metadata.Edm;
+    using System.Data.Entity.Infrastructure;
+    
+    namespace AdConnectTest.Models
+    {
+        /// データベースコンテキストクラス
+    
+        public class ConnectContext : DbContext
+        {
+            // モデルクラス(POCO)
+            public DbSet<Connect.Models.Grant> Grants { get; set; }
+    
+    
+            // DbContextからObjectContextを取得
+            public ObjectContext ObjectContext
+            {
+                get
+                {
+                    return ((IObjectContextAdapter)this).ObjectContext;
+                }
+            }
+    
+            // メタ情報
+            public MetadataWorkspace Meta
+            {
+                get { return this.ObjectContext.MetadataWorkspace; }
+            }
+    
+    
+            // 指定したモデルクラスのメタ情報
+            public EntitySet GetTableMeta(Type model)
+            {
+    
+                return this.Meta.GetItemCollection(DataSpace.SSpace)
+                        .GetItems<EntityContainer>()
+                        .Single()
+                        .BaseEntitySets
+                        .OfType<EntitySet>()
+                        .Where(s => s.Name == model.Name)
+                        .ToArray()[0];
+            }
+        }
+    }
+
+これを実行するには、
+
+.. code-block:: csharp
+
+    // DbContextを生成し、データベース接続を用意する
+    Models.ConnectContext ctx = new Models.ConnectContext();
+
+    string grant_table_name = (string)ctx.GetTableMeta( 
+                                        typeof(Connect.Models.Grant) // POCO モデルクラス
+                                    ).MetadataProperties["Table"].Value;
+
+実際のモデル名は::
+
+    Grants
+
+と複数形が返る。
+
 
 コマンド
 =========
