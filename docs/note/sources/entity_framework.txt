@@ -9,7 +9,8 @@ Entity Framework
 ============
 
 - "ツール">"Library Package Manager" > "Package Manager Console" でPackage Manager Console を開く
-- プロンプトにコマンドを投入してインストール。
+- プロンプトにコマンドを投入して `パッケージ <http://nuget.org/packages/EntityFramework/4.3.1>`_ 
+  パッケージのインストール。
 
 ::
 
@@ -184,7 +185,112 @@ One-To-Oneリレーションでは １方が **プリンシパルエンド** (pr
     GO
 
 
+Metadata
+=========
+
+メタデータ取得はめんどくさい気がする。
+DbContextをObjetContextに変換して、MetadataWorkspaceにアクセスすることでメタデータの操作をする。
+MetadataWorkspaceからモデルクラスの名前(Name)が等しいEntitySetをクエリするとそのテーブルのメタデータ
+にアクセスできるっぽい。
+
+.. code-block:: csharp
+
+    using System;
+    using System.Collections.Generic;
+    using System.Linq;
+    using System.Web;
     
+    // メターデータ系のネームスペース
+    using System.Data.Entity;
+    using System.Data.Objects;
+    using System.Data.Metadata.Edm;
+    using System.Data.Entity.Infrastructure;
+    
+    namespace AdConnectTest.Models
+    {
+        /// データベースコンテキストクラス
+    
+        public class ConnectContext : DbContext
+        {
+            // モデルクラス(POCO)
+            public DbSet<Connect.Models.Grant> Grants { get; set; }
+    
+    
+            // DbContextからObjectContextを取得
+            public ObjectContext ObjectContext
+            {
+                get
+                {
+                    return ((IObjectContextAdapter)this).ObjectContext;
+                }
+            }
+    
+            // メタ情報
+            public MetadataWorkspace Meta
+            {
+                get { return this.ObjectContext.MetadataWorkspace; }
+            }
+    
+    
+            // 指定したモデルクラスのメタ情報
+            public EntitySet GetTableMeta(Type model)
+            {
+    
+                return this.Meta.GetItemCollection(DataSpace.SSpace)
+                        .GetItems<EntityContainer>()
+                        .Single()
+                        .BaseEntitySets
+                        .OfType<EntitySet>()
+                        .Where(s => s.Name == model.Name)
+                        .ToArray()[0];
+            }
+        }
+    }
+
+これを実行するには、
+
+.. code-block:: csharp
+
+    // DbContextを生成し、データベース接続を用意する
+    Models.ConnectContext ctx = new Models.ConnectContext();
+
+    string grant_table_name = (string)ctx.GetTableMeta( 
+                                        typeof(Connect.Models.Grant) // POCO モデルクラス
+                                    ).MetadataProperties["Table"].Value;
+
+実際のモデル名は::
+
+    Grants
+
+と複数形が返る。
+
+
+コマンド
+=========
+    
+- Enable-Migrations: Enables Code First Migrations をプロジェクトで有効にする
+- Add-Migration: ペンディングのモデル修正のマイグレーションスクリプトをスキャフォールドする
+- Update-Database: ペンディングされたマイグレーションをデータベースに適用
+- `Get-Migrations`_ : データベースに適用されたマイグレーションを表示する。
+
+Get-Migrations
+-----------------
+
+::
+
+    PM> Get-Migrations -Verbose
+    Using NuGet project 'AdConnect'.
+    Using StartUp project 'AdConnect'.
+    Retrieving migrations that have been applied to the target database.
+    Target database is: 'AdConnect.Models.ConnectContext' 
+    (DataSource: .\SQLEXPRESS, Provider: System.Data.SqlClient, Origin: Convention).
+    201206040429540_NonceTime
+    201206030843292_First
+
+ヘルプ::
+
+    PM> get-help Get-Migrations -full.
+
 How To
 ===================
 
@@ -205,4 +311,11 @@ How To
 - `Control/View <http://note.harajuku-tech.org/aspnet-controller-and-view>`_
 - `DirectoryサービスでActive Directoryにアクセス <http://note.harajuku-tech.org/systemdirectoryservices>`_
 
+- http://www.asp.net/entity-framework
+- ADO.NET Entity Framework (http://msdn.microsoft.com/en-us/library/bb399572.aspx)
 
+CodePlex
+----------
+
+- Entity Framework Contrib (http://efcontrib.codeplex.com/)
+- Tutorial: ADO.NET Entity Framework ( http://adoeftutorial.codeplex.com/ )

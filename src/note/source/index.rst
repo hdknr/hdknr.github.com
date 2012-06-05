@@ -28,6 +28,7 @@ Security:
     pkcs
     openssl
     ecc
+    connect
 
 Tools:
 

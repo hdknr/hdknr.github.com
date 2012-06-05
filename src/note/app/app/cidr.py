@@ -17,7 +17,7 @@ tdiv=B(h).find("div", {"id": "contentBody"})
 #for child in children:
 #    print child
 ##
-print tdiv
+#print tdiv
 
 #CIDR: 180.178.32.0/19"
 
@@ -26,5 +26,5 @@ import re
 #IP Address assigned to: HONG KONG
 m=re.search("IP Address assigned to: (?P<country>[A-Za-z\s]+).*CIDR\: (?P<cidr>[0-9\.\/]+)",str(tdiv)).groupdict()
 if m:
-    print "***",m['country']
-    print "***",m['cidr']
+    print "//",m['country']
+    print m['cidr'],";"
