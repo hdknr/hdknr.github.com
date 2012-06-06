@@ -270,8 +270,19 @@ MetadataWorkspaceからモデルクラスの名前(Name)が等しいEntitySetを
     
 - Enable-Migrations: Enables Code First Migrations をプロジェクトで有効にする
 - Add-Migration: ペンディングのモデル修正のマイグレーションスクリプトをスキャフォールドする
-- Update-Database: ペンディングされたマイグレーションをデータベースに適用
+- `Update-Database`_ : ペンディングされたマイグレーションをデータベースに適用
 - `Get-Migrations`_ : データベースに適用されたマイグレーションを表示する。
+
+Update-Database
+-------------------
+
+::
+
+    PM> Update-Database
+    Specify the '-Verbose' flag to view the SQL statements being applied to the target database.
+    Applying explicit migrations: [201206050458407_InitialCreate, 201206060520281_Initial].
+    Applying explicit migration: 201206050458407_InitialCreate.
+    Applying explicit migration: 201206060520281_Initial.
 
 Get-Migrations
 -----------------
@@ -290,6 +301,73 @@ Get-Migrations
 ヘルプ::
 
     PM> get-help Get-Migrations -full.
+
+データベース接続
+========================
+
+プログラムで明示的に指定
+------------------------------
+
+
+DbContextクラスのコンストラクタにデータベース名を指定すると app.config で指定したデータベースサーバーに指定した名前でデータベースを作るようです。
+
+TestDatabase というデータベースを作るには以下のようにします 
+
+.. code-block:: csharp
+
+    public class ConnectContext : DbContext
+    {
+        public ConnectContext()
+            : base("TestDatabase")
+        {}
+    }
+
+.. todo::
+
+    app.config からデータベース名を取得して設定するようにコードすればいいのかな？
+
+接続文字列を追加/編集する方法
+------------------------------------
+
+接続文字列を設定すると app.config /web.config だけで制御可能です。
+SQL Server(Express)だと "Initial Catalog" がデータベース名になります。
+ポイントは **name** 属性に、DbContext クラスのクラス名を指定する、ということです。
+
+.. code-block:: xml
+
+    <?xml version="1.0" encoding="utf-8"?>
+    <configuration>
+      <configSections>
+        <section name="entityFramework" 
+                type="System.Data.Entity.Internal.ConfigFile.EntityFrameworkSection, EntityFramework, Version=4.3.1.0, Culture=neutral, PublicKeyToken=b77a5c561934e089" />
+      </configSections>
+    
+      <!-- ここから追加 
+            name : DbContextから派生したConnectContext
+            Initial Catalog : SQL Server(Express) のデータベース名
+      -->
+      <connectionStrings>
+       <add 
+        name="ConnectContext" 
+        connectionString="Server=.\SQLEXPRESS;Initial Catalog=ConnectDB;Integrated Security=true;MultipleActiveResultSets=True;"
+        providerName="System.Data.SqlClient"
+       />
+      </connectionStrings>
+      <!-- ここまで追加 -->
+      
+      <entityFramework>
+        <defaultConnectionFactory 
+            type="System.Data.Entity.Infrastructure.SqlConnectionFactory, EntityFramework">    
+          <parameters>
+            <parameter
+               value="Data Source=.\SQLEXPRESS; Integrated Security=True; MultipleActiveResultSets=True;Initial Catalog=ConnectDB" />
+          </parameters>
+        </defaultConnectionFactory>
+      </entityFramework>
+
+    </configuration>
+
+これで `Update-Database`_ コマンドを実行すると、(存在しなかったら)データベースを作成してMigrationコードを実行します。
 
 How To
 ===================
