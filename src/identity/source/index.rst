@@ -73,6 +73,8 @@ Related
 .. toctree::
     :maxdepth: 1
 
+    backplane 
+
     swd
     revoke
 

@@ -2,6 +2,7 @@
 Git
 =====
 
+.. contents:: git resource
 
 .. glossary::
 
@@ -13,11 +14,8 @@ Git
     starting point
 
 
-.. contents:: git resource
-
-
 修正を戻す
-==========
+==================================================
 
 全て戻す
 
@@ -38,16 +36,14 @@ Git
     $ git checkout -l 2a6ac3f60426d4ce4604f387033446f750911d8f source/jose.rst
 
 コンフリクト
-=============
+=================================================================
 
 - http://harajuku-tech.posterous.com/git-pull-conflictgit-commit
 
 Automatic merge failed; fix conflicts and then commit the result.
 ------------------------------------------------------------------------------------------
 
-
 ::
-
 
     $ git pull
     remote: Counting objects: 37, done.
@@ -184,6 +180,24 @@ remote branch
     origin/master
 
 
+一覧
+--------
+
+-v オプションすると内容が見れて便利です。 
+
+::
+
+    $ git branch -v
+      issue-242 f87a18d #242 1.0.1 リリースノート
+      issue-243 9f5938c #243 1.0.2 リリースノート
+    * issue-246 0d001ba #246 1.1 ベータ1 リリースノート の翻訳
+      issue-247 a33c6ba #247
+      issue-253 5b87d71 #253 @hirokiky さんにいただいたコメントの内容で反映
+      issue-254 ac52a11 #254 topics/db/index.txt 単純な変更とドキュメントインデックスの追加のみ
+      issue-255 6d20bff #255 topics/db/managers.txt の訳
+      issue-258 35bb92c #258 topics/db/sql.txt
+      master    9dfd414 Merge branch 'master' of github.com:django-docs-ja/django-docs-ja
+
 Cheat
 ======
 
@@ -209,11 +223,77 @@ git config - Get and set repository or global options
 設定ファイル
 ---------------
 
+レポジトリごとの設定ファイル
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
 - $GIT_DIR/config   レポジトリ設定
 
     - GIT_CONFIG環境変数で切り替え可能です。 
-    
+
+::
+
+    (djdoc)Peeko:django-docs-ja hide$ cat .git/config 
+
+    [core]
+            repositoryformatversion = 0
+            filemode = true
+            bare = false
+            logallrefupdates = true
+            ignorecase = true
+    [remote "origin"]
+            fetch = +refs/heads/*:refs/remotes/origin/*
+            url = git@github.com:hdknr/django-docs-ja.git
+    [branch "master"]
+            remote = origin
+            merge = refs/heads/master
+    [remote "team-master"]
+            url = git@github.com:django-docs-ja/django-docs-ja.git
+            fetch = +refs/heads/*:refs/remotes/team-master/*
+
+これは、 --local  -l の出力と同じ
+
+::
+
+    (djdoc)Peeko:django-docs-ja hide$ git config --local -l
+
+    core.repositoryformatversion=0
+    core.filemode=true
+    core.bare=false
+    core.logallrefupdates=true
+    core.ignorecase=true
+    remote.origin.fetch=+refs/heads/*:refs/remotes/origin/*
+    remote.origin.url=git@github.com:hdknr/django-docs-ja.git
+    branch.master.remote=origin
+    branch.master.merge=refs/heads/master
+    remote.team-master.url=git@github.com:django-docs-ja/django-docs-ja.git
+    remote.team-master.fetch=+refs/heads/*:refs/remotes/team-master/*
+
+
+ユーザーごとのデフォルトの設定ファイル
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
 - ~/.gitconfig      ユーザ−設定/いわゆる"global"
+
+:: 
+
+    (djdoc)Peeko:django-docs-ja hide$ cat ~/.gitconfig 
+
+    [user]
+            name = hdknr
+            email = gmail@hoge.com
+
+これは --global -l と同じ
+
+::
+
+    (djdoc)Peeko:django-docs-ja hide$ git config --global -l
+
+    user.name=hdknr
+    user.email=gmail@hdknr.com
+
+システムワイドの設定ファイル
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
 - $(prefix)/etc/gitconfig   システム設定
 
 ::
@@ -223,9 +303,23 @@ git config - Get and set repository or global options
     /usr/lib/git-core/git-config
     /usr/lib/git-core/git-repo-config
 
+参照するには --system -l を使います( MacのHomebrew)::
+
+    $ git config --system -l
+
+    fatal: unable to read config file '/usr/local/Cellar/git/1.7.10/etc/gitconfig': No such file or directory
+
+通常は設定されていないようです。(Debianでも確認 )
+
+
+設定ファイルの指定
+^^^^^^^^^^^^^^^^^^^^
+
+-f オプションで設定ファイルを指定することができます。
+
 
 変数
-----
+------------------------------------------------------------------------
 
 
 remote
@@ -290,7 +384,7 @@ branch
           このオプションが無くても --track / -- no-track でコントロールできる。
 
             - **false** : 手動 
-            - **true **  : 自動 ( :term:`starting point` が :term:`remote-tracking branch` の時に自動セットアップ)
+            - **true**  : 自動 ( :term:`starting point` が :term:`remote-tracking branch` の時に自動セットアップ)
             - **always** :常に ( :term:`starting point` が :term:`remote-tracking branch` だろうと :term:`local branch` だろうと自動セットアップ)  
          
     *   - branch.autosetuprebase
@@ -305,6 +399,30 @@ branch
         -  Defines, together with branch.<name>.remote, the upstream branch for the given branch. It tells git fetch/git pull/git rebase which branch to merge and can also affect git push (see push.default). When in branch <name>, it tells git fetch the default refspec to be marked for merging in FETCH_HEAD. The value is handled like the remote part of a refspec, and must match a ref which is fetched from the remote given by "branch.<name>.remote". The merge information is used by git pull (which at first calls git fetch) to lookup the default branch for merging. Without this option, git pull defaults to merge the first refspec fetched. Specify multiple values to get an octopus merge. If you wish to setup git pull so that it merges into <name> from another branch in the local repository, you can point branch.<name>.merge to the desired branch, and use the special setting . (a period) for branch.<name>.remote.
 
 
+color
+^^^^^^
+
+以下のようにしておくと良い::
+    
+    $ git config --global color.ui auto
+
+個別設定可能
+
+- color.branch
+- color.diff
+- color.interactive
+- color.status
+
+alias
+^^^^^^^^
+
+ショートカットを追加できる
+
+::
+    
+    $ git config --global alias.co "checkout"
+    $ git config --global alias.ci "commit"
+
 
 -l,--list (  list all )
 ------------------------------------------------
@@ -315,7 +433,7 @@ branch
     $ git config -l
 
     user.name=hdknr
-    user.email=gmail@hdknr.com
+    user.email=gmail@hoge.com
     core.repositoryformatversion=0
     core.filemode=true
     core.bare=false
@@ -326,14 +444,20 @@ branch
     branch.master.merge=refs/heads/master
 
 
+
 --get (get value: name [value-regex] )
 ------------------------------------------------------
+
+特定の設定値と取り出します。
 
 ::
 
     $ git config --get remote.origin.url
 
     git@github.com:hdknr/hdknr.github.com.git
+
+
+
 
 .. _git-remote: 
 
