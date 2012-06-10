@@ -7,7 +7,6 @@ http://developers.janrain.com/documentation/backplane-protocol/
 
 .. contents:: Backplane
 
-
 Protocol
 ================
 
@@ -29,9 +28,9 @@ or activities the user is sharing with social network.
 Publishing Authentication Data on Backplane
 ------------------------------------------------
 
-1. User is authenticated with a Backplane-enabled sign-in widget, such as Janrain Engage.
-2. The widget publishes a message on a Backplane Server channel.
-3. Widgets on the web page listening to the Backplane are updated.
+1. User is authenticated with a Backplane-enabled sign-in :term:`widget`, such as Janrain :term:`Engage`.
+2. The :term:`widget` publishes a :term:`message` on a :term:`Backplane Server` :term:`channel`.
+3. :term:`Widgets` on the :term:`web page` listening to the Backplane are updated.
 
 Audiences
 ---------------
@@ -206,16 +205,28 @@ Directions for version 1.2 are provided for organizations that have already inst
 Obtain Bus Name and Credentials from Capture Dashboard
 ------------------------------------------------------------------
 
-In the Capture Dashboard, this value is listed as backplane_bus. Copy this value to a text file, or write it down. You will need this later.  For Engage credentials, please contact your Janrain support representative.
+In the :term:`Capture` Dashboard, 
+this value is listed as **backplane_bus**. 
+Copy this value to a text file, or write it down. 
+You will need this later.  
+For :term:`Engage` credentials, 
+please contact your Janrain support representative.
 
-The Bus Owner credential is used by the website operator or Bus Owner to authenticate with the Backplane Server before authorizing OAuth clients (widgets) to post to their bus.
+The :term:`Bus Owner` credential is used by the website operator 
+or :term:`Bus Owner` to authenticate with the :term:`Backplane Server` 
+before authorizing OAuth clients (:term:`widgets`) to post to their :term:`bus`.
 
-The OAuth token is used by widgets to post messages on a bus. (Widgets that do not use OAuth2 can still use the Backplane 1.2 authorization procedure.)
+The OAuth token is used by :term:`widgets` to post messages on a bus. 
+(:term:`Widgets` that do not use OAuth2 can still use the Backplane 1.2 authorization procedure.)
 
 Add backplane.js
 -------------------------------------------------------
 
-Place this code in the <head> section of the webpage hosting the widgets. This script adds the library to your web page that the Backplane Server uses. Any Backplane-enabled widgets on this web page, regardless of who made them, will have access to the Backplane bus.
+Place this code in the <head> section of the webpage hosting the widgets. 
+:ref:`This script <Backplane Javascript Library>` adds the library to your web page 
+that the :term:`Backplane Server` uses. 
+Any Backplane-enabled :term:`widgets` on this web page, 
+regardless of who made them, will have access to the Backplane :term:`bus`.
 
 .. code-block:: html
 
@@ -225,7 +236,8 @@ Place this code in the <head> section of the webpage hosting the widgets. This s
 Initialize the Backplane Object
 -------------------------------------------------------
 
-Add the code below to the <body> section of the web page, replacing the busName value with the one obtained at Step 1.
+Add the code below to the <body> section of the web page, 
+replacing the **busName** value with the one obtained at Step 1.
 
 .. code-block:: html
 
@@ -256,16 +268,26 @@ Add the code below to the <body> section of the web page, replacing the busName 
     setup_bp();
     </script>
 
-This script requests a channel on the server and initializes the Backplane object and associated cookies. The process is asynchronous and does not affect web page load times.
+This script requests a :term:`channel` on the server 
+and initializes the Backplane object and associated cookies. 
+The process is asynchronous and does not affect web page load times.
 
 Configure Backplane Channel for Engage or Capture
 -------------------------------------------------------
 
-In order for the Capture or Engage widget to publish messages, it retrieves a Backplane channel from the Backplane Server.
+In order for the :term:`Capture` or :term:`Engage` :term:`widget` to publish messages, 
+it retrieves a Backplane :term:`channel` from the :term:`Backplane Server`.
 
-Because Backplane 2.0 is OAuth2 compliant, access to the Backplane Server should be through an OAuth2 access token. (You can still use the “manual” access of Backplane 1.2 if your widget is not OAuth2 compliant.) This access token is issued by the Backplane Server and is essentially a “valet key” that allows the user to access resources “owned” by a particular bus owner (in this case, your Janrain application).
+Because Backplane 2.0 is OAuth2 compliant, 
+access to the :term:`Backplane Server` should be through an OAuth2 access token. 
+(You can still use the “manual” access of Backplane 1.2 if your widget is not OAuth2 compliant.) 
 
-To initialize the Engage widget, add the following code to the <body> of the web page:
+This access token is issued by the :term:`Backplane Server` 
+and is essentially a **“valet key”** that allows the user to access resources 
+“owned” by a particular :term:`bus owner` (in this case, your Janrain application).
+
+To initialize the :term:`Engage` :term:`widget`, 
+add the following code to the <body> of the web page:
 
 .. code-block:: javascript
 
@@ -274,7 +296,8 @@ To initialize the Engage widget, add the following code to the <body> of the web
         bpListen();
     }
 
-To initialize the Capture widget, add the following code to the <body> of the web page:
+To initialize the :term:`Capture` :term:`widget`, 
+add the following code to the <body> of the web page:
 
 
 .. code-block:: javascript
@@ -285,8 +308,8 @@ To initialize the Capture widget, add the following code to the <body> of the we
      bpListen();
     }
 
-When a visitor authenticates with a Backplane-enabled service like Capture or Engage, 
-that service will publish an event to the specified Backplane channel.
+When a visitor authenticates with a Backplane-enabled service like :term:`Capture` or :term:`Engage`, 
+that service will publish an event to the specified Backplane :term:`channel`.
 
 
 Supported Widges
@@ -358,15 +381,15 @@ adding Backplane functionality to a standalone application
 or a web application (as opposed to a website). 
 
 Once implemented, 
-your widget or web app will be configured to listen to a :term:`Backplane Server` , 
+your :term:`widget` or web app will be configured to listen to a :term:`Backplane Server` , 
 and will be able to be deployed in any Backplane-enabled site.
 
 Integration Steps
 ---------------------
 
-    1. Obtain authentication credentials for your specific bus.
+    1. Obtain authentication credentials for your specific :term:`bus`.
 
-    2. Set up the application to listen for Backplane messages.
+    2. Set up the application to listen for :term:`Backplane messages`.
 
     3. Implement a logout.
 
@@ -377,6 +400,7 @@ Directions for version 1.2 are provided for legacy purposes.
 
 Flow
 ------------
+
 The following steps describe the Backplane Protocol 2.0 Flow (see Figure 1), 
 and how to integrate your application or web app with each step:
 
@@ -392,19 +416,33 @@ and how to integrate your application or web app with each step:
 Before Proceeding
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-In the Capture Dashboard,
-you need the values listed as backplane_password and backplane_bus. 
+In the :term:`Capture` Dashboard,
+you need the values listed as **backplane_password** and **backplane_bus**. 
 Copy these values to a text file, or write them down. You will need these later.
 
-For Engage credentials, please contact your Janrain support representative.
+For :term:`Engage` credentials, 
+please contact your Janrain support representative.
 
 
 1. Register for Callback
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-One of the notable differences in Backplane Protocol v2.0 from Backplane Protocol v1.2 is that the message payload (that portion of the message containing personally identifiable content) is removed from the message arriving at the non-credentialled client. The Backplane 2.0 widget listens for a message, and then requests the data to go along with the message from another server. For more information on this change in procedure, refer to Messages.
+One of the notable differences in Backplane Protocol v2.0 from Backplane Protocol v1.2 is 
+that the message payload 
+(that portion of the message containing personally identifiable content) 
+is removed from the message arriving at the non-credentialled client. 
 
-The following is sample code used to listen to the Backplane channel for ‘identity/login’ messages. Once this message type is received, this code will make a call to its server-side component, using JSONP, to fetch the portion of the payload that is important for their function. See Step 4 for details.
+The Backplane 2.0 :term:`widget` listens for a message, 
+and then requests the data to go along with the message from another server. 
+For more information on this change in procedure, refer to Messages.
+
+The following is sample code used to listen to the Backplane channel 
+for ‘identity/login’ messages. 
+Once this message type is received, 
+this code will make a call to its server-side component, using JSONP, 
+to fetch the portion of the payload that is important for their function. 
+
+See :ref:`Step 4 <backplane.step.4>` for details.
 
 .. code-block:: javascript
 
@@ -455,9 +493,10 @@ The following is sample code used to listen to the Backplane channel for ‘iden
 2. Identity/Login Published on Backplane Server Channel
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The user signs in to the website, and an Identity/Login message is published onto the Backplane Server channel.
+The user signs in to the website, 
+and an **Identity/Login** message is published onto the Backplane Server :ref:`channel`.
 
-The Engage or Capture widgets must be configured to publish this message.
+The :term:`Engage` or :term:`Capture` :term:`widgets` must be configured to publish this message.
 
 Engage Widget
 
@@ -500,6 +539,8 @@ Once included, the library facilitates the client side code for pulling, fetchin
     <script type="text/javascript"
     src="http://d134l0cdryxgwa.cloudfront.net/backplane2.js" ></script>
 
+
+.. _backplane.step.4:
 
 4. Request Payload from Backplane Server
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -617,10 +658,6 @@ Terms
 .. glossary::
     :sorted:
 
-    Widget
-    Widgets
-        (TBD)
-
     Widget Server
         Relying Party
         (TBD)
@@ -696,6 +733,20 @@ Terms
         The individual adding the :term:`Backplane Protocol` to a website, 
         namely adding code to enable a :term:`Backplane Server`.
 
+    Engage
+        :term:`Janrain` Engage enables sites to provide a convenient and secure way to sign up and sign in. 
+        `Formerly known as RPX <http://en.wikipedia.org/wiki/Janrain> `_.
+        ( http://developers.janrain.com/documentation/engage/ )
+
+
+    Capture
+        Social Data Storage. 
+        http://janrain.com/products/capture/
+
+    Janrain
+        - http://janrain.com/
+        - http://en.wikipedia.org/wiki/Janrain
+
 
 ===============
 Backplane 2.0
@@ -725,10 +776,12 @@ Backplane 2.0
 
 .. include:: backplane/5.rst
 
+.. _Regular Access:
 .. _backplane.5.1:
 
 .. include:: backplane/5.1.rst
 
+.. _Privileged Access:
 .. _backplane.5.2:
 
 .. include:: backplane/5.2.rst
