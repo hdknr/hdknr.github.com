@@ -303,6 +303,7 @@ exclude_patterns = ['oauth/*.rst',
                     'python/*.rst',
                     'csharp/*.rst',
                     'common/*.rst',
+                    'backplane/*.rst',
                     ]
 #
 # GETTEXT
