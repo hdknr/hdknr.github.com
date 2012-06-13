@@ -25,10 +25,6 @@
         - string  
         - URL of the OP's UserInfo Endpoint [OpenID.Messages]
 
-    *   - check_id_endpoint   
-        - string  
-        - URL of the OP's Check ID Endpoint [OpenID.Messages]
-
     *   - refresh_session_endpoint    
         - string  
         - URL of the OP's Refresh Session Endpoint [OpenID.Session]

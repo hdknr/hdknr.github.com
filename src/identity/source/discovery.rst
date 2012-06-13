@@ -8,7 +8,7 @@ Based on `OpenID Connect Discovery 1.0 - draft 07 <http://openid.bitbucket.org/o
 
 .. todo::
 
-    Section 5 and 6 is TBD.
+    - May 25, 2012, Draft 09
 
 .. _discovery.abstract:
 

@@ -10,6 +10,9 @@ This specification provides a mechanism for the OpenID Connect :term:`client`
 to discover the :term:`user <End-User>`'s :term:`OpenID Provider` 
 as well as the necessary endpoints used by the OpenID Connect protocol suite.
 
-(draft 07 , Dec 22,2011)
+
+.. note::
+
+    -   May 25, 2012, Draft 09 is available
 
 
