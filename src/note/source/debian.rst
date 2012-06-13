@@ -72,3 +72,32 @@ sshキー作成::
 一覧::
 
     $ find /usr/share/ca-certificates/ -name "*.crt" -print | while read C ; do echo "***" `basename $C` ; openssl x509 -noout -in $C -subject; done > cert.list 
+
+キーサーバー
+----------------
+
+キーサーバーが古くてパッケージレポジトリの更新が出来ない::
+
+    W: 署名照合中にエラーが発生しました。リポジトリは更新されず、過去のインデックスファイルが使われます。
+    GPG エラー: http://packages.groonga.org squeeze Release: 公開鍵を利用できないため、以下の署名は検証できませんでした
+    : NO_PUBKEY 72A7496B45499429
+
+キーをインストールする (キーサーバーによっては存在しない場合があるので注意 )
+
+.. code-block:: bash
+
+    $ sudo gpg --keyserver pgp.mit.edu  --recv-keys 72A7496B4549942
+
+インストールされたキーの一覧
+
+.. code-block:: bash
+
+    $ sudo apt-key list
+
+キーの更新
+
+.. code-block:: bash
+
+    $ sudo gpg --armor --export 72A7496B45499429 | sudo apt-key add -
+
+

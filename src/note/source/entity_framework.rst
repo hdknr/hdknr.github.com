@@ -448,6 +448,16 @@ SQL Server(Express)だと "Initial Catalog" がデータベース名になりま
 
 これで `Update-Database`_ コマンドを実行すると、(存在しなかったら)データベースを作成してMigrationコードを実行します。
 
+Tools & Libraries
+========================
+
+- NuGet
+- JSON.Net
+- RestSharp ( https://github.com/restsharp/RestSharp.git )
+- HtmlAgilePack
+- Moq ( https://github.com/Moq )
+- BouncyCastle
+
 How To
 ===================
 
