@@ -105,6 +105,8 @@ Others
     todo
     resource
     discussion
+        
+    signed_nonce
 
 RFC
 ------------
