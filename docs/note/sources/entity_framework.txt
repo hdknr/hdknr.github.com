@@ -455,7 +455,7 @@ Tools & Libraries
 - JSON.Net
 - RestSharp ( https://github.com/restsharp/RestSharp.git )
 - HtmlAgilePack
-- Moq ( https://github.com/Moq )
+- :doc:`Moq <moq>` ( https://github.com/Moq )
 - BouncyCastle
 
 How To
