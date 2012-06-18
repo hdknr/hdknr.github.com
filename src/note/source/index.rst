@@ -70,6 +70,7 @@ Windows:
 
     active_directory
     entity_framework
+    viewengine
     moq
     
 Indices and tables
