@@ -77,6 +77,7 @@ Related
 
     webfinger
     swd
+    lrdd
     revoke
 
     nist-sp-800-63 
