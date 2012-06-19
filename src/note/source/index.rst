@@ -19,6 +19,8 @@ Misc
     aws
     json
 
+    glossary
+
 Security:
 
 .. toctree::

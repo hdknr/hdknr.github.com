@@ -75,6 +75,7 @@ Related
 
     backplane 
 
+    webfinger
     swd
     revoke
 
