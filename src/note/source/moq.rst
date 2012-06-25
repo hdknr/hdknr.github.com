@@ -4,6 +4,19 @@ Moq
 
 .. contents:: Moq
 
+Resource
+===========
+
+- `Github/Moq <https://github.com/Moq>`_
+- `NuGet Moq <http://nuget.org/packages/moq>`_
+
+Install
+--------
+
+::
+
+    PM> Install-Package Moq 
+
 
 ASP.NET MVCコントローラのモック
 ==========================================

@@ -2,6 +2,8 @@
 Python
 ======================
 
+.. contents:: Python
+
 Install
 =========
 
@@ -11,6 +13,16 @@ Install
     Squeeze$ echo PIL supporting library
     Squeeze$ sudo aptitude install libjpeg8 libjpeg8-dev  libfreetype6 libfreetype6-dev liblcms1-dev  python-liblcms python-tk  tcl8.5-dev tk8.5-dev -y
 
+
+Encoding
+==========
+
+ソースコード
+------------------
+
+.. code-block:: python
+
+    # -*- coding: utf-8 -*-
 
 
 プロパティ

@@ -576,6 +576,10 @@ Others
 ========
 
 .. glossary::
+   :sorted:
+
+    MTI
+        Mandatory to Implement
 
     Direct Communication
         Direct communication is a Client to Server communication which does not pass through the User-Agent.

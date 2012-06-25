@@ -198,3 +198,8 @@ Based on `OpenID Connect Basic Client 1.0 - draft 15(October 30, 2011) <http://o
 
 .. include:: basic/10.rst
 
+
+Claims
+==========================
+
+.. include:: common/claims.rst 
