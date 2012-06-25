@@ -18,6 +18,7 @@ Misc
     cookie
     aws
     json
+    service
 
     glossary
 
@@ -74,6 +75,8 @@ Windows:
     entity_framework
     viewengine
     moq
+    jsonnet
+    reflection
     
 Indices and tables
 ==================
