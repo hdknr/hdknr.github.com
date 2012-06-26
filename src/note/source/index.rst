@@ -19,6 +19,7 @@ Misc
     aws
     json
     service
+    mongodb
 
     glossary
 
@@ -55,6 +56,7 @@ Linux Commands:
     user
     debian
     sudo
+    logging
 
     memo
 
