@@ -23,3 +23,12 @@ CentOS apach
             /sbin/service httpd reload > /dev/null 2>/dev/null || true
         endscript
     }
+
+オプション
+-----------
+
+dateext
+^^^^^^^^^
+
+ローテーションのサフィックスを日付にしてくれる。書式は dateformat オプション。
+logroate.confのグローバルスコープにおくとデフォルト日付サフィックスになる模様。

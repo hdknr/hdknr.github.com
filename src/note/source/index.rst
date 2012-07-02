@@ -20,6 +20,7 @@ Misc
     json
     service
     mongodb
+    smb
 
     glossary
 
@@ -33,6 +34,7 @@ Security:
     openssl
     ecc
     connect
+    aes
 
 Tools:
 
