@@ -10,7 +10,7 @@ django.conf.locale
 ==================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/conf/locale/__init__.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/conf/locale/__init__.py>`_ 
 
 .. include:: cheat/django.conf.locale.rst
 
@@ -109,8 +109,6 @@ Sub
 - :doc:`django.conf.locale.nl`
 
 - :doc:`django.conf.locale.nn`
-
-- :doc:`django.conf.locale.no`
 
 - :doc:`django.conf.locale.pl`
 

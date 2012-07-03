@@ -10,7 +10,7 @@ django.contrib.staticfiles.management
 =====================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/staticfiles/management/__init__.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/staticfiles/management/__init__.py>`_ 
 
 .. include:: cheat/django.contrib.staticfiles.management.rst
 

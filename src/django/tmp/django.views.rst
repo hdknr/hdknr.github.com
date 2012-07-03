@@ -10,7 +10,7 @@ django.views
 ============
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/views/__init__.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/views/__init__.py>`_ 
 
 .. include:: cheat/django.views.rst
 
@@ -32,7 +32,7 @@ django.views.csrf
 =================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/views/csrf.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/views/csrf.py>`_ 
 
 .. include:: cheat/django.views.csrf.rst
 
@@ -45,7 +45,7 @@ django.views.debug
 ==================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/views/debug.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/views/debug.py>`_ 
 
 .. include:: cheat/django.views.debug.rst
 
@@ -58,7 +58,7 @@ django.views.defaults
 =====================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/views/defaults.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/views/defaults.py>`_ 
 
 .. include:: cheat/django.views.defaults.rst
 
@@ -71,7 +71,7 @@ django.views.i18n
 =================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/views/i18n.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/views/i18n.py>`_ 
 
 .. include:: cheat/django.views.i18n.rst
 
@@ -84,7 +84,7 @@ django.views.static
 ===================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/views/static.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/views/static.py>`_ 
 
 .. include:: cheat/django.views.static.rst
 

@@ -10,7 +10,7 @@ django.contrib.sessions
 =======================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/sessions/__init__.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/sessions/__init__.py>`_ 
 
 .. include:: cheat/django.contrib.sessions.rst
 
@@ -30,7 +30,7 @@ django.contrib.sessions.middleware
 ==================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/sessions/middleware.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/sessions/middleware.py>`_ 
 
 .. include:: cheat/django.contrib.sessions.middleware.rst
 
@@ -43,7 +43,7 @@ django.contrib.sessions.models
 ==============================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/sessions/models.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/sessions/models.py>`_ 
 
 .. include:: cheat/django.contrib.sessions.models.rst
 
@@ -56,7 +56,7 @@ django.contrib.sessions.tests
 =============================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/sessions/tests.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/sessions/tests.py>`_ 
 
 .. include:: cheat/django.contrib.sessions.tests.rst
 

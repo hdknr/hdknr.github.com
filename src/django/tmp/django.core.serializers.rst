@@ -10,7 +10,7 @@ django.core.serializers
 =======================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/core/serializers/__init__.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/core/serializers/__init__.py>`_ 
 
 .. include:: cheat/django.core.serializers.rst
 
@@ -25,7 +25,7 @@ django.core.serializers.base
 ============================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/core/serializers/base.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/core/serializers/base.py>`_ 
 
 .. include:: cheat/django.core.serializers.base.rst
 
@@ -38,7 +38,7 @@ django.core.serializers.json
 ============================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/core/serializers/json.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/core/serializers/json.py>`_ 
 
 .. include:: cheat/django.core.serializers.json.rst
 
@@ -51,7 +51,7 @@ django.core.serializers.python
 ==============================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/core/serializers/python.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/core/serializers/python.py>`_ 
 
 .. include:: cheat/django.core.serializers.python.rst
 
@@ -64,7 +64,7 @@ django.core.serializers.pyyaml
 ==============================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/core/serializers/pyyaml.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/core/serializers/pyyaml.py>`_ 
 
 .. include:: cheat/django.core.serializers.pyyaml.rst
 
@@ -77,7 +77,7 @@ django.core.serializers.xml_serializer
 ======================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/core/serializers/xml_serializer.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/core/serializers/xml_serializer.py>`_ 
 
 .. include:: cheat/django.core.serializers.xml_serializer.rst
 

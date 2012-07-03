@@ -10,7 +10,7 @@ django.db.backends
 ==================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/db/backends/__init__.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/db/backends/__init__.py>`_ 
 
 .. include:: cheat/django.db.backends.rst
 
@@ -28,8 +28,6 @@ Sub
 
 - :doc:`django.db.backends.oracle`
 
-- :doc:`django.db.backends.postgresql`
-
 - :doc:`django.db.backends.postgresql_psycopg2`
 
 - :doc:`django.db.backends.sqlite3`
@@ -40,7 +38,7 @@ django.db.backends.creation
 ===========================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/db/backends/creation.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/db/backends/creation.py>`_ 
 
 .. include:: cheat/django.db.backends.creation.rst
 
@@ -53,7 +51,7 @@ django.db.backends.signals
 ==========================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/db/backends/signals.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/db/backends/signals.py>`_ 
 
 .. include:: cheat/django.db.backends.signals.rst
 
@@ -66,7 +64,7 @@ django.db.backends.util
 =======================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/db/backends/util.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/db/backends/util.py>`_ 
 
 .. include:: cheat/django.db.backends.util.rst
 

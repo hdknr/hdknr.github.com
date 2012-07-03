@@ -10,7 +10,7 @@ django.contrib
 ==============
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/__init__.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/__init__.py>`_ 
 
 .. include:: cheat/django.contrib.rst
 
@@ -31,8 +31,6 @@ Sub
 - :doc:`django.contrib.comments`
 
 - :doc:`django.contrib.contenttypes`
-
-- :doc:`django.contrib.csrf`
 
 - :doc:`django.contrib.databrowse`
 

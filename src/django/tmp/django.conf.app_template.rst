@@ -10,7 +10,7 @@ django.conf.app_template
 ========================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/conf/app_template/__init__.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/conf/app_template/__init__.py>`_ 
 
 .. include:: cheat/django.conf.app_template.rst
 
@@ -25,7 +25,7 @@ django.conf.app_template.models
 ===============================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/conf/app_template/models.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/conf/app_template/models.py>`_ 
 
 .. include:: cheat/django.conf.app_template.models.rst
 
@@ -38,7 +38,7 @@ django.conf.app_template.tests
 ==============================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/conf/app_template/tests.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/conf/app_template/tests.py>`_ 
 
 .. include:: cheat/django.conf.app_template.tests.rst
 
@@ -51,7 +51,7 @@ django.conf.app_template.views
 ==============================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/conf/app_template/views.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/conf/app_template/views.py>`_ 
 
 .. include:: cheat/django.conf.app_template.views.rst
 

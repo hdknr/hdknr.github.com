@@ -10,7 +10,7 @@ django.contrib.gis.maps
 =======================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/maps/__init__.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/maps/__init__.py>`_ 
 
 .. include:: cheat/django.contrib.gis.maps.rst
 

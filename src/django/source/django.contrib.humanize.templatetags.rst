@@ -10,7 +10,7 @@ django.contrib.humanize.templatetags
 ====================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/humanize/templatetags/__init__.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/humanize/templatetags/__init__.py>`_ 
 
 .. include:: cheat/django.contrib.humanize.templatetags.rst
 
@@ -25,7 +25,7 @@ django.contrib.humanize.templatetags.humanize
 =============================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/humanize/templatetags/humanize.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/humanize/templatetags/humanize.py>`_ 
 
 .. include:: cheat/django.contrib.humanize.templatetags.humanize.rst
 

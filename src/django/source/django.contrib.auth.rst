@@ -10,7 +10,7 @@ django.contrib.auth
 ===================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/auth/__init__.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/auth/__init__.py>`_ 
 
 .. include:: cheat/django.contrib.auth.rst
 
@@ -34,7 +34,7 @@ django.contrib.auth.admin
 =========================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/auth/admin.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/auth/admin.py>`_ 
 
 .. include:: cheat/django.contrib.auth.admin.rst
 
@@ -47,7 +47,7 @@ django.contrib.auth.backends
 ============================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/auth/backends.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/auth/backends.py>`_ 
 
 .. include:: cheat/django.contrib.auth.backends.rst
 
@@ -60,7 +60,7 @@ django.contrib.auth.context_processors
 ======================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/auth/context_processors.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/auth/context_processors.py>`_ 
 
 .. include:: cheat/django.contrib.auth.context_processors.rst
 
@@ -73,7 +73,7 @@ django.contrib.auth.create_superuser
 ====================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/auth/create_superuser.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/auth/create_superuser.py>`_ 
 
 .. include:: cheat/django.contrib.auth.create_superuser.rst
 
@@ -86,7 +86,7 @@ django.contrib.auth.decorators
 ==============================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/auth/decorators.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/auth/decorators.py>`_ 
 
 .. include:: cheat/django.contrib.auth.decorators.rst
 
@@ -99,11 +99,24 @@ django.contrib.auth.forms
 =========================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/auth/forms.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/auth/forms.py>`_ 
 
 .. include:: cheat/django.contrib.auth.forms.rst
 
 .. automodule:: django.contrib.auth.forms
+    :members:
+
+.. _django.contrib.auth.hashers:
+
+django.contrib.auth.hashers
+===========================
+
+
+- `source <https://github.com/django/django/tree/master/django/contrib/auth/hashers.py>`_ 
+
+.. include:: cheat/django.contrib.auth.hashers.rst
+
+.. automodule:: django.contrib.auth.hashers
     :members:
 
 .. _django.contrib.auth.middleware:
@@ -112,7 +125,7 @@ django.contrib.auth.middleware
 ==============================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/auth/middleware.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/auth/middleware.py>`_ 
 
 .. include:: cheat/django.contrib.auth.middleware.rst
 
@@ -125,7 +138,7 @@ django.contrib.auth.models
 ==========================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/auth/models.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/auth/models.py>`_ 
 
 .. include:: cheat/django.contrib.auth.models.rst
 
@@ -138,7 +151,7 @@ django.contrib.auth.signals
 ===========================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/auth/signals.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/auth/signals.py>`_ 
 
 .. include:: cheat/django.contrib.auth.signals.rst
 
@@ -151,7 +164,7 @@ django.contrib.auth.tokens
 ==========================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/auth/tokens.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/auth/tokens.py>`_ 
 
 .. include:: cheat/django.contrib.auth.tokens.rst
 
@@ -164,7 +177,7 @@ django.contrib.auth.urls
 ========================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/auth/urls.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/auth/urls.py>`_ 
 
 .. include:: cheat/django.contrib.auth.urls.rst
 
@@ -177,7 +190,7 @@ django.contrib.auth.views
 =========================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/auth/views.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/auth/views.py>`_ 
 
 .. include:: cheat/django.contrib.auth.views.rst
 

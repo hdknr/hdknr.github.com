@@ -10,7 +10,7 @@ django.contrib.flatpages.templatetags
 =====================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/flatpages/templatetags/__init__.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/flatpages/templatetags/__init__.py>`_ 
 
 .. include:: cheat/django.contrib.flatpages.templatetags.rst
 
@@ -25,7 +25,7 @@ django.contrib.flatpages.templatetags.flatpages
 ===============================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/flatpages/templatetags/flatpages.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/flatpages/templatetags/flatpages.py>`_ 
 
 .. include:: cheat/django.contrib.flatpages.templatetags.flatpages.rst
 

@@ -10,7 +10,7 @@ django.conf.urls
 ================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/conf/urls/__init__.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/conf/urls/__init__.py>`_ 
 
 .. include:: cheat/django.conf.urls.rst
 
@@ -25,7 +25,7 @@ django.conf.urls.defaults
 =========================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/conf/urls/defaults.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/conf/urls/defaults.py>`_ 
 
 .. include:: cheat/django.conf.urls.defaults.rst
 
@@ -38,7 +38,7 @@ django.conf.urls.i18n
 =====================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/conf/urls/i18n.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/conf/urls/i18n.py>`_ 
 
 .. include:: cheat/django.conf.urls.i18n.rst
 
@@ -51,7 +51,7 @@ django.conf.urls.shortcut
 =========================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/conf/urls/shortcut.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/conf/urls/shortcut.py>`_ 
 
 .. include:: cheat/django.conf.urls.shortcut.rst
 
@@ -64,7 +64,7 @@ django.conf.urls.static
 =======================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/conf/urls/static.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/conf/urls/static.py>`_ 
 
 .. include:: cheat/django.conf.urls.static.rst
 

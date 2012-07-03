@@ -10,7 +10,7 @@ django.dispatch
 ===============
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/dispatch/__init__.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/dispatch/__init__.py>`_ 
 
 .. include:: cheat/django.dispatch.rst
 
@@ -25,7 +25,7 @@ django.dispatch.dispatcher
 ==========================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/dispatch/dispatcher.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/dispatch/dispatcher.py>`_ 
 
 .. include:: cheat/django.dispatch.dispatcher.rst
 
@@ -38,7 +38,7 @@ django.dispatch.saferef
 =======================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/dispatch/saferef.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/dispatch/saferef.py>`_ 
 
 .. include:: cheat/django.dispatch.saferef.rst
 

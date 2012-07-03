@@ -10,7 +10,7 @@ django.core.mail
 ================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/core/mail/__init__.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/core/mail/__init__.py>`_ 
 
 .. include:: cheat/django.core.mail.rst
 
@@ -25,7 +25,7 @@ django.core.mail.message
 ========================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/core/mail/message.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/core/mail/message.py>`_ 
 
 .. include:: cheat/django.core.mail.message.rst
 
@@ -38,7 +38,7 @@ django.core.mail.utils
 ======================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/core/mail/utils.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/core/mail/utils.py>`_ 
 
 .. include:: cheat/django.core.mail.utils.rst
 

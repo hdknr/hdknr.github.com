@@ -10,7 +10,7 @@ django.conf.locale.zh_TW
 ========================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/conf/locale/zh_TW/__init__.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/conf/locale/zh_TW/__init__.py>`_ 
 
 .. include:: cheat/django.conf.locale.zh_TW.rst
 
@@ -25,7 +25,7 @@ django.conf.locale.zh_TW.formats
 ================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/conf/locale/zh_TW/formats.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/conf/locale/zh_TW/formats.py>`_ 
 
 .. include:: cheat/django.conf.locale.zh_TW.formats.rst
 

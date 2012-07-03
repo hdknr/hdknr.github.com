@@ -10,7 +10,7 @@ django.contrib.gis.gdal.prototypes
 ==================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/gdal/prototypes/__init__.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/gdal/prototypes/__init__.py>`_ 
 
 .. include:: cheat/django.contrib.gis.gdal.prototypes.rst
 
@@ -25,7 +25,7 @@ django.contrib.gis.gdal.prototypes.ds
 =====================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/gdal/prototypes/ds.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/gdal/prototypes/ds.py>`_ 
 
 .. include:: cheat/django.contrib.gis.gdal.prototypes.ds.rst
 
@@ -38,7 +38,7 @@ django.contrib.gis.gdal.prototypes.errcheck
 ===========================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/gdal/prototypes/errcheck.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/gdal/prototypes/errcheck.py>`_ 
 
 .. include:: cheat/django.contrib.gis.gdal.prototypes.errcheck.rst
 
@@ -51,7 +51,7 @@ django.contrib.gis.gdal.prototypes.generation
 =============================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/gdal/prototypes/generation.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/gdal/prototypes/generation.py>`_ 
 
 .. include:: cheat/django.contrib.gis.gdal.prototypes.generation.rst
 
@@ -64,7 +64,7 @@ django.contrib.gis.gdal.prototypes.geom
 =======================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/gdal/prototypes/geom.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/gdal/prototypes/geom.py>`_ 
 
 .. include:: cheat/django.contrib.gis.gdal.prototypes.geom.rst
 
@@ -77,7 +77,7 @@ django.contrib.gis.gdal.prototypes.srs
 ======================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/gdal/prototypes/srs.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/gdal/prototypes/srs.py>`_ 
 
 .. include:: cheat/django.contrib.gis.gdal.prototypes.srs.rst
 

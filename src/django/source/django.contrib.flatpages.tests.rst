@@ -10,7 +10,7 @@ django.contrib.flatpages.tests
 ==============================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/flatpages/tests/__init__.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/flatpages/tests/__init__.py>`_ 
 
 .. include:: cheat/django.contrib.flatpages.tests.rst
 
@@ -25,7 +25,7 @@ django.contrib.flatpages.tests.csrf
 ===================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/flatpages/tests/csrf.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/flatpages/tests/csrf.py>`_ 
 
 .. include:: cheat/django.contrib.flatpages.tests.csrf.rst
 
@@ -38,7 +38,7 @@ django.contrib.flatpages.tests.forms
 ====================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/flatpages/tests/forms.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/flatpages/tests/forms.py>`_ 
 
 .. include:: cheat/django.contrib.flatpages.tests.forms.rst
 
@@ -51,7 +51,7 @@ django.contrib.flatpages.tests.middleware
 =========================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/flatpages/tests/middleware.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/flatpages/tests/middleware.py>`_ 
 
 .. include:: cheat/django.contrib.flatpages.tests.middleware.rst
 
@@ -64,7 +64,7 @@ django.contrib.flatpages.tests.templatetags
 ===========================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/flatpages/tests/templatetags.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/flatpages/tests/templatetags.py>`_ 
 
 .. include:: cheat/django.contrib.flatpages.tests.templatetags.rst
 
@@ -77,7 +77,7 @@ django.contrib.flatpages.tests.urls
 ===================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/flatpages/tests/urls.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/flatpages/tests/urls.py>`_ 
 
 .. include:: cheat/django.contrib.flatpages.tests.urls.rst
 
@@ -90,7 +90,7 @@ django.contrib.flatpages.tests.views
 ====================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/flatpages/tests/views.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/flatpages/tests/views.py>`_ 
 
 .. include:: cheat/django.contrib.flatpages.tests.views.rst
 

@@ -10,7 +10,7 @@ django.core.management.commands
 ===============================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/core/management/commands/__init__.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/core/management/commands/__init__.py>`_ 
 
 .. include:: cheat/django.core.management.commands.rst
 
@@ -25,7 +25,7 @@ django.core.management.commands.cleanup
 =======================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/core/management/commands/cleanup.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/core/management/commands/cleanup.py>`_ 
 
 .. include:: cheat/django.core.management.commands.cleanup.rst
 
@@ -38,7 +38,7 @@ django.core.management.commands.compilemessages
 ===============================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/core/management/commands/compilemessages.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/core/management/commands/compilemessages.py>`_ 
 
 .. include:: cheat/django.core.management.commands.compilemessages.rst
 
@@ -51,7 +51,7 @@ django.core.management.commands.createcachetable
 ================================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/core/management/commands/createcachetable.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/core/management/commands/createcachetable.py>`_ 
 
 .. include:: cheat/django.core.management.commands.createcachetable.rst
 
@@ -64,7 +64,7 @@ django.core.management.commands.dbshell
 =======================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/core/management/commands/dbshell.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/core/management/commands/dbshell.py>`_ 
 
 .. include:: cheat/django.core.management.commands.dbshell.rst
 
@@ -77,7 +77,7 @@ django.core.management.commands.diffsettings
 ============================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/core/management/commands/diffsettings.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/core/management/commands/diffsettings.py>`_ 
 
 .. include:: cheat/django.core.management.commands.diffsettings.rst
 
@@ -90,7 +90,7 @@ django.core.management.commands.dumpdata
 ========================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/core/management/commands/dumpdata.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/core/management/commands/dumpdata.py>`_ 
 
 .. include:: cheat/django.core.management.commands.dumpdata.rst
 
@@ -103,7 +103,7 @@ django.core.management.commands.flush
 =====================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/core/management/commands/flush.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/core/management/commands/flush.py>`_ 
 
 .. include:: cheat/django.core.management.commands.flush.rst
 
@@ -116,7 +116,7 @@ django.core.management.commands.inspectdb
 =========================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/core/management/commands/inspectdb.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/core/management/commands/inspectdb.py>`_ 
 
 .. include:: cheat/django.core.management.commands.inspectdb.rst
 
@@ -129,7 +129,7 @@ django.core.management.commands.loaddata
 ========================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/core/management/commands/loaddata.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/core/management/commands/loaddata.py>`_ 
 
 .. include:: cheat/django.core.management.commands.loaddata.rst
 
@@ -142,7 +142,7 @@ django.core.management.commands.makemessages
 ============================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/core/management/commands/makemessages.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/core/management/commands/makemessages.py>`_ 
 
 .. include:: cheat/django.core.management.commands.makemessages.rst
 
@@ -155,7 +155,7 @@ django.core.management.commands.reset
 =====================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/core/management/commands/reset.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/core/management/commands/reset.py>`_ 
 
 .. include:: cheat/django.core.management.commands.reset.rst
 
@@ -168,7 +168,7 @@ django.core.management.commands.runfcgi
 =======================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/core/management/commands/runfcgi.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/core/management/commands/runfcgi.py>`_ 
 
 .. include:: cheat/django.core.management.commands.runfcgi.rst
 
@@ -181,7 +181,7 @@ django.core.management.commands.runserver
 =========================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/core/management/commands/runserver.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/core/management/commands/runserver.py>`_ 
 
 .. include:: cheat/django.core.management.commands.runserver.rst
 
@@ -194,7 +194,7 @@ django.core.management.commands.shell
 =====================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/core/management/commands/shell.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/core/management/commands/shell.py>`_ 
 
 .. include:: cheat/django.core.management.commands.shell.rst
 
@@ -207,7 +207,7 @@ django.core.management.commands.sql
 ===================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/core/management/commands/sql.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/core/management/commands/sql.py>`_ 
 
 .. include:: cheat/django.core.management.commands.sql.rst
 
@@ -220,7 +220,7 @@ django.core.management.commands.sqlall
 ======================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/core/management/commands/sqlall.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/core/management/commands/sqlall.py>`_ 
 
 .. include:: cheat/django.core.management.commands.sqlall.rst
 
@@ -233,7 +233,7 @@ django.core.management.commands.sqlclear
 ========================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/core/management/commands/sqlclear.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/core/management/commands/sqlclear.py>`_ 
 
 .. include:: cheat/django.core.management.commands.sqlclear.rst
 
@@ -246,7 +246,7 @@ django.core.management.commands.sqlcustom
 =========================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/core/management/commands/sqlcustom.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/core/management/commands/sqlcustom.py>`_ 
 
 .. include:: cheat/django.core.management.commands.sqlcustom.rst
 
@@ -259,7 +259,7 @@ django.core.management.commands.sqlflush
 ========================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/core/management/commands/sqlflush.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/core/management/commands/sqlflush.py>`_ 
 
 .. include:: cheat/django.core.management.commands.sqlflush.rst
 
@@ -272,7 +272,7 @@ django.core.management.commands.sqlindexes
 ==========================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/core/management/commands/sqlindexes.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/core/management/commands/sqlindexes.py>`_ 
 
 .. include:: cheat/django.core.management.commands.sqlindexes.rst
 
@@ -285,7 +285,7 @@ django.core.management.commands.sqlinitialdata
 ==============================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/core/management/commands/sqlinitialdata.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/core/management/commands/sqlinitialdata.py>`_ 
 
 .. include:: cheat/django.core.management.commands.sqlinitialdata.rst
 
@@ -298,7 +298,7 @@ django.core.management.commands.sqlreset
 ========================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/core/management/commands/sqlreset.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/core/management/commands/sqlreset.py>`_ 
 
 .. include:: cheat/django.core.management.commands.sqlreset.rst
 
@@ -311,7 +311,7 @@ django.core.management.commands.sqlsequencereset
 ================================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/core/management/commands/sqlsequencereset.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/core/management/commands/sqlsequencereset.py>`_ 
 
 .. include:: cheat/django.core.management.commands.sqlsequencereset.rst
 
@@ -324,7 +324,7 @@ django.core.management.commands.startapp
 ========================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/core/management/commands/startapp.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/core/management/commands/startapp.py>`_ 
 
 .. include:: cheat/django.core.management.commands.startapp.rst
 
@@ -337,7 +337,7 @@ django.core.management.commands.startproject
 ============================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/core/management/commands/startproject.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/core/management/commands/startproject.py>`_ 
 
 .. include:: cheat/django.core.management.commands.startproject.rst
 
@@ -350,7 +350,7 @@ django.core.management.commands.syncdb
 ======================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/core/management/commands/syncdb.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/core/management/commands/syncdb.py>`_ 
 
 .. include:: cheat/django.core.management.commands.syncdb.rst
 
@@ -363,7 +363,7 @@ django.core.management.commands.test
 ====================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/core/management/commands/test.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/core/management/commands/test.py>`_ 
 
 .. include:: cheat/django.core.management.commands.test.rst
 
@@ -376,7 +376,7 @@ django.core.management.commands.testserver
 ==========================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/core/management/commands/testserver.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/core/management/commands/testserver.py>`_ 
 
 .. include:: cheat/django.core.management.commands.testserver.rst
 
@@ -389,7 +389,7 @@ django.core.management.commands.validate
 ========================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/core/management/commands/validate.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/core/management/commands/validate.py>`_ 
 
 .. include:: cheat/django.core.management.commands.validate.rst
 

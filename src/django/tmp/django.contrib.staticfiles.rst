@@ -10,7 +10,7 @@ django.contrib.staticfiles
 ==========================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/staticfiles/__init__.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/staticfiles/__init__.py>`_ 
 
 .. include:: cheat/django.contrib.staticfiles.rst
 
@@ -19,13 +19,20 @@ django.contrib.staticfiles
     :members:
 
 
+Sub
+====
+
+- :doc:`django.contrib.staticfiles.management`
+
+- :doc:`django.contrib.staticfiles.templatetags`
+
 .. _django.contrib.staticfiles.finders:
 
 django.contrib.staticfiles.finders
 ==================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/staticfiles/finders.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/staticfiles/finders.py>`_ 
 
 .. include:: cheat/django.contrib.staticfiles.finders.rst
 
@@ -38,7 +45,7 @@ django.contrib.staticfiles.handlers
 ===================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/staticfiles/handlers.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/staticfiles/handlers.py>`_ 
 
 .. include:: cheat/django.contrib.staticfiles.handlers.rst
 
@@ -51,7 +58,7 @@ django.contrib.staticfiles.models
 =================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/staticfiles/models.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/staticfiles/models.py>`_ 
 
 .. include:: cheat/django.contrib.staticfiles.models.rst
 
@@ -64,7 +71,7 @@ django.contrib.staticfiles.storage
 ==================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/staticfiles/storage.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/staticfiles/storage.py>`_ 
 
 .. include:: cheat/django.contrib.staticfiles.storage.rst
 
@@ -77,7 +84,7 @@ django.contrib.staticfiles.urls
 ===============================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/staticfiles/urls.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/staticfiles/urls.py>`_ 
 
 .. include:: cheat/django.contrib.staticfiles.urls.rst
 
@@ -90,7 +97,7 @@ django.contrib.staticfiles.utils
 ================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/staticfiles/utils.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/staticfiles/utils.py>`_ 
 
 .. include:: cheat/django.contrib.staticfiles.utils.rst
 
@@ -103,7 +110,7 @@ django.contrib.staticfiles.views
 ================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/staticfiles/views.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/staticfiles/views.py>`_ 
 
 .. include:: cheat/django.contrib.staticfiles.views.rst
 

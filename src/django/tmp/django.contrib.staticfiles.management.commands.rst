@@ -10,7 +10,7 @@ django.contrib.staticfiles.management.commands
 ==============================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/staticfiles/management/commands/__init__.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/staticfiles/management/commands/__init__.py>`_ 
 
 .. include:: cheat/django.contrib.staticfiles.management.commands.rst
 
@@ -25,7 +25,7 @@ django.contrib.staticfiles.management.commands.collectstatic
 ============================================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/staticfiles/management/commands/collectstatic.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/staticfiles/management/commands/collectstatic.py>`_ 
 
 .. include:: cheat/django.contrib.staticfiles.management.commands.collectstatic.rst
 
@@ -38,7 +38,7 @@ django.contrib.staticfiles.management.commands.findstatic
 =========================================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/staticfiles/management/commands/findstatic.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/staticfiles/management/commands/findstatic.py>`_ 
 
 .. include:: cheat/django.contrib.staticfiles.management.commands.findstatic.rst
 
@@ -51,7 +51,7 @@ django.contrib.staticfiles.management.commands.runserver
 ========================================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/staticfiles/management/commands/runserver.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/staticfiles/management/commands/runserver.py>`_ 
 
 .. include:: cheat/django.contrib.staticfiles.management.commands.runserver.rst
 

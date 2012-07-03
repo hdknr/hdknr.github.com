@@ -10,7 +10,7 @@ django.contrib.localflavor
 ==========================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/localflavor/__init__.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/localflavor/__init__.py>`_ 
 
 .. include:: cheat/django.contrib.localflavor.rst
 
@@ -38,9 +38,15 @@ Sub
 
 - :doc:`django.contrib.localflavor.cl`
 
+- :doc:`django.contrib.localflavor.cn`
+
+- :doc:`django.contrib.localflavor.co`
+
 - :doc:`django.contrib.localflavor.cz`
 
 - :doc:`django.contrib.localflavor.de`
+
+- :doc:`django.contrib.localflavor.ec`
 
 - :doc:`django.contrib.localflavor.es`
 
@@ -48,7 +54,11 @@ Sub
 
 - :doc:`django.contrib.localflavor.fr`
 
+- :doc:`django.contrib.localflavor.gb`
+
 - :doc:`django.contrib.localflavor.generic`
+
+- :doc:`django.contrib.localflavor.hr`
 
 - :doc:`django.contrib.localflavor.id`
 
@@ -66,6 +76,8 @@ Sub
 
 - :doc:`django.contrib.localflavor.kw`
 
+- :doc:`django.contrib.localflavor.mk`
+
 - :doc:`django.contrib.localflavor.mx`
 
 - :doc:`django.contrib.localflavor.nl`
@@ -78,9 +90,15 @@ Sub
 
 - :doc:`django.contrib.localflavor.pt`
 
+- :doc:`django.contrib.localflavor.py`
+
 - :doc:`django.contrib.localflavor.ro`
 
+- :doc:`django.contrib.localflavor.ru`
+
 - :doc:`django.contrib.localflavor.se`
+
+- :doc:`django.contrib.localflavor.si`
 
 - :doc:`django.contrib.localflavor.sk`
 

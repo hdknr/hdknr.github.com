@@ -10,7 +10,7 @@ django.contrib.localflavor.be
 =============================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/localflavor/be/__init__.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/localflavor/be/__init__.py>`_ 
 
 .. include:: cheat/django.contrib.localflavor.be.rst
 
@@ -25,7 +25,7 @@ django.contrib.localflavor.be.be_provinces
 ==========================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/localflavor/be/be_provinces.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/localflavor/be/be_provinces.py>`_ 
 
 .. include:: cheat/django.contrib.localflavor.be.be_provinces.rst
 
@@ -38,7 +38,7 @@ django.contrib.localflavor.be.be_regions
 ========================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/localflavor/be/be_regions.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/localflavor/be/be_regions.py>`_ 
 
 .. include:: cheat/django.contrib.localflavor.be.be_regions.rst
 
@@ -51,7 +51,7 @@ django.contrib.localflavor.be.forms
 ===================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/localflavor/be/forms.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/localflavor/be/forms.py>`_ 
 
 .. include:: cheat/django.contrib.localflavor.be.forms.rst
 

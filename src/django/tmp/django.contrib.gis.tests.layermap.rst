@@ -10,7 +10,7 @@ django.contrib.gis.tests.layermap
 =================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/tests/layermap/__init__.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/tests/layermap/__init__.py>`_ 
 
 .. include:: cheat/django.contrib.gis.tests.layermap.rst
 
@@ -25,7 +25,7 @@ django.contrib.gis.tests.layermap.models
 ========================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/tests/layermap/models.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/tests/layermap/models.py>`_ 
 
 .. include:: cheat/django.contrib.gis.tests.layermap.models.rst
 
@@ -38,7 +38,7 @@ django.contrib.gis.tests.layermap.tests
 =======================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/tests/layermap/tests.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/tests/layermap/tests.py>`_ 
 
 .. include:: cheat/django.contrib.gis.tests.layermap.tests.rst
 

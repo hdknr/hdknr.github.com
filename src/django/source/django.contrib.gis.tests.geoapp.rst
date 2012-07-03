@@ -10,7 +10,7 @@ django.contrib.gis.tests.geoapp
 ===============================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/tests/geoapp/__init__.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/tests/geoapp/__init__.py>`_ 
 
 .. include:: cheat/django.contrib.gis.tests.geoapp.rst
 
@@ -25,7 +25,7 @@ django.contrib.gis.tests.geoapp.feeds
 =====================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/tests/geoapp/feeds.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/tests/geoapp/feeds.py>`_ 
 
 .. include:: cheat/django.contrib.gis.tests.geoapp.feeds.rst
 
@@ -38,7 +38,7 @@ django.contrib.gis.tests.geoapp.models
 ======================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/tests/geoapp/models.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/tests/geoapp/models.py>`_ 
 
 .. include:: cheat/django.contrib.gis.tests.geoapp.models.rst
 
@@ -51,7 +51,7 @@ django.contrib.gis.tests.geoapp.sitemaps
 ========================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/tests/geoapp/sitemaps.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/tests/geoapp/sitemaps.py>`_ 
 
 .. include:: cheat/django.contrib.gis.tests.geoapp.sitemaps.rst
 
@@ -64,7 +64,7 @@ django.contrib.gis.tests.geoapp.test_feeds
 ==========================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/tests/geoapp/test_feeds.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/tests/geoapp/test_feeds.py>`_ 
 
 .. include:: cheat/django.contrib.gis.tests.geoapp.test_feeds.rst
 
@@ -77,7 +77,7 @@ django.contrib.gis.tests.geoapp.test_regress
 ============================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/tests/geoapp/test_regress.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/tests/geoapp/test_regress.py>`_ 
 
 .. include:: cheat/django.contrib.gis.tests.geoapp.test_regress.rst
 
@@ -90,7 +90,7 @@ django.contrib.gis.tests.geoapp.test_sitemaps
 =============================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/tests/geoapp/test_sitemaps.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/tests/geoapp/test_sitemaps.py>`_ 
 
 .. include:: cheat/django.contrib.gis.tests.geoapp.test_sitemaps.rst
 
@@ -103,7 +103,7 @@ django.contrib.gis.tests.geoapp.tests
 =====================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/tests/geoapp/tests.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/tests/geoapp/tests.py>`_ 
 
 .. include:: cheat/django.contrib.gis.tests.geoapp.tests.rst
 
@@ -116,7 +116,7 @@ django.contrib.gis.tests.geoapp.urls
 ====================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/tests/geoapp/urls.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/tests/geoapp/urls.py>`_ 
 
 .. include:: cheat/django.contrib.gis.tests.geoapp.urls.rst
 

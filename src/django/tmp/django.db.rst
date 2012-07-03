@@ -10,7 +10,7 @@ django.db
 =========
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/db/__init__.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/db/__init__.py>`_ 
 
 .. include:: cheat/django.db.rst
 
@@ -32,7 +32,7 @@ django.db.transaction
 =====================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/db/transaction.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/db/transaction.py>`_ 
 
 .. include:: cheat/django.db.transaction.rst
 
@@ -45,7 +45,7 @@ django.db.utils
 ===============
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/db/utils.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/db/utils.py>`_ 
 
 .. include:: cheat/django.db.utils.rst
 

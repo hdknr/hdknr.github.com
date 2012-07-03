@@ -10,7 +10,7 @@ django.contrib.gis.tests.geo3d
 ==============================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/tests/geo3d/__init__.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/tests/geo3d/__init__.py>`_ 
 
 .. include:: cheat/django.contrib.gis.tests.geo3d.rst
 
@@ -25,7 +25,7 @@ django.contrib.gis.tests.geo3d.models
 =====================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/tests/geo3d/models.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/tests/geo3d/models.py>`_ 
 
 .. include:: cheat/django.contrib.gis.tests.geo3d.models.rst
 
@@ -38,7 +38,7 @@ django.contrib.gis.tests.geo3d.tests
 ====================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/tests/geo3d/tests.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/tests/geo3d/tests.py>`_ 
 
 .. include:: cheat/django.contrib.gis.tests.geo3d.tests.rst
 
@@ -51,7 +51,7 @@ django.contrib.gis.tests.geo3d.views
 ====================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/tests/geo3d/views.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/tests/geo3d/views.py>`_ 
 
 .. include:: cheat/django.contrib.gis.tests.geo3d.views.rst
 

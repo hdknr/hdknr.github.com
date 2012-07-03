@@ -10,7 +10,7 @@ django.core.cache
 =================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/core/cache/__init__.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/core/cache/__init__.py>`_ 
 
 .. include:: cheat/django.core.cache.rst
 

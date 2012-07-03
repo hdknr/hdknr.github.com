@@ -10,7 +10,7 @@ django.contrib.gis.gdal.tests
 =============================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/gdal/tests/__init__.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/gdal/tests/__init__.py>`_ 
 
 .. include:: cheat/django.contrib.gis.gdal.tests.rst
 
@@ -25,7 +25,7 @@ django.contrib.gis.gdal.tests.test_driver
 =========================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/gdal/tests/test_driver.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/gdal/tests/test_driver.py>`_ 
 
 .. include:: cheat/django.contrib.gis.gdal.tests.test_driver.rst
 
@@ -38,7 +38,7 @@ django.contrib.gis.gdal.tests.test_ds
 =====================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/gdal/tests/test_ds.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/gdal/tests/test_ds.py>`_ 
 
 .. include:: cheat/django.contrib.gis.gdal.tests.test_ds.rst
 
@@ -51,7 +51,7 @@ django.contrib.gis.gdal.tests.test_envelope
 ===========================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/gdal/tests/test_envelope.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/gdal/tests/test_envelope.py>`_ 
 
 .. include:: cheat/django.contrib.gis.gdal.tests.test_envelope.rst
 
@@ -64,7 +64,7 @@ django.contrib.gis.gdal.tests.test_geom
 =======================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/gdal/tests/test_geom.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/gdal/tests/test_geom.py>`_ 
 
 .. include:: cheat/django.contrib.gis.gdal.tests.test_geom.rst
 
@@ -77,7 +77,7 @@ django.contrib.gis.gdal.tests.test_srs
 ======================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/gdal/tests/test_srs.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/gdal/tests/test_srs.py>`_ 
 
 .. include:: cheat/django.contrib.gis.gdal.tests.test_srs.rst
 

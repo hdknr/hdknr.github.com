@@ -10,7 +10,7 @@ django.utils.translation
 ========================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/utils/translation/__init__.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/utils/translation/__init__.py>`_ 
 
 .. include:: cheat/django.utils.translation.rst
 
@@ -25,7 +25,7 @@ django.utils.translation.trans_null
 ===================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/utils/translation/trans_null.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/utils/translation/trans_null.py>`_ 
 
 .. include:: cheat/django.utils.translation.trans_null.rst
 
@@ -38,7 +38,7 @@ django.utils.translation.trans_real
 ===================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/utils/translation/trans_real.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/utils/translation/trans_real.py>`_ 
 
 .. include:: cheat/django.utils.translation.trans_real.rst
 

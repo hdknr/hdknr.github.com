@@ -10,7 +10,7 @@ django.contrib.gis.db.backends
 ==============================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/db/backends/__init__.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/db/backends/__init__.py>`_ 
 
 .. include:: cheat/django.contrib.gis.db.backends.rst
 
@@ -36,7 +36,7 @@ django.contrib.gis.db.backends.adapter
 ======================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/db/backends/adapter.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/db/backends/adapter.py>`_ 
 
 .. include:: cheat/django.contrib.gis.db.backends.adapter.rst
 
@@ -49,7 +49,7 @@ django.contrib.gis.db.backends.base
 ===================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/db/backends/base.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/db/backends/base.py>`_ 
 
 .. include:: cheat/django.contrib.gis.db.backends.base.rst
 
@@ -62,7 +62,7 @@ django.contrib.gis.db.backends.util
 ===================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/db/backends/util.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/db/backends/util.py>`_ 
 
 .. include:: cheat/django.contrib.gis.db.backends.util.rst
 

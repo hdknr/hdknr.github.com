@@ -10,7 +10,7 @@ django.db.models
 ================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/db/models/__init__.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/db/models/__init__.py>`_ 
 
 .. include:: cheat/django.db.models.rst
 
@@ -32,7 +32,7 @@ django.db.models.aggregates
 ===========================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/db/models/aggregates.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/db/models/aggregates.py>`_ 
 
 .. include:: cheat/django.db.models.aggregates.rst
 
@@ -45,7 +45,7 @@ django.db.models.base
 =====================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/db/models/base.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/db/models/base.py>`_ 
 
 .. include:: cheat/django.db.models.base.rst
 
@@ -58,7 +58,7 @@ django.db.models.deletion
 =========================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/db/models/deletion.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/db/models/deletion.py>`_ 
 
 .. include:: cheat/django.db.models.deletion.rst
 
@@ -71,7 +71,7 @@ django.db.models.expressions
 ============================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/db/models/expressions.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/db/models/expressions.py>`_ 
 
 .. include:: cheat/django.db.models.expressions.rst
 
@@ -84,7 +84,7 @@ django.db.models.loading
 ========================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/db/models/loading.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/db/models/loading.py>`_ 
 
 .. include:: cheat/django.db.models.loading.rst
 
@@ -97,7 +97,7 @@ django.db.models.manager
 ========================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/db/models/manager.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/db/models/manager.py>`_ 
 
 .. include:: cheat/django.db.models.manager.rst
 
@@ -110,7 +110,7 @@ django.db.models.options
 ========================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/db/models/options.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/db/models/options.py>`_ 
 
 .. include:: cheat/django.db.models.options.rst
 
@@ -123,7 +123,7 @@ django.db.models.query
 ======================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/db/models/query.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/db/models/query.py>`_ 
 
 .. include:: cheat/django.db.models.query.rst
 
@@ -136,7 +136,7 @@ django.db.models.query_utils
 ============================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/db/models/query_utils.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/db/models/query_utils.py>`_ 
 
 .. include:: cheat/django.db.models.query_utils.rst
 
@@ -149,7 +149,7 @@ django.db.models.related
 ========================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/db/models/related.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/db/models/related.py>`_ 
 
 .. include:: cheat/django.db.models.related.rst
 
@@ -162,7 +162,7 @@ django.db.models.signals
 ========================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/db/models/signals.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/db/models/signals.py>`_ 
 
 .. include:: cheat/django.db.models.signals.rst
 

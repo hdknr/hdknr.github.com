@@ -10,7 +10,7 @@ django.test
 ===========
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/test/__init__.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/test/__init__.py>`_ 
 
 .. include:: cheat/django.test.rst
 
@@ -25,7 +25,7 @@ django.test._doctest
 ====================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/test/_doctest.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/test/_doctest.py>`_ 
 
 .. include:: cheat/django.test._doctest.rst
 
@@ -38,11 +38,24 @@ django.test.client
 ==================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/test/client.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/test/client.py>`_ 
 
 .. include:: cheat/django.test.client.rst
 
 .. automodule:: django.test.client
+    :members:
+
+.. _django.test.html:
+
+django.test.html
+================
+
+
+- `source <https://github.com/django/django/tree/master/django/test/html.py>`_ 
+
+.. include:: cheat/django.test.html.rst
+
+.. automodule:: django.test.html
     :members:
 
 .. _django.test.signals:
@@ -51,7 +64,7 @@ django.test.signals
 ===================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/test/signals.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/test/signals.py>`_ 
 
 .. include:: cheat/django.test.signals.rst
 
@@ -64,7 +77,7 @@ django.test.simple
 ==================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/test/simple.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/test/simple.py>`_ 
 
 .. include:: cheat/django.test.simple.rst
 
@@ -77,7 +90,7 @@ django.test.testcases
 =====================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/test/testcases.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/test/testcases.py>`_ 
 
 .. include:: cheat/django.test.testcases.rst
 
@@ -90,7 +103,7 @@ django.test.utils
 =================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/test/utils.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/test/utils.py>`_ 
 
 .. include:: cheat/django.test.utils.rst
 

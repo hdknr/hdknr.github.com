@@ -10,7 +10,7 @@ django.contrib.sessions.backends
 ================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/sessions/backends/__init__.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/sessions/backends/__init__.py>`_ 
 
 .. include:: cheat/django.contrib.sessions.backends.rst
 
@@ -25,7 +25,7 @@ django.contrib.sessions.backends.base
 =====================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/sessions/backends/base.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/sessions/backends/base.py>`_ 
 
 .. include:: cheat/django.contrib.sessions.backends.base.rst
 
@@ -38,7 +38,7 @@ django.contrib.sessions.backends.cache
 ======================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/sessions/backends/cache.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/sessions/backends/cache.py>`_ 
 
 .. include:: cheat/django.contrib.sessions.backends.cache.rst
 
@@ -51,7 +51,7 @@ django.contrib.sessions.backends.cached_db
 ==========================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/sessions/backends/cached_db.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/sessions/backends/cached_db.py>`_ 
 
 .. include:: cheat/django.contrib.sessions.backends.cached_db.rst
 
@@ -64,7 +64,7 @@ django.contrib.sessions.backends.db
 ===================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/sessions/backends/db.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/sessions/backends/db.py>`_ 
 
 .. include:: cheat/django.contrib.sessions.backends.db.rst
 
@@ -77,10 +77,23 @@ django.contrib.sessions.backends.file
 =====================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/sessions/backends/file.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/sessions/backends/file.py>`_ 
 
 .. include:: cheat/django.contrib.sessions.backends.file.rst
 
 .. automodule:: django.contrib.sessions.backends.file
+    :members:
+
+.. _django.contrib.sessions.backends.signed_cookies:
+
+django.contrib.sessions.backends.signed_cookies
+===============================================
+
+
+- `source <https://github.com/django/django/tree/master/django/contrib/sessions/backends/signed_cookies.py>`_ 
+
+.. include:: cheat/django.contrib.sessions.backends.signed_cookies.rst
+
+.. automodule:: django.contrib.sessions.backends.signed_cookies
     :members:
 

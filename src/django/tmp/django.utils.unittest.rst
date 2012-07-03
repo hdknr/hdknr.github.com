@@ -10,7 +10,7 @@ django.utils.unittest
 =====================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/utils/unittest/__init__.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/utils/unittest/__init__.py>`_ 
 
 .. include:: cheat/django.utils.unittest.rst
 
@@ -25,7 +25,7 @@ django.utils.unittest.__main__
 ==============================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/utils/unittest/__main__.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/utils/unittest/__main__.py>`_ 
 
 .. include:: cheat/django.utils.unittest.__main__.rst
 
@@ -38,7 +38,7 @@ django.utils.unittest.case
 ==========================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/utils/unittest/case.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/utils/unittest/case.py>`_ 
 
 .. include:: cheat/django.utils.unittest.case.rst
 
@@ -51,7 +51,7 @@ django.utils.unittest.collector
 ===============================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/utils/unittest/collector.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/utils/unittest/collector.py>`_ 
 
 .. include:: cheat/django.utils.unittest.collector.rst
 
@@ -64,7 +64,7 @@ django.utils.unittest.compatibility
 ===================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/utils/unittest/compatibility.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/utils/unittest/compatibility.py>`_ 
 
 .. include:: cheat/django.utils.unittest.compatibility.rst
 
@@ -77,7 +77,7 @@ django.utils.unittest.loader
 ============================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/utils/unittest/loader.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/utils/unittest/loader.py>`_ 
 
 .. include:: cheat/django.utils.unittest.loader.rst
 
@@ -90,7 +90,7 @@ django.utils.unittest.main
 ==========================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/utils/unittest/main.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/utils/unittest/main.py>`_ 
 
 .. include:: cheat/django.utils.unittest.main.rst
 
@@ -103,7 +103,7 @@ django.utils.unittest.result
 ============================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/utils/unittest/result.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/utils/unittest/result.py>`_ 
 
 .. include:: cheat/django.utils.unittest.result.rst
 
@@ -116,7 +116,7 @@ django.utils.unittest.runner
 ============================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/utils/unittest/runner.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/utils/unittest/runner.py>`_ 
 
 .. include:: cheat/django.utils.unittest.runner.rst
 
@@ -129,7 +129,7 @@ django.utils.unittest.signals
 =============================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/utils/unittest/signals.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/utils/unittest/signals.py>`_ 
 
 .. include:: cheat/django.utils.unittest.signals.rst
 
@@ -142,7 +142,7 @@ django.utils.unittest.suite
 ===========================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/utils/unittest/suite.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/utils/unittest/suite.py>`_ 
 
 .. include:: cheat/django.utils.unittest.suite.rst
 
@@ -155,7 +155,7 @@ django.utils.unittest.util
 ==========================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/utils/unittest/util.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/utils/unittest/util.py>`_ 
 
 .. include:: cheat/django.utils.unittest.util.rst
 

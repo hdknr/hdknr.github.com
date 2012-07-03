@@ -10,7 +10,7 @@ django.contrib.localflavor.is_
 ==============================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/localflavor/is_/__init__.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/localflavor/is_/__init__.py>`_ 
 
 .. include:: cheat/django.contrib.localflavor.is_.rst
 
@@ -25,7 +25,7 @@ django.contrib.localflavor.is_.forms
 ====================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/localflavor/is_/forms.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/localflavor/is_/forms.py>`_ 
 
 .. include:: cheat/django.contrib.localflavor.is_.forms.rst
 
@@ -38,7 +38,7 @@ django.contrib.localflavor.is_.is_postalcodes
 =============================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/localflavor/is_/is_postalcodes.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/localflavor/is_/is_postalcodes.py>`_ 
 
 .. include:: cheat/django.contrib.localflavor.is_.is_postalcodes.rst
 

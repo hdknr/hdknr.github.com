@@ -10,7 +10,7 @@ django.contrib.localflavor.id
 =============================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/localflavor/id/__init__.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/localflavor/id/__init__.py>`_ 
 
 .. include:: cheat/django.contrib.localflavor.id.rst
 
@@ -25,7 +25,7 @@ django.contrib.localflavor.id.forms
 ===================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/localflavor/id/forms.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/localflavor/id/forms.py>`_ 
 
 .. include:: cheat/django.contrib.localflavor.id.forms.rst
 
@@ -38,7 +38,7 @@ django.contrib.localflavor.id.id_choices
 ========================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/localflavor/id/id_choices.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/localflavor/id/id_choices.py>`_ 
 
 .. include:: cheat/django.contrib.localflavor.id.id_choices.rst
 

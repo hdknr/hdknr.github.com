@@ -10,7 +10,7 @@ django.contrib.markup
 =====================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/markup/__init__.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/markup/__init__.py>`_ 
 
 .. include:: cheat/django.contrib.markup.rst
 
@@ -25,7 +25,7 @@ django.contrib.markup.models
 ============================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/markup/models.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/markup/models.py>`_ 
 
 .. include:: cheat/django.contrib.markup.models.rst
 
@@ -38,7 +38,7 @@ django.contrib.markup.tests
 ===========================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/markup/tests.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/markup/tests.py>`_ 
 
 .. include:: cheat/django.contrib.markup.tests.rst
 

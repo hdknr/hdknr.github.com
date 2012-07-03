@@ -10,7 +10,7 @@ django.http
 ===========
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/http/__init__.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/http/__init__.py>`_ 
 
 .. include:: cheat/django.http.rst
 
@@ -25,7 +25,7 @@ django.http.multipartparser
 ===========================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/http/multipartparser.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/http/multipartparser.py>`_ 
 
 .. include:: cheat/django.http.multipartparser.rst
 
@@ -38,7 +38,7 @@ django.http.utils
 =================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/http/utils.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/http/utils.py>`_ 
 
 .. include:: cheat/django.http.utils.rst
 

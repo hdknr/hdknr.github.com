@@ -10,7 +10,7 @@ django.contrib.gis.geometry.backend
 ===================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/geometry/backend/__init__.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/geometry/backend/__init__.py>`_ 
 
 .. include:: cheat/django.contrib.gis.geometry.backend.rst
 
@@ -25,7 +25,7 @@ django.contrib.gis.geometry.backend.geos
 ========================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/geometry/backend/geos.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/geometry/backend/geos.py>`_ 
 
 .. include:: cheat/django.contrib.gis.geometry.backend.geos.rst
 

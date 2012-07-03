@@ -10,7 +10,7 @@ django.contrib.gis.db.backends.postgis
 ======================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/db/backends/postgis/__init__.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/db/backends/postgis/__init__.py>`_ 
 
 .. include:: cheat/django.contrib.gis.db.backends.postgis.rst
 
@@ -25,7 +25,7 @@ django.contrib.gis.db.backends.postgis.adapter
 ==============================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/db/backends/postgis/adapter.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/db/backends/postgis/adapter.py>`_ 
 
 .. include:: cheat/django.contrib.gis.db.backends.postgis.adapter.rst
 
@@ -38,7 +38,7 @@ django.contrib.gis.db.backends.postgis.base
 ===========================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/db/backends/postgis/base.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/db/backends/postgis/base.py>`_ 
 
 .. include:: cheat/django.contrib.gis.db.backends.postgis.base.rst
 
@@ -51,7 +51,7 @@ django.contrib.gis.db.backends.postgis.creation
 ===============================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/db/backends/postgis/creation.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/db/backends/postgis/creation.py>`_ 
 
 .. include:: cheat/django.contrib.gis.db.backends.postgis.creation.rst
 
@@ -64,7 +64,7 @@ django.contrib.gis.db.backends.postgis.introspection
 ====================================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/db/backends/postgis/introspection.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/db/backends/postgis/introspection.py>`_ 
 
 .. include:: cheat/django.contrib.gis.db.backends.postgis.introspection.rst
 
@@ -77,7 +77,7 @@ django.contrib.gis.db.backends.postgis.models
 =============================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/db/backends/postgis/models.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/db/backends/postgis/models.py>`_ 
 
 .. include:: cheat/django.contrib.gis.db.backends.postgis.models.rst
 
@@ -90,7 +90,7 @@ django.contrib.gis.db.backends.postgis.operations
 =================================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/db/backends/postgis/operations.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/db/backends/postgis/operations.py>`_ 
 
 .. include:: cheat/django.contrib.gis.db.backends.postgis.operations.rst
 

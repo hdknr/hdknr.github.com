@@ -10,7 +10,7 @@ django.contrib.gis.db.backends.spatialite
 =========================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/db/backends/spatialite/__init__.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/db/backends/spatialite/__init__.py>`_ 
 
 .. include:: cheat/django.contrib.gis.db.backends.spatialite.rst
 
@@ -25,7 +25,7 @@ django.contrib.gis.db.backends.spatialite.adapter
 =================================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/db/backends/spatialite/adapter.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/db/backends/spatialite/adapter.py>`_ 
 
 .. include:: cheat/django.contrib.gis.db.backends.spatialite.adapter.rst
 
@@ -38,7 +38,7 @@ django.contrib.gis.db.backends.spatialite.base
 ==============================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/db/backends/spatialite/base.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/db/backends/spatialite/base.py>`_ 
 
 .. include:: cheat/django.contrib.gis.db.backends.spatialite.base.rst
 
@@ -51,24 +51,11 @@ django.contrib.gis.db.backends.spatialite.client
 ================================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/db/backends/spatialite/client.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/db/backends/spatialite/client.py>`_ 
 
 .. include:: cheat/django.contrib.gis.db.backends.spatialite.client.rst
 
 .. automodule:: django.contrib.gis.db.backends.spatialite.client
-    :members:
-
-.. _django.contrib.gis.db.backends.spatialite.compiler:
-
-django.contrib.gis.db.backends.spatialite.compiler
-==================================================
-
-
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/db/backends/spatialite/compiler.py>`_ 
-
-.. include:: cheat/django.contrib.gis.db.backends.spatialite.compiler.rst
-
-.. automodule:: django.contrib.gis.db.backends.spatialite.compiler
     :members:
 
 .. _django.contrib.gis.db.backends.spatialite.creation:
@@ -77,7 +64,7 @@ django.contrib.gis.db.backends.spatialite.creation
 ==================================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/db/backends/spatialite/creation.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/db/backends/spatialite/creation.py>`_ 
 
 .. include:: cheat/django.contrib.gis.db.backends.spatialite.creation.rst
 
@@ -90,7 +77,7 @@ django.contrib.gis.db.backends.spatialite.introspection
 =======================================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/db/backends/spatialite/introspection.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/db/backends/spatialite/introspection.py>`_ 
 
 .. include:: cheat/django.contrib.gis.db.backends.spatialite.introspection.rst
 
@@ -103,7 +90,7 @@ django.contrib.gis.db.backends.spatialite.models
 ================================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/db/backends/spatialite/models.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/db/backends/spatialite/models.py>`_ 
 
 .. include:: cheat/django.contrib.gis.db.backends.spatialite.models.rst
 
@@ -116,7 +103,7 @@ django.contrib.gis.db.backends.spatialite.operations
 ====================================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/db/backends/spatialite/operations.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/db/backends/spatialite/operations.py>`_ 
 
 .. include:: cheat/django.contrib.gis.db.backends.spatialite.operations.rst
 

@@ -10,7 +10,7 @@ django.contrib.flatpages
 ========================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/flatpages/__init__.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/flatpages/__init__.py>`_ 
 
 .. include:: cheat/django.contrib.flatpages.rst
 
@@ -32,11 +32,24 @@ django.contrib.flatpages.admin
 ==============================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/flatpages/admin.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/flatpages/admin.py>`_ 
 
 .. include:: cheat/django.contrib.flatpages.admin.rst
 
 .. automodule:: django.contrib.flatpages.admin
+    :members:
+
+.. _django.contrib.flatpages.forms:
+
+django.contrib.flatpages.forms
+==============================
+
+
+- `source <https://github.com/django/django/tree/master/django/contrib/flatpages/forms.py>`_ 
+
+.. include:: cheat/django.contrib.flatpages.forms.rst
+
+.. automodule:: django.contrib.flatpages.forms
     :members:
 
 .. _django.contrib.flatpages.middleware:
@@ -45,7 +58,7 @@ django.contrib.flatpages.middleware
 ===================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/flatpages/middleware.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/flatpages/middleware.py>`_ 
 
 .. include:: cheat/django.contrib.flatpages.middleware.rst
 
@@ -58,7 +71,7 @@ django.contrib.flatpages.models
 ===============================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/flatpages/models.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/flatpages/models.py>`_ 
 
 .. include:: cheat/django.contrib.flatpages.models.rst
 
@@ -71,7 +84,7 @@ django.contrib.flatpages.urls
 =============================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/flatpages/urls.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/flatpages/urls.py>`_ 
 
 .. include:: cheat/django.contrib.flatpages.urls.rst
 
@@ -84,7 +97,7 @@ django.contrib.flatpages.views
 ==============================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/flatpages/views.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/flatpages/views.py>`_ 
 
 .. include:: cheat/django.contrib.flatpages.views.rst
 

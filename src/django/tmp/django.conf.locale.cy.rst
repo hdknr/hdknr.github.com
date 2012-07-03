@@ -10,7 +10,7 @@ django.conf.locale.cy
 =====================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/conf/locale/cy/__init__.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/conf/locale/cy/__init__.py>`_ 
 
 .. include:: cheat/django.conf.locale.cy.rst
 
@@ -25,7 +25,7 @@ django.conf.locale.cy.formats
 =============================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/conf/locale/cy/formats.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/conf/locale/cy/formats.py>`_ 
 
 .. include:: cheat/django.conf.locale.cy.formats.rst
 

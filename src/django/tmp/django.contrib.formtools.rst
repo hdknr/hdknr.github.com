@@ -10,7 +10,7 @@ django.contrib.formtools
 ========================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/formtools/__init__.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/formtools/__init__.py>`_ 
 
 .. include:: cheat/django.contrib.formtools.rst
 
@@ -24,13 +24,15 @@ Sub
 
 - :doc:`django.contrib.formtools.tests`
 
+- :doc:`django.contrib.formtools.wizard`
+
 .. _django.contrib.formtools.models:
 
 django.contrib.formtools.models
 ===============================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/formtools/models.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/formtools/models.py>`_ 
 
 .. include:: cheat/django.contrib.formtools.models.rst
 
@@ -43,7 +45,7 @@ django.contrib.formtools.preview
 ================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/formtools/preview.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/formtools/preview.py>`_ 
 
 .. include:: cheat/django.contrib.formtools.preview.rst
 
@@ -56,23 +58,10 @@ django.contrib.formtools.utils
 ==============================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/formtools/utils.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/formtools/utils.py>`_ 
 
 .. include:: cheat/django.contrib.formtools.utils.rst
 
 .. automodule:: django.contrib.formtools.utils
-    :members:
-
-.. _django.contrib.formtools.wizard:
-
-django.contrib.formtools.wizard
-===============================
-
-
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/formtools/wizard.py>`_ 
-
-.. include:: cheat/django.contrib.formtools.wizard.rst
-
-.. automodule:: django.contrib.formtools.wizard
     :members:
 

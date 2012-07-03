@@ -48,7 +48,6 @@
     django.conf.locale.nb
     django.conf.locale.nl
     django.conf.locale.nn
-    django.conf.locale.no
     django.conf.locale.pl
     django.conf.locale.pt
     django.conf.locale.pt_BR
@@ -68,7 +67,7 @@
     django.conf.locale.vi
     django.conf.locale.zh_CN
     django.conf.locale.zh_TW
-    django.conf.project_template
+    django.conf.project_template.project_name
     django.conf.urls
     django.contrib
     django.contrib.admin
@@ -85,7 +84,6 @@
     django.contrib.comments.templatetags
     django.contrib.comments.views
     django.contrib.contenttypes
-    django.contrib.csrf
     django.contrib.databrowse
     django.contrib.databrowse.plugins
     django.contrib.flatpages
@@ -93,10 +91,14 @@
     django.contrib.flatpages.tests
     django.contrib.formtools
     django.contrib.formtools.tests
+    django.contrib.formtools.tests.wizard
+    django.contrib.formtools.tests.wizard.namedwizardtests
+    django.contrib.formtools.tests.wizard.wizardtests
+    django.contrib.formtools.wizard
+    django.contrib.formtools.wizard.storage
     django.contrib.gis
     django.contrib.gis.admin
     django.contrib.gis.db
-    django.contrib.gis.db.backend
     django.contrib.gis.db.backends
     django.contrib.gis.db.backends.mysql
     django.contrib.gis.db.backends.oracle
@@ -108,6 +110,7 @@
     django.contrib.gis.gdal
     django.contrib.gis.gdal.prototypes
     django.contrib.gis.gdal.tests
+    django.contrib.gis.geoip
     django.contrib.gis.geometry
     django.contrib.gis.geometry.backend
     django.contrib.gis.geos
@@ -122,8 +125,10 @@
     django.contrib.gis.tests
     django.contrib.gis.tests.distapp
     django.contrib.gis.tests.geo3d
+    django.contrib.gis.tests.geoadmin
     django.contrib.gis.tests.geoapp
     django.contrib.gis.tests.geogapp
+    django.contrib.gis.tests.inspectapp
     django.contrib.gis.tests.layermap
     django.contrib.gis.tests.relatedapp
     django.contrib.gis.utils
@@ -138,12 +143,17 @@
     django.contrib.localflavor.ca
     django.contrib.localflavor.ch
     django.contrib.localflavor.cl
+    django.contrib.localflavor.cn
+    django.contrib.localflavor.co
     django.contrib.localflavor.cz
     django.contrib.localflavor.de
+    django.contrib.localflavor.ec
     django.contrib.localflavor.es
     django.contrib.localflavor.fi
     django.contrib.localflavor.fr
+    django.contrib.localflavor.gb
     django.contrib.localflavor.generic
+    django.contrib.localflavor.hr
     django.contrib.localflavor.id
     django.contrib.localflavor.ie
     django.contrib.localflavor.il
@@ -152,14 +162,18 @@
     django.contrib.localflavor.it
     django.contrib.localflavor.jp
     django.contrib.localflavor.kw
+    django.contrib.localflavor.mk
     django.contrib.localflavor.mx
     django.contrib.localflavor.nl
     django.contrib.localflavor.no
     django.contrib.localflavor.pe
     django.contrib.localflavor.pl
     django.contrib.localflavor.pt
+    django.contrib.localflavor.py
     django.contrib.localflavor.ro
+    django.contrib.localflavor.ru
     django.contrib.localflavor.se
+    django.contrib.localflavor.si
     django.contrib.localflavor.sk
     django.contrib.localflavor.tr
     django.contrib.localflavor.uk
@@ -178,10 +192,12 @@
     django.contrib.sitemaps.management
     django.contrib.sitemaps.management.commands
     django.contrib.sitemaps.tests
+    django.contrib.sitemaps.tests.urls
     django.contrib.sites
     django.contrib.staticfiles
     django.contrib.staticfiles.management
     django.contrib.staticfiles.management.commands
+    django.contrib.staticfiles.templatetags
     django.contrib.syndication
     django.contrib.webdesign
     django.contrib.webdesign.templatetags
@@ -201,7 +217,6 @@
     django.db.backends.dummy
     django.db.backends.mysql
     django.db.backends.oracle
-    django.db.backends.postgresql
     django.db.backends.postgresql_psycopg2
     django.db.backends.sqlite3
     django.db.models

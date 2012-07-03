@@ -10,7 +10,7 @@ django.views.generic
 ====================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/views/generic/__init__.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/views/generic/__init__.py>`_ 
 
 .. include:: cheat/django.views.generic.rst
 
@@ -25,7 +25,7 @@ django.views.generic.base
 =========================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/views/generic/base.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/views/generic/base.py>`_ 
 
 .. include:: cheat/django.views.generic.base.rst
 
@@ -38,7 +38,7 @@ django.views.generic.create_update
 ==================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/views/generic/create_update.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/views/generic/create_update.py>`_ 
 
 .. include:: cheat/django.views.generic.create_update.rst
 
@@ -51,7 +51,7 @@ django.views.generic.date_based
 ===============================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/views/generic/date_based.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/views/generic/date_based.py>`_ 
 
 .. include:: cheat/django.views.generic.date_based.rst
 
@@ -64,7 +64,7 @@ django.views.generic.dates
 ==========================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/views/generic/dates.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/views/generic/dates.py>`_ 
 
 .. include:: cheat/django.views.generic.dates.rst
 
@@ -77,7 +77,7 @@ django.views.generic.detail
 ===========================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/views/generic/detail.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/views/generic/detail.py>`_ 
 
 .. include:: cheat/django.views.generic.detail.rst
 
@@ -90,7 +90,7 @@ django.views.generic.edit
 =========================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/views/generic/edit.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/views/generic/edit.py>`_ 
 
 .. include:: cheat/django.views.generic.edit.rst
 
@@ -103,7 +103,7 @@ django.views.generic.list
 =========================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/views/generic/list.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/views/generic/list.py>`_ 
 
 .. include:: cheat/django.views.generic.list.rst
 
@@ -116,7 +116,7 @@ django.views.generic.list_detail
 ================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/views/generic/list_detail.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/views/generic/list_detail.py>`_ 
 
 .. include:: cheat/django.views.generic.list_detail.rst
 
@@ -129,7 +129,7 @@ django.views.generic.simple
 ===========================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/views/generic/simple.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/views/generic/simple.py>`_ 
 
 .. include:: cheat/django.views.generic.simple.rst
 

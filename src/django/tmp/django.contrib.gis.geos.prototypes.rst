@@ -10,7 +10,7 @@ django.contrib.gis.geos.prototypes
 ==================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/geos/prototypes/__init__.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/geos/prototypes/__init__.py>`_ 
 
 .. include:: cheat/django.contrib.gis.geos.prototypes.rst
 
@@ -25,7 +25,7 @@ django.contrib.gis.geos.prototypes.coordseq
 ===========================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/geos/prototypes/coordseq.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/geos/prototypes/coordseq.py>`_ 
 
 .. include:: cheat/django.contrib.gis.geos.prototypes.coordseq.rst
 
@@ -38,7 +38,7 @@ django.contrib.gis.geos.prototypes.errcheck
 ===========================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/geos/prototypes/errcheck.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/geos/prototypes/errcheck.py>`_ 
 
 .. include:: cheat/django.contrib.gis.geos.prototypes.errcheck.rst
 
@@ -51,7 +51,7 @@ django.contrib.gis.geos.prototypes.geom
 =======================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/geos/prototypes/geom.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/geos/prototypes/geom.py>`_ 
 
 .. include:: cheat/django.contrib.gis.geos.prototypes.geom.rst
 
@@ -64,7 +64,7 @@ django.contrib.gis.geos.prototypes.io
 =====================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/geos/prototypes/io.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/geos/prototypes/io.py>`_ 
 
 .. include:: cheat/django.contrib.gis.geos.prototypes.io.rst
 
@@ -77,7 +77,7 @@ django.contrib.gis.geos.prototypes.misc
 =======================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/geos/prototypes/misc.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/geos/prototypes/misc.py>`_ 
 
 .. include:: cheat/django.contrib.gis.geos.prototypes.misc.rst
 
@@ -90,7 +90,7 @@ django.contrib.gis.geos.prototypes.predicates
 =============================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/geos/prototypes/predicates.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/geos/prototypes/predicates.py>`_ 
 
 .. include:: cheat/django.contrib.gis.geos.prototypes.predicates.rst
 
@@ -103,7 +103,7 @@ django.contrib.gis.geos.prototypes.prepared
 ===========================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/geos/prototypes/prepared.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/geos/prototypes/prepared.py>`_ 
 
 .. include:: cheat/django.contrib.gis.geos.prototypes.prepared.rst
 
@@ -116,7 +116,7 @@ django.contrib.gis.geos.prototypes.threadsafe
 =============================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/geos/prototypes/threadsafe.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/geos/prototypes/threadsafe.py>`_ 
 
 .. include:: cheat/django.contrib.gis.geos.prototypes.threadsafe.rst
 
@@ -129,7 +129,7 @@ django.contrib.gis.geos.prototypes.topology
 ===========================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/geos/prototypes/topology.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/geos/prototypes/topology.py>`_ 
 
 .. include:: cheat/django.contrib.gis.geos.prototypes.topology.rst
 

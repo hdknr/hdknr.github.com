@@ -1,12 +1,26 @@
 import os
+import shutil
+import django
 
-top='/home/hdknr/ve/main/lib/python2.6/site-packages/django'
+shutil.rmtree('tmp')
+os.makedirs('tmp/cheat')
+
+#top='/home/hdknr/ve/main/lib/python2.6/site-packages/django'
+top=os.path.dirname( django.__file__ )
+
 dst="tmp/%s.rst"
 cheat="tmp/cheat/%s.rst"
 index="tmp/files.rst"
-svn='https://code.djangoproject.com/browser/django/trunk/django'
+#svn='https://code.djangoproject.com/browser/django/trunk/django'
+svn='https://github.com/django/django/tree/master/django'
 
 index_file = open(index,"w")
+index_file.write('''
+.. toctree::
+    :maxdepth: 2
+
+''')
+
 for root, dirs, files in os.walk(top, topdown=True):
     if os.path.isfile(root+'/__init__.py') == False:
         continue

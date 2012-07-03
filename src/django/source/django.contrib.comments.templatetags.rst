@@ -10,7 +10,7 @@ django.contrib.comments.templatetags
 ====================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/comments/templatetags/__init__.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/comments/templatetags/__init__.py>`_ 
 
 .. include:: cheat/django.contrib.comments.templatetags.rst
 
@@ -25,7 +25,7 @@ django.contrib.comments.templatetags.comments
 =============================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/comments/templatetags/comments.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/comments/templatetags/comments.py>`_ 
 
 .. include:: cheat/django.contrib.comments.templatetags.comments.rst
 

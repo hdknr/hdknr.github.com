@@ -10,7 +10,7 @@ django.contrib.comments
 =======================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/comments/__init__.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/comments/__init__.py>`_ 
 
 .. include:: cheat/django.contrib.comments.rst
 
@@ -32,7 +32,7 @@ django.contrib.comments.admin
 =============================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/comments/admin.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/comments/admin.py>`_ 
 
 .. include:: cheat/django.contrib.comments.admin.rst
 
@@ -45,7 +45,7 @@ django.contrib.comments.feeds
 =============================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/comments/feeds.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/comments/feeds.py>`_ 
 
 .. include:: cheat/django.contrib.comments.feeds.rst
 
@@ -58,7 +58,7 @@ django.contrib.comments.forms
 =============================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/comments/forms.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/comments/forms.py>`_ 
 
 .. include:: cheat/django.contrib.comments.forms.rst
 
@@ -71,7 +71,7 @@ django.contrib.comments.managers
 ================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/comments/managers.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/comments/managers.py>`_ 
 
 .. include:: cheat/django.contrib.comments.managers.rst
 
@@ -84,7 +84,7 @@ django.contrib.comments.models
 ==============================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/comments/models.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/comments/models.py>`_ 
 
 .. include:: cheat/django.contrib.comments.models.rst
 
@@ -97,7 +97,7 @@ django.contrib.comments.moderation
 ==================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/comments/moderation.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/comments/moderation.py>`_ 
 
 .. include:: cheat/django.contrib.comments.moderation.rst
 
@@ -110,7 +110,7 @@ django.contrib.comments.signals
 ===============================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/comments/signals.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/comments/signals.py>`_ 
 
 .. include:: cheat/django.contrib.comments.signals.rst
 
@@ -123,7 +123,7 @@ django.contrib.comments.urls
 ============================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/comments/urls.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/comments/urls.py>`_ 
 
 .. include:: cheat/django.contrib.comments.urls.rst
 

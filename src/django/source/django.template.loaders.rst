@@ -10,7 +10,7 @@ django.template.loaders
 =======================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/template/loaders/__init__.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/template/loaders/__init__.py>`_ 
 
 .. include:: cheat/django.template.loaders.rst
 
@@ -25,7 +25,7 @@ django.template.loaders.app_directories
 =======================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/template/loaders/app_directories.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/template/loaders/app_directories.py>`_ 
 
 .. include:: cheat/django.template.loaders.app_directories.rst
 
@@ -38,7 +38,7 @@ django.template.loaders.cached
 ==============================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/template/loaders/cached.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/template/loaders/cached.py>`_ 
 
 .. include:: cheat/django.template.loaders.cached.rst
 
@@ -51,7 +51,7 @@ django.template.loaders.eggs
 ============================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/template/loaders/eggs.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/template/loaders/eggs.py>`_ 
 
 .. include:: cheat/django.template.loaders.eggs.rst
 
@@ -64,7 +64,7 @@ django.template.loaders.filesystem
 ==================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/template/loaders/filesystem.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/template/loaders/filesystem.py>`_ 
 
 .. include:: cheat/django.template.loaders.filesystem.rst
 

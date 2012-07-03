@@ -10,7 +10,7 @@ django.contrib.localflavor.pe
 =============================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/localflavor/pe/__init__.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/localflavor/pe/__init__.py>`_ 
 
 .. include:: cheat/django.contrib.localflavor.pe.rst
 
@@ -25,7 +25,7 @@ django.contrib.localflavor.pe.forms
 ===================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/localflavor/pe/forms.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/localflavor/pe/forms.py>`_ 
 
 .. include:: cheat/django.contrib.localflavor.pe.forms.rst
 
@@ -38,7 +38,7 @@ django.contrib.localflavor.pe.pe_region
 =======================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/localflavor/pe/pe_region.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/localflavor/pe/pe_region.py>`_ 
 
 .. include:: cheat/django.contrib.localflavor.pe.pe_region.rst
 

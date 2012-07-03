@@ -10,7 +10,7 @@ django.contrib.gis.geos.tests
 =============================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/geos/tests/__init__.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/geos/tests/__init__.py>`_ 
 
 .. include:: cheat/django.contrib.gis.geos.tests.rst
 
@@ -25,7 +25,7 @@ django.contrib.gis.geos.tests.test_geos
 =======================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/geos/tests/test_geos.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/geos/tests/test_geos.py>`_ 
 
 .. include:: cheat/django.contrib.gis.geos.tests.test_geos.rst
 
@@ -38,7 +38,7 @@ django.contrib.gis.geos.tests.test_geos_mutation
 ================================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/geos/tests/test_geos_mutation.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/geos/tests/test_geos_mutation.py>`_ 
 
 .. include:: cheat/django.contrib.gis.geos.tests.test_geos_mutation.rst
 
@@ -51,7 +51,7 @@ django.contrib.gis.geos.tests.test_io
 =====================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/geos/tests/test_io.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/geos/tests/test_io.py>`_ 
 
 .. include:: cheat/django.contrib.gis.geos.tests.test_io.rst
 
@@ -64,7 +64,7 @@ django.contrib.gis.geos.tests.test_mutable_list
 ===============================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/geos/tests/test_mutable_list.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/geos/tests/test_mutable_list.py>`_ 
 
 .. include:: cheat/django.contrib.gis.geos.tests.test_mutable_list.rst
 

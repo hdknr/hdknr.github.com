@@ -10,7 +10,7 @@ django.contrib.gis.utils
 ========================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/utils/__init__.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/utils/__init__.py>`_ 
 
 .. include:: cheat/django.contrib.gis.utils.rst
 
@@ -25,7 +25,7 @@ django.contrib.gis.utils.geoip
 ==============================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/utils/geoip.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/utils/geoip.py>`_ 
 
 .. include:: cheat/django.contrib.gis.utils.geoip.rst
 
@@ -38,7 +38,7 @@ django.contrib.gis.utils.layermapping
 =====================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/utils/layermapping.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/utils/layermapping.py>`_ 
 
 .. include:: cheat/django.contrib.gis.utils.layermapping.rst
 
@@ -51,7 +51,7 @@ django.contrib.gis.utils.ogrinfo
 ================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/utils/ogrinfo.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/utils/ogrinfo.py>`_ 
 
 .. include:: cheat/django.contrib.gis.utils.ogrinfo.rst
 
@@ -64,7 +64,7 @@ django.contrib.gis.utils.ogrinspect
 ===================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/utils/ogrinspect.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/utils/ogrinspect.py>`_ 
 
 .. include:: cheat/django.contrib.gis.utils.ogrinspect.rst
 
@@ -77,7 +77,7 @@ django.contrib.gis.utils.srs
 ============================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/utils/srs.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/utils/srs.py>`_ 
 
 .. include:: cheat/django.contrib.gis.utils.srs.rst
 
@@ -90,7 +90,7 @@ django.contrib.gis.utils.wkt
 ============================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/utils/wkt.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/utils/wkt.py>`_ 
 
 .. include:: cheat/django.contrib.gis.utils.wkt.rst
 

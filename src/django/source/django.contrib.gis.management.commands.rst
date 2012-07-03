@@ -10,7 +10,7 @@ django.contrib.gis.management.commands
 ======================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/management/commands/__init__.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/management/commands/__init__.py>`_ 
 
 .. include:: cheat/django.contrib.gis.management.commands.rst
 
@@ -25,7 +25,7 @@ django.contrib.gis.management.commands.inspectdb
 ================================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/management/commands/inspectdb.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/management/commands/inspectdb.py>`_ 
 
 .. include:: cheat/django.contrib.gis.management.commands.inspectdb.rst
 
@@ -38,7 +38,7 @@ django.contrib.gis.management.commands.ogrinspect
 =================================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/management/commands/ogrinspect.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/management/commands/ogrinspect.py>`_ 
 
 .. include:: cheat/django.contrib.gis.management.commands.ogrinspect.rst
 

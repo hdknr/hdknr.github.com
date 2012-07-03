@@ -10,7 +10,7 @@ django.contrib.admindocs.tests
 ==============================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/admindocs/tests/__init__.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/admindocs/tests/__init__.py>`_ 
 
 .. include:: cheat/django.contrib.admindocs.tests.rst
 
@@ -25,7 +25,7 @@ django.contrib.admindocs.tests.fields
 =====================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/admindocs/tests/fields.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/admindocs/tests/fields.py>`_ 
 
 .. include:: cheat/django.contrib.admindocs.tests.fields.rst
 

@@ -10,7 +10,7 @@ django.contrib.localflavor.sk
 =============================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/localflavor/sk/__init__.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/localflavor/sk/__init__.py>`_ 
 
 .. include:: cheat/django.contrib.localflavor.sk.rst
 
@@ -25,7 +25,7 @@ django.contrib.localflavor.sk.forms
 ===================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/localflavor/sk/forms.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/localflavor/sk/forms.py>`_ 
 
 .. include:: cheat/django.contrib.localflavor.sk.forms.rst
 
@@ -38,7 +38,7 @@ django.contrib.localflavor.sk.sk_districts
 ==========================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/localflavor/sk/sk_districts.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/localflavor/sk/sk_districts.py>`_ 
 
 .. include:: cheat/django.contrib.localflavor.sk.sk_districts.rst
 
@@ -51,7 +51,7 @@ django.contrib.localflavor.sk.sk_regions
 ========================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/localflavor/sk/sk_regions.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/localflavor/sk/sk_regions.py>`_ 
 
 .. include:: cheat/django.contrib.localflavor.sk.sk_regions.rst
 

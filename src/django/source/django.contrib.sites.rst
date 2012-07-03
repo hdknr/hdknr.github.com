@@ -10,7 +10,7 @@ django.contrib.sites
 ====================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/sites/__init__.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/sites/__init__.py>`_ 
 
 .. include:: cheat/django.contrib.sites.rst
 
@@ -25,7 +25,7 @@ django.contrib.sites.admin
 ==========================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/sites/admin.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/sites/admin.py>`_ 
 
 .. include:: cheat/django.contrib.sites.admin.rst
 
@@ -38,7 +38,7 @@ django.contrib.sites.management
 ===============================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/sites/management.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/sites/management.py>`_ 
 
 .. include:: cheat/django.contrib.sites.management.rst
 
@@ -51,7 +51,7 @@ django.contrib.sites.managers
 =============================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/sites/managers.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/sites/managers.py>`_ 
 
 .. include:: cheat/django.contrib.sites.managers.rst
 
@@ -64,7 +64,7 @@ django.contrib.sites.models
 ===========================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/sites/models.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/sites/models.py>`_ 
 
 .. include:: cheat/django.contrib.sites.models.rst
 
@@ -77,7 +77,7 @@ django.contrib.sites.tests
 ==========================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/sites/tests.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/sites/tests.py>`_ 
 
 .. include:: cheat/django.contrib.sites.tests.rst
 

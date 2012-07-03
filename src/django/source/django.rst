@@ -10,7 +10,7 @@ django
 ======
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/__init__.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/__init__.py>`_ 
 
 .. include:: cheat/django.rst
 

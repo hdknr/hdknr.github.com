@@ -10,7 +10,7 @@ django.db.backends.oracle
 =========================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/db/backends/oracle/__init__.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/db/backends/oracle/__init__.py>`_ 
 
 .. include:: cheat/django.db.backends.oracle.rst
 
@@ -25,7 +25,7 @@ django.db.backends.oracle.base
 ==============================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/db/backends/oracle/base.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/db/backends/oracle/base.py>`_ 
 
 .. include:: cheat/django.db.backends.oracle.base.rst
 
@@ -38,7 +38,7 @@ django.db.backends.oracle.client
 ================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/db/backends/oracle/client.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/db/backends/oracle/client.py>`_ 
 
 .. include:: cheat/django.db.backends.oracle.client.rst
 
@@ -51,7 +51,7 @@ django.db.backends.oracle.compiler
 ==================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/db/backends/oracle/compiler.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/db/backends/oracle/compiler.py>`_ 
 
 .. include:: cheat/django.db.backends.oracle.compiler.rst
 
@@ -64,7 +64,7 @@ django.db.backends.oracle.creation
 ==================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/db/backends/oracle/creation.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/db/backends/oracle/creation.py>`_ 
 
 .. include:: cheat/django.db.backends.oracle.creation.rst
 
@@ -77,7 +77,7 @@ django.db.backends.oracle.introspection
 =======================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/db/backends/oracle/introspection.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/db/backends/oracle/introspection.py>`_ 
 
 .. include:: cheat/django.db.backends.oracle.introspection.rst
 

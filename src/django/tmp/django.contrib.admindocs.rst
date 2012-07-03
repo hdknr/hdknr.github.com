@@ -10,7 +10,7 @@ django.contrib.admindocs
 ========================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/admindocs/__init__.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/admindocs/__init__.py>`_ 
 
 .. include:: cheat/django.contrib.admindocs.rst
 
@@ -30,7 +30,7 @@ django.contrib.admindocs.models
 ===============================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/admindocs/models.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/admindocs/models.py>`_ 
 
 .. include:: cheat/django.contrib.admindocs.models.rst
 
@@ -43,7 +43,7 @@ django.contrib.admindocs.urls
 =============================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/admindocs/urls.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/admindocs/urls.py>`_ 
 
 .. include:: cheat/django.contrib.admindocs.urls.rst
 
@@ -56,7 +56,7 @@ django.contrib.admindocs.utils
 ==============================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/admindocs/utils.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/admindocs/utils.py>`_ 
 
 .. include:: cheat/django.contrib.admindocs.utils.rst
 
@@ -69,7 +69,7 @@ django.contrib.admindocs.views
 ==============================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/admindocs/views.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/admindocs/views.py>`_ 
 
 .. include:: cheat/django.contrib.admindocs.views.rst
 

@@ -10,7 +10,7 @@ django.db.models.sql
 ====================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/db/models/sql/__init__.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/db/models/sql/__init__.py>`_ 
 
 .. include:: cheat/django.db.models.sql.rst
 
@@ -25,7 +25,7 @@ django.db.models.sql.aggregates
 ===============================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/db/models/sql/aggregates.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/db/models/sql/aggregates.py>`_ 
 
 .. include:: cheat/django.db.models.sql.aggregates.rst
 
@@ -38,7 +38,7 @@ django.db.models.sql.compiler
 =============================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/db/models/sql/compiler.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/db/models/sql/compiler.py>`_ 
 
 .. include:: cheat/django.db.models.sql.compiler.rst
 
@@ -51,7 +51,7 @@ django.db.models.sql.constants
 ==============================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/db/models/sql/constants.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/db/models/sql/constants.py>`_ 
 
 .. include:: cheat/django.db.models.sql.constants.rst
 
@@ -64,7 +64,7 @@ django.db.models.sql.datastructures
 ===================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/db/models/sql/datastructures.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/db/models/sql/datastructures.py>`_ 
 
 .. include:: cheat/django.db.models.sql.datastructures.rst
 
@@ -77,7 +77,7 @@ django.db.models.sql.expressions
 ================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/db/models/sql/expressions.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/db/models/sql/expressions.py>`_ 
 
 .. include:: cheat/django.db.models.sql.expressions.rst
 
@@ -90,7 +90,7 @@ django.db.models.sql.query
 ==========================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/db/models/sql/query.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/db/models/sql/query.py>`_ 
 
 .. include:: cheat/django.db.models.sql.query.rst
 
@@ -103,7 +103,7 @@ django.db.models.sql.subqueries
 ===============================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/db/models/sql/subqueries.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/db/models/sql/subqueries.py>`_ 
 
 .. include:: cheat/django.db.models.sql.subqueries.rst
 
@@ -116,7 +116,7 @@ django.db.models.sql.where
 ==========================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/db/models/sql/where.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/db/models/sql/where.py>`_ 
 
 .. include:: cheat/django.db.models.sql.where.rst
 

@@ -10,7 +10,7 @@ django.contrib.auth.tests
 =========================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/auth/tests/__init__.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/auth/tests/__init__.py>`_ 
 
 .. include:: cheat/django.contrib.auth.tests.rst
 
@@ -25,7 +25,7 @@ django.contrib.auth.tests.auth_backends
 =======================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/auth/tests/auth_backends.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/auth/tests/auth_backends.py>`_ 
 
 .. include:: cheat/django.contrib.auth.tests.auth_backends.rst
 
@@ -38,11 +38,24 @@ django.contrib.auth.tests.basic
 ===============================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/auth/tests/basic.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/auth/tests/basic.py>`_ 
 
 .. include:: cheat/django.contrib.auth.tests.basic.rst
 
 .. automodule:: django.contrib.auth.tests.basic
+    :members:
+
+.. _django.contrib.auth.tests.context_processors:
+
+django.contrib.auth.tests.context_processors
+============================================
+
+
+- `source <https://github.com/django/django/tree/master/django/contrib/auth/tests/context_processors.py>`_ 
+
+.. include:: cheat/django.contrib.auth.tests.context_processors.rst
+
+.. automodule:: django.contrib.auth.tests.context_processors
     :members:
 
 .. _django.contrib.auth.tests.decorators:
@@ -51,7 +64,7 @@ django.contrib.auth.tests.decorators
 ====================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/auth/tests/decorators.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/auth/tests/decorators.py>`_ 
 
 .. include:: cheat/django.contrib.auth.tests.decorators.rst
 
@@ -64,11 +77,37 @@ django.contrib.auth.tests.forms
 ===============================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/auth/tests/forms.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/auth/tests/forms.py>`_ 
 
 .. include:: cheat/django.contrib.auth.tests.forms.rst
 
 .. automodule:: django.contrib.auth.tests.forms
+    :members:
+
+.. _django.contrib.auth.tests.hashers:
+
+django.contrib.auth.tests.hashers
+=================================
+
+
+- `source <https://github.com/django/django/tree/master/django/contrib/auth/tests/hashers.py>`_ 
+
+.. include:: cheat/django.contrib.auth.tests.hashers.rst
+
+.. automodule:: django.contrib.auth.tests.hashers
+    :members:
+
+.. _django.contrib.auth.tests.management:
+
+django.contrib.auth.tests.management
+====================================
+
+
+- `source <https://github.com/django/django/tree/master/django/contrib/auth/tests/management.py>`_ 
+
+.. include:: cheat/django.contrib.auth.tests.management.rst
+
+.. automodule:: django.contrib.auth.tests.management
     :members:
 
 .. _django.contrib.auth.tests.models:
@@ -77,24 +116,11 @@ django.contrib.auth.tests.models
 ================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/auth/tests/models.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/auth/tests/models.py>`_ 
 
 .. include:: cheat/django.contrib.auth.tests.models.rst
 
 .. automodule:: django.contrib.auth.tests.models
-    :members:
-
-.. _django.contrib.auth.tests.permissions:
-
-django.contrib.auth.tests.permissions
-=====================================
-
-
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/auth/tests/permissions.py>`_ 
-
-.. include:: cheat/django.contrib.auth.tests.permissions.rst
-
-.. automodule:: django.contrib.auth.tests.permissions
     :members:
 
 .. _django.contrib.auth.tests.remote_user:
@@ -103,7 +129,7 @@ django.contrib.auth.tests.remote_user
 =====================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/auth/tests/remote_user.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/auth/tests/remote_user.py>`_ 
 
 .. include:: cheat/django.contrib.auth.tests.remote_user.rst
 
@@ -116,7 +142,7 @@ django.contrib.auth.tests.signals
 =================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/auth/tests/signals.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/auth/tests/signals.py>`_ 
 
 .. include:: cheat/django.contrib.auth.tests.signals.rst
 
@@ -129,7 +155,7 @@ django.contrib.auth.tests.tokens
 ================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/auth/tests/tokens.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/auth/tests/tokens.py>`_ 
 
 .. include:: cheat/django.contrib.auth.tests.tokens.rst
 
@@ -142,7 +168,7 @@ django.contrib.auth.tests.urls
 ==============================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/auth/tests/urls.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/auth/tests/urls.py>`_ 
 
 .. include:: cheat/django.contrib.auth.tests.urls.rst
 
@@ -155,7 +181,7 @@ django.contrib.auth.tests.views
 ===============================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/auth/tests/views.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/auth/tests/views.py>`_ 
 
 .. include:: cheat/django.contrib.auth.tests.views.rst
 

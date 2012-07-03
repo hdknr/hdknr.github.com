@@ -10,7 +10,7 @@ django.contrib.sitemaps
 =======================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/sitemaps/__init__.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/sitemaps/__init__.py>`_ 
 
 .. include:: cheat/django.contrib.sitemaps.rst
 
@@ -32,7 +32,7 @@ django.contrib.sitemaps.models
 ==============================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/sitemaps/models.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/sitemaps/models.py>`_ 
 
 .. include:: cheat/django.contrib.sitemaps.models.rst
 
@@ -45,7 +45,7 @@ django.contrib.sitemaps.views
 =============================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/sitemaps/views.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/sitemaps/views.py>`_ 
 
 .. include:: cheat/django.contrib.sitemaps.views.rst
 

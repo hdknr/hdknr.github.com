@@ -10,7 +10,7 @@ django.utils
 ============
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/utils/__init__.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/utils/__init__.py>`_ 
 
 .. include:: cheat/django.utils.rst
 
@@ -34,24 +34,24 @@ django.utils._os
 ================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/utils/_os.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/utils/_os.py>`_ 
 
 .. include:: cheat/django.utils._os.rst
 
 .. automodule:: django.utils._os
     :members:
 
-.. _django.utils._threading_local:
+.. _django.utils.archive:
 
-django.utils._threading_local
-=============================
+django.utils.archive
+====================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/utils/_threading_local.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/utils/archive.py>`_ 
 
-.. include:: cheat/django.utils._threading_local.rst
+.. include:: cheat/django.utils.archive.rst
 
-.. automodule:: django.utils._threading_local
+.. automodule:: django.utils.archive
     :members:
 
 .. _django.utils.autoreload:
@@ -60,11 +60,24 @@ django.utils.autoreload
 =======================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/utils/autoreload.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/utils/autoreload.py>`_ 
 
 .. include:: cheat/django.utils.autoreload.rst
 
 .. automodule:: django.utils.autoreload
+    :members:
+
+.. _django.utils.baseconv:
+
+django.utils.baseconv
+=====================
+
+
+- `source <https://github.com/django/django/tree/master/django/utils/baseconv.py>`_ 
+
+.. include:: cheat/django.utils.baseconv.rst
+
+.. automodule:: django.utils.baseconv
     :members:
 
 .. _django.utils.cache:
@@ -73,7 +86,7 @@ django.utils.cache
 ==================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/utils/cache.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/utils/cache.py>`_ 
 
 .. include:: cheat/django.utils.cache.rst
 
@@ -86,7 +99,7 @@ django.utils.checksums
 ======================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/utils/checksums.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/utils/checksums.py>`_ 
 
 .. include:: cheat/django.utils.checksums.rst
 
@@ -99,7 +112,7 @@ django.utils.copycompat
 =======================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/utils/copycompat.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/utils/copycompat.py>`_ 
 
 .. include:: cheat/django.utils.copycompat.rst
 
@@ -112,7 +125,7 @@ django.utils.crypto
 ===================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/utils/crypto.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/utils/crypto.py>`_ 
 
 .. include:: cheat/django.utils.crypto.rst
 
@@ -125,7 +138,7 @@ django.utils.daemonize
 ======================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/utils/daemonize.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/utils/daemonize.py>`_ 
 
 .. include:: cheat/django.utils.daemonize.rst
 
@@ -138,7 +151,7 @@ django.utils.datastructures
 ===========================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/utils/datastructures.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/utils/datastructures.py>`_ 
 
 .. include:: cheat/django.utils.datastructures.rst
 
@@ -151,11 +164,24 @@ django.utils.dateformat
 =======================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/utils/dateformat.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/utils/dateformat.py>`_ 
 
 .. include:: cheat/django.utils.dateformat.rst
 
 .. automodule:: django.utils.dateformat
+    :members:
+
+.. _django.utils.dateparse:
+
+django.utils.dateparse
+======================
+
+
+- `source <https://github.com/django/django/tree/master/django/utils/dateparse.py>`_ 
+
+.. include:: cheat/django.utils.dateparse.rst
+
+.. automodule:: django.utils.dateparse
     :members:
 
 .. _django.utils.dates:
@@ -164,7 +190,7 @@ django.utils.dates
 ==================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/utils/dates.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/utils/dates.py>`_ 
 
 .. include:: cheat/django.utils.dates.rst
 
@@ -177,7 +203,7 @@ django.utils.datetime_safe
 ==========================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/utils/datetime_safe.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/utils/datetime_safe.py>`_ 
 
 .. include:: cheat/django.utils.datetime_safe.rst
 
@@ -190,7 +216,7 @@ django.utils.decorators
 =======================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/utils/decorators.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/utils/decorators.py>`_ 
 
 .. include:: cheat/django.utils.decorators.rst
 
@@ -203,7 +229,7 @@ django.utils.dictconfig
 =======================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/utils/dictconfig.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/utils/dictconfig.py>`_ 
 
 .. include:: cheat/django.utils.dictconfig.rst
 
@@ -216,7 +242,7 @@ django.utils.encoding
 =====================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/utils/encoding.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/utils/encoding.py>`_ 
 
 .. include:: cheat/django.utils.encoding.rst
 
@@ -229,7 +255,7 @@ django.utils.feedgenerator
 ==========================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/utils/feedgenerator.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/utils/feedgenerator.py>`_ 
 
 .. include:: cheat/django.utils.feedgenerator.rst
 
@@ -242,7 +268,7 @@ django.utils.formats
 ====================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/utils/formats.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/utils/formats.py>`_ 
 
 .. include:: cheat/django.utils.formats.rst
 
@@ -255,7 +281,7 @@ django.utils.functional
 =======================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/utils/functional.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/utils/functional.py>`_ 
 
 .. include:: cheat/django.utils.functional.rst
 
@@ -268,7 +294,7 @@ django.utils.hashcompat
 =======================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/utils/hashcompat.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/utils/hashcompat.py>`_ 
 
 .. include:: cheat/django.utils.hashcompat.rst
 
@@ -281,11 +307,24 @@ django.utils.html
 =================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/utils/html.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/utils/html.py>`_ 
 
 .. include:: cheat/django.utils.html.rst
 
 .. automodule:: django.utils.html
+    :members:
+
+.. _django.utils.html_parser:
+
+django.utils.html_parser
+========================
+
+
+- `source <https://github.com/django/django/tree/master/django/utils/html_parser.py>`_ 
+
+.. include:: cheat/django.utils.html_parser.rst
+
+.. automodule:: django.utils.html_parser
     :members:
 
 .. _django.utils.http:
@@ -294,7 +333,7 @@ django.utils.http
 =================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/utils/http.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/utils/http.py>`_ 
 
 .. include:: cheat/django.utils.http.rst
 
@@ -307,11 +346,24 @@ django.utils.importlib
 ======================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/utils/importlib.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/utils/importlib.py>`_ 
 
 .. include:: cheat/django.utils.importlib.rst
 
 .. automodule:: django.utils.importlib
+    :members:
+
+.. _django.utils.ipv6:
+
+django.utils.ipv6
+=================
+
+
+- `source <https://github.com/django/django/tree/master/django/utils/ipv6.py>`_ 
+
+.. include:: cheat/django.utils.ipv6.rst
+
+.. automodule:: django.utils.ipv6
     :members:
 
 .. _django.utils.itercompat:
@@ -320,11 +372,24 @@ django.utils.itercompat
 =======================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/utils/itercompat.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/utils/itercompat.py>`_ 
 
 .. include:: cheat/django.utils.itercompat.rst
 
 .. automodule:: django.utils.itercompat
+    :members:
+
+.. _django.utils.jslex:
+
+django.utils.jslex
+==================
+
+
+- `source <https://github.com/django/django/tree/master/django/utils/jslex.py>`_ 
+
+.. include:: cheat/django.utils.jslex.rst
+
+.. automodule:: django.utils.jslex
     :members:
 
 .. _django.utils.log:
@@ -333,7 +398,7 @@ django.utils.log
 ================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/utils/log.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/utils/log.py>`_ 
 
 .. include:: cheat/django.utils.log.rst
 
@@ -346,7 +411,7 @@ django.utils.module_loading
 ===========================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/utils/module_loading.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/utils/module_loading.py>`_ 
 
 .. include:: cheat/django.utils.module_loading.rst
 
@@ -359,7 +424,7 @@ django.utils.numberformat
 =========================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/utils/numberformat.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/utils/numberformat.py>`_ 
 
 .. include:: cheat/django.utils.numberformat.rst
 
@@ -372,7 +437,7 @@ django.utils.regex_helper
 =========================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/utils/regex_helper.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/utils/regex_helper.py>`_ 
 
 .. include:: cheat/django.utils.regex_helper.rst
 
@@ -385,24 +450,11 @@ django.utils.safestring
 =======================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/utils/safestring.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/utils/safestring.py>`_ 
 
 .. include:: cheat/django.utils.safestring.rst
 
 .. automodule:: django.utils.safestring
-    :members:
-
-.. _django.utils.stopwords:
-
-django.utils.stopwords
-======================
-
-
-- `source <https://code.djangoproject.com/browser/django/trunk/django/utils/stopwords.py>`_ 
-
-.. include:: cheat/django.utils.stopwords.rst
-
-.. automodule:: django.utils.stopwords
     :members:
 
 .. _django.utils.synch:
@@ -411,7 +463,7 @@ django.utils.synch
 ==================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/utils/synch.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/utils/synch.py>`_ 
 
 .. include:: cheat/django.utils.synch.rst
 
@@ -424,7 +476,7 @@ django.utils.termcolors
 =======================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/utils/termcolors.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/utils/termcolors.py>`_ 
 
 .. include:: cheat/django.utils.termcolors.rst
 
@@ -437,7 +489,7 @@ django.utils.text
 =================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/utils/text.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/utils/text.py>`_ 
 
 .. include:: cheat/django.utils.text.rst
 
@@ -450,11 +502,24 @@ django.utils.timesince
 ======================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/utils/timesince.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/utils/timesince.py>`_ 
 
 .. include:: cheat/django.utils.timesince.rst
 
 .. automodule:: django.utils.timesince
+    :members:
+
+.. _django.utils.timezone:
+
+django.utils.timezone
+=====================
+
+
+- `source <https://github.com/django/django/tree/master/django/utils/timezone.py>`_ 
+
+.. include:: cheat/django.utils.timezone.rst
+
+.. automodule:: django.utils.timezone
     :members:
 
 .. _django.utils.tree:
@@ -463,7 +528,7 @@ django.utils.tree
 =================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/utils/tree.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/utils/tree.py>`_ 
 
 .. include:: cheat/django.utils.tree.rst
 
@@ -476,7 +541,7 @@ django.utils.tzinfo
 ===================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/utils/tzinfo.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/utils/tzinfo.py>`_ 
 
 .. include:: cheat/django.utils.tzinfo.rst
 
@@ -489,7 +554,7 @@ django.utils.version
 ====================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/utils/version.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/utils/version.py>`_ 
 
 .. include:: cheat/django.utils.version.rst
 
@@ -502,7 +567,7 @@ django.utils.xmlutils
 =====================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/utils/xmlutils.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/utils/xmlutils.py>`_ 
 
 .. include:: cheat/django.utils.xmlutils.rst
 

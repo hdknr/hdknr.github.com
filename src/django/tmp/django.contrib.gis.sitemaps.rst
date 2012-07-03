@@ -10,7 +10,7 @@ django.contrib.gis.sitemaps
 ===========================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/sitemaps/__init__.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/sitemaps/__init__.py>`_ 
 
 .. include:: cheat/django.contrib.gis.sitemaps.rst
 
@@ -25,7 +25,7 @@ django.contrib.gis.sitemaps.georss
 ==================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/sitemaps/georss.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/sitemaps/georss.py>`_ 
 
 .. include:: cheat/django.contrib.gis.sitemaps.georss.rst
 
@@ -38,7 +38,7 @@ django.contrib.gis.sitemaps.kml
 ===============================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/sitemaps/kml.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/sitemaps/kml.py>`_ 
 
 .. include:: cheat/django.contrib.gis.sitemaps.kml.rst
 
@@ -51,7 +51,7 @@ django.contrib.gis.sitemaps.views
 =================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/sitemaps/views.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/sitemaps/views.py>`_ 
 
 .. include:: cheat/django.contrib.gis.sitemaps.views.rst
 

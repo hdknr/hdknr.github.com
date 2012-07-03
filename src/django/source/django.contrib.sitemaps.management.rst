@@ -10,7 +10,7 @@ django.contrib.sitemaps.management
 ==================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/sitemaps/management/__init__.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/sitemaps/management/__init__.py>`_ 
 
 .. include:: cheat/django.contrib.sitemaps.management.rst
 

@@ -10,7 +10,7 @@ django.contrib.gis.tests.geogapp
 ================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/tests/geogapp/__init__.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/tests/geogapp/__init__.py>`_ 
 
 .. include:: cheat/django.contrib.gis.tests.geogapp.rst
 
@@ -25,7 +25,7 @@ django.contrib.gis.tests.geogapp.models
 =======================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/tests/geogapp/models.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/tests/geogapp/models.py>`_ 
 
 .. include:: cheat/django.contrib.gis.tests.geogapp.models.rst
 
@@ -38,7 +38,7 @@ django.contrib.gis.tests.geogapp.tests
 ======================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/tests/geogapp/tests.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/tests/geogapp/tests.py>`_ 
 
 .. include:: cheat/django.contrib.gis.tests.geogapp.tests.rst
 

@@ -10,7 +10,7 @@ django.contrib.localflavor.jp
 =============================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/localflavor/jp/__init__.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/localflavor/jp/__init__.py>`_ 
 
 .. include:: cheat/django.contrib.localflavor.jp.rst
 
@@ -25,7 +25,7 @@ django.contrib.localflavor.jp.forms
 ===================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/localflavor/jp/forms.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/localflavor/jp/forms.py>`_ 
 
 .. include:: cheat/django.contrib.localflavor.jp.forms.rst
 
@@ -38,7 +38,7 @@ django.contrib.localflavor.jp.jp_prefectures
 ============================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/localflavor/jp/jp_prefectures.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/localflavor/jp/jp_prefectures.py>`_ 
 
 .. include:: cheat/django.contrib.localflavor.jp.jp_prefectures.rst
 

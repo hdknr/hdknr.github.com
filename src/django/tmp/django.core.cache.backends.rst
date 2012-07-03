@@ -10,7 +10,7 @@ django.core.cache.backends
 ==========================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/core/cache/backends/__init__.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/core/cache/backends/__init__.py>`_ 
 
 .. include:: cheat/django.core.cache.backends.rst
 
@@ -25,7 +25,7 @@ django.core.cache.backends.base
 ===============================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/core/cache/backends/base.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/core/cache/backends/base.py>`_ 
 
 .. include:: cheat/django.core.cache.backends.base.rst
 
@@ -38,7 +38,7 @@ django.core.cache.backends.db
 =============================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/core/cache/backends/db.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/core/cache/backends/db.py>`_ 
 
 .. include:: cheat/django.core.cache.backends.db.rst
 
@@ -51,7 +51,7 @@ django.core.cache.backends.dummy
 ================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/core/cache/backends/dummy.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/core/cache/backends/dummy.py>`_ 
 
 .. include:: cheat/django.core.cache.backends.dummy.rst
 
@@ -64,7 +64,7 @@ django.core.cache.backends.filebased
 ====================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/core/cache/backends/filebased.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/core/cache/backends/filebased.py>`_ 
 
 .. include:: cheat/django.core.cache.backends.filebased.rst
 
@@ -77,7 +77,7 @@ django.core.cache.backends.locmem
 =================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/core/cache/backends/locmem.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/core/cache/backends/locmem.py>`_ 
 
 .. include:: cheat/django.core.cache.backends.locmem.rst
 
@@ -90,7 +90,7 @@ django.core.cache.backends.memcached
 ====================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/core/cache/backends/memcached.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/core/cache/backends/memcached.py>`_ 
 
 .. include:: cheat/django.core.cache.backends.memcached.rst
 

@@ -10,7 +10,7 @@ django.core.mail.backends
 =========================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/core/mail/backends/__init__.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/core/mail/backends/__init__.py>`_ 
 
 .. include:: cheat/django.core.mail.backends.rst
 
@@ -25,7 +25,7 @@ django.core.mail.backends.base
 ==============================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/core/mail/backends/base.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/core/mail/backends/base.py>`_ 
 
 .. include:: cheat/django.core.mail.backends.base.rst
 
@@ -38,7 +38,7 @@ django.core.mail.backends.console
 =================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/core/mail/backends/console.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/core/mail/backends/console.py>`_ 
 
 .. include:: cheat/django.core.mail.backends.console.rst
 
@@ -51,7 +51,7 @@ django.core.mail.backends.dummy
 ===============================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/core/mail/backends/dummy.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/core/mail/backends/dummy.py>`_ 
 
 .. include:: cheat/django.core.mail.backends.dummy.rst
 
@@ -64,7 +64,7 @@ django.core.mail.backends.filebased
 ===================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/core/mail/backends/filebased.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/core/mail/backends/filebased.py>`_ 
 
 .. include:: cheat/django.core.mail.backends.filebased.rst
 
@@ -77,7 +77,7 @@ django.core.mail.backends.locmem
 ================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/core/mail/backends/locmem.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/core/mail/backends/locmem.py>`_ 
 
 .. include:: cheat/django.core.mail.backends.locmem.rst
 
@@ -90,7 +90,7 @@ django.core.mail.backends.smtp
 ==============================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/core/mail/backends/smtp.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/core/mail/backends/smtp.py>`_ 
 
 .. include:: cheat/django.core.mail.backends.smtp.rst
 

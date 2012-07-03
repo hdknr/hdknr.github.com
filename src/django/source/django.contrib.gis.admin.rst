@@ -10,7 +10,7 @@ django.contrib.gis.admin
 ========================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/admin/__init__.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/admin/__init__.py>`_ 
 
 .. include:: cheat/django.contrib.gis.admin.rst
 
@@ -25,7 +25,7 @@ django.contrib.gis.admin.options
 ================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/admin/options.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/admin/options.py>`_ 
 
 .. include:: cheat/django.contrib.gis.admin.options.rst
 
@@ -38,7 +38,7 @@ django.contrib.gis.admin.widgets
 ================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/admin/widgets.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/admin/widgets.py>`_ 
 
 .. include:: cheat/django.contrib.gis.admin.widgets.rst
 

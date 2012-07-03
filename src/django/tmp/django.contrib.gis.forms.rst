@@ -10,7 +10,7 @@ django.contrib.gis.forms
 ========================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/forms/__init__.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/forms/__init__.py>`_ 
 
 .. include:: cheat/django.contrib.gis.forms.rst
 
@@ -25,7 +25,7 @@ django.contrib.gis.forms.fields
 ===============================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/forms/fields.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/forms/fields.py>`_ 
 
 .. include:: cheat/django.contrib.gis.forms.fields.rst
 

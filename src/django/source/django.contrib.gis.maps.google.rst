@@ -10,7 +10,7 @@ django.contrib.gis.maps.google
 ==============================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/maps/google/__init__.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/maps/google/__init__.py>`_ 
 
 .. include:: cheat/django.contrib.gis.maps.google.rst
 
@@ -25,7 +25,7 @@ django.contrib.gis.maps.google.gmap
 ===================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/maps/google/gmap.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/maps/google/gmap.py>`_ 
 
 .. include:: cheat/django.contrib.gis.maps.google.gmap.rst
 
@@ -38,7 +38,7 @@ django.contrib.gis.maps.google.overlays
 =======================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/maps/google/overlays.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/maps/google/overlays.py>`_ 
 
 .. include:: cheat/django.contrib.gis.maps.google.overlays.rst
 
@@ -51,7 +51,7 @@ django.contrib.gis.maps.google.zoom
 ===================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/maps/google/zoom.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/maps/google/zoom.py>`_ 
 
 .. include:: cheat/django.contrib.gis.maps.google.zoom.rst
 

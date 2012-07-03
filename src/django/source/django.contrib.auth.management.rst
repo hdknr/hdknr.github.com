@@ -10,7 +10,7 @@ django.contrib.auth.management
 ==============================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/auth/management/__init__.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/auth/management/__init__.py>`_ 
 
 .. include:: cheat/django.contrib.auth.management.rst
 

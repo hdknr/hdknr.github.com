@@ -10,7 +10,7 @@ django.conf.locale.vi
 =====================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/conf/locale/vi/__init__.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/conf/locale/vi/__init__.py>`_ 
 
 .. include:: cheat/django.conf.locale.vi.rst
 
@@ -25,7 +25,7 @@ django.conf.locale.vi.formats
 =============================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/conf/locale/vi/formats.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/conf/locale/vi/formats.py>`_ 
 
 .. include:: cheat/django.conf.locale.vi.formats.rst
 

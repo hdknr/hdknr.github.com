@@ -10,7 +10,7 @@ django.contrib.gis.geos
 =======================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/geos/__init__.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/geos/__init__.py>`_ 
 
 .. include:: cheat/django.contrib.gis.geos.rst
 
@@ -32,7 +32,7 @@ django.contrib.gis.geos.base
 ============================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/geos/base.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/geos/base.py>`_ 
 
 .. include:: cheat/django.contrib.gis.geos.base.rst
 
@@ -45,7 +45,7 @@ django.contrib.gis.geos.collections
 ===================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/geos/collections.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/geos/collections.py>`_ 
 
 .. include:: cheat/django.contrib.gis.geos.collections.rst
 
@@ -58,7 +58,7 @@ django.contrib.gis.geos.coordseq
 ================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/geos/coordseq.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/geos/coordseq.py>`_ 
 
 .. include:: cheat/django.contrib.gis.geos.coordseq.rst
 
@@ -71,7 +71,7 @@ django.contrib.gis.geos.error
 =============================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/geos/error.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/geos/error.py>`_ 
 
 .. include:: cheat/django.contrib.gis.geos.error.rst
 
@@ -84,7 +84,7 @@ django.contrib.gis.geos.factory
 ===============================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/geos/factory.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/geos/factory.py>`_ 
 
 .. include:: cheat/django.contrib.gis.geos.factory.rst
 
@@ -97,7 +97,7 @@ django.contrib.gis.geos.geometry
 ================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/geos/geometry.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/geos/geometry.py>`_ 
 
 .. include:: cheat/django.contrib.gis.geos.geometry.rst
 
@@ -110,7 +110,7 @@ django.contrib.gis.geos.io
 ==========================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/geos/io.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/geos/io.py>`_ 
 
 .. include:: cheat/django.contrib.gis.geos.io.rst
 
@@ -123,7 +123,7 @@ django.contrib.gis.geos.libgeos
 ===============================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/geos/libgeos.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/geos/libgeos.py>`_ 
 
 .. include:: cheat/django.contrib.gis.geos.libgeos.rst
 
@@ -136,7 +136,7 @@ django.contrib.gis.geos.linestring
 ==================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/geos/linestring.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/geos/linestring.py>`_ 
 
 .. include:: cheat/django.contrib.gis.geos.linestring.rst
 
@@ -149,7 +149,7 @@ django.contrib.gis.geos.mutable_list
 ====================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/geos/mutable_list.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/geos/mutable_list.py>`_ 
 
 .. include:: cheat/django.contrib.gis.geos.mutable_list.rst
 
@@ -162,7 +162,7 @@ django.contrib.gis.geos.point
 =============================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/geos/point.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/geos/point.py>`_ 
 
 .. include:: cheat/django.contrib.gis.geos.point.rst
 
@@ -175,7 +175,7 @@ django.contrib.gis.geos.polygon
 ===============================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/geos/polygon.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/geos/polygon.py>`_ 
 
 .. include:: cheat/django.contrib.gis.geos.polygon.rst
 
@@ -188,7 +188,7 @@ django.contrib.gis.geos.prepared
 ================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/geos/prepared.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/geos/prepared.py>`_ 
 
 .. include:: cheat/django.contrib.gis.geos.prepared.rst
 

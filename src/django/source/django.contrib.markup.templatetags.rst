@@ -10,7 +10,7 @@ django.contrib.markup.templatetags
 ==================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/markup/templatetags/__init__.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/markup/templatetags/__init__.py>`_ 
 
 .. include:: cheat/django.contrib.markup.templatetags.rst
 
@@ -25,7 +25,7 @@ django.contrib.markup.templatetags.markup
 =========================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/markup/templatetags/markup.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/markup/templatetags/markup.py>`_ 
 
 .. include:: cheat/django.contrib.markup.templatetags.markup.rst
 

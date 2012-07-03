@@ -10,7 +10,7 @@ django.contrib.gis.db.backends.oracle
 =====================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/db/backends/oracle/__init__.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/db/backends/oracle/__init__.py>`_ 
 
 .. include:: cheat/django.contrib.gis.db.backends.oracle.rst
 
@@ -25,7 +25,7 @@ django.contrib.gis.db.backends.oracle.adapter
 =============================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/db/backends/oracle/adapter.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/db/backends/oracle/adapter.py>`_ 
 
 .. include:: cheat/django.contrib.gis.db.backends.oracle.adapter.rst
 
@@ -38,7 +38,7 @@ django.contrib.gis.db.backends.oracle.base
 ==========================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/db/backends/oracle/base.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/db/backends/oracle/base.py>`_ 
 
 .. include:: cheat/django.contrib.gis.db.backends.oracle.base.rst
 
@@ -51,7 +51,7 @@ django.contrib.gis.db.backends.oracle.compiler
 ==============================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/db/backends/oracle/compiler.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/db/backends/oracle/compiler.py>`_ 
 
 .. include:: cheat/django.contrib.gis.db.backends.oracle.compiler.rst
 
@@ -64,7 +64,7 @@ django.contrib.gis.db.backends.oracle.creation
 ==============================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/db/backends/oracle/creation.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/db/backends/oracle/creation.py>`_ 
 
 .. include:: cheat/django.contrib.gis.db.backends.oracle.creation.rst
 
@@ -77,7 +77,7 @@ django.contrib.gis.db.backends.oracle.introspection
 ===================================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/db/backends/oracle/introspection.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/db/backends/oracle/introspection.py>`_ 
 
 .. include:: cheat/django.contrib.gis.db.backends.oracle.introspection.rst
 
@@ -90,7 +90,7 @@ django.contrib.gis.db.backends.oracle.models
 ============================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/db/backends/oracle/models.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/db/backends/oracle/models.py>`_ 
 
 .. include:: cheat/django.contrib.gis.db.backends.oracle.models.rst
 
@@ -103,7 +103,7 @@ django.contrib.gis.db.backends.oracle.operations
 ================================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/db/backends/oracle/operations.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/db/backends/oracle/operations.py>`_ 
 
 .. include:: cheat/django.contrib.gis.db.backends.oracle.operations.rst
 

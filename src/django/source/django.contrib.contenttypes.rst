@@ -10,7 +10,7 @@ django.contrib.contenttypes
 ===========================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/contenttypes/__init__.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/contenttypes/__init__.py>`_ 
 
 .. include:: cheat/django.contrib.contenttypes.rst
 
@@ -25,7 +25,7 @@ django.contrib.contenttypes.generic
 ===================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/contenttypes/generic.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/contenttypes/generic.py>`_ 
 
 .. include:: cheat/django.contrib.contenttypes.generic.rst
 
@@ -38,7 +38,7 @@ django.contrib.contenttypes.management
 ======================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/contenttypes/management.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/contenttypes/management.py>`_ 
 
 .. include:: cheat/django.contrib.contenttypes.management.rst
 
@@ -51,7 +51,7 @@ django.contrib.contenttypes.models
 ==================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/contenttypes/models.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/contenttypes/models.py>`_ 
 
 .. include:: cheat/django.contrib.contenttypes.models.rst
 
@@ -64,7 +64,7 @@ django.contrib.contenttypes.tests
 =================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/contenttypes/tests.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/contenttypes/tests.py>`_ 
 
 .. include:: cheat/django.contrib.contenttypes.tests.rst
 
@@ -77,7 +77,7 @@ django.contrib.contenttypes.views
 =================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/contenttypes/views.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/contenttypes/views.py>`_ 
 
 .. include:: cheat/django.contrib.contenttypes.views.rst
 

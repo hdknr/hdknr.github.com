@@ -10,7 +10,7 @@ django.contrib.webdesign
 ========================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/webdesign/__init__.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/webdesign/__init__.py>`_ 
 
 .. include:: cheat/django.contrib.webdesign.rst
 
@@ -25,7 +25,7 @@ django.contrib.webdesign.lorem_ipsum
 ====================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/webdesign/lorem_ipsum.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/webdesign/lorem_ipsum.py>`_ 
 
 .. include:: cheat/django.contrib.webdesign.lorem_ipsum.rst
 
@@ -38,7 +38,7 @@ django.contrib.webdesign.models
 ===============================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/webdesign/models.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/webdesign/models.py>`_ 
 
 .. include:: cheat/django.contrib.webdesign.models.rst
 
@@ -51,7 +51,7 @@ django.contrib.webdesign.tests
 ==============================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/webdesign/tests.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/webdesign/tests.py>`_ 
 
 .. include:: cheat/django.contrib.webdesign.tests.rst
 

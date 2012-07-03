@@ -10,7 +10,7 @@ django.contrib.gis.db.backends.mysql
 ====================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/db/backends/mysql/__init__.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/db/backends/mysql/__init__.py>`_ 
 
 .. include:: cheat/django.contrib.gis.db.backends.mysql.rst
 
@@ -25,11 +25,24 @@ django.contrib.gis.db.backends.mysql.base
 =========================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/db/backends/mysql/base.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/db/backends/mysql/base.py>`_ 
 
 .. include:: cheat/django.contrib.gis.db.backends.mysql.base.rst
 
 .. automodule:: django.contrib.gis.db.backends.mysql.base
+    :members:
+
+.. _django.contrib.gis.db.backends.mysql.compiler:
+
+django.contrib.gis.db.backends.mysql.compiler
+=============================================
+
+
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/db/backends/mysql/compiler.py>`_ 
+
+.. include:: cheat/django.contrib.gis.db.backends.mysql.compiler.rst
+
+.. automodule:: django.contrib.gis.db.backends.mysql.compiler
     :members:
 
 .. _django.contrib.gis.db.backends.mysql.creation:
@@ -38,7 +51,7 @@ django.contrib.gis.db.backends.mysql.creation
 =============================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/db/backends/mysql/creation.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/db/backends/mysql/creation.py>`_ 
 
 .. include:: cheat/django.contrib.gis.db.backends.mysql.creation.rst
 
@@ -51,7 +64,7 @@ django.contrib.gis.db.backends.mysql.introspection
 ==================================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/db/backends/mysql/introspection.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/db/backends/mysql/introspection.py>`_ 
 
 .. include:: cheat/django.contrib.gis.db.backends.mysql.introspection.rst
 
@@ -64,7 +77,7 @@ django.contrib.gis.db.backends.mysql.operations
 ===============================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/db/backends/mysql/operations.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/db/backends/mysql/operations.py>`_ 
 
 .. include:: cheat/django.contrib.gis.db.backends.mysql.operations.rst
 

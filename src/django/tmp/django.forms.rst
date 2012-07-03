@@ -10,7 +10,7 @@ django.forms
 ============
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/forms/__init__.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/forms/__init__.py>`_ 
 
 .. include:: cheat/django.forms.rst
 
@@ -25,7 +25,7 @@ django.forms.fields
 ===================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/forms/fields.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/forms/fields.py>`_ 
 
 .. include:: cheat/django.forms.fields.rst
 
@@ -38,7 +38,7 @@ django.forms.forms
 ==================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/forms/forms.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/forms/forms.py>`_ 
 
 .. include:: cheat/django.forms.forms.rst
 
@@ -51,7 +51,7 @@ django.forms.formsets
 =====================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/forms/formsets.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/forms/formsets.py>`_ 
 
 .. include:: cheat/django.forms.formsets.rst
 
@@ -64,7 +64,7 @@ django.forms.models
 ===================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/forms/models.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/forms/models.py>`_ 
 
 .. include:: cheat/django.forms.models.rst
 
@@ -77,7 +77,7 @@ django.forms.util
 =================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/forms/util.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/forms/util.py>`_ 
 
 .. include:: cheat/django.forms.util.rst
 
@@ -90,7 +90,7 @@ django.forms.widgets
 ====================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/forms/widgets.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/forms/widgets.py>`_ 
 
 .. include:: cheat/django.forms.widgets.rst
 

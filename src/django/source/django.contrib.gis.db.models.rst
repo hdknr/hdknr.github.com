@@ -10,7 +10,7 @@ django.contrib.gis.db.models
 ============================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/db/models/__init__.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/db/models/__init__.py>`_ 
 
 .. include:: cheat/django.contrib.gis.db.models.rst
 
@@ -25,7 +25,7 @@ django.contrib.gis.db.models.aggregates
 =======================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/db/models/aggregates.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/db/models/aggregates.py>`_ 
 
 .. include:: cheat/django.contrib.gis.db.models.aggregates.rst
 
@@ -38,7 +38,7 @@ django.contrib.gis.db.models.fields
 ===================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/db/models/fields.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/db/models/fields.py>`_ 
 
 .. include:: cheat/django.contrib.gis.db.models.fields.rst
 
@@ -51,7 +51,7 @@ django.contrib.gis.db.models.manager
 ====================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/db/models/manager.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/db/models/manager.py>`_ 
 
 .. include:: cheat/django.contrib.gis.db.models.manager.rst
 
@@ -64,7 +64,7 @@ django.contrib.gis.db.models.proxy
 ==================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/db/models/proxy.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/db/models/proxy.py>`_ 
 
 .. include:: cheat/django.contrib.gis.db.models.proxy.rst
 
@@ -77,7 +77,7 @@ django.contrib.gis.db.models.query
 ==================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/db/models/query.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/db/models/query.py>`_ 
 
 .. include:: cheat/django.contrib.gis.db.models.query.rst
 
