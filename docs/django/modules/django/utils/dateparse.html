@@ -1,0 +1,152 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>django.utils.dateparse &mdash; Django Cheat 1 documentation</title>
+    
+    <link rel="stylesheet" href="../../../static/haiku.css" type="text/css" />
+    <link rel="stylesheet" href="../../../static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../../../static/print.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../',
+        VERSION:     '1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../../static/jquery.js"></script>
+    <script type="text/javascript" src="../../../static/underscore.js"></script>
+    <script type="text/javascript" src="../../../static/doctools.js"></script>
+    <script type="text/javascript" src="../../../static/theme_extras.js"></script>
+    <link rel="top" title="Django Cheat 1 documentation" href="../../../index.html" />
+    <link rel="up" title="django" href="../../django.html" /> 
+  </head>
+  <body>
+      <div class="header"><h1 class="heading"><a href="../../../index.html">
+          <span>Django Cheat 1 documentation</span></a></h1>
+        <h2 class="heading"><span>django.utils.dateparse</span></h2>
+      </div>
+      <div class="topnav">
+      
+        <p>
+        <a href="/">Home</a>:
+        <a class="uplink" href="../../../index.html">Contents</a>
+        </p>
+
+      </div>
+      <div class="content">
+        
+        
+  <h1>Source code for django.utils.dateparse</h1><div class="highlight"><pre>
+<span class="sd">&quot;&quot;&quot;Functions to parse datetime objects.&quot;&quot;&quot;</span>
+
+<span class="c"># We&#39;re using regular expressions rather than time.strptime because:</span>
+<span class="c"># - They provide both validation and parsing.</span>
+<span class="c"># - They&#39;re more flexible for datetimes.</span>
+<span class="c"># - The date/datetime/time constructors produce friendlier error messages.</span>
+
+<span class="kn">import</span> <span class="nn">datetime</span>
+<span class="kn">import</span> <span class="nn">re</span>
+<span class="kn">from</span> <span class="nn">django.utils.timezone</span> <span class="kn">import</span> <span class="n">utc</span>
+<span class="kn">from</span> <span class="nn">django.utils.tzinfo</span> <span class="kn">import</span> <span class="n">FixedOffset</span>
+
+<span class="n">date_re</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span>
+    <span class="s">r&#39;(?P&lt;year&gt;\d{4})-(?P&lt;month&gt;\d{1,2})-(?P&lt;day&gt;\d{1,2})$&#39;</span>
+<span class="p">)</span>
+
+<span class="n">datetime_re</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span>
+    <span class="s">r&#39;(?P&lt;year&gt;\d{4})-(?P&lt;month&gt;\d{1,2})-(?P&lt;day&gt;\d{1,2})&#39;</span>
+    <span class="s">r&#39;[T ](?P&lt;hour&gt;\d{1,2}):(?P&lt;minute&gt;\d{1,2})&#39;</span>
+    <span class="s">r&#39;(?::(?P&lt;second&gt;\d{1,2})(?:\.(?P&lt;microsecond&gt;\d{1,6})\d{0,6})?)?&#39;</span>
+    <span class="s">r&#39;(?P&lt;tzinfo&gt;Z|[+-]\d{1,2}:\d{1,2})?$&#39;</span>
+<span class="p">)</span>
+
+<span class="n">time_re</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span>
+    <span class="s">r&#39;(?P&lt;hour&gt;\d{1,2}):(?P&lt;minute&gt;\d{1,2})&#39;</span>
+    <span class="s">r&#39;(?::(?P&lt;second&gt;\d{1,2})(?:\.(?P&lt;microsecond&gt;\d{1,6})\d{0,6})?)?&#39;</span>
+<span class="p">)</span>
+
+<div class="viewcode-block" id="parse_date"><a class="viewcode-back" href="../../../django.utils.html#django.utils.dateparse.parse_date">[docs]</a><span class="k">def</span> <span class="nf">parse_date</span><span class="p">(</span><span class="n">value</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Parses a string and return a datetime.date.</span>
+
+<span class="sd">    Raises ValueError if the input is well formatted but not a valid date.</span>
+<span class="sd">    Returns None if the input isn&#39;t well formatted.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">match</span> <span class="o">=</span> <span class="n">date_re</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">match</span><span class="p">:</span>
+        <span class="n">kw</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">((</span><span class="n">k</span><span class="p">,</span> <span class="nb">int</span><span class="p">(</span><span class="n">v</span><span class="p">))</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">match</span><span class="o">.</span><span class="n">groupdict</span><span class="p">()</span><span class="o">.</span><span class="n">iteritems</span><span class="p">())</span>
+        <span class="k">return</span> <span class="n">datetime</span><span class="o">.</span><span class="n">date</span><span class="p">(</span><span class="o">**</span><span class="n">kw</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="parse_time"><a class="viewcode-back" href="../../../django.utils.html#django.utils.dateparse.parse_time">[docs]</a><span class="k">def</span> <span class="nf">parse_time</span><span class="p">(</span><span class="n">value</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Parses a string and return a datetime.time.</span>
+
+<span class="sd">    This function doesn&#39;t support time zone offsets.</span>
+
+<span class="sd">    Sub-microsecond precision is accepted, but ignored.</span>
+
+<span class="sd">    Raises ValueError if the input is well formatted but not a valid time.</span>
+<span class="sd">    Returns None if the input isn&#39;t well formatted, in particular if it</span>
+<span class="sd">    contains an offset.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">match</span> <span class="o">=</span> <span class="n">time_re</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">match</span><span class="p">:</span>
+        <span class="n">kw</span> <span class="o">=</span> <span class="n">match</span><span class="o">.</span><span class="n">groupdict</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">kw</span><span class="p">[</span><span class="s">&#39;microsecond&#39;</span><span class="p">]:</span>
+            <span class="n">kw</span><span class="p">[</span><span class="s">&#39;microsecond&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">kw</span><span class="p">[</span><span class="s">&#39;microsecond&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">ljust</span><span class="p">(</span><span class="mi">6</span><span class="p">,</span> <span class="s">&#39;0&#39;</span><span class="p">)</span>
+        <span class="n">kw</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">((</span><span class="n">k</span><span class="p">,</span> <span class="nb">int</span><span class="p">(</span><span class="n">v</span><span class="p">))</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">kw</span><span class="o">.</span><span class="n">iteritems</span><span class="p">()</span> <span class="k">if</span> <span class="n">v</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">datetime</span><span class="o">.</span><span class="n">time</span><span class="p">(</span><span class="o">**</span><span class="n">kw</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="parse_datetime"><a class="viewcode-back" href="../../../django.utils.html#django.utils.dateparse.parse_datetime">[docs]</a><span class="k">def</span> <span class="nf">parse_datetime</span><span class="p">(</span><span class="n">value</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Parses a string and return a datetime.datetime.</span>
+
+<span class="sd">    This function supports time zone offsets. When the input contains one,</span>
+<span class="sd">    the output uses an instance of FixedOffset as tzinfo.</span>
+
+<span class="sd">    Sub-microsecond precision is accepted, but ignored.</span>
+
+<span class="sd">    Raises ValueError if the input is well formatted but not a valid datetime.</span>
+<span class="sd">    Returns None if the input isn&#39;t well formatted.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">match</span> <span class="o">=</span> <span class="n">datetime_re</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">match</span><span class="p">:</span>
+        <span class="n">kw</span> <span class="o">=</span> <span class="n">match</span><span class="o">.</span><span class="n">groupdict</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">kw</span><span class="p">[</span><span class="s">&#39;microsecond&#39;</span><span class="p">]:</span>
+            <span class="n">kw</span><span class="p">[</span><span class="s">&#39;microsecond&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">kw</span><span class="p">[</span><span class="s">&#39;microsecond&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">ljust</span><span class="p">(</span><span class="mi">6</span><span class="p">,</span> <span class="s">&#39;0&#39;</span><span class="p">)</span>
+        <span class="n">tzinfo</span> <span class="o">=</span> <span class="n">kw</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s">&#39;tzinfo&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">tzinfo</span> <span class="o">==</span> <span class="s">&#39;Z&#39;</span><span class="p">:</span>
+            <span class="n">tzinfo</span> <span class="o">=</span> <span class="n">utc</span>
+        <span class="k">elif</span> <span class="n">tzinfo</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="n">offset</span> <span class="o">=</span> <span class="mi">60</span> <span class="o">*</span> <span class="nb">int</span><span class="p">(</span><span class="n">tzinfo</span><span class="p">[</span><span class="mi">1</span><span class="p">:</span><span class="mi">3</span><span class="p">])</span> <span class="o">+</span> <span class="nb">int</span><span class="p">(</span><span class="n">tzinfo</span><span class="p">[</span><span class="mi">4</span><span class="p">:</span><span class="mi">6</span><span class="p">])</span>
+            <span class="k">if</span> <span class="n">tzinfo</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="s">&#39;-&#39;</span><span class="p">:</span>
+                <span class="n">offset</span> <span class="o">=</span> <span class="o">-</span><span class="n">offset</span>
+            <span class="n">tzinfo</span> <span class="o">=</span> <span class="n">FixedOffset</span><span class="p">(</span><span class="n">offset</span><span class="p">)</span>
+        <span class="n">kw</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">((</span><span class="n">k</span><span class="p">,</span> <span class="nb">int</span><span class="p">(</span><span class="n">v</span><span class="p">))</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">kw</span><span class="o">.</span><span class="n">iteritems</span><span class="p">()</span> <span class="k">if</span> <span class="n">v</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">)</span>
+        <span class="n">kw</span><span class="p">[</span><span class="s">&#39;tzinfo&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">tzinfo</span>
+        <span class="k">return</span> <span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="p">(</span><span class="o">**</span><span class="n">kw</span><span class="p">)</span></div>
+</pre></div>
+
+      </div>
+      <div class="bottomnav">
+      
+        <p>
+        <a href="/">Home</a>:
+        <a class="uplink" href="../../../index.html">Contents</a>
+        </p>
+
+      </div>
+
+    <div class="footer">
+        &copy; Copyright 2012, HDKNR.COM.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.2pre/3c28de26aac2.
+    </div>
+  </body>
+</html>

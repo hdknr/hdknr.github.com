@@ -10,7 +10,7 @@ django.contrib.gis.db.models.sql
 ================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/db/models/sql/__init__.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/db/models/sql/__init__.py>`_ 
 
 .. include:: cheat/django.contrib.gis.db.models.sql.rst
 
@@ -25,7 +25,7 @@ django.contrib.gis.db.models.sql.aggregates
 ===========================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/db/models/sql/aggregates.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/db/models/sql/aggregates.py>`_ 
 
 .. include:: cheat/django.contrib.gis.db.models.sql.aggregates.rst
 
@@ -38,7 +38,7 @@ django.contrib.gis.db.models.sql.compiler
 =========================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/db/models/sql/compiler.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/db/models/sql/compiler.py>`_ 
 
 .. include:: cheat/django.contrib.gis.db.models.sql.compiler.rst
 
@@ -51,7 +51,7 @@ django.contrib.gis.db.models.sql.conversion
 ===========================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/db/models/sql/conversion.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/db/models/sql/conversion.py>`_ 
 
 .. include:: cheat/django.contrib.gis.db.models.sql.conversion.rst
 
@@ -64,7 +64,7 @@ django.contrib.gis.db.models.sql.query
 ======================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/db/models/sql/query.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/db/models/sql/query.py>`_ 
 
 .. include:: cheat/django.contrib.gis.db.models.sql.query.rst
 
@@ -77,7 +77,7 @@ django.contrib.gis.db.models.sql.where
 ======================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/db/models/sql/where.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/db/models/sql/where.py>`_ 
 
 .. include:: cheat/django.contrib.gis.db.models.sql.where.rst
 

@@ -1,0 +1,281 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>django.contrib.localflavor.cn.forms &mdash; Django Cheat 1 documentation</title>
+    
+    <link rel="stylesheet" href="../../../../../static/haiku.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../../static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../../static/print.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../../../',
+        VERSION:     '1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../../../../static/jquery.js"></script>
+    <script type="text/javascript" src="../../../../../static/underscore.js"></script>
+    <script type="text/javascript" src="../../../../../static/doctools.js"></script>
+    <script type="text/javascript" src="../../../../../static/theme_extras.js"></script>
+    <link rel="top" title="Django Cheat 1 documentation" href="../../../../../index.html" />
+    <link rel="up" title="django" href="../../../../django.html" /> 
+  </head>
+  <body>
+      <div class="header"><h1 class="heading"><a href="../../../../../index.html">
+          <span>Django Cheat 1 documentation</span></a></h1>
+        <h2 class="heading"><span>django.contrib.localflavor.cn.forms</span></h2>
+      </div>
+      <div class="topnav">
+      
+        <p>
+        <a href="/">Home</a>:
+        <a class="uplink" href="../../../../../index.html">Contents</a>
+        </p>
+
+      </div>
+      <div class="content">
+        
+        
+  <h1>Source code for django.contrib.localflavor.cn.forms</h1><div class="highlight"><pre>
+<span class="c"># -*- coding: utf-8 -*-</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Chinese-specific form helpers</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">absolute_import</span>
+
+<span class="kn">import</span> <span class="nn">re</span>
+
+<span class="kn">from</span> <span class="nn">django.contrib.localflavor.cn.cn_provinces</span> <span class="kn">import</span> <span class="n">CN_PROVINCE_CHOICES</span>
+<span class="kn">from</span> <span class="nn">django.forms</span> <span class="kn">import</span> <span class="n">ValidationError</span>
+<span class="kn">from</span> <span class="nn">django.forms.fields</span> <span class="kn">import</span> <span class="n">CharField</span><span class="p">,</span> <span class="n">RegexField</span><span class="p">,</span> <span class="n">Select</span>
+<span class="kn">from</span> <span class="nn">django.utils.translation</span> <span class="kn">import</span> <span class="n">ugettext_lazy</span> <span class="k">as</span> <span class="n">_</span>
+
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">(</span>
+    <span class="s">&#39;CNProvinceSelect&#39;</span><span class="p">,</span>
+    <span class="s">&#39;CNPostCodeField&#39;</span><span class="p">,</span>
+    <span class="s">&#39;CNIDCardField&#39;</span><span class="p">,</span>
+    <span class="s">&#39;CNPhoneNumberField&#39;</span><span class="p">,</span>
+    <span class="s">&#39;CNCellNumberField&#39;</span><span class="p">,</span>
+<span class="p">)</span>
+
+
+<span class="n">ID_CARD_RE</span> <span class="o">=</span> <span class="s">r&#39;^\d{15}(\d{2}[0-9xX])?$&#39;</span>
+<span class="n">POST_CODE_RE</span> <span class="o">=</span> <span class="s">r&#39;^\d{6}$&#39;</span>
+<span class="n">PHONE_RE</span> <span class="o">=</span> <span class="s">r&#39;^\d{3,4}-\d{7,8}(-\d+)?$&#39;</span>
+<span class="n">CELL_RE</span> <span class="o">=</span> <span class="s">r&#39;^1[358]\d{9}$&#39;</span>
+
+<span class="c"># Valid location code used in id card checking algorithm</span>
+<span class="n">CN_LOCATION_CODES</span> <span class="o">=</span> <span class="p">(</span>
+     <span class="mi">11</span><span class="p">,</span>  <span class="c"># Beijing</span>
+     <span class="mi">12</span><span class="p">,</span>  <span class="c"># Tianjin</span>
+     <span class="mi">13</span><span class="p">,</span>  <span class="c"># Hebei</span>
+     <span class="mi">14</span><span class="p">,</span>  <span class="c"># Shanxi</span>
+     <span class="mi">15</span><span class="p">,</span>  <span class="c"># Nei Mongol</span>
+     <span class="mi">21</span><span class="p">,</span>  <span class="c"># Liaoning</span>
+     <span class="mi">22</span><span class="p">,</span>  <span class="c"># Jilin</span>
+     <span class="mi">23</span><span class="p">,</span>  <span class="c"># Heilongjiang</span>
+     <span class="mi">31</span><span class="p">,</span>  <span class="c"># Shanghai</span>
+     <span class="mi">32</span><span class="p">,</span>  <span class="c"># Jiangsu</span>
+     <span class="mi">33</span><span class="p">,</span>  <span class="c"># Zhejiang</span>
+     <span class="mi">34</span><span class="p">,</span>  <span class="c"># Anhui</span>
+     <span class="mi">35</span><span class="p">,</span>  <span class="c"># Fujian</span>
+     <span class="mi">36</span><span class="p">,</span>  <span class="c"># Jiangxi</span>
+     <span class="mi">37</span><span class="p">,</span>  <span class="c"># Shandong</span>
+     <span class="mi">41</span><span class="p">,</span>  <span class="c"># Henan</span>
+     <span class="mi">42</span><span class="p">,</span>  <span class="c"># Hubei</span>
+     <span class="mi">43</span><span class="p">,</span>  <span class="c"># Hunan</span>
+     <span class="mi">44</span><span class="p">,</span>  <span class="c"># Guangdong</span>
+     <span class="mi">45</span><span class="p">,</span>  <span class="c"># Guangxi</span>
+     <span class="mi">46</span><span class="p">,</span>  <span class="c"># Hainan</span>
+     <span class="mi">50</span><span class="p">,</span>  <span class="c"># Chongqing</span>
+     <span class="mi">51</span><span class="p">,</span>  <span class="c"># Sichuan</span>
+     <span class="mi">52</span><span class="p">,</span>  <span class="c"># Guizhou</span>
+     <span class="mi">53</span><span class="p">,</span>  <span class="c"># Yunnan</span>
+     <span class="mi">54</span><span class="p">,</span>  <span class="c"># Xizang</span>
+     <span class="mi">61</span><span class="p">,</span>  <span class="c"># Shaanxi</span>
+     <span class="mi">62</span><span class="p">,</span>  <span class="c"># Gansu</span>
+     <span class="mi">63</span><span class="p">,</span>  <span class="c"># Qinghai</span>
+     <span class="mi">64</span><span class="p">,</span>  <span class="c"># Ningxia</span>
+     <span class="mi">65</span><span class="p">,</span>  <span class="c"># Xinjiang</span>
+     <span class="mi">71</span><span class="p">,</span>  <span class="c"># Taiwan</span>
+     <span class="mi">81</span><span class="p">,</span>  <span class="c"># Hong Kong</span>
+     <span class="mi">91</span><span class="p">,</span>  <span class="c"># Macao</span>
+<span class="p">)</span>
+
+<div class="viewcode-block" id="CNProvinceSelect"><a class="viewcode-back" href="../../../../../django.contrib.localflavor.cn.html#django.contrib.localflavor.cn.forms.CNProvinceSelect">[docs]</a><span class="k">class</span> <span class="nc">CNProvinceSelect</span><span class="p">(</span><span class="n">Select</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    A select widget with list of Chinese provinces as choices.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">attrs</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">CNProvinceSelect</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span>
+            <span class="n">attrs</span><span class="p">,</span> <span class="n">choices</span><span class="o">=</span><span class="n">CN_PROVINCE_CHOICES</span><span class="p">,</span>
+        <span class="p">)</span>
+
+</div>
+<div class="viewcode-block" id="CNPostCodeField"><a class="viewcode-back" href="../../../../../django.contrib.localflavor.cn.html#django.contrib.localflavor.cn.forms.CNPostCodeField">[docs]</a><span class="k">class</span> <span class="nc">CNPostCodeField</span><span class="p">(</span><span class="n">RegexField</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    A form field that validates as Chinese post code.</span>
+<span class="sd">    Valid code is XXXXXX where X is digit.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">default_error_messages</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s">&#39;invalid&#39;</span><span class="p">:</span> <span class="n">_</span><span class="p">(</span><span class="s">u&#39;Enter a post code in the format XXXXXX.&#39;</span><span class="p">),</span>
+    <span class="p">}</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">CNPostCodeField</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="n">POST_CODE_RE</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+</div>
+<div class="viewcode-block" id="CNIDCardField"><a class="viewcode-back" href="../../../../../django.contrib.localflavor.cn.html#django.contrib.localflavor.cn.forms.CNIDCardField">[docs]</a><span class="k">class</span> <span class="nc">CNIDCardField</span><span class="p">(</span><span class="n">CharField</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    A form field that validates as Chinese Identification Card Number.</span>
+
+<span class="sd">    This field would check the following restrictions:</span>
+<span class="sd">        * the length could only be 15 or 18.</span>
+<span class="sd">        * if the length is 18, the last digit could be x or X.</span>
+<span class="sd">        * has a valid checksum.(length 18 only)</span>
+<span class="sd">        * has a valid birthdate.</span>
+<span class="sd">        * has a valid location.</span>
+
+<span class="sd">    The checksum algorithm is described in GB11643-1999.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">default_error_messages</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s">&#39;invalid&#39;</span><span class="p">:</span> <span class="n">_</span><span class="p">(</span><span class="s">u&#39;ID Card Number consists of 15 or 18 digits.&#39;</span><span class="p">),</span>
+        <span class="s">&#39;checksum&#39;</span><span class="p">:</span> <span class="n">_</span><span class="p">(</span><span class="s">u&#39;Invalid ID Card Number: Wrong checksum&#39;</span><span class="p">),</span>
+        <span class="s">&#39;birthday&#39;</span><span class="p">:</span> <span class="n">_</span><span class="p">(</span><span class="s">u&#39;Invalid ID Card Number: Wrong birthdate&#39;</span><span class="p">),</span>
+        <span class="s">&#39;location&#39;</span><span class="p">:</span> <span class="n">_</span><span class="p">(</span><span class="s">u&#39;Invalid ID Card Number: Wrong location code&#39;</span><span class="p">),</span>
+    <span class="p">}</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">max_length</span><span class="o">=</span><span class="mi">18</span><span class="p">,</span> <span class="n">min_length</span><span class="o">=</span><span class="mi">15</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">CNIDCardField</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="n">max_length</span><span class="p">,</span> <span class="n">min_length</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span>
+                                         <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+<div class="viewcode-block" id="CNIDCardField.clean"><a class="viewcode-back" href="../../../../../django.contrib.localflavor.cn.html#django.contrib.localflavor.cn.forms.CNIDCardField.clean">[docs]</a>    <span class="k">def</span> <span class="nf">clean</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Check whether the input is a valid ID Card Number.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c"># Check the length of the ID card number.</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">CNIDCardField</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">clean</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">value</span><span class="p">:</span>
+            <span class="k">return</span> <span class="s">u&quot;&quot;</span>
+        <span class="c"># Check whether this ID card number has valid format</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">re</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="n">ID_CARD_RE</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="n">ValidationError</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">error_messages</span><span class="p">[</span><span class="s">&#39;invalid&#39;</span><span class="p">])</span>
+        <span class="c"># Check the birthday of the ID card number.</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">has_valid_birthday</span><span class="p">(</span><span class="n">value</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="n">ValidationError</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">error_messages</span><span class="p">[</span><span class="s">&#39;birthday&#39;</span><span class="p">])</span>
+        <span class="c"># Check the location of the ID card number.</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">has_valid_location</span><span class="p">(</span><span class="n">value</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="n">ValidationError</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">error_messages</span><span class="p">[</span><span class="s">&#39;location&#39;</span><span class="p">])</span>
+        <span class="c"># Check the checksum of the ID card number.</span>
+        <span class="n">value</span> <span class="o">=</span> <span class="n">value</span><span class="o">.</span><span class="n">upper</span><span class="p">()</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">has_valid_checksum</span><span class="p">(</span><span class="n">value</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="n">ValidationError</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">error_messages</span><span class="p">[</span><span class="s">&#39;checksum&#39;</span><span class="p">])</span>
+        <span class="k">return</span> <span class="s">u&#39;</span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">value</span>
+</div>
+<div class="viewcode-block" id="CNIDCardField.has_valid_birthday"><a class="viewcode-back" href="../../../../../django.contrib.localflavor.cn.html#django.contrib.localflavor.cn.forms.CNIDCardField.has_valid_birthday">[docs]</a>    <span class="k">def</span> <span class="nf">has_valid_birthday</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        This function would grab the birthdate from the ID card number and test</span>
+<span class="sd">        whether it is a valid date.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="kn">from</span> <span class="nn">datetime</span> <span class="kn">import</span> <span class="n">datetime</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">value</span><span class="p">)</span> <span class="o">==</span> <span class="mi">15</span><span class="p">:</span>
+            <span class="c"># 1st generation ID card</span>
+            <span class="n">time_string</span> <span class="o">=</span> <span class="n">value</span><span class="p">[</span><span class="mi">6</span><span class="p">:</span><span class="mi">12</span><span class="p">]</span>
+            <span class="n">format_string</span> <span class="o">=</span> <span class="s">&quot;%y%m</span><span class="si">%d</span><span class="s">&quot;</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c"># 2nd generation ID card</span>
+            <span class="n">time_string</span> <span class="o">=</span> <span class="n">value</span><span class="p">[</span><span class="mi">6</span><span class="p">:</span><span class="mi">14</span><span class="p">]</span>
+            <span class="n">format_string</span> <span class="o">=</span> <span class="s">&quot;%Y%m</span><span class="si">%d</span><span class="s">&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">datetime</span><span class="o">.</span><span class="n">strptime</span><span class="p">(</span><span class="n">time_string</span><span class="p">,</span> <span class="n">format_string</span><span class="p">)</span>
+            <span class="k">return</span> <span class="bp">True</span>
+        <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+            <span class="c"># invalid date</span>
+            <span class="k">return</span> <span class="bp">False</span>
+</div>
+<div class="viewcode-block" id="CNIDCardField.has_valid_location"><a class="viewcode-back" href="../../../../../django.contrib.localflavor.cn.html#django.contrib.localflavor.cn.forms.CNIDCardField.has_valid_location">[docs]</a>    <span class="k">def</span> <span class="nf">has_valid_location</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        This method checks if the first two digits in the ID Card are valid.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="nb">int</span><span class="p">(</span><span class="n">value</span><span class="p">[:</span><span class="mi">2</span><span class="p">])</span> <span class="ow">in</span> <span class="n">CN_LOCATION_CODES</span>
+</div>
+<div class="viewcode-block" id="CNIDCardField.has_valid_checksum"><a class="viewcode-back" href="../../../../../django.contrib.localflavor.cn.html#django.contrib.localflavor.cn.forms.CNIDCardField.has_valid_checksum">[docs]</a>    <span class="k">def</span> <span class="nf">has_valid_checksum</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        This method checks if the last letter/digit in value is valid</span>
+<span class="sd">        according to the algorithm the ID Card follows.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c"># If the length of the number is not 18, then the number is a 1st</span>
+        <span class="c"># generation ID card number, and there is no checksum to be checked.</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">value</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">18</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">True</span>
+        <span class="n">checksum_index</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span>
+            <span class="nb">map</span><span class="p">(</span>
+                <span class="k">lambda</span> <span class="n">a</span><span class="p">,</span><span class="n">b</span><span class="p">:</span><span class="n">a</span><span class="o">*</span><span class="p">(</span><span class="nb">ord</span><span class="p">(</span><span class="n">b</span><span class="p">)</span><span class="o">-</span><span class="nb">ord</span><span class="p">(</span><span class="s">&#39;0&#39;</span><span class="p">)),</span>
+                <span class="p">(</span><span class="mi">7</span><span class="p">,</span><span class="mi">9</span><span class="p">,</span><span class="mi">10</span><span class="p">,</span><span class="mi">5</span><span class="p">,</span><span class="mi">8</span><span class="p">,</span><span class="mi">4</span><span class="p">,</span><span class="mi">2</span><span class="p">,</span><span class="mi">1</span><span class="p">,</span><span class="mi">6</span><span class="p">,</span><span class="mi">3</span><span class="p">,</span><span class="mi">7</span><span class="p">,</span><span class="mi">9</span><span class="p">,</span><span class="mi">10</span><span class="p">,</span><span class="mi">5</span><span class="p">,</span><span class="mi">8</span><span class="p">,</span><span class="mi">4</span><span class="p">,</span><span class="mi">2</span><span class="p">),</span>
+                <span class="n">value</span><span class="p">[:</span><span class="mi">17</span><span class="p">],</span>
+            <span class="p">),</span>
+        <span class="p">)</span> <span class="o">%</span> <span class="mi">11</span>
+        <span class="k">return</span> <span class="s">&#39;10X98765432&#39;</span><span class="p">[</span><span class="n">checksum_index</span><span class="p">]</span> <span class="o">==</span> <span class="n">value</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+
+</div></div>
+<div class="viewcode-block" id="CNPhoneNumberField"><a class="viewcode-back" href="../../../../../django.contrib.localflavor.cn.html#django.contrib.localflavor.cn.forms.CNPhoneNumberField">[docs]</a><span class="k">class</span> <span class="nc">CNPhoneNumberField</span><span class="p">(</span><span class="n">RegexField</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    A form field that validates as Chinese phone number</span>
+<span class="sd">    A valid phone number could be like:</span>
+<span class="sd">        010-55555555</span>
+<span class="sd">    Considering there might be extension phone numbers, so this could also be:</span>
+<span class="sd">        010-55555555-35</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">default_error_messages</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s">&#39;invalid&#39;</span><span class="p">:</span> <span class="n">_</span><span class="p">(</span><span class="s">u&#39;Enter a valid phone number.&#39;</span><span class="p">),</span>
+    <span class="p">}</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">CNPhoneNumberField</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="n">PHONE_RE</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+</div>
+<div class="viewcode-block" id="CNCellNumberField"><a class="viewcode-back" href="../../../../../django.contrib.localflavor.cn.html#django.contrib.localflavor.cn.forms.CNCellNumberField">[docs]</a><span class="k">class</span> <span class="nc">CNCellNumberField</span><span class="p">(</span><span class="n">RegexField</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    A form field that validates as Chinese cell number</span>
+<span class="sd">    A valid cell number could be like:</span>
+<span class="sd">        13012345678</span>
+<span class="sd">    We used a rough rule here, the first digit should be 1, the second could be</span>
+<span class="sd">    3, 5 and 8, the rest could be what so ever.</span>
+<span class="sd">    The length of the cell number should be 11.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">default_error_messages</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s">&#39;invalid&#39;</span><span class="p">:</span> <span class="n">_</span><span class="p">(</span><span class="s">u&#39;Enter a valid cell number.&#39;</span><span class="p">),</span>
+    <span class="p">}</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">CNCellNumberField</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="n">CELL_RE</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
+</pre></div>
+
+      </div>
+      <div class="bottomnav">
+      
+        <p>
+        <a href="/">Home</a>:
+        <a class="uplink" href="../../../../../index.html">Contents</a>
+        </p>
+
+      </div>
+
+    <div class="footer">
+        &copy; Copyright 2012, HDKNR.COM.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.2pre/3c28de26aac2.
+    </div>
+  </body>
+</html>

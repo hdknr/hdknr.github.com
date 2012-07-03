@@ -10,7 +10,7 @@ django.contrib.gis.tests.relatedapp
 ===================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/tests/relatedapp/__init__.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/tests/relatedapp/__init__.py>`_ 
 
 .. include:: cheat/django.contrib.gis.tests.relatedapp.rst
 
@@ -25,7 +25,7 @@ django.contrib.gis.tests.relatedapp.models
 ==========================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/tests/relatedapp/models.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/tests/relatedapp/models.py>`_ 
 
 .. include:: cheat/django.contrib.gis.tests.relatedapp.models.rst
 
@@ -38,7 +38,7 @@ django.contrib.gis.tests.relatedapp.tests
 =========================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/tests/relatedapp/tests.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/tests/relatedapp/tests.py>`_ 
 
 .. include:: cheat/django.contrib.gis.tests.relatedapp.tests.rst
 

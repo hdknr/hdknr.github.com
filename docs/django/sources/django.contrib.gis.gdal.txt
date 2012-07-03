@@ -10,7 +10,7 @@ django.contrib.gis.gdal
 =======================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/gdal/__init__.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/gdal/__init__.py>`_ 
 
 .. include:: cheat/django.contrib.gis.gdal.rst
 
@@ -32,7 +32,7 @@ django.contrib.gis.gdal.base
 ============================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/gdal/base.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/gdal/base.py>`_ 
 
 .. include:: cheat/django.contrib.gis.gdal.base.rst
 
@@ -45,7 +45,7 @@ django.contrib.gis.gdal.datasource
 ==================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/gdal/datasource.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/gdal/datasource.py>`_ 
 
 .. include:: cheat/django.contrib.gis.gdal.datasource.rst
 
@@ -58,7 +58,7 @@ django.contrib.gis.gdal.driver
 ==============================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/gdal/driver.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/gdal/driver.py>`_ 
 
 .. include:: cheat/django.contrib.gis.gdal.driver.rst
 
@@ -71,7 +71,7 @@ django.contrib.gis.gdal.envelope
 ================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/gdal/envelope.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/gdal/envelope.py>`_ 
 
 .. include:: cheat/django.contrib.gis.gdal.envelope.rst
 
@@ -84,7 +84,7 @@ django.contrib.gis.gdal.error
 =============================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/gdal/error.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/gdal/error.py>`_ 
 
 .. include:: cheat/django.contrib.gis.gdal.error.rst
 
@@ -97,7 +97,7 @@ django.contrib.gis.gdal.feature
 ===============================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/gdal/feature.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/gdal/feature.py>`_ 
 
 .. include:: cheat/django.contrib.gis.gdal.feature.rst
 
@@ -110,7 +110,7 @@ django.contrib.gis.gdal.field
 =============================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/gdal/field.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/gdal/field.py>`_ 
 
 .. include:: cheat/django.contrib.gis.gdal.field.rst
 
@@ -123,7 +123,7 @@ django.contrib.gis.gdal.geometries
 ==================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/gdal/geometries.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/gdal/geometries.py>`_ 
 
 .. include:: cheat/django.contrib.gis.gdal.geometries.rst
 
@@ -136,7 +136,7 @@ django.contrib.gis.gdal.geomtype
 ================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/gdal/geomtype.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/gdal/geomtype.py>`_ 
 
 .. include:: cheat/django.contrib.gis.gdal.geomtype.rst
 
@@ -149,7 +149,7 @@ django.contrib.gis.gdal.layer
 =============================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/gdal/layer.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/gdal/layer.py>`_ 
 
 .. include:: cheat/django.contrib.gis.gdal.layer.rst
 
@@ -162,7 +162,7 @@ django.contrib.gis.gdal.libgdal
 ===============================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/gdal/libgdal.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/gdal/libgdal.py>`_ 
 
 .. include:: cheat/django.contrib.gis.gdal.libgdal.rst
 
@@ -175,7 +175,7 @@ django.contrib.gis.gdal.srs
 ===========================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/gdal/srs.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/gdal/srs.py>`_ 
 
 .. include:: cheat/django.contrib.gis.gdal.srs.rst
 
