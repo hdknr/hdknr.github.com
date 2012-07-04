@@ -32,6 +32,7 @@ Security:
     x509
     pkcs
     openssl
+    s_client
     ecc
     connect
     aes
