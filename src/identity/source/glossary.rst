@@ -578,6 +578,9 @@ Others
 .. glossary::
    :sorted:
 
+    IANA
+        TBD
+
     MTI
         Mandatory to Implement
 

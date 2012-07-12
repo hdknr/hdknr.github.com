@@ -305,3 +305,9 @@ todo_include_todos = True
 extensions.append('sphinxtogithub')  #:GITHUB by HDKNR
 html_theme = 'mybasic'  #  HDKNR
 html_theme_path = ['../../../themes',] #HDKNR
+#
+intersphinx_mapping.update({
+    'django': ('http://docs.djangoproject.com/en/dev/', 'http://docs.djangoproject.com/en/dev/_objects/'),
+    'celery': ('http://docs.celeryproject.org/en/latest/', None),
+    'pythonjp':('http://www.python.jp/doc/release/',None),
+})

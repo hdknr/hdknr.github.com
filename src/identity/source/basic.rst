@@ -1,14 +1,12 @@
-======================================
-OpenID Connect Basic Client 1.0
-======================================
+============================================================================
+OpenID Connect Basic Client Profile 1.0
+============================================================================
 
 .. contents:: Connect Basic Client
 
-Based on `OpenID Connect Basic Client 1.0 - draft 15(October 30, 2011) <http://openid.bitbucket.org/openid-connect-basic-1_0.html>`_
-( `Cache <_static/specs/openid.bitbucket.org/openid-connect-basic-1_0.html>`_ )
+Based on http://openid.bitbucket.org/openid-connect-basic-1_0.html#token_request
+,June 23, 2012.
 
-.. todo::
-    Draft 17, March 15, 2012 is available....
 
 .. _basic_abstract: 
 

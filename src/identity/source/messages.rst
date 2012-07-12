@@ -9,7 +9,7 @@ Based on `OpenID Connect Messages 1.0 - draft 07 <http://openid.bitbucket.org/op
 
 .. todo::
 
-    Check Draft 10, May 25, 2012
+    Check Draft 12, June 23, 2012 
 
 .. _messages_abstract:
 

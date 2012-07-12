@@ -5,6 +5,11 @@
 Based on http://tools.ietf.org/html/draft-ietf-oauth-v2-bearer-15 (v.15)
 ( December 18, 2011 )
 
+.. todo::
+
+    June 19, 2012, Draft 21 is the latest
+    ( http://tools.ietf.org/html/draft-ietf-oauth-v2-bearer-21 )
+
 .. _bearer.abstract:
 
 .. include:: bearer/abstract.rst

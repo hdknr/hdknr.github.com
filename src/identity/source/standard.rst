@@ -8,7 +8,7 @@ Based on `OpenID Connect Standard 1.0 - draft 07 <http://openid.bitbucket.org/op
 (December 22, 2011)
 
 .. todo::
-    Noe Draft 09 ( March 15, 2012 )
+    Noe Draft 12, June 23,2012 
 
 .. _standard_abstract:
 

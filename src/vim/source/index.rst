@@ -14,6 +14,7 @@ Contents:
     mode
     replace 
     keys
+    vundle
 
 
 Indices and tables

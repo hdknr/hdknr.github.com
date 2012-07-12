@@ -14,6 +14,7 @@ Misc
     css
     swd
     python
+    python_csharp
     mysql
     cookie
     aws
@@ -21,6 +22,8 @@ Misc
     service
     mongodb
     smb
+    redis
+    development
 
     glossary
 

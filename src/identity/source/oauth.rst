@@ -2,6 +2,8 @@
 The OAuth 2.0 Authorization Protocol
 ========================================================
 
+.. contents:: Table of Contents
+
 Based on `The OAuth 2.0 Authorization Protocol draft-ietf-oauth-v2-28 <http://tools.ietf.org/html/draft-ietf-oauth-v2-28>`_
 
 .. todo::
@@ -14,7 +16,6 @@ Based on `The OAuth 2.0 Authorization Protocol draft-ietf-oauth-v2-28 <http://to
 
 .. include:: oauth/abstract.rst
 
-.. contents:: Table of Contents
 
 .. _oauth_1:
 
@@ -135,10 +136,6 @@ Based on `The OAuth 2.0 Authorization Protocol draft-ietf-oauth-v2-28 <http://to
 .. _oauth_3_2_1:
 
 .. include:: oauth/3_2_1.rst
-
-.. note::
-  
-    :ref:`messages_3_2_1` 
 
 .. _oauth_3_3:
 
