@@ -7,11 +7,34 @@ Python
 Install
 =========
 
+Debian
+--------
+
+For :doc:`debian` 
+
 .. code-block:: bash
 
     Squeeze$ sudo aptitude install python-setuptools vim-python python-dev -y
     Squeeze$ echo PIL supporting library
     Squeeze$ sudo aptitude install libjpeg8 libjpeg8-dev  libfreetype6 libfreetype6-dev liblcms1-dev  python-liblcms python-tk  tcl8.5-dev tk8.5-dev -y
+
+Mac
+----
+
+Homebrew
+
+.. todo::
+    Installation for Homebrew
+
+virtualenv
+----------------
+
+.. code-block:: bash
+
+    Squeeze$ sudo easy_install pip
+    Squeeze$ sudo pip install pip --upgrade
+    Squeeze$ sudo pip install virtualenv
+    Squeeze$ sudo pip install virtualenvwrapper
 
 
 Encoding
