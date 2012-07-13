@@ -3,9 +3,8 @@ JSON Web Signature (JWS)
 ========================================
 
 .. contents:: Table of Contents
-
 Based on 
-`JWS Draft 03 <http://tools.ietf.org/html/draft-ietf-jose-json-web-signature-03>`_
+`JWS Draft  03 <http://tools.ietf.org/html/draft-ietf-jose-json-web-signature-03>`_
 ( July 6, 2012 ) 
 
 ..  note::
