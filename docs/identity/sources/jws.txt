@@ -2,8 +2,11 @@
 JSON Web Signature (JWS)
 ========================================
 
-Based on http://tools.ietf.org/html/draft-ietf-jose-json-web-signature-02
-( May 12, 2012 )
+.. contents:: Table of Contents
+
+Based on 
+`JWS Draft 03 <http://tools.ietf.org/html/draft-ietf-jose-json-web-signature-03>`_
+( July 6, 2012 ) 
 
 ..  note::
     JWS is being standardized undeer :term:`JOSE` Working Group.
@@ -11,9 +14,6 @@ Based on http://tools.ietf.org/html/draft-ietf-jose-json-web-signature-02
 .. _jws.abstract:
 
 .. include:: jws/abstract.rst 
-
-
-.. contents:: Table of Contents
 
 
 .. _jws.abstrat:
@@ -71,6 +71,10 @@ Based on http://tools.ietf.org/html/draft-ietf-jose-json-web-signature-02
 .. _jws.4.1.8:
 
 .. include:: jws/4.1.8.rst 
+
+.. _jws.4.1.9:
+
+.. include:: jws/4.1.9.rst 
 
 .. _jws.4.2:
 
