@@ -303,6 +303,7 @@ intersphinx_mapping = {'http://docs.python.org/': None}
 #
 todo_include_todos = True
 extensions.append('sphinxtogithub')  #:GITHUB by HDKNR
+extensions.append('yummy.spx')  #: yummy  to make celery links at delicious 
 html_theme = 'mybasic'  #  HDKNR
 html_theme_path = ['../../../themes',] #HDKNR
 #

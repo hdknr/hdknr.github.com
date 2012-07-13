@@ -32,4 +32,9 @@ Links
 - Google Groups : https://groups.google.com/forum/?fromgroups#!forum/celery-users 
 
 
+Delicious
+----------
 
+.. yummy_list:: celery
+
+.. yummy_list:: django-celery
