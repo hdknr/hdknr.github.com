@@ -570,28 +570,27 @@ SAML
     Cer
         (TBD)
 
-
-
 Others
 ========
 
-.. glossary::
-   :sorted:
 
-    IANA
-        TBD
+.. glossary::
 
     MTI
         Mandatory to Implement
 
     Direct Communication
-        Direct communication is a Client to Server communication which does not pass through the User-Agent.
+        Direct communication is a Client to Server communication 
+        which does not pass through the User-Agent.
+
+.. glossary::
 
     Indirect Communication
         In indirect communication, messages are passed through the User-Agent.
 
     Check Session Endpoint
-        A protected resource that, when presented with an access token by the client, returns authentication information about the user represented by that access token.
+        A protected resource that, when presented with an access token by the client, 
+        returns authentication information about the user represented by that access token.
 
     UserInfo Request
         (TBD)
@@ -601,7 +600,8 @@ Others
  
     User Info Endpoint
     UserInfo Endpoint
-        A protected resource that, when presented with an access token by the client, returns authorized information about the user represented by that access token.
+        A protected resource that, when presented with an access token by the client, 
+        returns authorized information about the user represented by that access token.
 
     Query String
         ( TODO )
@@ -610,7 +610,12 @@ Others
         ( TODO ) 
 
     Query String Serialization
-        In order to serialize the parameters using the query string serialization, the client constructs the string by adding the following parameters to the end-user authorization endpoint URI query component using the application/x-www-form-urlencoded format as defined by [W3C.REC‑html401‑19991224] (Hors, A., Jacobs, I., and D. Raggett, “HTML 4.01 Specification,” December 1999.).
+        In order to serialize the parameters using the query string serialization, 
+        the client constructs the string by adding the following parameters 
+        to the end-user authorization endpoint URI query component 
+        using the application/x-www-form-urlencoded format as defined by 
+        [W3C.REC‑html401‑19991224] 
+        (Hors, A., Jacobs, I., and D. Raggett, “HTML 4.01 Specification,” December 1999.).
 
     GSA
         U.S. General Service Administartion.  http://www.gsa.gov/
@@ -634,11 +639,13 @@ Others
         Metadata for JSON returned by :term:`UserInfo Endpoint` (":ref:`basic_4_1`").
 
     PPID
-        Pairwise Pseudonymous Identifier. A set of identifiers bound for a single principal, and each of them is shared in each relation of entities.    
+        Pairwise Pseudonymous Identifier. 
+        A set of identifiers bound for a single principal, and each of them is shared in each relation of entities.    
         See :ref:`accounts_overview_PPID` .
 
     SCIM
-        Mortimer, C., Smarr, J., Harding, P., and P. Madsen, “Simple Cloud Identity Management: Core Schema 1.0,” June 2011.
+        Mortimer, C., Smarr, J., Harding, P., 
+        and P. Madsen, “Simple Cloud Identity Management: Core Schema 1.0,” June 2011.
         ( http://www.simplecloud.info/specs/draft-scim-core-schema-01.html )
 
     vCard 
@@ -653,7 +660,7 @@ Others
     scope
         :term:`OAuth` grant request parameter. See " :ref:`oauth_3_3` ".
 
-         See :ref:`accounts_overview_scope` sample implementation.
+        See :ref:`accounts_overview_scope` sample implementation.
 
     URI Query String Serialization
         Never used by the world other than OpenID/Connect community.  ( :ref:`basic_3_2_1` )
@@ -782,7 +789,11 @@ Others
 
         "UTC is synonymous with GMT(Greenwich Mean Time ), 
         but GMT is no longer precisely defined by the scientific community."
-        
+
+    PEM
+        `Privacy Enhanced Mail <http://en.wikipedia.org/wiki/Privacy-enhanced_Electronic_Mail>`_
+
+
 JOSE and JSON 
 ================
 

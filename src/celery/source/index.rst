@@ -12,8 +12,12 @@ Contents:
     :maxdepth: 2
 
     about
+    component
     worker
+    serialize
+    cron
     logging
+    debug
     io
     resource
     terms

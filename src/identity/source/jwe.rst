@@ -2,20 +2,15 @@
 JSON Web Encryption (JWE)
 ============================
 
-Based on draft-jones-json-web-encryption-02( 
-http://self-issued.info/docs/draft-jones-json-web-encryption-02.html
-)
+.. contents:: Table of Contents
 
-.. todo::
-
-    (December 13, 2011)
+Based on `JWE Draft 03 <http://tools.ietf.org/html/draft-ietf-jose-json-web-encryption-03>`_
 
 
 .. _jwe.abstract:
 
 .. include:: jwe/abstract.rst
 
-.. contents:: Table of Contents
 
 .. _jwe.1:
 

@@ -312,3 +312,9 @@ intersphinx_mapping.update({
     'celery': ('http://docs.celeryproject.org/en/latest/', None),
     'pythonjp':('http://www.python.jp/doc/release/',None),
 })
+exclude_patterns=['misc/*.rst']
+#
+PRJ_PATH= os.path.dirname( os.path.abspath(__file__))
+sys.path.insert(0, os.path.dirname(PRJ_PATH ))
+sys.path.insert(0, os.path.join(os.path.dirname(PRJ_PATH ),'sample'))
+os.environ['DJANGO_SETTINGS_MODULE'] = 'app.settings'
