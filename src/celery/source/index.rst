@@ -14,6 +14,7 @@ Contents:
     about
     component
     worker
+    broker
     serialize
     cron
     logging
