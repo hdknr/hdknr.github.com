@@ -2,21 +2,17 @@
 JSON Web Algorithms (JWA)
 ==========================================
 
-Based on draft-ietf-jose-json-web-algorithms-00
+.. contents:: Table of Contents
 
-- http://self-issued.info/docs/draft-ietf-jose-json-web-algorithms-00.html
-- January 16, 2012
+Based on draft-ietf-jose-json-web-algorithms-04
 
-.. note::
-
-    - Now http://self-issued.info/docs/draft-ietf-jose-json-web-algorithms-01.html
+on `JWA Draft 04 <http://tools.ietf.org/html/draft-ietf-jose-json-web-algorithms-04>`_
+- July 16, 2012 
 
 
 .. _jwa.abstract:
 
 .. include:: jwa/abstract.rst
-
-.. contents:: Table of Contents
 
 .. _jwa.1:
 
@@ -25,6 +21,22 @@ Based on draft-ietf-jose-json-web-algorithms-00
 .. _jwa.2:
 
 .. include:: jwa/2.rst
+
+.. _jwa.2.1:
+
+.. include:: jwa/2.1.rst
+
+.. _jwa.2.2:
+
+.. include:: jwa/2.2.rst
+
+.. _jwa.2.3:
+
+.. include:: jwa/2.3.rst
+
+.. _jwa.2.4:
+
+.. include:: jwa/2.4.rst
 
 .. _jwa.3:
 
@@ -45,6 +57,14 @@ Based on draft-ietf-jose-json-web-algorithms-00
 .. _jwa.3.4:
 
 .. include:: jwa/3.4.rst
+
+.. _jwa.3.5:
+
+.. include:: jwa/3.5.rst
+
+.. _jwa.3.6:
+
+.. include:: jwa/3.6.rst
 
 
 .. _jwa.4:
