@@ -4,18 +4,17 @@ The OAuth 2.0 Authorization Protocol
 
 .. contents:: Table of Contents
 
-Based on `The OAuth 2.0 Authorization Protocol draft-ietf-oauth-v2-28 <http://tools.ietf.org/html/draft-ietf-oauth-v2-28>`_
+Based on `The OAuth 2.0 Authorization Protocol draft-ietf-oauth-v2-30 <http://tools.ietf.org/html/draft-ietf-oauth-v2-30>`_
 
 .. todo::
 
-    Checke the Draft 28 - June 19, 2012
+    Checke the Draft 30 - July 15, 2012 
 
-        - http://tools.ietf.org/html/draft-ietf-oauth-v2-28
+        - http://tools.ietf.org/html/draft-ietf-oauth-v2-30
 
 .. _oauth_abstract:
 
 .. include:: oauth/abstract.rst
-
 
 .. _oauth_1:
 
@@ -167,29 +166,7 @@ Based on `The OAuth 2.0 Authorization Protocol draft-ietf-oauth-v2-28 <http://to
 
 .. _oauth_4_1_4:
 
-4.1.4. Access Token Response
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-If the access token request is valid and authorized, the
-authorization server issues an access token and optional refresh
-token as described in Section 5.1.  If the request client
-authentication failed or is invalid, the authorization server returns
-an error response as described in Section 5.2.
-
-An example successful response::
-
-     HTTP/1.1 200 OK
-     Content-Type: application/json;charset=UTF-8
-     Cache-Control: no-store
-     Pragma: no-cache
-
-     {
-       "access_token":"2YotnFZFEjr1zCsicMWpAA",
-       "token_type":"example",
-       "expires_in":3600,
-       "refresh_token":"tGzv3JOkF0XG5Qx2TlKWIA",
-       "example_parameter":"example_value"
-     }
+.. include:: oauth/4_1_4.rst
 
 
 .. _oauth_4_2:
