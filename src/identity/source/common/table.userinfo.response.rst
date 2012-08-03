@@ -1,4 +1,5 @@
 .. list-table:: Reserved Member Definitions
+    :widths: 20 20 60
 
     *   - Member  
         - Type    
@@ -28,6 +29,14 @@
         - string  
         - Casual name of the End-User that may or may not be the same as the given_name. For instance, a nickname value of Mike might be returned alongside a given_name value of Michael.
 
+    *   - preferred_username
+        - string
+        - Shorthand name that the End-User wishes to be referred to at the RP, 
+          such as **janedoe** or **j.doe**. 
+
+          This value MAY be any valid JSON string including special characters such as @, /, or whitespace. 
+          This value MUST NOT be relied upon to be unique by the RP. (See :ref:`Section 2.3.2.2 <messages_2_3_2_2>`.)
+
     *   - profile 
         - string  
         - URL of End-User's profile page.
@@ -44,9 +53,9 @@
         - string  
         - The End-User's preferred e-mail address.
 
-    *   - verified    
-        - boolean 
-        - True if the End-User's e-mail address has been verified; otherwise false.
+    *   - email_verified
+        - boolean
+        - True if the End-User's e-mail address has been verified; otherwise false. 
 
     *   - gender  
         - string  
