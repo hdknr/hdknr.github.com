@@ -97,6 +97,15 @@ SAML/OASIS
     SamlHokWebSsoProfile
     wss_saml_token_profile
 
+SCIM
+------
+
+.. toctree::
+    :maxdepth: 1
+
+    scim_rest
+    scim_cenarios
+    
 Others
 ---------
 

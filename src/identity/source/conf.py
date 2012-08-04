@@ -305,6 +305,7 @@ exclude_patterns = ['oauth/*.rst',
                     'common/*.rst',
                     'backplane/*.rst',
                     'webfinger/*.rst',
+                    'scim_rest/*.rst',
                     ]
 #
 # GETTEXT
