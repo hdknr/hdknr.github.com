@@ -15,6 +15,7 @@ Contents:
     rst
     xref
     ext
+    graphviz
     github
     glossary
 

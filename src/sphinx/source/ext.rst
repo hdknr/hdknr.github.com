@@ -42,3 +42,8 @@ Sphinxの sphinx.ext.intersphinx の mod を参照する(セクションヘッ�
     :term:`sphinx:builder`
 
 
+sphinx.ext.graphviz
+====================
+
+- :doc:`graphviz`
+
