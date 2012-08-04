@@ -63,6 +63,7 @@ Linux Commands:
     debian
     sudo
     logging
+    curl
 
     memo
 
