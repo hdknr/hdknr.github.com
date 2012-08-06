@@ -2,6 +2,7 @@
 The OAuth 2.0 Authorization Protocol: Bearer Tokens
 ================================================================================
 
+.. contents:: Table of Contents
 
 Based on http://tools.ietf.org/html/draft-ietf-oauth-v2-bearer-22
 (July 12, 2012 )
@@ -9,10 +10,6 @@ Based on http://tools.ietf.org/html/draft-ietf-oauth-v2-bearer-22
 .. _oauth_bearer.abstract:
 
 .. include:: oauth_bearer/abstract.rst
-
-
-.. contents:: Table of Contents
-
 
 .. _oauth_bearer.1:
 
