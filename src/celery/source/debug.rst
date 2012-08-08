@@ -10,7 +10,7 @@ Test/Debug
 CELERY_ALWAYS_EAGER
 -----------------------------
 
-settings.py で Trueに設定すると :mod:`apply_async() <celery:celery.app.task.Task.apply_async>` 
+settings.py で Trueに設定するとcelery.app.task.Task.apply_async
 が強制的に apply()呼び出しを行うようになります。
 
 .. code-block:: python

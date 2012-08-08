@@ -314,7 +314,15 @@ intersphinx_mapping.update({
 })
 exclude_patterns=['misc/*.rst']
 #
-PRJ_PATH= os.path.dirname( os.path.abspath(__file__))
-sys.path.insert(0, os.path.dirname(PRJ_PATH ))
-sys.path.insert(0, os.path.join(os.path.dirname(PRJ_PATH ),'sample'))
+PRJ_PATH= os.path.dirname(os.path.dirname( os.path.abspath(__file__)))
+#
+# -----
+# Celery
+sys.path.append(os.path.join(PRJ_PATH, "_ext"))
+extensions.append('celerydocs')
+
+# -----
+# Django
+sys.path.insert(0, PRJ_PATH )
+sys.path.insert(0, os.path.join(PRJ_PATH ,'sample'))
 os.environ['DJANGO_SETTINGS_MODULE'] = 'app.settings'

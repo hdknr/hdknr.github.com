@@ -13,6 +13,7 @@ Contents:
 
     about
     component
+    tasks
     worker
     broker
     serialize
@@ -21,6 +22,7 @@ Contents:
     debug
     io
     resource
+    api/index
     terms
 
 Indices and tables
