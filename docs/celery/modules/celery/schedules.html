@@ -1,0 +1,562 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>celery.schedules &mdash; Celery 1 documentation</title>
+    
+    <link rel="stylesheet" href="../../static/haiku.css" type="text/css" />
+    <link rel="stylesheet" href="../../static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../../static/print.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../static/jquery.js"></script>
+    <script type="text/javascript" src="../../static/underscore.js"></script>
+    <script type="text/javascript" src="../../static/doctools.js"></script>
+    <script type="text/javascript" src="../../static/theme_extras.js"></script>
+    <link rel="author" title="About these documents" href="../../about.html" />
+    <link rel="top" title="Celery 1 documentation" href="../../index.html" />
+    <link rel="up" title="celery" href="../celery.html" /> 
+  </head>
+  <body>
+      <div class="header"><h1 class="heading"><a href="../../index.html">
+          <span>Celery 1 documentation</span></a></h1>
+        <h2 class="heading"><span>celery.schedules</span></h2>
+      </div>
+      <div class="topnav">
+      
+        <p>
+        <a href="/">Home</a>:
+        <a class="uplink" href="../../index.html">Contents</a>
+        </p>
+
+      </div>
+      <div class="content">
+        
+        
+  <h1>Source code for celery.schedules</h1><div class="highlight"><pre>
+<span class="c"># -*- coding: utf-8 -*-</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    celery.schedules</span>
+<span class="sd">    ~~~~~~~~~~~~~~~~</span>
+
+<span class="sd">    Schedules define the intervals at which periodic tasks</span>
+<span class="sd">    should run.</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">absolute_import</span>
+
+<span class="kn">import</span> <span class="nn">re</span>
+
+<span class="kn">from</span> <span class="nn">datetime</span> <span class="kn">import</span> <span class="n">datetime</span><span class="p">,</span> <span class="n">timedelta</span>
+<span class="kn">from</span> <span class="nn">dateutil.relativedelta</span> <span class="kn">import</span> <span class="n">relativedelta</span>
+
+<span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">current_app</span>
+<span class="kn">from</span> <span class="nn">.utils</span> <span class="kn">import</span> <span class="n">is_iterable</span>
+<span class="kn">from</span> <span class="nn">.utils.timeutils</span> <span class="kn">import</span> <span class="p">(</span><span class="n">timedelta_seconds</span><span class="p">,</span> <span class="n">weekday</span><span class="p">,</span> <span class="n">maybe_timedelta</span><span class="p">,</span>
+                              <span class="n">remaining</span><span class="p">,</span> <span class="n">humanize_seconds</span><span class="p">,</span> <span class="n">is_naive</span><span class="p">,</span> <span class="n">to_utc</span><span class="p">,</span>
+                              <span class="n">timezone</span><span class="p">)</span>
+<span class="kn">from</span> <span class="nn">.datastructures</span> <span class="kn">import</span> <span class="n">AttributeDict</span>
+
+
+<div class="viewcode-block" id="ParseException"><a class="viewcode-back" href="../../api/celery.schedules.html#celery.schedules.ParseException">[docs]</a><span class="k">class</span> <span class="nc">ParseException</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Raised by crontab_parser when the input can&#39;t be parsed.&quot;&quot;&quot;</span>
+
+</div>
+<div class="viewcode-block" id="schedule"><a class="viewcode-back" href="../../api/celery.schedules.html#celery.schedules.schedule">[docs]</a><span class="k">class</span> <span class="nc">schedule</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="n">relative</span> <span class="o">=</span> <span class="bp">False</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">run_every</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">relative</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">nowfun</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">run_every</span> <span class="o">=</span> <span class="n">maybe_timedelta</span><span class="p">(</span><span class="n">run_every</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">relative</span> <span class="o">=</span> <span class="n">relative</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">nowfun</span> <span class="o">=</span> <span class="n">nowfun</span>
+
+<div class="viewcode-block" id="schedule.now"><a class="viewcode-back" href="../../api/celery.schedules.html#celery.schedules.schedule.now">[docs]</a>    <span class="k">def</span> <span class="nf">now</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">nowfun</span> <span class="ow">or</span> <span class="n">current_app</span><span class="o">.</span><span class="n">now</span><span class="p">)()</span>
+</div>
+<div class="viewcode-block" id="schedule.remaining_estimate"><a class="viewcode-back" href="../../api/celery.schedules.html#celery.schedules.schedule.remaining_estimate">[docs]</a>    <span class="k">def</span> <span class="nf">remaining_estimate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">last_run_at</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns when the periodic task should run next as a timedelta.&quot;&quot;&quot;</span>
+        <span class="n">now</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">now</span><span class="p">()</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">is_naive</span><span class="p">(</span><span class="n">last_run_at</span><span class="p">):</span>
+            <span class="n">now</span> <span class="o">=</span> <span class="n">to_utc</span><span class="p">(</span><span class="n">now</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">remaining</span><span class="p">(</span><span class="n">last_run_at</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_every</span><span class="p">,</span>
+                         <span class="n">relative</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">relative</span><span class="p">,</span> <span class="n">now</span><span class="o">=</span><span class="n">now</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="schedule.is_due"><a class="viewcode-back" href="../../api/celery.schedules.html#celery.schedules.schedule.is_due">[docs]</a>    <span class="k">def</span> <span class="nf">is_due</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">last_run_at</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns tuple of two items `(is_due, next_time_to_run)`,</span>
+<span class="sd">        where next time to run is in seconds.</span>
+
+<span class="sd">        e.g.</span>
+
+<span class="sd">        * `(True, 20)`, means the task should be run now, and the next</span>
+<span class="sd">            time to run is in 20 seconds.</span>
+
+<span class="sd">        * `(False, 12)`, means the task should be run in 12 seconds.</span>
+
+<span class="sd">        You can override this to decide the interval at runtime,</span>
+<span class="sd">        but keep in mind the value of :setting:`CELERYBEAT_MAX_LOOP_INTERVAL`,</span>
+<span class="sd">        which decides the maximum number of seconds celerybeat can sleep</span>
+<span class="sd">        between re-checking the periodic task intervals.  So if you</span>
+<span class="sd">        dynamically change the next run at value, and the max interval is</span>
+<span class="sd">        set to 5 minutes, it will take 5 minutes for the change to take</span>
+<span class="sd">        effect, so you may consider lowering the value of</span>
+<span class="sd">        :setting:`CELERYBEAT_MAX_LOOP_INTERVAL` if responsiveness is of</span>
+<span class="sd">        importance to you.</span>
+
+<span class="sd">        .. admonition:: Scheduler max interval variance</span>
+
+<span class="sd">            The default max loop interval may vary for different schedulers.</span>
+<span class="sd">            For the default scheduler the value is 5 minutes, but for e.g.</span>
+<span class="sd">            the django-celery database scheduler the value is 5 seconds.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">rem_delta</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">remaining_estimate</span><span class="p">(</span><span class="n">last_run_at</span><span class="p">)</span>
+        <span class="n">rem</span> <span class="o">=</span> <span class="n">timedelta_seconds</span><span class="p">(</span><span class="n">rem_delta</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">rem</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">True</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">seconds</span>
+        <span class="k">return</span> <span class="bp">False</span><span class="p">,</span> <span class="n">rem</span>
+</div>
+    <span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="s">&#39;&lt;freq: </span><span class="si">%s</span><span class="s">&gt;&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">human_seconds</span>
+
+    <span class="k">def</span> <span class="nf">__eq__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">other</span><span class="p">,</span> <span class="n">schedule</span><span class="p">):</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_every</span> <span class="o">==</span> <span class="n">other</span><span class="o">.</span><span class="n">run_every</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_every</span> <span class="o">==</span> <span class="n">other</span>
+
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="schedule.seconds"><a class="viewcode-back" href="../../api/celery.schedules.html#celery.schedules.schedule.seconds">[docs]</a>    <span class="k">def</span> <span class="nf">seconds</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">timedelta_seconds</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">run_every</span><span class="p">)</span>
+</div>
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="schedule.human_seconds"><a class="viewcode-back" href="../../api/celery.schedules.html#celery.schedules.schedule.human_seconds">[docs]</a>    <span class="k">def</span> <span class="nf">human_seconds</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">humanize_seconds</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">seconds</span><span class="p">)</span>
+
+</div></div>
+<div class="viewcode-block" id="crontab_parser"><a class="viewcode-back" href="../../api/celery.schedules.html#celery.schedules.crontab_parser">[docs]</a><span class="k">class</span> <span class="nc">crontab_parser</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Parser for crontab expressions. Any expression of the form &#39;groups&#39;</span>
+<span class="sd">    (see BNF grammar below) is accepted and expanded to a set of numbers.</span>
+<span class="sd">    These numbers represent the units of time that the crontab needs to</span>
+<span class="sd">    run on::</span>
+
+<span class="sd">        digit   :: &#39;0&#39;..&#39;9&#39;</span>
+<span class="sd">        dow     :: &#39;a&#39;..&#39;z&#39;</span>
+<span class="sd">        number  :: digit+ | dow+</span>
+<span class="sd">        steps   :: number</span>
+<span class="sd">        range   :: number ( &#39;-&#39; number ) ?</span>
+<span class="sd">        numspec :: &#39;*&#39; | range</span>
+<span class="sd">        expr    :: numspec ( &#39;/&#39; steps ) ?</span>
+<span class="sd">        groups  :: expr ( &#39;,&#39; expr ) *</span>
+
+<span class="sd">    The parser is a general purpose one, useful for parsing hours, minutes and</span>
+<span class="sd">    day_of_week expressions.  Example usage::</span>
+
+<span class="sd">        &gt;&gt;&gt; minutes = crontab_parser(60).parse(&#39;*/15&#39;)</span>
+<span class="sd">        [0, 15, 30, 45]</span>
+<span class="sd">        &gt;&gt;&gt; hours = crontab_parser(24).parse(&#39;*/4&#39;)</span>
+<span class="sd">        [0, 4, 8, 12, 16, 20]</span>
+<span class="sd">        &gt;&gt;&gt; day_of_week = crontab_parser(7).parse(&#39;*&#39;)</span>
+<span class="sd">        [0, 1, 2, 3, 4, 5, 6]</span>
+
+<span class="sd">    It can also parse day_of_month and month_of_year expressions if initialized</span>
+<span class="sd">    with an minimum of 1.  Example usage::</span>
+
+<span class="sd">        &gt;&gt;&gt; days_of_month = crontab_parser(31, 1).parse(&#39;*/3&#39;)</span>
+<span class="sd">        [1, 4, 7, 10, 13, 16, 19, 22, 25, 28, 31]</span>
+<span class="sd">        &gt;&gt;&gt; months_of_year = crontab_parser(12, 1).parse(&#39;*/2&#39;)</span>
+<span class="sd">        [1, 3, 5, 7, 9, 11]</span>
+<span class="sd">        &gt;&gt;&gt; months_of_year = crontab_parser(12, 1).parse(&#39;2-12/2&#39;)</span>
+<span class="sd">        [2, 4, 6, 8, 10, 12]</span>
+
+<span class="sd">    The maximum possible expanded value returned is found by the formula::</span>
+
+<span class="sd">        max_ + min_ - 1</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">ParseException</span> <span class="o">=</span> <span class="n">ParseException</span>
+
+    <span class="n">_range</span> <span class="o">=</span> <span class="s">r&#39;(\w+?)-(\w+)&#39;</span>
+    <span class="n">_steps</span> <span class="o">=</span> <span class="s">r&#39;/(\w+)?&#39;</span>
+    <span class="n">_star</span> <span class="o">=</span> <span class="s">r&#39;\*&#39;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">max_</span><span class="o">=</span><span class="mi">60</span><span class="p">,</span> <span class="n">min_</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">max_</span> <span class="o">=</span> <span class="n">max_</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">min_</span> <span class="o">=</span> <span class="n">min_</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">pats</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="p">(</span><span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_range</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">_steps</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">_range_steps</span><span class="p">),</span>
+                <span class="p">(</span><span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_range</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">_expand_range</span><span class="p">),</span>
+                <span class="p">(</span><span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_star</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">_steps</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">_star_steps</span><span class="p">),</span>
+                <span class="p">(</span><span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="s">&#39;^&#39;</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">_star</span> <span class="o">+</span> <span class="s">&#39;$&#39;</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">_expand_star</span><span class="p">))</span>
+
+<div class="viewcode-block" id="crontab_parser.parse"><a class="viewcode-back" href="../../api/celery.schedules.html#celery.schedules.crontab_parser.parse">[docs]</a>    <span class="k">def</span> <span class="nf">parse</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">spec</span><span class="p">):</span>
+        <span class="n">acc</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">part</span> <span class="ow">in</span> <span class="n">spec</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&#39;,&#39;</span><span class="p">):</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">part</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="bp">self</span><span class="o">.</span><span class="n">ParseException</span><span class="p">(</span><span class="s">&#39;empty part&#39;</span><span class="p">)</span>
+            <span class="n">acc</span> <span class="o">|=</span> <span class="nb">set</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_parse_part</span><span class="p">(</span><span class="n">part</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">acc</span>
+</div>
+    <span class="k">def</span> <span class="nf">_parse_part</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">part</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">regex</span><span class="p">,</span> <span class="n">handler</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">pats</span><span class="p">:</span>
+            <span class="n">m</span> <span class="o">=</span> <span class="n">regex</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="n">part</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">m</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">handler</span><span class="p">(</span><span class="n">m</span><span class="o">.</span><span class="n">groups</span><span class="p">())</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_expand_range</span><span class="p">((</span><span class="n">part</span><span class="p">,</span> <span class="p">))</span>
+
+    <span class="k">def</span> <span class="nf">_expand_range</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">toks</span><span class="p">):</span>
+        <span class="n">fr</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_expand_number</span><span class="p">(</span><span class="n">toks</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">toks</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">to</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_expand_number</span><span class="p">(</span><span class="n">toks</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+            <span class="k">return</span> <span class="nb">range</span><span class="p">(</span><span class="n">fr</span><span class="p">,</span> <span class="nb">min</span><span class="p">(</span><span class="n">to</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_</span> <span class="o">+</span> <span class="mi">1</span><span class="p">))</span>
+        <span class="k">return</span> <span class="p">[</span><span class="n">fr</span><span class="p">]</span>
+
+    <span class="k">def</span> <span class="nf">_range_steps</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">toks</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">toks</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">3</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">toks</span><span class="p">[</span><span class="mi">2</span><span class="p">]:</span>
+            <span class="k">raise</span> <span class="bp">self</span><span class="o">.</span><span class="n">ParseException</span><span class="p">(</span><span class="s">&#39;empty filter&#39;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_expand_range</span><span class="p">(</span><span class="n">toks</span><span class="p">[:</span><span class="mi">2</span><span class="p">])[::</span><span class="nb">int</span><span class="p">(</span><span class="n">toks</span><span class="p">[</span><span class="mi">2</span><span class="p">])]</span>
+
+    <span class="k">def</span> <span class="nf">_star_steps</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">toks</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">toks</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">toks</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span>
+            <span class="k">raise</span> <span class="bp">self</span><span class="o">.</span><span class="n">ParseException</span><span class="p">(</span><span class="s">&#39;empty filter&#39;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_expand_star</span><span class="p">()[::</span><span class="nb">int</span><span class="p">(</span><span class="n">toks</span><span class="p">[</span><span class="mi">0</span><span class="p">])]</span>
+
+    <span class="k">def</span> <span class="nf">_expand_star</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">):</span>
+        <span class="k">return</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">min_</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">min_</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_expand_number</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">s</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="nb">basestring</span><span class="p">)</span> <span class="ow">and</span> <span class="n">s</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="s">&#39;-&#39;</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="bp">self</span><span class="o">.</span><span class="n">ParseException</span><span class="p">(</span><span class="s">&#39;negative numbers not supported&#39;</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">i</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">s</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">i</span> <span class="o">=</span> <span class="n">weekday</span><span class="p">(</span><span class="n">s</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s">&quot;Invalid weekday literal &#39;</span><span class="si">%s</span><span class="s">&#39;.&quot;</span> <span class="o">%</span> <span class="n">s</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">min_</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s">&#39;Invalid beginning range: </span><span class="si">%s</span><span class="s"> &lt; </span><span class="si">%s</span><span class="s">.&#39;</span> <span class="o">%</span>
+                                                   <span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">min_</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">i</span>
+
+</div>
+<div class="viewcode-block" id="crontab"><a class="viewcode-back" href="../../api/celery.schedules.html#celery.schedules.crontab">[docs]</a><span class="k">class</span> <span class="nc">crontab</span><span class="p">(</span><span class="n">schedule</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;A crontab can be used as the `run_every` value of a</span>
+<span class="sd">    :class:`PeriodicTask` to add cron-like scheduling.</span>
+
+<span class="sd">    Like a :manpage:`cron` job, you can specify units of time of when</span>
+<span class="sd">    you would like the task to execute. It is a reasonably complete</span>
+<span class="sd">    implementation of cron&#39;s features, so it should provide a fair</span>
+<span class="sd">    degree of scheduling needs.</span>
+
+<span class="sd">    You can specify a minute, an hour, a day of the week, a day of the</span>
+<span class="sd">    month, and/or a month in the year in any of the following formats:</span>
+
+<span class="sd">    .. attribute:: minute</span>
+
+<span class="sd">        - A (list of) integers from 0-59 that represent the minutes of</span>
+<span class="sd">          an hour of when execution should occur; or</span>
+<span class="sd">        - A string representing a crontab pattern.  This may get pretty</span>
+<span class="sd">          advanced, like `minute=&#39;*/15&#39;` (for every quarter) or</span>
+<span class="sd">          `minute=&#39;1,13,30-45,50-59/2&#39;`.</span>
+
+<span class="sd">    .. attribute:: hour</span>
+
+<span class="sd">        - A (list of) integers from 0-23 that represent the hours of</span>
+<span class="sd">          a day of when execution should occur; or</span>
+<span class="sd">        - A string representing a crontab pattern.  This may get pretty</span>
+<span class="sd">          advanced, like `hour=&#39;*/3&#39;` (for every three hours) or</span>
+<span class="sd">          `hour=&#39;0,8-17/2&#39;` (at midnight, and every two hours during</span>
+<span class="sd">          office hours).</span>
+
+<span class="sd">    .. attribute:: day_of_week</span>
+
+<span class="sd">        - A (list of) integers from 0-6, where Sunday = 0 and Saturday =</span>
+<span class="sd">          6, that represent the days of a week that execution should</span>
+<span class="sd">          occur.</span>
+<span class="sd">        - A string representing a crontab pattern.  This may get pretty</span>
+<span class="sd">          advanced, like `day_of_week=&#39;mon-fri&#39;` (for weekdays only).</span>
+<span class="sd">          (Beware that `day_of_week=&#39;*/2&#39;` does not literally mean</span>
+<span class="sd">          &#39;every two days&#39;, but &#39;every day that is divisible by two&#39;!)</span>
+
+<span class="sd">    .. attribute:: day_of_month</span>
+
+<span class="sd">        - A (list of) integers from 1-31 that represents the days of the</span>
+<span class="sd">          month that execution should occur.</span>
+<span class="sd">        - A string representing a crontab pattern.  This may get pretty</span>
+<span class="sd">          advanced, such as `day_of_month=&#39;2-30/3&#39;` (for every even</span>
+<span class="sd">          numbered day) or `day_of_month=&#39;1-7,15-21&#39;` (for the first and</span>
+<span class="sd">          third weeks of the month).</span>
+
+<span class="sd">    .. attribute:: month_of_year</span>
+
+<span class="sd">        - A (list of) integers from 1-12 that represents the months of</span>
+<span class="sd">          the year during which execution can occur.</span>
+<span class="sd">        - A string representing a crontab pattern.  This may get pretty</span>
+<span class="sd">          advanced, such as `month_of_year=&#39;*/3&#39;` (for the first month</span>
+<span class="sd">          of every quarter) or `month_of_year=&#39;2-12/2&#39;` (for every even</span>
+<span class="sd">          numbered month).</span>
+
+<span class="sd">    It is important to realize that any day on which execution should</span>
+<span class="sd">    occur must be represented by entries in all three of the day and</span>
+<span class="sd">    month attributes.  For example, if `day_of_week` is 0 and `day_of_month`</span>
+<span class="sd">    is every seventh day, only months that begin on Sunday and are also</span>
+<span class="sd">    in the `month_of_year` attribute will have execution events.  Or,</span>
+<span class="sd">    `day_of_week` is 1 and `day_of_month` is &#39;1-7,15-21&#39; means every</span>
+<span class="sd">    first and third monday of every month present in `month_of_year`.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">_expand_cronspec</span><span class="p">(</span><span class="n">cronspec</span><span class="p">,</span> <span class="n">max_</span><span class="p">,</span> <span class="n">min_</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Takes the given cronspec argument in one of the forms::</span>
+
+<span class="sd">            int         (like 7)</span>
+<span class="sd">            basestring  (like &#39;3-5,*/15&#39;, &#39;*&#39;, or &#39;monday&#39;)</span>
+<span class="sd">            set         (like set([0,15,30,45]))</span>
+<span class="sd">            list        (like [8-17])</span>
+
+<span class="sd">        And convert it to an (expanded) set representing all time unit</span>
+<span class="sd">        values on which the crontab triggers.  Only in case of the base</span>
+<span class="sd">        type being &#39;basestring&#39;, parsing occurs.  (It is fast and</span>
+<span class="sd">        happens only once for each crontab instance, so there is no</span>
+<span class="sd">        significant performance overhead involved.)</span>
+
+<span class="sd">        For the other base types, merely Python type conversions happen.</span>
+
+<span class="sd">        The argument `max_` is needed to determine the expansion of &#39;*&#39;</span>
+<span class="sd">        and ranges.</span>
+<span class="sd">        The argument `min_` is needed to determine the expansion of &#39;*&#39;</span>
+<span class="sd">        and ranges for 1-based cronspecs, such as day of month or month</span>
+<span class="sd">        of year. The default is sufficient for minute, hour, and day of</span>
+<span class="sd">        week.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">cronspec</span><span class="p">,</span> <span class="nb">int</span><span class="p">):</span>
+            <span class="n">result</span> <span class="o">=</span> <span class="nb">set</span><span class="p">([</span><span class="n">cronspec</span><span class="p">])</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">cronspec</span><span class="p">,</span> <span class="nb">basestring</span><span class="p">):</span>
+            <span class="n">result</span> <span class="o">=</span> <span class="n">crontab_parser</span><span class="p">(</span><span class="n">max_</span><span class="p">,</span> <span class="n">min_</span><span class="p">)</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span><span class="n">cronspec</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">cronspec</span><span class="p">,</span> <span class="nb">set</span><span class="p">):</span>
+            <span class="n">result</span> <span class="o">=</span> <span class="n">cronspec</span>
+        <span class="k">elif</span> <span class="n">is_iterable</span><span class="p">(</span><span class="n">cronspec</span><span class="p">):</span>
+            <span class="n">result</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">cronspec</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span>
+                    <span class="s">&#39;Argument cronspec needs to be of any of the &#39;</span>
+                    <span class="s">&#39;following types: int, basestring, or an iterable type. &#39;</span>
+                    <span class="s">&quot;&#39;</span><span class="si">%s</span><span class="s">&#39; was given.&quot;</span> <span class="o">%</span> <span class="nb">type</span><span class="p">(</span><span class="n">cronspec</span><span class="p">))</span>
+
+        <span class="c"># assure the result does not preceed the min or exceed the max</span>
+        <span class="k">for</span> <span class="n">number</span> <span class="ow">in</span> <span class="n">result</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">number</span> <span class="o">&gt;=</span> <span class="n">max_</span> <span class="o">+</span> <span class="n">min_</span> <span class="ow">or</span> <span class="n">number</span> <span class="o">&lt;</span> <span class="n">min_</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                        <span class="s">&#39;Invalid crontab pattern. Valid &#39;</span>
+                        <span class="s">&quot;range is </span><span class="si">%d</span><span class="s">-</span><span class="si">%d</span><span class="s">. &#39;</span><span class="si">%d</span><span class="s">&#39; was found.&quot;</span> <span class="o">%</span>
+                        <span class="p">(</span><span class="n">min_</span><span class="p">,</span> <span class="n">max_</span> <span class="o">-</span> <span class="mi">1</span> <span class="o">+</span> <span class="n">min_</span><span class="p">,</span> <span class="n">number</span><span class="p">))</span>
+
+        <span class="k">return</span> <span class="n">result</span>
+
+    <span class="k">def</span> <span class="nf">_delta_to_next</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">last_run_at</span><span class="p">,</span> <span class="n">next_hour</span><span class="p">,</span> <span class="n">next_minute</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Takes a datetime of last run, next minute and hour, and</span>
+<span class="sd">        returns a relativedelta for the next scheduled day and time.</span>
+<span class="sd">        Only called when day_of_month and/or month_of_year cronspec</span>
+<span class="sd">        is specified to further limit scheduled task execution.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="kn">from</span> <span class="nn">bisect</span> <span class="kn">import</span> <span class="n">bisect</span><span class="p">,</span> <span class="n">bisect_left</span>
+
+        <span class="n">datedata</span> <span class="o">=</span> <span class="n">AttributeDict</span><span class="p">(</span><span class="n">year</span><span class="o">=</span><span class="n">last_run_at</span><span class="o">.</span><span class="n">year</span><span class="p">)</span>
+        <span class="n">days_of_month</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">day_of_month</span><span class="p">)</span>
+        <span class="n">months_of_year</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">month_of_year</span><span class="p">)</span>
+
+        <span class="k">def</span> <span class="nf">day_out_of_range</span><span class="p">(</span><span class="n">year</span><span class="p">,</span> <span class="n">month</span><span class="p">,</span> <span class="n">day</span><span class="p">):</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">datetime</span><span class="p">(</span><span class="n">year</span><span class="o">=</span><span class="n">year</span><span class="p">,</span> <span class="n">month</span><span class="o">=</span><span class="n">month</span><span class="p">,</span> <span class="n">day</span><span class="o">=</span><span class="n">day</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+                <span class="k">return</span> <span class="bp">True</span>
+            <span class="k">return</span> <span class="bp">False</span>
+
+        <span class="k">def</span> <span class="nf">roll_over</span><span class="p">():</span>
+            <span class="k">while</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="n">flag</span> <span class="o">=</span> <span class="p">(</span><span class="n">datedata</span><span class="o">.</span><span class="n">dom</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">days_of_month</span><span class="p">)</span> <span class="ow">or</span>
+                            <span class="n">day_out_of_range</span><span class="p">(</span><span class="n">datedata</span><span class="o">.</span><span class="n">year</span><span class="p">,</span>
+                                             <span class="n">months_of_year</span><span class="p">[</span><span class="n">datedata</span><span class="o">.</span><span class="n">moy</span><span class="p">],</span>
+                                             <span class="n">days_of_month</span><span class="p">[</span><span class="n">datedata</span><span class="o">.</span><span class="n">dom</span><span class="p">]))</span>
+                <span class="k">if</span> <span class="n">flag</span><span class="p">:</span>
+                    <span class="n">datedata</span><span class="o">.</span><span class="n">dom</span> <span class="o">=</span> <span class="mi">0</span>
+                    <span class="n">datedata</span><span class="o">.</span><span class="n">moy</span> <span class="o">+=</span> <span class="mi">1</span>
+                    <span class="k">if</span> <span class="n">datedata</span><span class="o">.</span><span class="n">moy</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">months_of_year</span><span class="p">):</span>
+                        <span class="n">datedata</span><span class="o">.</span><span class="n">moy</span> <span class="o">=</span> <span class="mi">0</span>
+                        <span class="n">datedata</span><span class="o">.</span><span class="n">year</span> <span class="o">+=</span> <span class="mi">1</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="k">break</span>
+
+        <span class="k">if</span> <span class="n">last_run_at</span><span class="o">.</span><span class="n">month</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">month_of_year</span><span class="p">:</span>
+            <span class="n">datedata</span><span class="o">.</span><span class="n">dom</span> <span class="o">=</span> <span class="n">bisect</span><span class="p">(</span><span class="n">days_of_month</span><span class="p">,</span> <span class="n">last_run_at</span><span class="o">.</span><span class="n">day</span><span class="p">)</span>
+            <span class="n">datedata</span><span class="o">.</span><span class="n">moy</span> <span class="o">=</span> <span class="n">bisect_left</span><span class="p">(</span><span class="n">months_of_year</span><span class="p">,</span> <span class="n">last_run_at</span><span class="o">.</span><span class="n">month</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">datedata</span><span class="o">.</span><span class="n">dom</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="n">datedata</span><span class="o">.</span><span class="n">moy</span> <span class="o">=</span> <span class="n">bisect</span><span class="p">(</span><span class="n">months_of_year</span><span class="p">,</span> <span class="n">last_run_at</span><span class="o">.</span><span class="n">month</span><span class="p">)</span>
+        <span class="n">roll_over</span><span class="p">()</span>
+
+        <span class="k">while</span> <span class="ow">not</span> <span class="p">(</span><span class="n">datetime</span><span class="p">(</span><span class="n">year</span><span class="o">=</span><span class="n">datedata</span><span class="o">.</span><span class="n">year</span><span class="p">,</span>
+                            <span class="n">month</span><span class="o">=</span><span class="n">months_of_year</span><span class="p">[</span><span class="n">datedata</span><span class="o">.</span><span class="n">moy</span><span class="p">],</span>
+                            <span class="n">day</span><span class="o">=</span><span class="n">days_of_month</span><span class="p">[</span><span class="n">datedata</span><span class="o">.</span><span class="n">dom</span><span class="p">]</span>
+                           <span class="p">)</span><span class="o">.</span><span class="n">isoweekday</span><span class="p">()</span> <span class="o">%</span> <span class="mi">7</span>
+                  <span class="p">)</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">day_of_week</span><span class="p">:</span>
+            <span class="n">datedata</span><span class="o">.</span><span class="n">dom</span> <span class="o">+=</span> <span class="mi">1</span>
+            <span class="n">roll_over</span><span class="p">()</span>
+
+        <span class="k">return</span> <span class="n">relativedelta</span><span class="p">(</span><span class="n">year</span><span class="o">=</span><span class="n">datedata</span><span class="o">.</span><span class="n">year</span><span class="p">,</span>
+                             <span class="n">month</span><span class="o">=</span><span class="n">months_of_year</span><span class="p">[</span><span class="n">datedata</span><span class="o">.</span><span class="n">moy</span><span class="p">],</span>
+                             <span class="n">day</span><span class="o">=</span><span class="n">days_of_month</span><span class="p">[</span><span class="n">datedata</span><span class="o">.</span><span class="n">dom</span><span class="p">],</span>
+                             <span class="n">hour</span><span class="o">=</span><span class="n">next_hour</span><span class="p">,</span>
+                             <span class="n">minute</span><span class="o">=</span><span class="n">next_minute</span><span class="p">,</span>
+                             <span class="n">second</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+                             <span class="n">microsecond</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">minute</span><span class="o">=</span><span class="s">&#39;*&#39;</span><span class="p">,</span> <span class="n">hour</span><span class="o">=</span><span class="s">&#39;*&#39;</span><span class="p">,</span> <span class="n">day_of_week</span><span class="o">=</span><span class="s">&#39;*&#39;</span><span class="p">,</span>
+            <span class="n">day_of_month</span><span class="o">=</span><span class="s">&#39;*&#39;</span><span class="p">,</span> <span class="n">month_of_year</span><span class="o">=</span><span class="s">&#39;*&#39;</span><span class="p">,</span> <span class="n">nowfun</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_orig_minute</span> <span class="o">=</span> <span class="n">minute</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_orig_hour</span> <span class="o">=</span> <span class="n">hour</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_orig_day_of_week</span> <span class="o">=</span> <span class="n">day_of_week</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_orig_day_of_month</span> <span class="o">=</span> <span class="n">day_of_month</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_orig_month_of_year</span> <span class="o">=</span> <span class="n">month_of_year</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">hour</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_expand_cronspec</span><span class="p">(</span><span class="n">hour</span><span class="p">,</span> <span class="mi">24</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">minute</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_expand_cronspec</span><span class="p">(</span><span class="n">minute</span><span class="p">,</span> <span class="mi">60</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">day_of_week</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_expand_cronspec</span><span class="p">(</span><span class="n">day_of_week</span><span class="p">,</span> <span class="mi">7</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">day_of_month</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_expand_cronspec</span><span class="p">(</span><span class="n">day_of_month</span><span class="p">,</span> <span class="mi">31</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">month_of_year</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_expand_cronspec</span><span class="p">(</span><span class="n">month_of_year</span><span class="p">,</span> <span class="mi">12</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">nowfun</span> <span class="o">=</span> <span class="n">nowfun</span> <span class="ow">or</span> <span class="n">current_app</span><span class="o">.</span><span class="n">now</span>
+
+    <span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">(</span><span class="s">&#39;&lt;crontab: </span><span class="si">%s</span><span class="s"> </span><span class="si">%s</span><span class="s"> </span><span class="si">%s</span><span class="s"> </span><span class="si">%s</span><span class="s"> </span><span class="si">%s</span><span class="s"> (m/h/d/dM/MY)&gt;&#39;</span> <span class="o">%</span>
+                                            <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_orig_minute</span> <span class="ow">or</span> <span class="s">&#39;*&#39;</span><span class="p">,</span>
+                                             <span class="bp">self</span><span class="o">.</span><span class="n">_orig_hour</span> <span class="ow">or</span> <span class="s">&#39;*&#39;</span><span class="p">,</span>
+                                             <span class="bp">self</span><span class="o">.</span><span class="n">_orig_day_of_week</span> <span class="ow">or</span> <span class="s">&#39;*&#39;</span><span class="p">,</span>
+                                             <span class="bp">self</span><span class="o">.</span><span class="n">_orig_day_of_month</span> <span class="ow">or</span> <span class="s">&#39;*&#39;</span><span class="p">,</span>
+                                             <span class="bp">self</span><span class="o">.</span><span class="n">_orig_month_of_year</span> <span class="ow">or</span> <span class="s">&#39;*&#39;</span><span class="p">))</span>
+
+    <span class="k">def</span> <span class="nf">__reduce__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="p">,</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_orig_minute</span><span class="p">,</span>
+                                 <span class="bp">self</span><span class="o">.</span><span class="n">_orig_hour</span><span class="p">,</span>
+                                 <span class="bp">self</span><span class="o">.</span><span class="n">_orig_day_of_week</span><span class="p">,</span>
+                                 <span class="bp">self</span><span class="o">.</span><span class="n">_orig_day_of_month</span><span class="p">,</span>
+                                 <span class="bp">self</span><span class="o">.</span><span class="n">_orig_month_of_year</span><span class="p">),</span> <span class="bp">None</span><span class="p">)</span>
+
+<div class="viewcode-block" id="crontab.remaining_estimate"><a class="viewcode-back" href="../../api/celery.schedules.html#celery.schedules.crontab.remaining_estimate">[docs]</a>    <span class="k">def</span> <span class="nf">remaining_estimate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">last_run_at</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns when the periodic task should run next as a timedelta.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">is_naive</span><span class="p">(</span><span class="n">last_run_at</span><span class="p">):</span>
+            <span class="n">last_run_at</span> <span class="o">=</span> <span class="n">last_run_at</span><span class="o">.</span><span class="n">astimezone</span><span class="p">(</span><span class="n">timezone</span><span class="o">.</span><span class="n">utc</span><span class="p">)</span>
+        <span class="n">dow_num</span> <span class="o">=</span> <span class="n">last_run_at</span><span class="o">.</span><span class="n">isoweekday</span><span class="p">()</span> <span class="o">%</span> <span class="mi">7</span>  <span class="c"># Sunday is day 0, not day 7</span>
+
+        <span class="n">execute_this_date</span> <span class="o">=</span> <span class="p">(</span><span class="n">last_run_at</span><span class="o">.</span><span class="n">month</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">month_of_year</span> <span class="ow">and</span>
+                                <span class="n">last_run_at</span><span class="o">.</span><span class="n">day</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">day_of_month</span> <span class="ow">and</span>
+                                    <span class="n">dow_num</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">day_of_week</span><span class="p">)</span>
+
+        <span class="n">execute_this_hour</span> <span class="o">=</span> <span class="p">(</span><span class="n">execute_this_date</span> <span class="ow">and</span>
+                                <span class="n">last_run_at</span><span class="o">.</span><span class="n">hour</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">hour</span> <span class="ow">and</span>
+                                    <span class="n">last_run_at</span><span class="o">.</span><span class="n">minute</span> <span class="o">&lt;</span> <span class="nb">max</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">minute</span><span class="p">))</span>
+
+        <span class="k">if</span> <span class="n">execute_this_hour</span><span class="p">:</span>
+            <span class="n">next_minute</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">minute</span> <span class="k">for</span> <span class="n">minute</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">minute</span>
+                                        <span class="k">if</span> <span class="n">minute</span> <span class="o">&gt;</span> <span class="n">last_run_at</span><span class="o">.</span><span class="n">minute</span><span class="p">)</span>
+            <span class="n">delta</span> <span class="o">=</span> <span class="n">relativedelta</span><span class="p">(</span><span class="n">minute</span><span class="o">=</span><span class="n">next_minute</span><span class="p">,</span>
+                                  <span class="n">second</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+                                  <span class="n">microsecond</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">next_minute</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">minute</span><span class="p">)</span>
+            <span class="n">execute_today</span> <span class="o">=</span> <span class="p">(</span><span class="n">execute_this_date</span> <span class="ow">and</span>
+                                <span class="n">last_run_at</span><span class="o">.</span><span class="n">hour</span> <span class="o">&lt;</span> <span class="nb">max</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">hour</span><span class="p">))</span>
+
+            <span class="k">if</span> <span class="n">execute_today</span><span class="p">:</span>
+                <span class="n">next_hour</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">hour</span> <span class="k">for</span> <span class="n">hour</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">hour</span>
+                                        <span class="k">if</span> <span class="n">hour</span> <span class="o">&gt;</span> <span class="n">last_run_at</span><span class="o">.</span><span class="n">hour</span><span class="p">)</span>
+                <span class="n">delta</span> <span class="o">=</span> <span class="n">relativedelta</span><span class="p">(</span><span class="n">hour</span><span class="o">=</span><span class="n">next_hour</span><span class="p">,</span>
+                                      <span class="n">minute</span><span class="o">=</span><span class="n">next_minute</span><span class="p">,</span>
+                                      <span class="n">second</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+                                      <span class="n">microsecond</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">next_hour</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">hour</span><span class="p">)</span>
+                <span class="n">all_dom_moy</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_orig_day_of_month</span> <span class="o">==</span> <span class="s">&#39;*&#39;</span> <span class="ow">and</span>
+                                  <span class="bp">self</span><span class="o">.</span><span class="n">_orig_month_of_year</span> <span class="o">==</span> <span class="s">&#39;*&#39;</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">all_dom_moy</span><span class="p">:</span>
+                    <span class="n">next_day</span> <span class="o">=</span> <span class="nb">min</span><span class="p">([</span><span class="n">day</span> <span class="k">for</span> <span class="n">day</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">day_of_week</span>
+                                        <span class="k">if</span> <span class="n">day</span> <span class="o">&gt;</span> <span class="n">dow_num</span><span class="p">]</span> <span class="ow">or</span>
+                                <span class="bp">self</span><span class="o">.</span><span class="n">day_of_week</span><span class="p">)</span>
+                    <span class="n">add_week</span> <span class="o">=</span> <span class="n">next_day</span> <span class="o">==</span> <span class="n">dow_num</span>
+
+                    <span class="n">delta</span> <span class="o">=</span> <span class="n">relativedelta</span><span class="p">(</span><span class="n">weeks</span><span class="o">=</span><span class="n">add_week</span> <span class="ow">and</span> <span class="mi">1</span> <span class="ow">or</span> <span class="mi">0</span><span class="p">,</span>
+                                          <span class="n">weekday</span><span class="o">=</span><span class="p">(</span><span class="n">next_day</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">%</span> <span class="mi">7</span><span class="p">,</span>
+                                          <span class="n">hour</span><span class="o">=</span><span class="n">next_hour</span><span class="p">,</span>
+                                          <span class="n">minute</span><span class="o">=</span><span class="n">next_minute</span><span class="p">,</span>
+                                          <span class="n">second</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+                                          <span class="n">microsecond</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">delta</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_delta_to_next</span><span class="p">(</span><span class="n">last_run_at</span><span class="p">,</span>
+                                                <span class="n">next_hour</span><span class="p">,</span> <span class="n">next_minute</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">remaining</span><span class="p">(</span><span class="n">last_run_at</span><span class="p">,</span> <span class="n">delta</span><span class="p">,</span> <span class="n">now</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">nowfun</span><span class="p">())</span>
+</div>
+<div class="viewcode-block" id="crontab.is_due"><a class="viewcode-back" href="../../api/celery.schedules.html#celery.schedules.crontab.is_due">[docs]</a>    <span class="k">def</span> <span class="nf">is_due</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">last_run_at</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns tuple of two items `(is_due, next_time_to_run)`,</span>
+<span class="sd">        where next time to run is in seconds.</span>
+
+<span class="sd">        See :meth:`celery.schedules.schedule.is_due` for more information.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">rem_delta</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">remaining_estimate</span><span class="p">(</span><span class="n">last_run_at</span><span class="p">)</span>
+        <span class="n">rem</span> <span class="o">=</span> <span class="n">timedelta_seconds</span><span class="p">(</span><span class="n">rem_delta</span><span class="p">)</span>
+        <span class="n">due</span> <span class="o">=</span> <span class="n">rem</span> <span class="o">==</span> <span class="mi">0</span>
+        <span class="k">if</span> <span class="n">due</span><span class="p">:</span>
+            <span class="n">rem_delta</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">remaining_estimate</span><span class="p">(</span><span class="n">last_run_at</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">nowfun</span><span class="p">())</span>
+            <span class="n">rem</span> <span class="o">=</span> <span class="n">timedelta_seconds</span><span class="p">(</span><span class="n">rem_delta</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">due</span><span class="p">,</span> <span class="n">rem</span>
+</div>
+    <span class="k">def</span> <span class="nf">__eq__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">other</span><span class="p">,</span> <span class="n">crontab</span><span class="p">):</span>
+            <span class="k">return</span> <span class="p">(</span><span class="n">other</span><span class="o">.</span><span class="n">month_of_year</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">month_of_year</span> <span class="ow">and</span>
+                    <span class="n">other</span><span class="o">.</span><span class="n">day_of_month</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">day_of_month</span> <span class="ow">and</span>
+                    <span class="n">other</span><span class="o">.</span><span class="n">day_of_week</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">day_of_week</span> <span class="ow">and</span>
+                    <span class="n">other</span><span class="o">.</span><span class="n">hour</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">hour</span> <span class="ow">and</span>
+                    <span class="n">other</span><span class="o">.</span><span class="n">minute</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">minute</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">other</span> <span class="ow">is</span> <span class="bp">self</span>
+
+</div>
+<div class="viewcode-block" id="maybe_schedule"><a class="viewcode-back" href="../../api/celery.schedules.html#celery.schedules.maybe_schedule">[docs]</a><span class="k">def</span> <span class="nf">maybe_schedule</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">relative</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="nb">int</span><span class="p">):</span>
+        <span class="n">s</span> <span class="o">=</span> <span class="n">timedelta</span><span class="p">(</span><span class="n">seconds</span><span class="o">=</span><span class="n">s</span><span class="p">)</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">timedelta</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">schedule</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">relative</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">s</span></div>
+</pre></div>
+
+      </div>
+      <div class="bottomnav">
+      
+        <p>
+        <a href="/">Home</a>:
+        <a class="uplink" href="../../index.html">Contents</a>
+        </p>
+
+      </div>
+
+    <div class="footer">
+        &copy; Copyright 2012, HDKNR.COM.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.2pre/3c28de26aac2.
+    </div>
+  </body>
+</html>

@@ -1,0 +1,429 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>celery.contrib.migrate &mdash; Celery 1 documentation</title>
+    
+    <link rel="stylesheet" href="../../../static/haiku.css" type="text/css" />
+    <link rel="stylesheet" href="../../../static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../../../static/print.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../',
+        VERSION:     '1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../../static/jquery.js"></script>
+    <script type="text/javascript" src="../../../static/underscore.js"></script>
+    <script type="text/javascript" src="../../../static/doctools.js"></script>
+    <script type="text/javascript" src="../../../static/theme_extras.js"></script>
+    <link rel="author" title="About these documents" href="../../../about.html" />
+    <link rel="top" title="Celery 1 documentation" href="../../../index.html" />
+    <link rel="up" title="celery" href="../../celery.html" /> 
+  </head>
+  <body>
+      <div class="header"><h1 class="heading"><a href="../../../index.html">
+          <span>Celery 1 documentation</span></a></h1>
+        <h2 class="heading"><span>celery.contrib.migrate</span></h2>
+      </div>
+      <div class="topnav">
+      
+        <p>
+        <a href="/">Home</a>:
+        <a class="uplink" href="../../../index.html">Contents</a>
+        </p>
+
+      </div>
+      <div class="content">
+        
+        
+  <h1>Source code for celery.contrib.migrate</h1><div class="highlight"><pre>
+<span class="c"># -*- coding: utf-8 -*-</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    celery.contrib.migrate</span>
+<span class="sd">    ~~~~~~~~~~~~~~~~~~~~~~</span>
+
+<span class="sd">    Migration tools.</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">absolute_import</span>
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">with_statement</span>
+
+<span class="kn">import</span> <span class="nn">socket</span>
+
+<span class="kn">from</span> <span class="nn">functools</span> <span class="kn">import</span> <span class="n">partial</span>
+<span class="kn">from</span> <span class="nn">itertools</span> <span class="kn">import</span> <span class="n">cycle</span><span class="p">,</span> <span class="n">islice</span>
+
+<span class="kn">from</span> <span class="nn">kombu</span> <span class="kn">import</span> <span class="n">eventloop</span><span class="p">,</span> <span class="n">Queue</span>
+<span class="kn">from</span> <span class="nn">kombu.common</span> <span class="kn">import</span> <span class="n">maybe_declare</span>
+<span class="kn">from</span> <span class="nn">kombu.exceptions</span> <span class="kn">import</span> <span class="n">StdChannelError</span>
+<span class="kn">from</span> <span class="nn">kombu.utils.encoding</span> <span class="kn">import</span> <span class="n">ensure_bytes</span>
+
+<span class="kn">from</span> <span class="nn">celery.app</span> <span class="kn">import</span> <span class="n">app_or_default</span>
+<span class="kn">from</span> <span class="nn">celery.utils</span> <span class="kn">import</span> <span class="n">worker_direct</span>
+
+
+<div class="viewcode-block" id="StopFiltering"><a class="viewcode-back" href="../../../api/celery.contrib.migrate.html#celery.contrib.migrate.StopFiltering">[docs]</a><span class="k">class</span> <span class="nc">StopFiltering</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
+    <span class="k">pass</span>
+
+</div>
+<div class="viewcode-block" id="State"><a class="viewcode-back" href="../../../api/celery.contrib.migrate.html#celery.contrib.migrate.State">[docs]</a><span class="k">class</span> <span class="nc">State</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="n">count</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">filtered</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">total_apx</span> <span class="o">=</span> <span class="mi">0</span>
+
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="State.strtotal"><a class="viewcode-back" href="../../../api/celery.contrib.migrate.html#celery.contrib.migrate.State.strtotal">[docs]</a>    <span class="k">def</span> <span class="nf">strtotal</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">total_apx</span><span class="p">:</span>
+            <span class="k">return</span> <span class="s">u&#39;?&#39;</span>
+        <span class="k">return</span> <span class="nb">unicode</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">total_apx</span><span class="p">)</span>
+</div>
+    <span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">filtered</span><span class="p">:</span>
+            <span class="k">return</span> <span class="s">&#39;^</span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">filtered</span>
+        <span class="k">return</span> <span class="s">&#39;</span><span class="si">%s</span><span class="s">/</span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">count</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">strtotal</span><span class="p">)</span>
+
+</div>
+<div class="viewcode-block" id="republish"><a class="viewcode-back" href="../../../api/celery.contrib.migrate.html#celery.contrib.migrate.republish">[docs]</a><span class="k">def</span> <span class="nf">republish</span><span class="p">(</span><span class="n">producer</span><span class="p">,</span> <span class="n">message</span><span class="p">,</span> <span class="n">exchange</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">routing_key</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+        <span class="n">remove_props</span><span class="o">=</span><span class="p">[</span><span class="s">&#39;application_headers&#39;</span><span class="p">,</span>
+                      <span class="s">&#39;content_type&#39;</span><span class="p">,</span>
+                      <span class="s">&#39;content_encoding&#39;</span><span class="p">,</span>
+                      <span class="s">&#39;headers&#39;</span><span class="p">]):</span>
+    <span class="n">body</span> <span class="o">=</span> <span class="n">ensure_bytes</span><span class="p">(</span><span class="n">message</span><span class="o">.</span><span class="n">body</span><span class="p">)</span>  <span class="c"># use raw message body.</span>
+    <span class="n">info</span><span class="p">,</span> <span class="n">headers</span><span class="p">,</span> <span class="n">props</span> <span class="o">=</span> <span class="p">(</span><span class="n">message</span><span class="o">.</span><span class="n">delivery_info</span><span class="p">,</span>
+                            <span class="n">message</span><span class="o">.</span><span class="n">headers</span><span class="p">,</span> <span class="n">message</span><span class="o">.</span><span class="n">properties</span><span class="p">)</span>
+    <span class="n">exchange</span> <span class="o">=</span> <span class="n">info</span><span class="p">[</span><span class="s">&#39;exchange&#39;</span><span class="p">]</span> <span class="k">if</span> <span class="n">exchange</span> <span class="ow">is</span> <span class="bp">None</span> <span class="k">else</span> <span class="n">exchange</span>
+    <span class="n">routing_key</span> <span class="o">=</span> <span class="n">info</span><span class="p">[</span><span class="s">&#39;routing_key&#39;</span><span class="p">]</span> <span class="k">if</span> <span class="n">routing_key</span> <span class="ow">is</span> <span class="bp">None</span> <span class="k">else</span> <span class="n">routing_key</span>
+    <span class="n">ctype</span><span class="p">,</span> <span class="n">enc</span> <span class="o">=</span> <span class="n">message</span><span class="o">.</span><span class="n">content_type</span><span class="p">,</span> <span class="n">message</span><span class="o">.</span><span class="n">content_encoding</span>
+    <span class="c"># remove compression header, as this will be inserted again</span>
+    <span class="c"># when the message is recompressed.</span>
+    <span class="n">compression</span> <span class="o">=</span> <span class="n">headers</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s">&#39;compression&#39;</span><span class="p">,</span> <span class="bp">None</span><span class="p">)</span>
+
+    <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">remove_props</span><span class="p">:</span>
+        <span class="n">props</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="bp">None</span><span class="p">)</span>
+
+    <span class="n">producer</span><span class="o">.</span><span class="n">publish</span><span class="p">(</span><span class="n">ensure_bytes</span><span class="p">(</span><span class="n">body</span><span class="p">),</span> <span class="n">exchange</span><span class="o">=</span><span class="n">exchange</span><span class="p">,</span>
+                     <span class="n">routing_key</span><span class="o">=</span><span class="n">routing_key</span><span class="p">,</span> <span class="n">compression</span><span class="o">=</span><span class="n">compression</span><span class="p">,</span>
+                     <span class="n">headers</span><span class="o">=</span><span class="n">headers</span><span class="p">,</span> <span class="n">content_type</span><span class="o">=</span><span class="n">ctype</span><span class="p">,</span>
+                     <span class="n">content_encoding</span><span class="o">=</span><span class="n">enc</span><span class="p">,</span> <span class="o">**</span><span class="n">props</span><span class="p">)</span>
+
+</div>
+<div class="viewcode-block" id="migrate_task"><a class="viewcode-back" href="../../../api/celery.contrib.migrate.html#celery.contrib.migrate.migrate_task">[docs]</a><span class="k">def</span> <span class="nf">migrate_task</span><span class="p">(</span><span class="n">producer</span><span class="p">,</span> <span class="n">body_</span><span class="p">,</span> <span class="n">message</span><span class="p">,</span> <span class="n">queues</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+    <span class="n">info</span> <span class="o">=</span> <span class="n">message</span><span class="o">.</span><span class="n">delivery_info</span>
+    <span class="n">queues</span> <span class="o">=</span> <span class="p">{}</span> <span class="k">if</span> <span class="n">queues</span> <span class="ow">is</span> <span class="bp">None</span> <span class="k">else</span> <span class="n">queues</span>
+    <span class="n">republish</span><span class="p">(</span><span class="n">producer</span><span class="p">,</span> <span class="n">message</span><span class="p">,</span>
+              <span class="n">exchange</span><span class="o">=</span><span class="n">queues</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">info</span><span class="p">[</span><span class="s">&#39;exchange&#39;</span><span class="p">]),</span>
+              <span class="n">routing_key</span><span class="o">=</span><span class="n">queues</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">info</span><span class="p">[</span><span class="s">&#39;routing_key&#39;</span><span class="p">]))</span>
+
+</div>
+<div class="viewcode-block" id="filter_callback"><a class="viewcode-back" href="../../../api/celery.contrib.migrate.html#celery.contrib.migrate.filter_callback">[docs]</a><span class="k">def</span> <span class="nf">filter_callback</span><span class="p">(</span><span class="n">callback</span><span class="p">,</span> <span class="n">tasks</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="nf">filtered</span><span class="p">(</span><span class="n">body</span><span class="p">,</span> <span class="n">message</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">tasks</span> <span class="ow">and</span> <span class="n">message</span><span class="o">.</span><span class="n">payload</span><span class="p">[</span><span class="s">&#39;task&#39;</span><span class="p">]</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">tasks</span><span class="p">:</span>
+            <span class="k">return</span>
+
+        <span class="k">return</span> <span class="n">callback</span><span class="p">(</span><span class="n">body</span><span class="p">,</span> <span class="n">message</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">filtered</span>
+
+</div>
+<div class="viewcode-block" id="migrate_tasks"><a class="viewcode-back" href="../../../api/celery.contrib.migrate.html#celery.contrib.migrate.migrate_tasks">[docs]</a><span class="k">def</span> <span class="nf">migrate_tasks</span><span class="p">(</span><span class="n">source</span><span class="p">,</span> <span class="n">dest</span><span class="p">,</span> <span class="n">migrate</span><span class="o">=</span><span class="n">migrate_task</span><span class="p">,</span> <span class="n">app</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+        <span class="n">queues</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="n">app</span> <span class="o">=</span> <span class="n">app_or_default</span><span class="p">(</span><span class="n">app</span><span class="p">)</span>
+    <span class="n">queues</span> <span class="o">=</span> <span class="n">prepare_queues</span><span class="p">(</span><span class="n">queues</span><span class="p">)</span>
+    <span class="n">producer</span> <span class="o">=</span> <span class="n">app</span><span class="o">.</span><span class="n">amqp</span><span class="o">.</span><span class="n">TaskProducer</span><span class="p">(</span><span class="n">dest</span><span class="p">)</span>
+    <span class="n">migrate</span> <span class="o">=</span> <span class="n">partial</span><span class="p">(</span><span class="n">migrate</span><span class="p">,</span> <span class="n">producer</span><span class="p">,</span> <span class="n">queues</span><span class="o">=</span><span class="n">queues</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">on_declare_queue</span><span class="p">(</span><span class="n">queue</span><span class="p">):</span>
+        <span class="n">new_queue</span> <span class="o">=</span> <span class="n">queue</span><span class="p">(</span><span class="n">producer</span><span class="o">.</span><span class="n">channel</span><span class="p">)</span>
+        <span class="n">new_queue</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">queues</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">queue</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">queue</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">new_queue</span><span class="o">.</span><span class="n">routing_key</span> <span class="o">==</span> <span class="n">queue</span><span class="o">.</span><span class="n">name</span><span class="p">:</span>
+            <span class="n">new_queue</span><span class="o">.</span><span class="n">routing_key</span> <span class="o">=</span> <span class="n">queues</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">queue</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+                                               <span class="n">new_queue</span><span class="o">.</span><span class="n">routing_key</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">new_queue</span><span class="o">.</span><span class="n">exchange</span><span class="o">.</span><span class="n">name</span> <span class="o">==</span> <span class="n">queue</span><span class="o">.</span><span class="n">name</span><span class="p">:</span>
+            <span class="n">new_queue</span><span class="o">.</span><span class="n">exchange</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">queues</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">queue</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">queue</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+        <span class="n">new_queue</span><span class="o">.</span><span class="n">declare</span><span class="p">()</span>
+
+    <span class="k">return</span> <span class="n">start_filter</span><span class="p">(</span><span class="n">app</span><span class="p">,</span> <span class="n">source</span><span class="p">,</span> <span class="n">migrate</span><span class="p">,</span> <span class="n">queues</span><span class="o">=</span><span class="n">queues</span><span class="p">,</span>
+                        <span class="n">on_declare_queue</span><span class="o">=</span><span class="n">on_declare_queue</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+</div>
+<span class="k">def</span> <span class="nf">_maybe_queue</span><span class="p">(</span><span class="n">app</span><span class="p">,</span> <span class="n">q</span><span class="p">):</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">q</span><span class="p">,</span> <span class="nb">basestring</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">app</span><span class="o">.</span><span class="n">amqp</span><span class="o">.</span><span class="n">queues</span><span class="p">[</span><span class="n">q</span><span class="p">]</span>
+    <span class="k">return</span> <span class="n">q</span>
+
+
+<div class="viewcode-block" id="move"><a class="viewcode-back" href="../../../api/celery.contrib.migrate.html#celery.contrib.migrate.move">[docs]</a><span class="k">def</span> <span class="nf">move</span><span class="p">(</span><span class="n">predicate</span><span class="p">,</span> <span class="n">connection</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">exchange</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">routing_key</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+        <span class="n">source</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">app</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">callback</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">limit</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">transform</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+        <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot; Find tasks by filtering them and move the tasks to a new queue.</span>
+
+<span class="sd">    :param predicate: Predicate function used to filter messages to move.</span>
+<span class="sd">        Must accept the standard signature of ``(body, message)`` used</span>
+<span class="sd">        by Kombu consumer callbacks.  If the predicate wants the message</span>
+<span class="sd">        to be moved it should return the hostname of the worker to move it</span>
+<span class="sd">        to, otherwise it should return :const:`False`</span>
+
+<span class="sd">    :keyword queues: A list of queues to consume from, if not specified</span>
+<span class="sd">        it will consume from all configured task queues in ``CELERY_QUEUES``.</span>
+
+<span class="sd">    :param predicate: Filter function used to decide which messages</span>
+<span class="sd">        to move.  Must accept the standard signature of ``(body, message)``</span>
+<span class="sd">        used by Kombu consumer callbacks. If the predicate wants the message</span>
+<span class="sd">        to be moved it must return either</span>
+
+<span class="sd">            1) a tuple of ``(exchange, routing_key)``, or</span>
+<span class="sd">            2) a :class:`~kombu.entity.Queue` instance, or</span>
+<span class="sd">            3) any other true value which means the specified</span>
+<span class="sd">               ``exchange`` and ``routing_key`` arguments will be used.</span>
+<span class="sd">    :keyword connection: Custom connection to use.</span>
+<span class="sd">    :keyword source: Optional list of source queues to use instead of the</span>
+<span class="sd">        default (which is the queues in :setting:`CELERY_QUEUES`).</span>
+<span class="sd">        This list can also contain new :class:`~kombu.entity.Queue` instances.</span>
+<span class="sd">    :keyword exchange: Default destination exchange.</span>
+<span class="sd">    :keyword routing_key: Default destination routing key.</span>
+<span class="sd">    :keyword limit: Limit number of messages to filter.</span>
+<span class="sd">    :keyword callback: Callback called after message moved,</span>
+<span class="sd">        with signature ``(state, body, message)``.</span>
+<span class="sd">    :keyword transform: Optional function to transform the return</span>
+<span class="sd">        value (destination) of the filter function.</span>
+
+<span class="sd">    Also supports the same keyword arguments as :func:`start_filter`.</span>
+
+<span class="sd">    To demonstrate, the :func:`move_task_by_id` operation can be implemented</span>
+<span class="sd">    like this:</span>
+
+<span class="sd">    .. code-block:: python</span>
+
+<span class="sd">        def is_wanted_task(body, message):</span>
+<span class="sd">            if body[&#39;id&#39;] == wanted_id:</span>
+<span class="sd">                return Queue(&#39;foo&#39;, exchange=Exchange(&#39;foo&#39;),</span>
+<span class="sd">                             routing_key=&#39;foo&#39;)</span>
+
+<span class="sd">        move(is_wanted_task)</span>
+
+<span class="sd">    or with a transform:</span>
+
+<span class="sd">    .. code-block:: python</span>
+
+<span class="sd">        def transform(value):</span>
+<span class="sd">            if isinstance(value, basestring):</span>
+<span class="sd">                return Queue(value, Exchange(value), value)</span>
+<span class="sd">            return value</span>
+
+<span class="sd">        move(is_wanted_task, transform=transform)</span>
+
+<span class="sd">    The predicate may also return a tuple of ``(exchange, routing_key)``</span>
+<span class="sd">    to specify the destination to where the task should be moved,</span>
+<span class="sd">    or a :class:`~kombu.entitiy.Queue` instance.</span>
+<span class="sd">    Any other true value means that the task will be moved to the</span>
+<span class="sd">    default exchange/routing_key.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">app</span> <span class="o">=</span> <span class="n">app_or_default</span><span class="p">(</span><span class="n">app</span><span class="p">)</span>
+    <span class="n">queues</span> <span class="o">=</span> <span class="p">[</span><span class="n">_maybe_queue</span><span class="p">(</span><span class="n">app</span><span class="p">,</span> <span class="n">queue</span><span class="p">)</span> <span class="k">for</span> <span class="n">queue</span> <span class="ow">in</span> <span class="n">source</span> <span class="ow">or</span> <span class="p">[]]</span> <span class="ow">or</span> <span class="bp">None</span>
+    <span class="k">with</span> <span class="n">app</span><span class="o">.</span><span class="n">default_connection</span><span class="p">(</span><span class="n">connection</span><span class="p">,</span> <span class="n">pool</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span> <span class="k">as</span> <span class="n">conn</span><span class="p">:</span>
+        <span class="n">producer</span> <span class="o">=</span> <span class="n">app</span><span class="o">.</span><span class="n">amqp</span><span class="o">.</span><span class="n">TaskProducer</span><span class="p">(</span><span class="n">conn</span><span class="p">)</span>
+        <span class="n">state</span> <span class="o">=</span> <span class="n">State</span><span class="p">()</span>
+
+        <span class="k">def</span> <span class="nf">on_task</span><span class="p">(</span><span class="n">body</span><span class="p">,</span> <span class="n">message</span><span class="p">):</span>
+            <span class="n">ret</span> <span class="o">=</span> <span class="n">predicate</span><span class="p">(</span><span class="n">body</span><span class="p">,</span> <span class="n">message</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">ret</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">transform</span><span class="p">:</span>
+                    <span class="n">ret</span> <span class="o">=</span> <span class="n">transform</span><span class="p">(</span><span class="n">ret</span><span class="p">)</span>
+                <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">ret</span><span class="p">,</span> <span class="n">Queue</span><span class="p">):</span>
+                    <span class="n">maybe_declare</span><span class="p">(</span><span class="n">ret</span><span class="p">,</span> <span class="n">conn</span><span class="o">.</span><span class="n">default_channel</span><span class="p">)</span>
+                    <span class="n">ex</span><span class="p">,</span> <span class="n">rk</span> <span class="o">=</span> <span class="n">ret</span><span class="o">.</span><span class="n">exchange</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">ret</span><span class="o">.</span><span class="n">routing_key</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">ex</span><span class="p">,</span> <span class="n">rk</span> <span class="o">=</span> <span class="n">expand_dest</span><span class="p">(</span><span class="n">ret</span><span class="p">,</span> <span class="n">exchange</span><span class="p">,</span> <span class="n">routing_key</span><span class="p">)</span>
+                <span class="n">republish</span><span class="p">(</span><span class="n">producer</span><span class="p">,</span> <span class="n">message</span><span class="p">,</span>
+                        <span class="n">exchange</span><span class="o">=</span><span class="n">ex</span><span class="p">,</span> <span class="n">routing_key</span><span class="o">=</span><span class="n">rk</span><span class="p">)</span>
+                <span class="n">message</span><span class="o">.</span><span class="n">ack</span><span class="p">()</span>
+
+                <span class="n">state</span><span class="o">.</span><span class="n">filtered</span> <span class="o">+=</span> <span class="mi">1</span>
+                <span class="k">if</span> <span class="n">callback</span><span class="p">:</span>
+                    <span class="n">callback</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="n">body</span><span class="p">,</span> <span class="n">message</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">limit</span> <span class="ow">and</span> <span class="n">state</span><span class="o">.</span><span class="n">filtered</span> <span class="o">&gt;=</span> <span class="n">limit</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="n">StopFiltering</span><span class="p">()</span>
+
+        <span class="k">return</span> <span class="n">start_filter</span><span class="p">(</span><span class="n">app</span><span class="p">,</span> <span class="n">conn</span><span class="p">,</span> <span class="n">on_task</span><span class="p">,</span> <span class="n">consume_from</span><span class="o">=</span><span class="n">queues</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+</div>
+<div class="viewcode-block" id="expand_dest"><a class="viewcode-back" href="../../../api/celery.contrib.migrate.html#celery.contrib.migrate.expand_dest">[docs]</a><span class="k">def</span> <span class="nf">expand_dest</span><span class="p">(</span><span class="n">ret</span><span class="p">,</span> <span class="n">exchange</span><span class="p">,</span> <span class="n">routing_key</span><span class="p">):</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">ex</span><span class="p">,</span> <span class="n">rk</span> <span class="o">=</span> <span class="n">ret</span>
+    <span class="k">except</span> <span class="p">(</span><span class="ne">TypeError</span><span class="p">,</span> <span class="ne">ValueError</span><span class="p">):</span>
+        <span class="n">ex</span><span class="p">,</span> <span class="n">rk</span> <span class="o">=</span> <span class="n">exchange</span><span class="p">,</span> <span class="n">routing_key</span>
+    <span class="k">return</span> <span class="n">ex</span><span class="p">,</span> <span class="n">rk</span>
+
+</div>
+<div class="viewcode-block" id="task_id_eq"><a class="viewcode-back" href="../../../api/celery.contrib.migrate.html#celery.contrib.migrate.task_id_eq">[docs]</a><span class="k">def</span> <span class="nf">task_id_eq</span><span class="p">(</span><span class="n">task_id</span><span class="p">,</span> <span class="n">body</span><span class="p">,</span> <span class="n">message</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">body</span><span class="p">[</span><span class="s">&#39;id&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="n">task_id</span>
+
+</div>
+<div class="viewcode-block" id="task_id_in"><a class="viewcode-back" href="../../../api/celery.contrib.migrate.html#celery.contrib.migrate.task_id_in">[docs]</a><span class="k">def</span> <span class="nf">task_id_in</span><span class="p">(</span><span class="n">ids</span><span class="p">,</span> <span class="n">body</span><span class="p">,</span> <span class="n">message</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">body</span><span class="p">[</span><span class="s">&#39;id&#39;</span><span class="p">]</span> <span class="ow">in</span> <span class="n">ids</span>
+
+</div>
+<div class="viewcode-block" id="prepare_queues"><a class="viewcode-back" href="../../../api/celery.contrib.migrate.html#celery.contrib.migrate.prepare_queues">[docs]</a><span class="k">def</span> <span class="nf">prepare_queues</span><span class="p">(</span><span class="n">queues</span><span class="p">):</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">queues</span><span class="p">,</span> <span class="nb">basestring</span><span class="p">):</span>
+        <span class="n">queues</span> <span class="o">=</span> <span class="n">queues</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&#39;,&#39;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">queues</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+        <span class="n">queues</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="nb">tuple</span><span class="p">(</span><span class="n">islice</span><span class="p">(</span><span class="n">cycle</span><span class="p">(</span><span class="n">q</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&#39;:&#39;</span><span class="p">)),</span> <span class="bp">None</span><span class="p">,</span> <span class="mi">2</span><span class="p">))</span>
+                        <span class="k">for</span> <span class="n">q</span> <span class="ow">in</span> <span class="n">queues</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">queues</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+        <span class="n">queues</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">return</span> <span class="n">queues</span>
+
+</div>
+<div class="viewcode-block" id="start_filter"><a class="viewcode-back" href="../../../api/celery.contrib.migrate.html#celery.contrib.migrate.start_filter">[docs]</a><span class="k">def</span> <span class="nf">start_filter</span><span class="p">(</span><span class="n">app</span><span class="p">,</span> <span class="n">conn</span><span class="p">,</span> <span class="nb">filter</span><span class="p">,</span> <span class="n">limit</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span>
+        <span class="n">ack_messages</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">tasks</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">queues</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+        <span class="n">callback</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">forever</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">on_declare_queue</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+        <span class="n">consume_from</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">state</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="n">state</span> <span class="o">=</span> <span class="n">state</span> <span class="ow">or</span> <span class="n">State</span><span class="p">()</span>
+    <span class="n">queues</span> <span class="o">=</span> <span class="n">prepare_queues</span><span class="p">(</span><span class="n">queues</span><span class="p">)</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">tasks</span><span class="p">,</span> <span class="nb">basestring</span><span class="p">):</span>
+        <span class="n">tasks</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">tasks</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&#39;,&#39;</span><span class="p">))</span>
+    <span class="k">if</span> <span class="n">tasks</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+        <span class="n">tasks</span> <span class="o">=</span> <span class="nb">set</span><span class="p">([])</span>
+
+    <span class="k">def</span> <span class="nf">update_state</span><span class="p">(</span><span class="n">body</span><span class="p">,</span> <span class="n">message</span><span class="p">):</span>
+        <span class="n">state</span><span class="o">.</span><span class="n">count</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="k">if</span> <span class="n">limit</span> <span class="ow">and</span> <span class="n">state</span><span class="o">.</span><span class="n">count</span> <span class="o">&gt;=</span> <span class="n">limit</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">StopFiltering</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">ack_message</span><span class="p">(</span><span class="n">body</span><span class="p">,</span> <span class="n">message</span><span class="p">):</span>
+        <span class="n">message</span><span class="o">.</span><span class="n">ack</span><span class="p">()</span>
+
+    <span class="n">consumer</span> <span class="o">=</span> <span class="n">app</span><span class="o">.</span><span class="n">amqp</span><span class="o">.</span><span class="n">TaskConsumer</span><span class="p">(</span><span class="n">conn</span><span class="p">,</span> <span class="n">queues</span><span class="o">=</span><span class="n">consume_from</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">tasks</span><span class="p">:</span>
+        <span class="nb">filter</span> <span class="o">=</span> <span class="n">filter_callback</span><span class="p">(</span><span class="nb">filter</span><span class="p">,</span> <span class="n">tasks</span><span class="p">)</span>
+        <span class="n">update_state</span> <span class="o">=</span> <span class="n">filter_callback</span><span class="p">(</span><span class="n">update_state</span><span class="p">,</span> <span class="n">tasks</span><span class="p">)</span>
+        <span class="n">ack_message</span> <span class="o">=</span> <span class="n">filter_callback</span><span class="p">(</span><span class="n">ack_message</span><span class="p">,</span> <span class="n">tasks</span><span class="p">)</span>
+
+    <span class="n">consumer</span><span class="o">.</span><span class="n">register_callback</span><span class="p">(</span><span class="nb">filter</span><span class="p">)</span>
+    <span class="n">consumer</span><span class="o">.</span><span class="n">register_callback</span><span class="p">(</span><span class="n">update_state</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">ack_messages</span><span class="p">:</span>
+        <span class="n">consumer</span><span class="o">.</span><span class="n">register_callback</span><span class="p">(</span><span class="n">ack_message</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">callback</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+        <span class="n">callback</span> <span class="o">=</span> <span class="n">partial</span><span class="p">(</span><span class="n">callback</span><span class="p">,</span> <span class="n">state</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">tasks</span><span class="p">:</span>
+            <span class="n">callback</span> <span class="o">=</span> <span class="n">filter_callback</span><span class="p">(</span><span class="n">callback</span><span class="p">,</span> <span class="n">tasks</span><span class="p">)</span>
+        <span class="n">consumer</span><span class="o">.</span><span class="n">register_callback</span><span class="p">(</span><span class="n">callback</span><span class="p">)</span>
+
+    <span class="c"># declare all queues on the new broker.</span>
+    <span class="k">for</span> <span class="n">queue</span> <span class="ow">in</span> <span class="n">consumer</span><span class="o">.</span><span class="n">queues</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">queues</span> <span class="ow">and</span> <span class="n">queue</span><span class="o">.</span><span class="n">name</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">queues</span><span class="p">:</span>
+            <span class="k">continue</span>
+        <span class="k">if</span> <span class="n">on_declare_queue</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="n">on_declare_queue</span><span class="p">(</span><span class="n">queue</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">_</span><span class="p">,</span> <span class="n">mcount</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">queue</span><span class="p">(</span><span class="n">consumer</span><span class="o">.</span><span class="n">channel</span><span class="p">)</span><span class="o">.</span><span class="n">queue_declare</span><span class="p">(</span><span class="n">passive</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">mcount</span><span class="p">:</span>
+                <span class="n">state</span><span class="o">.</span><span class="n">total_apx</span> <span class="o">+=</span> <span class="n">mcount</span>
+        <span class="k">except</span> <span class="n">conn</span><span class="o">.</span><span class="n">channel_errors</span> <span class="o">+</span> <span class="p">(</span><span class="n">StdChannelError</span><span class="p">,</span> <span class="p">):</span>
+            <span class="k">pass</span>
+
+    <span class="c"># start migrating messages.</span>
+    <span class="k">with</span> <span class="n">consumer</span><span class="p">:</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="n">eventloop</span><span class="p">(</span><span class="n">conn</span><span class="p">,</span>  <span class="c"># pragma: no cover</span>
+                               <span class="n">timeout</span><span class="o">=</span><span class="n">timeout</span><span class="p">,</span> <span class="n">ignore_timeouts</span><span class="o">=</span><span class="n">forever</span><span class="p">):</span>
+                <span class="k">pass</span>
+        <span class="k">except</span> <span class="n">socket</span><span class="o">.</span><span class="n">timeout</span><span class="p">:</span>
+            <span class="k">pass</span>
+        <span class="k">except</span> <span class="n">StopFiltering</span><span class="p">:</span>
+            <span class="k">pass</span>
+    <span class="k">return</span> <span class="n">state</span>
+
+</div>
+<div class="viewcode-block" id="move_task_by_id"><a class="viewcode-back" href="../../../api/celery.contrib.migrate.html#celery.contrib.migrate.move_task_by_id">[docs]</a><span class="k">def</span> <span class="nf">move_task_by_id</span><span class="p">(</span><span class="n">task_id</span><span class="p">,</span> <span class="n">dest</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Find a task by id and move it to another queue.</span>
+
+<span class="sd">    :param task_id: Id of task to move.</span>
+<span class="sd">    :param dest: Destination queue.</span>
+
+<span class="sd">    Also supports the same keyword arguments as :func:`move`.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">move_by_idmap</span><span class="p">({</span><span class="n">task_id</span><span class="p">:</span> <span class="n">dest</span><span class="p">},</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+</div>
+<div class="viewcode-block" id="move_by_idmap"><a class="viewcode-back" href="../../../api/celery.contrib.migrate.html#celery.contrib.migrate.move_by_idmap">[docs]</a><span class="k">def</span> <span class="nf">move_by_idmap</span><span class="p">(</span><span class="nb">map</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Moves tasks by matching from a ``task_id: queue`` mapping,</span>
+<span class="sd">    where ``queue`` is a queue to move the task to.</span>
+
+<span class="sd">    Example::</span>
+
+<span class="sd">        &gt;&gt;&gt; reroute_idmap({</span>
+<span class="sd">        ...     &#39;5bee6e82-f4ac-468e-bd3d-13e8600250bc&#39;: Queue(...),</span>
+<span class="sd">        ...     &#39;ada8652d-aef3-466b-abd2-becdaf1b82b3&#39;: Queue(...),</span>
+<span class="sd">        ...     &#39;3a2b140d-7db1-41ba-ac90-c36a0ef4ab1f&#39;: Queue(...)},</span>
+<span class="sd">        ...   queues=[&#39;hipri&#39;])</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">task_id_in_map</span><span class="p">(</span><span class="n">body</span><span class="p">,</span> <span class="n">message</span><span class="p">):</span>
+        <span class="k">return</span> <span class="nb">map</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">body</span><span class="p">[</span><span class="s">&#39;id&#39;</span><span class="p">])</span>
+
+    <span class="c"># adding the limit means that we don&#39;t have to consume any more</span>
+    <span class="c"># when we&#39;ve found everything.</span>
+    <span class="k">return</span> <span class="n">move</span><span class="p">(</span><span class="n">task_id_in_map</span><span class="p">,</span> <span class="n">limit</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="nb">map</span><span class="p">),</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+</div>
+<div class="viewcode-block" id="move_by_taskmap"><a class="viewcode-back" href="../../../api/celery.contrib.migrate.html#celery.contrib.migrate.move_by_taskmap">[docs]</a><span class="k">def</span> <span class="nf">move_by_taskmap</span><span class="p">(</span><span class="nb">map</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Moves tasks by matching from a ``task_name: queue`` mapping,</span>
+<span class="sd">    where ``queue`` is the queue to move the task to.</span>
+
+<span class="sd">    Example::</span>
+
+<span class="sd">        &gt;&gt;&gt; reroute_idmap({</span>
+<span class="sd">        ...     &#39;tasks.add&#39;: Queue(...),</span>
+<span class="sd">        ...     &#39;tasks.mul&#39;: Queue(...),</span>
+<span class="sd">        ... })</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">task_name_in_map</span><span class="p">(</span><span class="n">body</span><span class="p">,</span> <span class="n">message</span><span class="p">):</span>
+        <span class="k">return</span> <span class="nb">map</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">body</span><span class="p">[</span><span class="s">&#39;task&#39;</span><span class="p">])</span>  <span class="c"># &lt;- name of task</span>
+
+    <span class="k">return</span> <span class="n">move</span><span class="p">(</span><span class="n">task_name_in_map</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+</div>
+<span class="n">move_direct</span> <span class="o">=</span> <span class="n">partial</span><span class="p">(</span><span class="n">move</span><span class="p">,</span> <span class="n">transform</span><span class="o">=</span><span class="n">worker_direct</span><span class="p">)</span>
+<span class="n">move_direct_by_id</span> <span class="o">=</span> <span class="n">partial</span><span class="p">(</span><span class="n">move_task_by_id</span><span class="p">,</span> <span class="n">transform</span><span class="o">=</span><span class="n">worker_direct</span><span class="p">)</span>
+<span class="n">move_direct_by_idmap</span> <span class="o">=</span> <span class="n">partial</span><span class="p">(</span><span class="n">move_by_idmap</span><span class="p">,</span> <span class="n">transform</span><span class="o">=</span><span class="n">worker_direct</span><span class="p">)</span>
+<span class="n">move_direct_by_taskmap</span> <span class="o">=</span> <span class="n">partial</span><span class="p">(</span><span class="n">move_by_taskmap</span><span class="p">,</span> <span class="n">transform</span><span class="o">=</span><span class="n">worker_direct</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="filter_status"><a class="viewcode-back" href="../../../api/celery.contrib.migrate.html#celery.contrib.migrate.filter_status">[docs]</a><span class="k">def</span> <span class="nf">filter_status</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="n">body</span><span class="p">,</span> <span class="n">message</span><span class="p">):</span>
+    <span class="k">print</span><span class="p">(</span><span class="s">&#39;Moving task </span><span class="si">%s</span><span class="s">/</span><span class="si">%s</span><span class="s">: </span><span class="si">%s</span><span class="s">[</span><span class="si">%s</span><span class="s">]&#39;</span> <span class="o">%</span> <span class="p">(</span>
+            <span class="n">state</span><span class="o">.</span><span class="n">filtered</span><span class="p">,</span> <span class="n">state</span><span class="o">.</span><span class="n">strtotal</span><span class="p">,</span> <span class="n">body</span><span class="p">[</span><span class="s">&#39;task&#39;</span><span class="p">],</span> <span class="n">body</span><span class="p">[</span><span class="s">&#39;id&#39;</span><span class="p">]))</span></div>
+</pre></div>
+
+      </div>
+      <div class="bottomnav">
+      
+        <p>
+        <a href="/">Home</a>:
+        <a class="uplink" href="../../../index.html">Contents</a>
+        </p>
+
+      </div>
+
+    <div class="footer">
+        &copy; Copyright 2012, HDKNR.COM.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.2pre/3c28de26aac2.
+    </div>
+  </body>
+</html>

@@ -1,0 +1,449 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>celery.apps.worker &mdash; Celery 1 documentation</title>
+    
+    <link rel="stylesheet" href="../../../static/haiku.css" type="text/css" />
+    <link rel="stylesheet" href="../../../static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../../../static/print.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../',
+        VERSION:     '1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../../static/jquery.js"></script>
+    <script type="text/javascript" src="../../../static/underscore.js"></script>
+    <script type="text/javascript" src="../../../static/doctools.js"></script>
+    <script type="text/javascript" src="../../../static/theme_extras.js"></script>
+    <link rel="author" title="About these documents" href="../../../about.html" />
+    <link rel="top" title="Celery 1 documentation" href="../../../index.html" />
+    <link rel="up" title="celery" href="../../celery.html" /> 
+  </head>
+  <body>
+      <div class="header"><h1 class="heading"><a href="../../../index.html">
+          <span>Celery 1 documentation</span></a></h1>
+        <h2 class="heading"><span>celery.apps.worker</span></h2>
+      </div>
+      <div class="topnav">
+      
+        <p>
+        <a href="/">Home</a>:
+        <a class="uplink" href="../../../index.html">Contents</a>
+        </p>
+
+      </div>
+      <div class="content">
+        
+        
+  <h1>Source code for celery.apps.worker</h1><div class="highlight"><pre>
+<span class="c"># -*- coding: utf-8 -*-</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    celery.apps.worker</span>
+<span class="sd">    ~~~~~~~~~~~~~~~~~~</span>
+
+<span class="sd">    This module is the &#39;program-version&#39; of :mod:`celery.worker`.</span>
+
+<span class="sd">    It does everything necessary to run that module</span>
+<span class="sd">    as an actual application, like installing signal handlers,</span>
+<span class="sd">    platform tweaks, and so on.</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">absolute_import</span>
+
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">socket</span>
+<span class="kn">import</span> <span class="nn">sys</span>
+<span class="kn">import</span> <span class="nn">warnings</span>
+
+<span class="kn">from</span> <span class="nn">functools</span> <span class="kn">import</span> <span class="n">partial</span>
+
+<span class="kn">from</span> <span class="nn">billiard</span> <span class="kn">import</span> <span class="n">cpu_count</span><span class="p">,</span> <span class="n">current_process</span>
+
+<span class="kn">from</span> <span class="nn">celery</span> <span class="kn">import</span> <span class="n">VERSION_BANNER</span><span class="p">,</span> <span class="n">platforms</span><span class="p">,</span> <span class="n">signals</span>
+<span class="kn">from</span> <span class="nn">celery.app</span> <span class="kn">import</span> <span class="n">app_or_default</span>
+<span class="kn">from</span> <span class="nn">celery.app.abstract</span> <span class="kn">import</span> <span class="n">configurated</span><span class="p">,</span> <span class="n">from_config</span>
+<span class="kn">from</span> <span class="nn">celery.exceptions</span> <span class="kn">import</span> <span class="n">ImproperlyConfigured</span><span class="p">,</span> <span class="n">SystemTerminate</span>
+<span class="kn">from</span> <span class="nn">celery.loaders.app</span> <span class="kn">import</span> <span class="n">AppLoader</span>
+<span class="kn">from</span> <span class="nn">celery.utils</span> <span class="kn">import</span> <span class="n">cry</span><span class="p">,</span> <span class="n">isatty</span><span class="p">,</span> <span class="n">worker_direct</span>
+<span class="kn">from</span> <span class="nn">celery.utils.imports</span> <span class="kn">import</span> <span class="n">qualname</span>
+<span class="kn">from</span> <span class="nn">celery.utils.log</span> <span class="kn">import</span> <span class="n">get_logger</span><span class="p">,</span> <span class="n">mlevel</span><span class="p">,</span> <span class="n">set_in_sighandler</span>
+<span class="kn">from</span> <span class="nn">celery.utils.text</span> <span class="kn">import</span> <span class="n">pluralize</span>
+<span class="kn">from</span> <span class="nn">celery.worker</span> <span class="kn">import</span> <span class="n">WorkController</span>
+
+<span class="k">try</span><span class="p">:</span>
+    <span class="kn">from</span> <span class="nn">greenlet</span> <span class="kn">import</span> <span class="n">GreenletExit</span>
+    <span class="n">IGNORE_ERRORS</span> <span class="o">=</span> <span class="p">(</span><span class="n">GreenletExit</span><span class="p">,</span> <span class="p">)</span>
+<span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>  <span class="c"># pragma: no cover</span>
+    <span class="n">IGNORE_ERRORS</span> <span class="o">=</span> <span class="p">()</span>
+
+<span class="n">logger</span> <span class="o">=</span> <span class="n">get_logger</span><span class="p">(</span><span class="n">__name__</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="active_thread_count"><a class="viewcode-back" href="../../../api/celery.apps.worker.html#celery.apps.worker.active_thread_count">[docs]</a><span class="k">def</span> <span class="nf">active_thread_count</span><span class="p">():</span>
+    <span class="kn">from</span> <span class="nn">threading</span> <span class="kn">import</span> <span class="nb">enumerate</span>
+    <span class="c"># must use .getName on Python 2.5</span>
+    <span class="k">return</span> <span class="nb">sum</span><span class="p">(</span><span class="mi">1</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">()</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">t</span><span class="o">.</span><span class="n">getName</span><span class="p">()</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s">&#39;Dummy-&#39;</span><span class="p">))</span>
+
+</div>
+<div class="viewcode-block" id="safe_say"><a class="viewcode-back" href="../../../api/celery.apps.worker.html#celery.apps.worker.safe_say">[docs]</a><span class="k">def</span> <span class="nf">safe_say</span><span class="p">(</span><span class="n">msg</span><span class="p">):</span>
+    <span class="n">sys</span><span class="o">.</span><span class="n">__stderr__</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s">&#39;</span><span class="se">\n</span><span class="si">%s</span><span class="se">\n</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">msg</span><span class="p">)</span>
+</div>
+<span class="n">ARTLINES</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="s">&#39; --------------&#39;</span><span class="p">,</span>
+    <span class="s">&#39;---- **** -----&#39;</span><span class="p">,</span>
+    <span class="s">&#39;--- * ***  * --&#39;</span><span class="p">,</span>
+    <span class="s">&#39;-- * - **** ---&#39;</span><span class="p">,</span>
+    <span class="s">&#39;- ** ----------&#39;</span><span class="p">,</span>
+    <span class="s">&#39;- ** ----------&#39;</span><span class="p">,</span>
+    <span class="s">&#39;- ** ----------&#39;</span><span class="p">,</span>
+    <span class="s">&#39;- ** ----------&#39;</span><span class="p">,</span>
+    <span class="s">&#39;- *** --- * ---&#39;</span><span class="p">,</span>
+    <span class="s">&#39;-- ******* ----&#39;</span><span class="p">,</span>
+    <span class="s">&#39;--- ***** -----&#39;</span><span class="p">,</span>
+    <span class="s">&#39; --------------&#39;</span><span class="p">,</span>
+<span class="p">]</span>
+
+<span class="n">BANNER</span> <span class="o">=</span> <span class="s">&quot;&quot;&quot;</span><span class="se">\</span>
+<span class="s">celery@</span><span class="si">%(hostname)s</span><span class="s"> v</span><span class="si">%(version)s</span><span class="s"></span>
+
+<span class="s">[Configuration]</span>
+<span class="s">. broker:      </span><span class="si">%(conninfo)s</span><span class="s"></span>
+<span class="s">. app:         </span><span class="si">%(app)s</span><span class="s"></span>
+<span class="s">. concurrency: </span><span class="si">%(concurrency)s</span><span class="s"></span>
+<span class="s">. events:      </span><span class="si">%(events)s</span><span class="s"></span>
+
+<span class="s">[Queues]</span>
+<span class="si">%(queues)s</span><span class="s"></span>
+<span class="s">&quot;&quot;&quot;</span>
+
+<span class="n">EXTRA_INFO_FMT</span> <span class="o">=</span> <span class="s">&quot;&quot;&quot;</span>
+<span class="s">[Tasks]</span>
+<span class="si">%(tasks)s</span><span class="s"></span>
+<span class="s">&quot;&quot;&quot;</span>
+
+<span class="n">UNKNOWN_QUEUE</span> <span class="o">=</span> <span class="s">&quot;&quot;&quot;</span><span class="se">\</span>
+<span class="s">Trying to select queue subset of </span><span class="si">%r</span><span class="s">, but queue </span><span class="si">%s</span><span class="s"> is not</span>
+<span class="s">defined in the CELERY_QUEUES setting.</span>
+
+<span class="s">If you want to automatically declare unknown queues you can</span>
+<span class="s">enable the CELERY_CREATE_MISSING_QUEUES setting.</span>
+<span class="s">&quot;&quot;&quot;</span>
+
+
+<div class="viewcode-block" id="Worker"><a class="viewcode-back" href="../../../api/celery.apps.worker.html#celery.apps.worker.Worker">[docs]</a><span class="k">class</span> <span class="nc">Worker</span><span class="p">(</span><span class="n">configurated</span><span class="p">):</span>
+    <span class="n">WorkController</span> <span class="o">=</span> <span class="n">WorkController</span>
+
+    <span class="n">app</span> <span class="o">=</span> <span class="bp">None</span>
+    <span class="n">inherit_confopts</span> <span class="o">=</span> <span class="p">(</span><span class="n">WorkController</span><span class="p">,</span> <span class="p">)</span>
+    <span class="n">loglevel</span> <span class="o">=</span> <span class="n">from_config</span><span class="p">(</span><span class="s">&#39;log_level&#39;</span><span class="p">)</span>
+    <span class="n">redirect_stdouts</span> <span class="o">=</span> <span class="n">from_config</span><span class="p">()</span>
+    <span class="n">redirect_stdouts_level</span> <span class="o">=</span> <span class="n">from_config</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">hostname</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">purge</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">beat</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span>
+            <span class="n">queues</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">include</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">app</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">pidfile</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+            <span class="n">autoscale</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">autoreload</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">no_execv</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">app</span> <span class="o">=</span> <span class="n">app</span> <span class="o">=</span> <span class="n">app_or_default</span><span class="p">(</span><span class="n">app</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">app</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">hostname</span> <span class="o">=</span> <span class="n">hostname</span> <span class="ow">or</span> <span class="n">socket</span><span class="o">.</span><span class="n">gethostname</span><span class="p">()</span>
+
+        <span class="c"># this signal can be used to set up configuration for</span>
+        <span class="c"># workers by name.</span>
+        <span class="n">signals</span><span class="o">.</span><span class="n">celeryd_init</span><span class="o">.</span><span class="n">send</span><span class="p">(</span><span class="n">sender</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">hostname</span><span class="p">,</span> <span class="n">instance</span><span class="o">=</span><span class="bp">self</span><span class="p">,</span>
+                                  <span class="n">conf</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">conf</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">setup_defaults</span><span class="p">(</span><span class="n">kwargs</span><span class="p">,</span> <span class="n">namespace</span><span class="o">=</span><span class="s">&#39;celeryd&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">concurrency</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">concurrency</span> <span class="o">=</span> <span class="n">cpu_count</span><span class="p">()</span>
+            <span class="k">except</span> <span class="ne">NotImplementedError</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">concurrency</span> <span class="o">=</span> <span class="mi">2</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">purge</span> <span class="o">=</span> <span class="n">purge</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">beat</span> <span class="o">=</span> <span class="n">beat</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">use_queues</span> <span class="o">=</span> <span class="p">[]</span> <span class="k">if</span> <span class="n">queues</span> <span class="ow">is</span> <span class="bp">None</span> <span class="k">else</span> <span class="n">queues</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">queues</span> <span class="o">=</span> <span class="bp">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">include</span> <span class="o">=</span> <span class="n">include</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">pidfile</span> <span class="o">=</span> <span class="n">pidfile</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">autoscale</span> <span class="o">=</span> <span class="bp">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">autoreload</span> <span class="o">=</span> <span class="n">autoreload</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">no_execv</span> <span class="o">=</span> <span class="n">no_execv</span>
+        <span class="k">if</span> <span class="n">autoscale</span><span class="p">:</span>
+            <span class="n">max_c</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">min_c</span> <span class="o">=</span> <span class="n">autoscale</span><span class="o">.</span><span class="n">partition</span><span class="p">(</span><span class="s">&#39;,&#39;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">autoscale</span> <span class="o">=</span> <span class="p">[</span><span class="nb">int</span><span class="p">(</span><span class="n">max_c</span><span class="p">),</span> <span class="n">min_c</span> <span class="ow">and</span> <span class="nb">int</span><span class="p">(</span><span class="n">min_c</span><span class="p">)</span> <span class="ow">or</span> <span class="mi">0</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_isatty</span> <span class="o">=</span> <span class="n">isatty</span><span class="p">(</span><span class="n">sys</span><span class="o">.</span><span class="n">stdout</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">colored</span> <span class="o">=</span> <span class="n">app</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">colored</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">logfile</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">use_queues</span><span class="p">,</span> <span class="nb">basestring</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">use_queues</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">use_queues</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&#39;,&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">include</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">include</span><span class="p">,</span> <span class="nb">basestring</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">include</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">include</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&#39;,&#39;</span><span class="p">)</span>
+            <span class="n">app</span><span class="o">.</span><span class="n">conf</span><span class="o">.</span><span class="n">CELERY_INCLUDE</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="nb">tuple</span><span class="p">(</span><span class="n">app</span><span class="o">.</span><span class="n">conf</span><span class="o">.</span><span class="n">CELERY_INCLUDE</span><span class="p">)</span> <span class="o">+</span> <span class="nb">tuple</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">include</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">loglevel</span> <span class="o">=</span> <span class="n">mlevel</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">loglevel</span><span class="p">)</span>
+
+<div class="viewcode-block" id="Worker.run"><a class="viewcode-back" href="../../../api/celery.apps.worker.html#celery.apps.worker.Worker.run">[docs]</a>    <span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">init_queues</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">loader</span><span class="o">.</span><span class="n">init_worker</span><span class="p">()</span>
+        <span class="c"># this signal can be used to e.g. change queues after</span>
+        <span class="c"># the -Q option has been applied.</span>
+        <span class="n">signals</span><span class="o">.</span><span class="n">celeryd_after_setup</span><span class="o">.</span><span class="n">send</span><span class="p">(</span><span class="n">sender</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">hostname</span><span class="p">,</span> <span class="n">instance</span><span class="o">=</span><span class="bp">self</span><span class="p">,</span>
+                                         <span class="n">conf</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">conf</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">os</span><span class="p">,</span> <span class="s">&#39;getuid&#39;</span><span class="p">,</span> <span class="bp">None</span><span class="p">)</span> <span class="ow">and</span> <span class="n">os</span><span class="o">.</span><span class="n">getuid</span><span class="p">()</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="ne">RuntimeWarning</span><span class="p">(</span>
+                <span class="s">&#39;Running celeryd with superuser privileges is discouraged!&#39;</span><span class="p">))</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">purge</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">purge_messages</span><span class="p">()</span>
+
+        <span class="c"># Dump configuration to screen so we have some basic information</span>
+        <span class="c"># for when users sends bug reports.</span>
+        <span class="k">print</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">colored</span><span class="o">.</span><span class="n">cyan</span><span class="p">(</span><span class="s">&#39; </span><span class="se">\n</span><span class="s">&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">startup_info</span><span class="p">()))</span> <span class="o">+</span>
+              <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">colored</span><span class="o">.</span><span class="n">reset</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">extra_info</span><span class="p">()</span> <span class="ow">or</span> <span class="s">&#39;&#39;</span><span class="p">)))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">set_process_status</span><span class="p">(</span><span class="s">&#39;-active-&#39;</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">redirect_stdouts_to_logger</span><span class="p">()</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">run_worker</span><span class="p">()</span>
+        <span class="k">except</span> <span class="n">IGNORE_ERRORS</span><span class="p">:</span>
+            <span class="k">pass</span>
+</div>
+<div class="viewcode-block" id="Worker.on_consumer_ready"><a class="viewcode-back" href="../../../api/celery.apps.worker.html#celery.apps.worker.Worker.on_consumer_ready">[docs]</a>    <span class="k">def</span> <span class="nf">on_consumer_ready</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">consumer</span><span class="p">):</span>
+        <span class="n">signals</span><span class="o">.</span><span class="n">worker_ready</span><span class="o">.</span><span class="n">send</span><span class="p">(</span><span class="n">sender</span><span class="o">=</span><span class="n">consumer</span><span class="p">)</span>
+        <span class="k">print</span><span class="p">(</span><span class="s">&#39;celery@</span><span class="si">%s</span><span class="s"> has started.&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">hostname</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="Worker.init_queues"><a class="viewcode-back" href="../../../api/celery.apps.worker.html#celery.apps.worker.Worker.init_queues">[docs]</a>    <span class="k">def</span> <span class="nf">init_queues</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">select_queues</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">use_queues</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">KeyError</span><span class="p">,</span> <span class="n">exc</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">ImproperlyConfigured</span><span class="p">(</span><span class="n">UNKNOWN_QUEUE</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">use_queues</span><span class="p">,</span> <span class="n">exc</span><span class="p">))</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">conf</span><span class="o">.</span><span class="n">CELERY_WORKER_DIRECT</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">amqp</span><span class="o">.</span><span class="n">queues</span><span class="o">.</span><span class="n">select_add</span><span class="p">(</span><span class="n">worker_direct</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">hostname</span><span class="p">))</span>
+</div>
+<div class="viewcode-block" id="Worker.redirect_stdouts_to_logger"><a class="viewcode-back" href="../../../api/celery.apps.worker.html#celery.apps.worker.Worker.redirect_stdouts_to_logger">[docs]</a>    <span class="k">def</span> <span class="nf">redirect_stdouts_to_logger</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">setup</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">loglevel</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">logfile</span><span class="p">,</span>
+                           <span class="bp">self</span><span class="o">.</span><span class="n">redirect_stdouts</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">redirect_stdouts_level</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="Worker.purge_messages"><a class="viewcode-back" href="../../../api/celery.apps.worker.html#celery.apps.worker.Worker.purge_messages">[docs]</a>    <span class="k">def</span> <span class="nf">purge_messages</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">count</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">control</span><span class="o">.</span><span class="n">purge</span><span class="p">()</span>
+        <span class="k">print</span><span class="p">(</span><span class="s">&#39;purge: Erased </span><span class="si">%d</span><span class="s"> </span><span class="si">%s</span><span class="s"> from the queue.</span><span class="se">\n</span><span class="s">&#39;</span> <span class="o">%</span> <span class="p">(</span>
+                <span class="n">count</span><span class="p">,</span> <span class="n">pluralize</span><span class="p">(</span><span class="n">count</span><span class="p">,</span> <span class="s">&#39;message&#39;</span><span class="p">)))</span>
+</div>
+<div class="viewcode-block" id="Worker.tasklist"><a class="viewcode-back" href="../../../api/celery.apps.worker.html#celery.apps.worker.Worker.tasklist">[docs]</a>    <span class="k">def</span> <span class="nf">tasklist</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">include_builtins</span><span class="o">=</span><span class="bp">True</span><span class="p">):</span>
+        <span class="n">tasks</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">tasks</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">include_builtins</span><span class="p">:</span>
+            <span class="n">tasks</span> <span class="o">=</span> <span class="nb">filter</span><span class="p">(</span><span class="k">lambda</span> <span class="n">s</span><span class="p">:</span> <span class="ow">not</span> <span class="n">s</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s">&#39;celery.&#39;</span><span class="p">),</span> <span class="n">tasks</span><span class="p">)</span>
+        <span class="k">return</span> <span class="s">&#39;</span><span class="se">\n</span><span class="s">&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="s">&#39;  . </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">task</span> <span class="k">for</span> <span class="n">task</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">tasks</span><span class="p">))</span>
+</div>
+<div class="viewcode-block" id="Worker.extra_info"><a class="viewcode-back" href="../../../api/celery.apps.worker.html#celery.apps.worker.Worker.extra_info">[docs]</a>    <span class="k">def</span> <span class="nf">extra_info</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">loglevel</span> <span class="o">&lt;=</span> <span class="n">logging</span><span class="o">.</span><span class="n">INFO</span><span class="p">:</span>
+            <span class="n">include_builtins</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">loglevel</span> <span class="o">&lt;=</span> <span class="n">logging</span><span class="o">.</span><span class="n">DEBUG</span>
+            <span class="n">tasklist</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tasklist</span><span class="p">(</span><span class="n">include_builtins</span><span class="o">=</span><span class="n">include_builtins</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">EXTRA_INFO_FMT</span> <span class="o">%</span> <span class="p">{</span><span class="s">&#39;tasks&#39;</span><span class="p">:</span> <span class="n">tasklist</span><span class="p">}</span>
+</div>
+<div class="viewcode-block" id="Worker.startup_info"><a class="viewcode-back" href="../../../api/celery.apps.worker.html#celery.apps.worker.Worker.startup_info">[docs]</a>    <span class="k">def</span> <span class="nf">startup_info</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">app</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">app</span>
+        <span class="n">concurrency</span> <span class="o">=</span> <span class="nb">unicode</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">concurrency</span><span class="p">)</span>
+        <span class="n">appr</span> <span class="o">=</span> <span class="s">&#39;</span><span class="si">%s</span><span class="s">:0x</span><span class="si">%x</span><span class="s">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">app</span><span class="o">.</span><span class="n">main</span> <span class="ow">or</span> <span class="s">&#39;__main__&#39;</span><span class="p">,</span> <span class="nb">id</span><span class="p">(</span><span class="n">app</span><span class="p">))</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">app</span><span class="o">.</span><span class="n">loader</span><span class="p">,</span> <span class="n">AppLoader</span><span class="p">):</span>
+            <span class="n">loader</span> <span class="o">=</span> <span class="n">qualname</span><span class="p">(</span><span class="n">app</span><span class="o">.</span><span class="n">loader</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">loader</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s">&#39;celery.loaders&#39;</span><span class="p">):</span>
+                <span class="n">loader</span> <span class="o">=</span> <span class="n">loader</span><span class="p">[</span><span class="mi">14</span><span class="p">:]</span>
+            <span class="n">appr</span> <span class="o">+=</span> <span class="s">&#39; (</span><span class="si">%s</span><span class="s">)&#39;</span> <span class="o">%</span> <span class="n">loader</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">autoscale</span><span class="p">:</span>
+            <span class="nb">max</span><span class="p">,</span> <span class="nb">min</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">autoscale</span>
+            <span class="n">concurrency</span> <span class="o">=</span> <span class="s">&#39;{min=</span><span class="si">%s</span><span class="s">, max=</span><span class="si">%s</span><span class="s">}&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="nb">min</span><span class="p">,</span> <span class="nb">max</span><span class="p">)</span>
+        <span class="n">pool</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pool_cls</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">pool</span><span class="p">,</span> <span class="nb">basestring</span><span class="p">):</span>
+            <span class="n">pool</span> <span class="o">=</span> <span class="n">pool</span><span class="o">.</span><span class="n">__module__</span>
+        <span class="n">concurrency</span> <span class="o">+=</span> <span class="s">&#39; (</span><span class="si">%s</span><span class="s">)&#39;</span> <span class="o">%</span> <span class="n">pool</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&#39;.&#39;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+        <span class="n">events</span> <span class="o">=</span> <span class="s">&#39;ON&#39;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">send_events</span><span class="p">:</span>
+            <span class="n">events</span> <span class="o">=</span> <span class="s">&#39;OFF (enable -E to monitor this worker)&#39;</span>
+
+        <span class="n">banner</span> <span class="o">=</span> <span class="p">(</span><span class="n">BANNER</span> <span class="o">%</span> <span class="p">{</span>
+            <span class="s">&#39;app&#39;</span><span class="p">:</span> <span class="n">appr</span><span class="p">,</span>
+            <span class="s">&#39;hostname&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">hostname</span><span class="p">,</span>
+            <span class="s">&#39;version&#39;</span><span class="p">:</span> <span class="n">VERSION_BANNER</span><span class="p">,</span>
+            <span class="s">&#39;conninfo&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">connection</span><span class="p">()</span><span class="o">.</span><span class="n">as_uri</span><span class="p">(),</span>
+            <span class="s">&#39;concurrency&#39;</span><span class="p">:</span> <span class="n">concurrency</span><span class="p">,</span>
+            <span class="s">&#39;events&#39;</span><span class="p">:</span> <span class="n">events</span><span class="p">,</span>
+            <span class="s">&#39;queues&#39;</span><span class="p">:</span> <span class="n">app</span><span class="o">.</span><span class="n">amqp</span><span class="o">.</span><span class="n">queues</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">indent</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">indent_first</span><span class="o">=</span><span class="bp">False</span><span class="p">),</span>
+        <span class="p">})</span><span class="o">.</span><span class="n">splitlines</span><span class="p">()</span>
+
+        <span class="c"># integrate the ASCII art.</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">x</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">banner</span><span class="p">):</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">banner</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="s">&#39; &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="n">ARTLINES</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">banner</span><span class="p">[</span><span class="n">i</span><span class="p">]])</span>
+            <span class="k">except</span> <span class="ne">IndexError</span><span class="p">:</span>
+                <span class="n">banner</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="s">&#39; &#39;</span> <span class="o">*</span> <span class="mi">16</span> <span class="o">+</span> <span class="n">banner</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+        <span class="k">return</span> <span class="s">&#39;</span><span class="se">\n</span><span class="s">&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">banner</span><span class="p">)</span> <span class="o">+</span> <span class="s">&#39;</span><span class="se">\n</span><span class="s">&#39;</span>
+</div>
+<div class="viewcode-block" id="Worker.run_worker"><a class="viewcode-back" href="../../../api/celery.apps.worker.html#celery.apps.worker.Worker.run_worker">[docs]</a>    <span class="k">def</span> <span class="nf">run_worker</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">worker</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">WorkController</span><span class="p">(</span><span class="n">app</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">app</span><span class="p">,</span>
+                    <span class="n">hostname</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">hostname</span><span class="p">,</span>
+                    <span class="n">ready_callback</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">on_consumer_ready</span><span class="p">,</span> <span class="n">beat</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">beat</span><span class="p">,</span>
+                    <span class="n">autoscale</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">autoscale</span><span class="p">,</span> <span class="n">autoreload</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">autoreload</span><span class="p">,</span>
+                    <span class="n">no_execv</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">no_execv</span><span class="p">,</span>
+                    <span class="n">pidfile</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">pidfile</span><span class="p">,</span>
+                    <span class="o">**</span><span class="bp">self</span><span class="o">.</span><span class="n">confopts_as_dict</span><span class="p">())</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">install_platform_tweaks</span><span class="p">(</span><span class="n">worker</span><span class="p">)</span>
+        <span class="n">signals</span><span class="o">.</span><span class="n">worker_init</span><span class="o">.</span><span class="n">send</span><span class="p">(</span><span class="n">sender</span><span class="o">=</span><span class="n">worker</span><span class="p">)</span>
+        <span class="n">worker</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
+</div>
+<div class="viewcode-block" id="Worker.install_platform_tweaks"><a class="viewcode-back" href="../../../api/celery.apps.worker.html#celery.apps.worker.Worker.install_platform_tweaks">[docs]</a>    <span class="k">def</span> <span class="nf">install_platform_tweaks</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">worker</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Install platform specific tweaks and workarounds.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">IS_OSX</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">osx_proxy_detection_workaround</span><span class="p">()</span>
+
+        <span class="c"># Install signal handler so SIGHUP restarts the worker.</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_isatty</span><span class="p">:</span>
+            <span class="c"># only install HUP handler if detached from terminal,</span>
+            <span class="c"># so closing the terminal window doesn&#39;t restart celeryd</span>
+            <span class="c"># into the background.</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">IS_OSX</span><span class="p">:</span>
+                <span class="c"># OS X can&#39;t exec from a process using threads.</span>
+                <span class="c"># See http://github.com/celery/celery/issues#issue/152</span>
+                <span class="n">install_HUP_not_supported_handler</span><span class="p">(</span><span class="n">worker</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">install_worker_restart_handler</span><span class="p">(</span><span class="n">worker</span><span class="p">)</span>
+        <span class="n">install_worker_term_handler</span><span class="p">(</span><span class="n">worker</span><span class="p">)</span>
+        <span class="n">install_worker_term_hard_handler</span><span class="p">(</span><span class="n">worker</span><span class="p">)</span>
+        <span class="n">install_worker_int_handler</span><span class="p">(</span><span class="n">worker</span><span class="p">)</span>
+        <span class="n">install_cry_handler</span><span class="p">()</span>
+        <span class="n">install_rdb_handler</span><span class="p">()</span>
+</div>
+<div class="viewcode-block" id="Worker.osx_proxy_detection_workaround"><a class="viewcode-back" href="../../../api/celery.apps.worker.html#celery.apps.worker.Worker.osx_proxy_detection_workaround">[docs]</a>    <span class="k">def</span> <span class="nf">osx_proxy_detection_workaround</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;See http://github.com/celery/celery/issues#issue/161&quot;&quot;&quot;</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="s">&#39;celery_dummy_proxy&#39;</span><span class="p">,</span> <span class="s">&#39;set_by_celeryd&#39;</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="Worker.set_process_status"><a class="viewcode-back" href="../../../api/celery.apps.worker.html#celery.apps.worker.Worker.set_process_status">[docs]</a>    <span class="k">def</span> <span class="nf">set_process_status</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">info</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">platforms</span><span class="o">.</span><span class="n">set_mp_process_title</span><span class="p">(</span><span class="s">&#39;celeryd&#39;</span><span class="p">,</span>
+                <span class="n">info</span><span class="o">=</span><span class="s">&#39;</span><span class="si">%s</span><span class="s"> (</span><span class="si">%s</span><span class="s">)&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">info</span><span class="p">,</span> <span class="n">platforms</span><span class="o">.</span><span class="n">strargv</span><span class="p">(</span><span class="n">sys</span><span class="o">.</span><span class="n">argv</span><span class="p">)),</span>
+                <span class="n">hostname</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">hostname</span><span class="p">)</span>
+
+</div></div>
+<span class="k">def</span> <span class="nf">_shutdown_handler</span><span class="p">(</span><span class="n">worker</span><span class="p">,</span> <span class="n">sig</span><span class="o">=</span><span class="s">&#39;TERM&#39;</span><span class="p">,</span> <span class="n">how</span><span class="o">=</span><span class="s">&#39;Warm&#39;</span><span class="p">,</span> <span class="n">exc</span><span class="o">=</span><span class="ne">SystemExit</span><span class="p">,</span>
+        <span class="n">callback</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="nf">_handle_request</span><span class="p">(</span><span class="n">signum</span><span class="p">,</span> <span class="n">frame</span><span class="p">):</span>
+        <span class="n">set_in_sighandler</span><span class="p">(</span><span class="bp">True</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="kn">from</span> <span class="nn">celery.worker</span> <span class="kn">import</span> <span class="n">state</span>
+            <span class="k">if</span> <span class="n">current_process</span><span class="p">()</span><span class="o">.</span><span class="n">_name</span> <span class="o">==</span> <span class="s">&#39;MainProcess&#39;</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">callback</span><span class="p">:</span>
+                    <span class="n">callback</span><span class="p">(</span><span class="n">worker</span><span class="p">)</span>
+                <span class="n">safe_say</span><span class="p">(</span><span class="s">&#39;celeryd: </span><span class="si">%s</span><span class="s"> shutdown (MainProcess)&#39;</span> <span class="o">%</span> <span class="n">how</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">active_thread_count</span><span class="p">()</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="nb">setattr</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="p">{</span><span class="s">&#39;Warm&#39;</span><span class="p">:</span> <span class="s">&#39;should_stop&#39;</span><span class="p">,</span>
+                                <span class="s">&#39;Cold&#39;</span><span class="p">:</span> <span class="s">&#39;should_terminate&#39;</span><span class="p">}[</span><span class="n">how</span><span class="p">],</span> <span class="bp">True</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">exc</span><span class="p">()</span>
+        <span class="k">finally</span><span class="p">:</span>
+            <span class="n">set_in_sighandler</span><span class="p">(</span><span class="bp">False</span><span class="p">)</span>
+    <span class="n">_handle_request</span><span class="o">.</span><span class="n">__name__</span> <span class="o">=</span> <span class="s">&#39;worker_&#39;</span> <span class="o">+</span> <span class="n">how</span>
+    <span class="n">platforms</span><span class="o">.</span><span class="n">signals</span><span class="p">[</span><span class="n">sig</span><span class="p">]</span> <span class="o">=</span> <span class="n">_handle_request</span>
+<span class="n">install_worker_term_handler</span> <span class="o">=</span> <span class="n">partial</span><span class="p">(</span>
+    <span class="n">_shutdown_handler</span><span class="p">,</span> <span class="n">sig</span><span class="o">=</span><span class="s">&#39;SIGTERM&#39;</span><span class="p">,</span> <span class="n">how</span><span class="o">=</span><span class="s">&#39;Warm&#39;</span><span class="p">,</span> <span class="n">exc</span><span class="o">=</span><span class="ne">SystemExit</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="n">install_worker_term_hard_handler</span> <span class="o">=</span> <span class="n">partial</span><span class="p">(</span>
+    <span class="n">_shutdown_handler</span><span class="p">,</span> <span class="n">sig</span><span class="o">=</span><span class="s">&#39;SIGQUIT&#39;</span><span class="p">,</span> <span class="n">how</span><span class="o">=</span><span class="s">&#39;Cold&#39;</span><span class="p">,</span> <span class="n">exc</span><span class="o">=</span><span class="n">SystemTerminate</span><span class="p">,</span>
+<span class="p">)</span>
+
+
+<div class="viewcode-block" id="on_SIGINT"><a class="viewcode-back" href="../../../api/celery.apps.worker.html#celery.apps.worker.on_SIGINT">[docs]</a><span class="k">def</span> <span class="nf">on_SIGINT</span><span class="p">(</span><span class="n">worker</span><span class="p">):</span>
+    <span class="n">safe_say</span><span class="p">(</span><span class="s">&#39;celeryd: Hitting Ctrl+C again will terminate all running tasks!&#39;</span><span class="p">)</span>
+    <span class="n">install_worker_term_hard_handler</span><span class="p">(</span><span class="n">worker</span><span class="p">,</span> <span class="n">sig</span><span class="o">=</span><span class="s">&#39;SIGINT&#39;</span><span class="p">)</span></div>
+<span class="n">install_worker_int_handler</span> <span class="o">=</span> <span class="n">partial</span><span class="p">(</span>
+    <span class="n">_shutdown_handler</span><span class="p">,</span> <span class="n">sig</span><span class="o">=</span><span class="s">&#39;SIGINT&#39;</span><span class="p">,</span> <span class="n">callback</span><span class="o">=</span><span class="n">on_SIGINT</span>
+<span class="p">)</span>
+
+
+<div class="viewcode-block" id="install_worker_restart_handler"><a class="viewcode-back" href="../../../api/celery.apps.worker.html#celery.apps.worker.install_worker_restart_handler">[docs]</a><span class="k">def</span> <span class="nf">install_worker_restart_handler</span><span class="p">(</span><span class="n">worker</span><span class="p">,</span> <span class="n">sig</span><span class="o">=</span><span class="s">&#39;SIGHUP&#39;</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="nf">restart_worker_sig_handler</span><span class="p">(</span><span class="n">signum</span><span class="p">,</span> <span class="n">frame</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Signal handler restarting the current python program.&quot;&quot;&quot;</span>
+        <span class="n">set_in_sighandler</span><span class="p">(</span><span class="bp">True</span><span class="p">)</span>
+        <span class="n">safe_say</span><span class="p">(</span><span class="s">&#39;Restarting celeryd (</span><span class="si">%s</span><span class="s">)&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="s">&#39; &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">sys</span><span class="o">.</span><span class="n">argv</span><span class="p">),</span> <span class="p">))</span>
+        <span class="n">pid</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">fork</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">pid</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">execv</span><span class="p">(</span><span class="n">sys</span><span class="o">.</span><span class="n">executable</span><span class="p">,</span> <span class="p">[</span><span class="n">sys</span><span class="o">.</span><span class="n">executable</span><span class="p">]</span> <span class="o">+</span> <span class="n">sys</span><span class="o">.</span><span class="n">argv</span><span class="p">)</span>
+        <span class="kn">from</span> <span class="nn">celery.worker</span> <span class="kn">import</span> <span class="n">state</span>
+        <span class="n">state</span><span class="o">.</span><span class="n">should_stop</span> <span class="o">=</span> <span class="bp">True</span>
+    <span class="n">platforms</span><span class="o">.</span><span class="n">signals</span><span class="p">[</span><span class="n">sig</span><span class="p">]</span> <span class="o">=</span> <span class="n">restart_worker_sig_handler</span>
+
+</div>
+<div class="viewcode-block" id="install_cry_handler"><a class="viewcode-back" href="../../../api/celery.apps.worker.html#celery.apps.worker.install_cry_handler">[docs]</a><span class="k">def</span> <span class="nf">install_cry_handler</span><span class="p">():</span>
+    <span class="c"># Jython/PyPy does not have sys._current_frames</span>
+    <span class="n">is_jython</span> <span class="o">=</span> <span class="n">sys</span><span class="o">.</span><span class="n">platform</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s">&#39;java&#39;</span><span class="p">)</span>
+    <span class="n">is_pypy</span> <span class="o">=</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">sys</span><span class="p">,</span> <span class="s">&#39;pypy_version_info&#39;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">is_jython</span> <span class="ow">or</span> <span class="n">is_pypy</span><span class="p">:</span>  <span class="c"># pragma: no cover</span>
+        <span class="k">return</span>
+
+    <span class="k">def</span> <span class="nf">cry_handler</span><span class="p">(</span><span class="n">signum</span><span class="p">,</span> <span class="n">frame</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Signal handler logging the stacktrace of all active threads.&quot;&quot;&quot;</span>
+        <span class="n">set_in_sighandler</span><span class="p">(</span><span class="bp">True</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">safe_say</span><span class="p">(</span><span class="n">cry</span><span class="p">())</span>
+        <span class="k">finally</span><span class="p">:</span>
+            <span class="n">set_in_sighandler</span><span class="p">(</span><span class="bp">False</span><span class="p">)</span>
+    <span class="n">platforms</span><span class="o">.</span><span class="n">signals</span><span class="p">[</span><span class="s">&#39;SIGUSR1&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">cry_handler</span>
+
+</div>
+<div class="viewcode-block" id="install_rdb_handler"><a class="viewcode-back" href="../../../api/celery.apps.worker.html#celery.apps.worker.install_rdb_handler">[docs]</a><span class="k">def</span> <span class="nf">install_rdb_handler</span><span class="p">(</span><span class="n">envvar</span><span class="o">=</span><span class="s">&#39;CELERY_RDBSIG&#39;</span><span class="p">,</span>
+                        <span class="n">sig</span><span class="o">=</span><span class="s">&#39;SIGUSR2&#39;</span><span class="p">):</span>  <span class="c"># pragma: no cover</span>
+
+    <span class="k">def</span> <span class="nf">rdb_handler</span><span class="p">(</span><span class="n">signum</span><span class="p">,</span> <span class="n">frame</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Signal handler setting a rdb breakpoint at the current frame.&quot;&quot;&quot;</span>
+        <span class="n">set_in_sighandler</span><span class="p">(</span><span class="bp">True</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="kn">from</span> <span class="nn">celery.contrib</span> <span class="kn">import</span> <span class="n">rdb</span>
+            <span class="n">rdb</span><span class="o">.</span><span class="n">set_trace</span><span class="p">(</span><span class="n">frame</span><span class="p">)</span>
+        <span class="k">finally</span><span class="p">:</span>
+            <span class="n">set_in_sighandler</span><span class="p">(</span><span class="bp">False</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">envvar</span><span class="p">):</span>
+        <span class="n">platforms</span><span class="o">.</span><span class="n">signals</span><span class="p">[</span><span class="n">sig</span><span class="p">]</span> <span class="o">=</span> <span class="n">rdb_handler</span>
+
+</div>
+<div class="viewcode-block" id="install_HUP_not_supported_handler"><a class="viewcode-back" href="../../../api/celery.apps.worker.html#celery.apps.worker.install_HUP_not_supported_handler">[docs]</a><span class="k">def</span> <span class="nf">install_HUP_not_supported_handler</span><span class="p">(</span><span class="n">worker</span><span class="p">,</span> <span class="n">sig</span><span class="o">=</span><span class="s">&#39;SIGHUP&#39;</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="nf">warn_on_HUP_handler</span><span class="p">(</span><span class="n">signum</span><span class="p">,</span> <span class="n">frame</span><span class="p">):</span>
+        <span class="n">set_in_sighandler</span><span class="p">(</span><span class="bp">True</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">safe_say</span><span class="p">(</span><span class="s">&#39;</span><span class="si">%(sig)s</span><span class="s"> not supported: Restarting with </span><span class="si">%(sig)s</span><span class="s"> is &#39;</span>
+                     <span class="s">&#39;unstable on this platform!&#39;</span> <span class="o">%</span> <span class="p">{</span><span class="s">&#39;sig&#39;</span><span class="p">:</span> <span class="n">sig</span><span class="p">})</span>
+        <span class="k">finally</span><span class="p">:</span>
+            <span class="n">set_in_sighandler</span><span class="p">(</span><span class="bp">False</span><span class="p">)</span>
+    <span class="n">platforms</span><span class="o">.</span><span class="n">signals</span><span class="p">[</span><span class="n">sig</span><span class="p">]</span> <span class="o">=</span> <span class="n">warn_on_HUP_handler</span></div>
+</pre></div>
+
+      </div>
+      <div class="bottomnav">
+      
+        <p>
+        <a href="/">Home</a>:
+        <a class="uplink" href="../../../index.html">Contents</a>
+        </p>
+
+      </div>
+
+    <div class="footer">
+        &copy; Copyright 2012, HDKNR.COM.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.2pre/3c28de26aac2.
+    </div>
+  </body>
+</html>
