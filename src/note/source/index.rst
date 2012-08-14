@@ -15,6 +15,7 @@ Misc
     swd
     python
     python_csharp
+    pattern
     mysql
     cookie
     aws

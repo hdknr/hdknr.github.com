@@ -101,6 +101,10 @@ $(コマンド)
      (docs)hdknr@sqg:~$ echo ${X[@]%%[a-z]*}
      / / /
 
+拡張子の一括変換 ::
+
+    $ for f in *.txt; do echo $f ${f%.txt}.rst ; done
+
 - 要素を抜く
 
 
