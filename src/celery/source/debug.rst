@@ -19,11 +19,8 @@ settings.py で Trueに設定するとcelery.app.task.Task.apply_async
 
 
 - @task() デコレータされている関数を delay()すると、 Task.apply_async()され、関数の処理が非同期処理メッセージとしてKombuにキューイングされます。
-- CELERY_ALWAY_EAGER = Trueになっていると、 Task.apply_async()が apply()をフォワードするようになるので、子供タスクが全て終わるまで同期的に処理されます。
-
-    .. autoclass:: celery.app.task.Task
-        :members: apply_async
-    
+- CELERY_ALWAY_EAGER = Trueになっていると、 :meth:`~@Task.apply_async`  が、 :meth:`~@Task.apply` をフォワードするようになるので、
+  子供タスクが全て終わるまで同期的に処理されます。 
 
 Taskのモニター
 ===================
@@ -31,11 +28,7 @@ Taskのモニター
 celerycam
 ----------
 
-- Task の状況を Django の djcelery.models.TaskState に定期的に記録します。
-
-    .. autoclass:: djcelery.models.TaskState
-        :members:
-    
+- Task の状況を Django の :ref:`djcelery.models.TaskState` に定期的に記録します。
 - Worker に -E (イベント)オプションを付けて起動します。
 
     :: 
@@ -112,3 +105,56 @@ djkombuをAdmin UI で見る
 
 DEBUG=True + print
 ====================
+
+
+
+
+Admin UIでテーブルを見れるようにする。
+=======================================
+
+タスクの結果
+=============
+
+指定しないとDjango-celeryが :ref:`djcelery.models.TaskMeta` , :ref:`djcelery.models.TaskSetMeta` に書き込むようです。
+
+.. todo::
+    定期的にTaskMetaを削除する必要があるが。。。。 
+
+Kombuのメッセージ
+=======================
+
+
+例:
+----
+
+.. code-block:: python
+
+    if settings.DEBUG:
+        try:
+            from djkombu.models import Queue as KombuQueue,Message as KombuMessage
+            from djcelery.models import TaskMeta,TaskSetMeta
+    
+            ### KombuQueue
+            class KombuQueueAdmin(admin.ModelAdmin):
+                list_display=tuple([f.name for f in KombuQueue._meta.fields ])
+            admin.site.register(KombuQueue,KombuQueueAdmin)
+                
+            ### KombuMessage
+            class KombuMessageAdmin(admin.ModelAdmin):
+                list_display=tuple([f.name for f in KombuMessage._meta.fields])
+            admin.site.register(KombuMessage,KombuMessageAdmin)
+    
+            ### TaskMeta
+            class TaskMetaAdmin(admin.ModelAdmin):
+                list_display=tuple([f.name for f in TaskMeta._meta.fields])
+            admin.site.register(TaskMeta,TaskMetaAdmin)
+                
+            ### TaskSetMeta
+            class TaskSetMetaAdmin(admin.ModelAdmin):
+                list_display=tuple([f.name for f in TaskSetMeta._meta.fields])
+            admin.site.register(TaskSetMeta,TaskSetMetaAdmin)
+        
+                
+        except Exception,e:
+            print e
+            pass

@@ -4,6 +4,10 @@
  API Reference
 ===============
 
+
+celery
+=========
+
 :Release: |version|
 :Date: |today|
 
@@ -53,3 +57,19 @@
     celery.bin.celery
     celery.bin.camqadm
     celery.bin.celeryd_multi
+
+django-celery
+===============
+
+.. toctree::
+    :maxdepth: 1
+
+    djcelery.models
+
+django-kombu
+====================
+
+.. toctree::
+    :maxdepth: 1
+
+    djkombu.models

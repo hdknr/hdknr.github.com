@@ -67,7 +67,15 @@ Celery
     Destination Queue
         TBD
 
+    Task State
+        TBD
     
+    Result Instance
+        TBD
+
+    Result Backend
+    Result Backends
+        :ref:`task-result-backends` 参照。
 
 Python
 =========
@@ -130,3 +138,6 @@ Python
 
     amqp
         http://www.amqp.org/
+
+    ETA
+       Eestimated Time of Arrival

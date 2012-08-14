@@ -398,6 +398,24 @@ by default (see :setting:`CELERY_REDIRECT_STDOUTS`).
 Retrying
 ========
 
+.. note::
+
+    - yourtask.retry() で再実行可能です。
+    - エラーが起きた時などに使えます
+    - 再度作成されたメッセージは、前回と同じ **id** で、同じ Queueに
+      に投げられます。
+    - Task State に記録されるのでResult Instanceでタスクの進行を見る事ができます。
+    - **exc** に現在起きた例外を指定する事ができます。
+
+        - 例外とトレースバックがTask Stateで利用できます
+          ( Result Backendが有効であれば)
+
+    - **throw=False** と明示的に指定しない限り、
+      必ず RetryTaskError 例外がWorkerにraiseされます。
+
+        - RetryTaskErrorをトリガにしてWorkerプロセスはTaskの再実行を行います。
+
+
 :meth:`~@Task.retry` can be used to re-execute the task,
 for example in the event of recoverable errors.
 
@@ -405,9 +423,9 @@ When you call ``retry`` it will send a new message, using the same
 task-id, and it will take care to make sure the message is delivered
 to the same queue as the originating task.
 
-When a task is retried this is also recorded as a task state,
-so that you can track the progress of the task using the result
-instance (see :ref:`task-states`).
+When a task is retried this is also recorded as a :term:`task state`,
+so that you can track the progress of the task 
+using the :term:`result instance` (see :ref:`task-states`).
 
 Here's an example using ``retry``:
 
@@ -440,6 +458,10 @@ be available in the task state (if a result backend is enabled).
 
 Using a custom retry delay
 --------------------------
+
+.. note::
+    - @task(default_retry_delay=秒数)でリトライまでの時間を指定する事ができます。
+    - yourtask.retry(countdown=秒数)で各タスクごとにリトライまでの時間を指定可能です。
 
 When a task is to be retried, it can wait for a given amount of time
 before doing so, and the default delay is defined by the
@@ -623,18 +645,18 @@ General
 States
 ======
 
-Celery can keep track of the tasks current state.  The state also contains the
-result of a successful task, or the exception and traceback information of a
-failed task.
+Celery can keep track of the tasks current state.  
+The state also contains the result of a successful task, 
+or the exception and traceback information of a failed task.
 
-There are several *result backends* to choose from, and they all have
+There are several :term:`result backends` to choose from, and they all have
 different strengths and weaknesses (see :ref:`task-result-backends`).
 
 During its lifetime a task will transition through several possible states,
-and each state may have arbitrary metadata attached to it.  When a task
-moves into a new state the previous state is
-forgotten about, but some transitions can be deducted, (e.g. a task now
-in the :state:`FAILED` state, is implied to have been in the
+and each state may have arbitrary metadata attached to it.  
+When a task moves into a new state the previous state is forgotten about, 
+but some transitions can be deducted, 
+(e.g. a task now in the :state:`FAILED` state, is implied to have been in the
 :state:`STARTED` state at some point).
 
 There are also sets of states, like the set of
@@ -651,13 +673,14 @@ You can also define :ref:`custom-states`.
 Result Backends
 ---------------
 
-Celery needs to store or send the states somewhere.  There are several
-built-in backends to choose from: SQLAlchemy/Django ORM, Memcached, Redis,
+Celery needs to store or send the states somewhere.  
+There are several built-in backends to choose from: 
+SQLAlchemy/Django ORM, Memcached, Redis,
 RabbitMQ (amqp), MongoDB, Tokyo Tyrant and Redis -- or you can define your own.
 
 No backend works well for every use case.
-You should read about the strengths and weaknesses of each backend, and choose
-the most appropriate for your needs.
+You should read about the strengths and weaknesses of each backend, 
+and choose the most appropriate for your needs.
 
 
 .. seealso::
@@ -670,8 +693,7 @@ RabbitMQ Result Backend
 The RabbitMQ result backend (amqp) is special as it does not actually *store*
 the states, but rather sends them as messages.  This is an important difference as it
 means that a result *can only be retrieved once*; If you have two processes
-waiting for the same result, one of the processes will never receive the
-result!
+waiting for the same result, one of the processes will never receive the result!
 
 Even with that limitation, it is an excellent choice if you need to receive
 state changes in real-time.  Using messaging means the client does not have to
