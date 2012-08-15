@@ -15,7 +15,7 @@ Contents:
     component
     tasks
     calling
-    worker
+    workers
     broker
     serialize
     cron
