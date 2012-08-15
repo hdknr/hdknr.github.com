@@ -165,3 +165,11 @@ Response Headersview source::
 
     {"issuer":"hogehoge"}
 
+
+Entity Frameworkデータの循環参照問題を解決する。
+=================================================================
+
+- PreserveReferencesHandling = PreserveReferencesHandling.Objects を指定したJsonSerializerSettingsクラスを
+  Serializerに指定する。
+
+    - http://note.harajuku-tech.org/serializing-circular-references-with-jsonnet
