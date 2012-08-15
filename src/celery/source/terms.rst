@@ -23,6 +23,8 @@ Celery
     Broker
     Message Broker
         TBD
+        
+        - :ref:`celerytut-broker`
 
     Worker
     ワーカー
@@ -137,7 +139,8 @@ Python
         - `relativedeltaが超便利 <http://mitc.xrea.jp/diary/0100>`_
 
     amqp
-        http://www.amqp.org/
+        - http://www.amqp.org/
+        -  http://www.youtube.com/embed/9tIF8AsS6vg
 
     ETA
        Eestimated Time of Arrival

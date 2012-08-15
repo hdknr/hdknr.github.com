@@ -850,7 +850,7 @@ the worker to import new modules, or for reloading already imported
 modules.  This command does not interrupt executing tasks.
 
 Example
-~~~~~~~
+^^^^^^^^^
 
 Running the following command will result in the `foo` and `bar` modules
 being imported by the worker processes:

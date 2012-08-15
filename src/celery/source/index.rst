@@ -6,6 +6,15 @@
 Welcome to Celery's documentation!
 ==================================
 
+はじめに
+---------
+
+.. toctree::
+    :maxdepth: 2
+
+    start/first-steps-with-celery
+    start/next-steps
+
 Contents:
 
 .. toctree::

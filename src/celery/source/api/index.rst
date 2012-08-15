@@ -65,6 +65,7 @@ django-celery
     :maxdepth: 1
 
     djcelery.models
+    djcelery.loaders
 
 django-kombu
 ====================
