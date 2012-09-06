@@ -1,0 +1,636 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>kombu.entity &mdash; Celery 1 documentation</title>
+    
+    <link rel="stylesheet" href="../../static/haiku.css" type="text/css" />
+    <link rel="stylesheet" href="../../static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../../static/print.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../static/jquery.js"></script>
+    <script type="text/javascript" src="../../static/underscore.js"></script>
+    <script type="text/javascript" src="../../static/doctools.js"></script>
+    <script type="text/javascript" src="../../static/theme_extras.js"></script>
+    <link rel="author" title="About these documents" href="../../about.html" />
+    <link rel="top" title="Celery 1 documentation" href="../../index.html" />
+    <link rel="up" title="Module code" href="../index.html" /> 
+  </head>
+  <body>
+      <div class="header"><h1 class="heading"><a href="../../index.html">
+          <span>Celery 1 documentation</span></a></h1>
+        <h2 class="heading"><span>kombu.entity</span></h2>
+      </div>
+      <div class="topnav">
+      
+        <p>
+        <a href="/">Home</a>:
+        <a class="uplink" href="../../index.html">Contents</a>
+        </p>
+
+      </div>
+      <div class="content">
+        
+        
+  <h1>Source code for kombu.entity</h1><div class="highlight"><pre>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">kombu.entity</span>
+<span class="sd">================</span>
+
+<span class="sd">Exchange and Queue declarations.</span>
+
+<span class="sd">:copyright: (c) 2009 - 2012 by Ask Solem.</span>
+<span class="sd">:license: BSD, see LICENSE for more details.</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">absolute_import</span>
+
+<span class="kn">from</span> <span class="nn">.abstract</span> <span class="kn">import</span> <span class="n">MaybeChannelBound</span>
+
+<span class="n">TRANSIENT_DELIVERY_MODE</span> <span class="o">=</span> <span class="mi">1</span>
+<span class="n">PERSISTENT_DELIVERY_MODE</span> <span class="o">=</span> <span class="mi">2</span>
+<span class="n">DELIVERY_MODES</span> <span class="o">=</span> <span class="p">{</span><span class="s">&#39;transient&#39;</span><span class="p">:</span> <span class="n">TRANSIENT_DELIVERY_MODE</span><span class="p">,</span>
+                  <span class="s">&#39;persistent&#39;</span><span class="p">:</span> <span class="n">PERSISTENT_DELIVERY_MODE</span><span class="p">}</span>
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s">&#39;Exchange&#39;</span><span class="p">,</span> <span class="s">&#39;Queue&#39;</span><span class="p">]</span>
+
+
+<div class="viewcode-block" id="Exchange"><a class="viewcode-back" href="../../kombu/reference/kombu.entity.html#kombu.entity.Exchange">[docs]</a><span class="k">class</span> <span class="nc">Exchange</span><span class="p">(</span><span class="n">MaybeChannelBound</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;An Exchange declaration.</span>
+
+<span class="sd">    :keyword name: See :attr:`name`.</span>
+<span class="sd">    :keyword type: See :attr:`type`.</span>
+<span class="sd">    :keyword channel: See :attr:`channel`.</span>
+<span class="sd">    :keyword durable: See :attr:`durable`.</span>
+<span class="sd">    :keyword auto_delete: See :attr:`auto_delete`.</span>
+<span class="sd">    :keyword delivery_mode: See :attr:`delivery_mode`.</span>
+<span class="sd">    :keyword arguments: See :attr:`arguments`.</span>
+
+<span class="sd">    .. attribute:: name</span>
+
+<span class="sd">        Name of the exchange. Default is no name (the default exchange).</span>
+
+<span class="sd">    .. attribute:: type</span>
+
+<span class="sd">        AMQP defines four default exchange types (routing algorithms) that</span>
+<span class="sd">        covers most of the common messaging use cases. An AMQP broker can</span>
+<span class="sd">        also define additional exchange types, so see your broker</span>
+<span class="sd">        manual for more information about available exchange types.</span>
+
+<span class="sd">            * `direct` (*default*)</span>
+
+<span class="sd">                Direct match between the routing key in the message, and the</span>
+<span class="sd">                routing criteria used when a queue is bound to this exchange.</span>
+
+<span class="sd">            * `topic`</span>
+
+<span class="sd">                Wildcard match between the routing key and the routing pattern</span>
+<span class="sd">                specified in the exchange/queue binding. The routing key is</span>
+<span class="sd">                treated as zero or more words delimited by `&quot;.&quot;` and</span>
+<span class="sd">                supports special wildcard characters. `&quot;*&quot;` matches a</span>
+<span class="sd">                single word and `&quot;#&quot;` matches zero or more words.</span>
+
+<span class="sd">            * `fanout`</span>
+
+<span class="sd">                Queues are bound to this exchange with no arguments. Hence any</span>
+<span class="sd">                message sent to this exchange will be forwarded to all queues</span>
+<span class="sd">                bound to this exchange.</span>
+
+<span class="sd">            * `headers`</span>
+
+<span class="sd">                Queues are bound to this exchange with a table of arguments</span>
+<span class="sd">                containing headers and values (optional). A special argument</span>
+<span class="sd">                named &quot;x-match&quot; determines the matching algorithm, where</span>
+<span class="sd">                `&quot;all&quot;` implies an `AND` (all pairs must match) and</span>
+<span class="sd">                `&quot;any&quot;` implies `OR` (at least one pair must match).</span>
+
+<span class="sd">                :attr:`arguments` is used to specify the arguments.</span>
+
+<span class="sd">            This description of AMQP exchange types was shamelessly stolen</span>
+<span class="sd">            from the blog post `AMQP in 10 minutes: Part 4`_ by</span>
+<span class="sd">            Rajith Attapattu. This article is recommended reading.</span>
+
+<span class="sd">            .. _`AMQP in 10 minutes: Part 4`:</span>
+<span class="sd">                http://bit.ly/amqp-exchange-types</span>
+
+<span class="sd">    .. attribute:: channel</span>
+
+<span class="sd">        The channel the exchange is bound to (if bound).</span>
+
+<span class="sd">    .. attribute:: durable</span>
+
+<span class="sd">        Durable exchanges remain active when a server restarts. Non-durable</span>
+<span class="sd">        exchanges (transient exchanges) are purged when a server restarts.</span>
+<span class="sd">        Default is :const:`True`.</span>
+
+<span class="sd">    .. attribute:: auto_delete</span>
+
+<span class="sd">        If set, the exchange is deleted when all queues have finished</span>
+<span class="sd">        using it. Default is :const:`False`.</span>
+
+<span class="sd">    .. attribute:: delivery_mode</span>
+
+<span class="sd">        The default delivery mode used for messages. The value is an integer,</span>
+<span class="sd">        or alias string.</span>
+
+<span class="sd">            * 1 or `&quot;transient&quot;`</span>
+
+<span class="sd">                The message is transient. Which means it is stored in</span>
+<span class="sd">                memory only, and is lost if the server dies or restarts.</span>
+
+<span class="sd">            * 2 or &quot;persistent&quot; (*default*)</span>
+<span class="sd">                The message is persistent. Which means the message is</span>
+<span class="sd">                stored both in-memory, and on disk, and therefore</span>
+<span class="sd">                preserved if the server dies or restarts.</span>
+
+<span class="sd">        The default value is 2 (persistent).</span>
+
+<span class="sd">    .. attribute:: arguments</span>
+
+<span class="sd">        Additional arguments to specify when the exchange is declared.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">TRANSIENT_DELIVERY_MODE</span> <span class="o">=</span> <span class="n">TRANSIENT_DELIVERY_MODE</span>
+    <span class="n">PERSISTENT_DELIVERY_MODE</span> <span class="o">=</span> <span class="n">PERSISTENT_DELIVERY_MODE</span>
+
+    <span class="n">name</span> <span class="o">=</span> <span class="s">&#39;&#39;</span>
+    <span class="nb">type</span> <span class="o">=</span> <span class="s">&#39;direct&#39;</span>
+    <span class="n">durable</span> <span class="o">=</span> <span class="bp">True</span>
+    <span class="n">auto_delete</span> <span class="o">=</span> <span class="bp">False</span>
+    <span class="n">delivery_mode</span> <span class="o">=</span> <span class="n">PERSISTENT_DELIVERY_MODE</span>
+
+    <span class="n">attrs</span> <span class="o">=</span> <span class="p">((</span><span class="s">&#39;name&#39;</span><span class="p">,</span> <span class="bp">None</span><span class="p">),</span>
+             <span class="p">(</span><span class="s">&#39;type&#39;</span><span class="p">,</span> <span class="bp">None</span><span class="p">),</span>
+             <span class="p">(</span><span class="s">&#39;arguments&#39;</span><span class="p">,</span> <span class="bp">None</span><span class="p">),</span>
+             <span class="p">(</span><span class="s">&#39;durable&#39;</span><span class="p">,</span> <span class="nb">bool</span><span class="p">),</span>
+             <span class="p">(</span><span class="s">&#39;auto_delete&#39;</span><span class="p">,</span> <span class="nb">bool</span><span class="p">),</span>
+             <span class="p">(</span><span class="s">&#39;delivery_mode&#39;</span><span class="p">,</span> <span class="k">lambda</span> <span class="n">m</span><span class="p">:</span> <span class="n">DELIVERY_MODES</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">m</span><span class="p">)</span> <span class="ow">or</span> <span class="n">m</span><span class="p">))</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s">&#39;&#39;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="s">&#39;&#39;</span><span class="p">,</span> <span class="n">channel</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">Exchange</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">name</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="nb">type</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">type</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">maybe_bind</span><span class="p">(</span><span class="n">channel</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__hash__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="nb">hash</span><span class="p">(</span><span class="s">&#39;E|</span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="p">))</span>
+
+<div class="viewcode-block" id="Exchange.declare"><a class="viewcode-back" href="../../kombu/reference/kombu.entity.html#kombu.entity.Exchange.declare">[docs]</a>    <span class="k">def</span> <span class="nf">declare</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">nowait</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">passive</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Declare the exchange.</span>
+
+<span class="sd">        Creates the exchange on the broker.</span>
+
+<span class="sd">        :keyword nowait: If set the server will not respond, and a</span>
+<span class="sd">            response will not be waited for. Default is :const:`False`.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">channel</span><span class="o">.</span><span class="n">exchange_declare</span><span class="p">(</span><span class="n">exchange</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+                                             <span class="nb">type</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">type</span><span class="p">,</span>
+                                             <span class="n">durable</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">durable</span><span class="p">,</span>
+                                             <span class="n">auto_delete</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">auto_delete</span><span class="p">,</span>
+                                             <span class="n">arguments</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">arguments</span><span class="p">,</span>
+                                             <span class="n">nowait</span><span class="o">=</span><span class="n">nowait</span><span class="p">,</span>
+                                             <span class="n">passive</span><span class="o">=</span><span class="n">passive</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="Exchange.Message"><a class="viewcode-back" href="../../kombu/reference/kombu.entity.html#kombu.entity.Exchange.Message">[docs]</a>    <span class="k">def</span> <span class="nf">Message</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">body</span><span class="p">,</span> <span class="n">delivery_mode</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">priority</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+            <span class="n">content_type</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">content_encoding</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">properties</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+            <span class="n">headers</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Create message instance to be sent with :meth:`publish`.</span>
+
+<span class="sd">        :param body: Message body.</span>
+
+<span class="sd">        :keyword delivery_mode: Set custom delivery mode. Defaults</span>
+<span class="sd">            to :attr:`delivery_mode`.</span>
+
+<span class="sd">        :keyword priority: Message priority, 0 to 9. (currently not</span>
+<span class="sd">            supported by RabbitMQ).</span>
+
+<span class="sd">        :keyword content_type: The messages content_type. If content_type</span>
+<span class="sd">            is set, no serialization occurs as it is assumed this is either</span>
+<span class="sd">            a binary object, or you&#39;ve done your own serialization.</span>
+<span class="sd">            Leave blank if using built-in serialization as our library</span>
+<span class="sd">            properly sets content_type.</span>
+
+<span class="sd">        :keyword content_encoding: The character set in which this object</span>
+<span class="sd">            is encoded. Use &quot;binary&quot; if sending in raw binary objects.</span>
+<span class="sd">            Leave blank if using built-in serialization as our library</span>
+<span class="sd">            properly sets content_encoding.</span>
+
+<span class="sd">        :keyword properties: Message properties.</span>
+
+<span class="sd">        :keyword headers: Message headers.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">properties</span> <span class="o">=</span> <span class="p">{}</span> <span class="k">if</span> <span class="n">properties</span> <span class="ow">is</span> <span class="bp">None</span> <span class="k">else</span> <span class="n">properties</span>
+        <span class="n">dm</span> <span class="o">=</span> <span class="n">delivery_mode</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">delivery_mode</span>
+        <span class="n">properties</span><span class="p">[</span><span class="s">&#39;delivery_mode&#39;</span><span class="p">]</span> <span class="o">=</span> \
+            <span class="n">DELIVERY_MODES</span><span class="p">[</span><span class="n">dm</span><span class="p">]</span> <span class="k">if</span> <span class="p">(</span><span class="n">dm</span> <span class="o">!=</span> <span class="mi">2</span> <span class="ow">and</span> <span class="n">dm</span> <span class="o">!=</span> <span class="mi">1</span><span class="p">)</span> <span class="k">else</span> <span class="n">dm</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">channel</span><span class="o">.</span><span class="n">prepare_message</span><span class="p">(</span><span class="n">body</span><span class="p">,</span>
+                                            <span class="n">properties</span><span class="o">=</span><span class="n">properties</span><span class="p">,</span>
+                                            <span class="n">priority</span><span class="o">=</span><span class="n">priority</span><span class="p">,</span>
+                                            <span class="n">content_type</span><span class="o">=</span><span class="n">content_type</span><span class="p">,</span>
+                                            <span class="n">content_encoding</span><span class="o">=</span><span class="n">content_encoding</span><span class="p">,</span>
+                                            <span class="n">headers</span><span class="o">=</span><span class="n">headers</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="Exchange.publish"><a class="viewcode-back" href="../../kombu/reference/kombu.entity.html#kombu.entity.Exchange.publish">[docs]</a>    <span class="k">def</span> <span class="nf">publish</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">message</span><span class="p">,</span> <span class="n">routing_key</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">mandatory</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span>
+            <span class="n">immediate</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">exchange</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Publish message.</span>
+
+<span class="sd">        :param message: :meth:`Message` instance to publish.</span>
+<span class="sd">        :param routing_key: Routing key.</span>
+<span class="sd">        :param mandatory: Currently not supported.</span>
+<span class="sd">        :param immediate: Currently not supported.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">exchange</span> <span class="o">=</span> <span class="n">exchange</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">channel</span><span class="o">.</span><span class="n">basic_publish</span><span class="p">(</span><span class="n">message</span><span class="p">,</span>
+                                          <span class="n">exchange</span><span class="o">=</span><span class="n">exchange</span><span class="p">,</span>
+                                          <span class="n">routing_key</span><span class="o">=</span><span class="n">routing_key</span><span class="p">,</span>
+                                          <span class="n">mandatory</span><span class="o">=</span><span class="n">mandatory</span><span class="p">,</span>
+                                          <span class="n">immediate</span><span class="o">=</span><span class="n">immediate</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="Exchange.delete"><a class="viewcode-back" href="../../kombu/reference/kombu.entity.html#kombu.entity.Exchange.delete">[docs]</a>    <span class="k">def</span> <span class="nf">delete</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">if_unused</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">nowait</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Delete the exchange declaration on server.</span>
+
+<span class="sd">        :keyword if_unused: Delete only if the exchange has no bindings.</span>
+<span class="sd">            Default is :const:`False`.</span>
+
+<span class="sd">        :keyword nowait: If set the server will not respond, and a</span>
+<span class="sd">            response will not be waited for. Default is :const:`False`.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">channel</span><span class="o">.</span><span class="n">exchange_delete</span><span class="p">(</span><span class="n">exchange</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+                                            <span class="n">if_unused</span><span class="o">=</span><span class="n">if_unused</span><span class="p">,</span>
+                                            <span class="n">nowait</span><span class="o">=</span><span class="n">nowait</span><span class="p">)</span>
+</div>
+    <span class="k">def</span> <span class="nf">__eq__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">other</span><span class="p">,</span> <span class="n">Exchange</span><span class="p">):</span>
+            <span class="k">return</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">==</span> <span class="n">other</span><span class="o">.</span><span class="n">name</span> <span class="ow">and</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">type</span> <span class="o">==</span> <span class="n">other</span><span class="o">.</span><span class="n">type</span> <span class="ow">and</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">arguments</span> <span class="o">==</span> <span class="n">other</span><span class="o">.</span><span class="n">arguments</span> <span class="ow">and</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">durable</span> <span class="o">==</span> <span class="n">other</span><span class="o">.</span><span class="n">durable</span> <span class="ow">and</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">auto_delete</span> <span class="o">==</span> <span class="n">other</span><span class="o">.</span><span class="n">auto_delete</span> <span class="ow">and</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">delivery_mode</span> <span class="o">==</span> <span class="n">other</span><span class="o">.</span><span class="n">delivery_mode</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">False</span>
+
+    <span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="nb">super</span><span class="p">(</span><span class="n">Exchange</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__repr__</span><span class="p">(</span><span class="s">&#39;Exchange </span><span class="si">%s</span><span class="s">(</span><span class="si">%s</span><span class="s">)&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+                                                                   <span class="bp">self</span><span class="o">.</span><span class="n">type</span><span class="p">))</span>
+
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="Exchange.can_cache_declaration"><a class="viewcode-back" href="../../kombu/reference/kombu.entity.html#kombu.entity.Exchange.can_cache_declaration">[docs]</a>    <span class="k">def</span> <span class="nf">can_cache_declaration</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">durable</span>
+
+</div></div>
+<div class="viewcode-block" id="Queue"><a class="viewcode-back" href="../../kombu/reference/kombu.entity.html#kombu.entity.Queue">[docs]</a><span class="k">class</span> <span class="nc">Queue</span><span class="p">(</span><span class="n">MaybeChannelBound</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;A Queue declaration.</span>
+
+<span class="sd">    :keyword name: See :attr:`name`.</span>
+<span class="sd">    :keyword exchange: See :attr:`exchange`.</span>
+<span class="sd">    :keyword routing_key: See :attr:`routing_key`.</span>
+<span class="sd">    :keyword channel: See :attr:`channel`.</span>
+<span class="sd">    :keyword durable: See :attr:`durable`.</span>
+<span class="sd">    :keyword exclusive: See :attr:`exclusive`.</span>
+<span class="sd">    :keyword auto_delete: See :attr:`auto_delete`.</span>
+<span class="sd">    :keyword queue_arguments: See :attr:`queue_arguments`.</span>
+<span class="sd">    :keyword binding_arguments: See :attr:`binding_arguments`.</span>
+
+<span class="sd">    .. attribute:: name</span>
+
+<span class="sd">        Name of the queue. Default is no name (default queue destination).</span>
+
+<span class="sd">    .. attribute:: exchange</span>
+
+<span class="sd">        The :class:`Exchange` the queue binds to.</span>
+
+<span class="sd">    .. attribute:: routing_key</span>
+
+<span class="sd">        The routing key (if any), also called *binding key*.</span>
+
+<span class="sd">        The interpretation of the routing key depends on</span>
+<span class="sd">        the :attr:`Exchange.type`.</span>
+
+<span class="sd">            * direct exchange</span>
+
+<span class="sd">                Matches if the routing key property of the message and</span>
+<span class="sd">                the :attr:`routing_key` attribute are identical.</span>
+
+<span class="sd">            * fanout exchange</span>
+
+<span class="sd">                Always matches, even if the binding does not have a key.</span>
+
+<span class="sd">            * topic exchange</span>
+
+<span class="sd">                Matches the routing key property of the message by a primitive</span>
+<span class="sd">                pattern matching scheme. The message routing key then consists</span>
+<span class="sd">                of words separated by dots (`&quot;.&quot;`, like domain names), and</span>
+<span class="sd">                two special characters are available; star (`&quot;*&quot;`) and hash</span>
+<span class="sd">                (`&quot;#&quot;`). The star matches any word, and the hash matches</span>
+<span class="sd">                zero or more words. For example `&quot;*.stock.#&quot;` matches the</span>
+<span class="sd">                routing keys `&quot;usd.stock&quot;` and `&quot;eur.stock.db&quot;` but not</span>
+<span class="sd">                `&quot;stock.nasdaq&quot;`.</span>
+
+<span class="sd">    .. attribute:: channel</span>
+
+<span class="sd">        The channel the Queue is bound to (if bound).</span>
+
+<span class="sd">    .. attribute:: durable</span>
+
+<span class="sd">        Durable queues remain active when a server restarts.</span>
+<span class="sd">        Non-durable queues (transient queues) are purged if/when</span>
+<span class="sd">        a server restarts.</span>
+<span class="sd">        Note that durable queues do not necessarily hold persistent</span>
+<span class="sd">        messages, although it does not make sense to send</span>
+<span class="sd">        persistent messages to a transient queue.</span>
+
+<span class="sd">        Default is :const:`True`.</span>
+
+<span class="sd">    .. attribute:: exclusive</span>
+
+<span class="sd">        Exclusive queues may only be consumed from by the</span>
+<span class="sd">        current connection. Setting the &#39;exclusive&#39; flag</span>
+<span class="sd">        always implies &#39;auto-delete&#39;.</span>
+
+<span class="sd">        Default is :const:`False`.</span>
+
+<span class="sd">    .. attribute:: auto_delete</span>
+
+<span class="sd">        If set, the queue is deleted when all consumers have</span>
+<span class="sd">        finished using it. Last consumer can be cancelled</span>
+<span class="sd">        either explicitly or because its channel is closed. If</span>
+<span class="sd">        there was no consumer ever on the queue, it won&#39;t be</span>
+<span class="sd">        deleted.</span>
+
+<span class="sd">    .. attribute:: queue_arguments</span>
+
+<span class="sd">        Additional arguments used when declaring the queue.</span>
+
+<span class="sd">    .. attribute:: binding_arguments</span>
+
+<span class="sd">        Additional arguments used when binding the queue.</span>
+
+<span class="sd">    .. attribute:: alias</span>
+
+<span class="sd">        Unused in Kombu, but applications can take advantage of this.</span>
+<span class="sd">        For example to give alternate names to queues with automatically</span>
+<span class="sd">        generated queue names.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">name</span> <span class="o">=</span> <span class="s">&#39;&#39;</span>
+    <span class="n">exchange</span> <span class="o">=</span> <span class="n">Exchange</span><span class="p">(</span><span class="s">&#39;&#39;</span><span class="p">)</span>
+    <span class="n">routing_key</span> <span class="o">=</span> <span class="s">&#39;&#39;</span>
+
+    <span class="n">durable</span> <span class="o">=</span> <span class="bp">True</span>
+    <span class="n">exclusive</span> <span class="o">=</span> <span class="bp">False</span>
+    <span class="n">auto_delete</span> <span class="o">=</span> <span class="bp">False</span>
+    <span class="n">no_ack</span> <span class="o">=</span> <span class="bp">False</span>
+
+    <span class="n">attrs</span> <span class="o">=</span> <span class="p">((</span><span class="s">&#39;name&#39;</span><span class="p">,</span> <span class="bp">None</span><span class="p">),</span>
+             <span class="p">(</span><span class="s">&#39;exchange&#39;</span><span class="p">,</span> <span class="bp">None</span><span class="p">),</span>
+             <span class="p">(</span><span class="s">&#39;routing_key&#39;</span><span class="p">,</span> <span class="bp">None</span><span class="p">),</span>
+             <span class="p">(</span><span class="s">&#39;queue_arguments&#39;</span><span class="p">,</span> <span class="bp">None</span><span class="p">),</span>
+             <span class="p">(</span><span class="s">&#39;binding_arguments&#39;</span><span class="p">,</span> <span class="bp">None</span><span class="p">),</span>
+             <span class="p">(</span><span class="s">&#39;durable&#39;</span><span class="p">,</span> <span class="nb">bool</span><span class="p">),</span>
+             <span class="p">(</span><span class="s">&#39;exclusive&#39;</span><span class="p">,</span> <span class="nb">bool</span><span class="p">),</span>
+             <span class="p">(</span><span class="s">&#39;auto_delete&#39;</span><span class="p">,</span> <span class="nb">bool</span><span class="p">),</span>
+             <span class="p">(</span><span class="s">&#39;no_ack&#39;</span><span class="p">,</span> <span class="bp">None</span><span class="p">),</span>
+             <span class="p">(</span><span class="s">&#39;alias&#39;</span><span class="p">,</span> <span class="bp">None</span><span class="p">))</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s">&#39;&#39;</span><span class="p">,</span> <span class="n">exchange</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">routing_key</span><span class="o">=</span><span class="s">&#39;&#39;</span><span class="p">,</span> <span class="n">channel</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+            <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">Queue</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">name</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">exchange</span> <span class="o">=</span> <span class="n">exchange</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">exchange</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">routing_key</span> <span class="o">=</span> <span class="n">routing_key</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">routing_key</span>
+        <span class="c"># exclusive implies auto-delete.</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">exclusive</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">auto_delete</span> <span class="o">=</span> <span class="bp">True</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">maybe_bind</span><span class="p">(</span><span class="n">channel</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__hash__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="nb">hash</span><span class="p">(</span><span class="s">&#39;Q|</span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="p">))</span>
+
+<div class="viewcode-block" id="Queue.when_bound"><a class="viewcode-back" href="../../kombu/reference/kombu.entity.html#kombu.entity.Queue.when_bound">[docs]</a>    <span class="k">def</span> <span class="nf">when_bound</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">exchange</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">exchange</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">exchange</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">channel</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="Queue.declare"><a class="viewcode-back" href="../../kombu/reference/kombu.entity.html#kombu.entity.Queue.declare">[docs]</a>    <span class="k">def</span> <span class="nf">declare</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">nowait</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Declares the queue, the exchange and binds the queue to</span>
+<span class="sd">        the exchange.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">exchange</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">exchange</span><span class="o">.</span><span class="n">declare</span><span class="p">(</span><span class="n">nowait</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">queue_declare</span><span class="p">(</span><span class="n">nowait</span><span class="p">,</span> <span class="n">passive</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span>
+        <span class="c"># self.name should be set by queue_declare in the case that</span>
+        <span class="c"># we&#39;re working with anonymous queues</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">queue_bind</span><span class="p">(</span><span class="n">nowait</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span>
+</div>
+<div class="viewcode-block" id="Queue.queue_declare"><a class="viewcode-back" href="../../kombu/reference/kombu.entity.html#kombu.entity.Queue.queue_declare">[docs]</a>    <span class="k">def</span> <span class="nf">queue_declare</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">nowait</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">passive</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Declare queue on the server.</span>
+
+<span class="sd">        :keyword nowait: Do not wait for a reply.</span>
+<span class="sd">        :keyword passive: If set, the server will not create the queue.</span>
+<span class="sd">            The client can use this to check whether a queue exists</span>
+<span class="sd">            without modifying the server state.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">ret</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">channel</span><span class="o">.</span><span class="n">queue_declare</span><span class="p">(</span><span class="n">queue</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+                                         <span class="n">passive</span><span class="o">=</span><span class="n">passive</span><span class="p">,</span>
+                                         <span class="n">durable</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">durable</span><span class="p">,</span>
+                                         <span class="n">exclusive</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">exclusive</span><span class="p">,</span>
+                                         <span class="n">auto_delete</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">auto_delete</span><span class="p">,</span>
+                                         <span class="n">arguments</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">queue_arguments</span><span class="p">,</span>
+                                         <span class="n">nowait</span><span class="o">=</span><span class="n">nowait</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">ret</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="k">return</span> <span class="n">ret</span>
+</div>
+<div class="viewcode-block" id="Queue.queue_bind"><a class="viewcode-back" href="../../kombu/reference/kombu.entity.html#kombu.entity.Queue.queue_bind">[docs]</a>    <span class="k">def</span> <span class="nf">queue_bind</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">nowait</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Create the queue binding on the server.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">channel</span><span class="o">.</span><span class="n">queue_bind</span><span class="p">(</span><span class="n">queue</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+                                       <span class="n">exchange</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">exchange</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+                                       <span class="n">routing_key</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">routing_key</span><span class="p">,</span>
+                                       <span class="n">arguments</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">binding_arguments</span><span class="p">,</span>
+                                       <span class="n">nowait</span><span class="o">=</span><span class="n">nowait</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="Queue.get"><a class="viewcode-back" href="../../kombu/reference/kombu.entity.html#kombu.entity.Queue.get">[docs]</a>    <span class="k">def</span> <span class="nf">get</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">no_ack</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Poll the server for a new message.</span>
+
+<span class="sd">        Returns the message instance if a message was available,</span>
+<span class="sd">        or :const:`None` otherwise.</span>
+
+<span class="sd">        :keyword no_ack: If set messages received does not have to</span>
+<span class="sd">            be acknowledged.</span>
+
+<span class="sd">        This method provides direct access to the messages in a</span>
+<span class="sd">        queue using a synchronous dialogue, designed for</span>
+<span class="sd">        specific types of applications where synchronous functionality</span>
+<span class="sd">        is more important than performance.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">no_ack</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">no_ack</span> <span class="k">if</span> <span class="n">no_ack</span> <span class="ow">is</span> <span class="bp">None</span> <span class="k">else</span> <span class="n">no_ack</span>
+        <span class="n">message</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">channel</span><span class="o">.</span><span class="n">basic_get</span><span class="p">(</span><span class="n">queue</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">no_ack</span><span class="o">=</span><span class="n">no_ack</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">message</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="n">m2p</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">channel</span><span class="p">,</span> <span class="s">&#39;message_to_python&#39;</span><span class="p">,</span> <span class="bp">None</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">m2p</span><span class="p">:</span>
+                <span class="n">message</span> <span class="o">=</span> <span class="n">m2p</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">message</span>
+</div>
+<div class="viewcode-block" id="Queue.purge"><a class="viewcode-back" href="../../kombu/reference/kombu.entity.html#kombu.entity.Queue.purge">[docs]</a>    <span class="k">def</span> <span class="nf">purge</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">nowait</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Remove all ready messages from the queue.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">channel</span><span class="o">.</span><span class="n">queue_purge</span><span class="p">(</span><span class="n">queue</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+                                        <span class="n">nowait</span><span class="o">=</span><span class="n">nowait</span><span class="p">)</span> <span class="ow">or</span> <span class="mi">0</span>
+</div>
+<div class="viewcode-block" id="Queue.consume"><a class="viewcode-back" href="../../kombu/reference/kombu.entity.html#kombu.entity.Queue.consume">[docs]</a>    <span class="k">def</span> <span class="nf">consume</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">consumer_tag</span><span class="o">=</span><span class="s">&#39;&#39;</span><span class="p">,</span> <span class="n">callback</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">no_ack</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+            <span class="n">nowait</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Start a queue consumer.</span>
+
+<span class="sd">        Consumers last as long as the channel they were created on, or</span>
+<span class="sd">        until the client cancels them.</span>
+
+<span class="sd">        :keyword consumer_tag: Unique identifier for the consumer. The</span>
+<span class="sd">          consumer tag is local to a connection, so two clients</span>
+<span class="sd">          can use the same consumer tags. If this field is empty</span>
+<span class="sd">          the server will generate a unique tag.</span>
+
+<span class="sd">        :keyword no_ack: If set messages received does not have to</span>
+<span class="sd">            be acknowledged.</span>
+
+<span class="sd">        :keyword nowait: Do not wait for a reply.</span>
+
+<span class="sd">        :keyword callback: callback called for each delivered message</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">no_ack</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="n">no_ack</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">no_ack</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">channel</span><span class="o">.</span><span class="n">basic_consume</span><span class="p">(</span><span class="n">queue</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+                                          <span class="n">no_ack</span><span class="o">=</span><span class="n">no_ack</span><span class="p">,</span>
+                                          <span class="n">consumer_tag</span><span class="o">=</span><span class="n">consumer_tag</span> <span class="ow">or</span> <span class="s">&#39;&#39;</span><span class="p">,</span>
+                                          <span class="n">callback</span><span class="o">=</span><span class="n">callback</span><span class="p">,</span>
+                                          <span class="n">nowait</span><span class="o">=</span><span class="n">nowait</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="Queue.cancel"><a class="viewcode-back" href="../../kombu/reference/kombu.entity.html#kombu.entity.Queue.cancel">[docs]</a>    <span class="k">def</span> <span class="nf">cancel</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">consumer_tag</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Cancel a consumer by consumer tag.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">channel</span><span class="o">.</span><span class="n">basic_cancel</span><span class="p">(</span><span class="n">consumer_tag</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="Queue.delete"><a class="viewcode-back" href="../../kombu/reference/kombu.entity.html#kombu.entity.Queue.delete">[docs]</a>    <span class="k">def</span> <span class="nf">delete</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">if_unused</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">if_empty</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">nowait</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Delete the queue.</span>
+
+<span class="sd">        :keyword if_unused: If set, the server will only delete the queue</span>
+<span class="sd">            if it has no consumers. A channel error will be raised</span>
+<span class="sd">            if the queue has consumers.</span>
+
+<span class="sd">        :keyword if_empty: If set, the server will only delete the queue</span>
+<span class="sd">            if it is empty. If it is not empty a channel error will be raised.</span>
+
+<span class="sd">        :keyword nowait: Do not wait for a reply.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">channel</span><span class="o">.</span><span class="n">queue_delete</span><span class="p">(</span><span class="n">queue</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+                                         <span class="n">if_unused</span><span class="o">=</span><span class="n">if_unused</span><span class="p">,</span>
+                                         <span class="n">if_empty</span><span class="o">=</span><span class="n">if_empty</span><span class="p">,</span>
+                                         <span class="n">nowait</span><span class="o">=</span><span class="n">nowait</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="Queue.unbind"><a class="viewcode-back" href="../../kombu/reference/kombu.entity.html#kombu.entity.Queue.unbind">[docs]</a>    <span class="k">def</span> <span class="nf">unbind</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Delete the binding on the server.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">channel</span><span class="o">.</span><span class="n">queue_unbind</span><span class="p">(</span><span class="n">queue</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+                                         <span class="n">exchange</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">exchange</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+                                         <span class="n">routing_key</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">routing_key</span><span class="p">,</span>
+                                         <span class="n">arguments</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">binding_arguments</span><span class="p">)</span>
+</div>
+    <span class="k">def</span> <span class="nf">__eq__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">other</span><span class="p">,</span> <span class="n">Queue</span><span class="p">):</span>
+            <span class="k">return</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">==</span> <span class="n">other</span><span class="o">.</span><span class="n">name</span> <span class="ow">and</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">exchange</span> <span class="o">==</span> <span class="n">other</span><span class="o">.</span><span class="n">exchange</span> <span class="ow">and</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">routing_key</span> <span class="o">==</span> <span class="n">other</span><span class="o">.</span><span class="n">routing_key</span> <span class="ow">and</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">queue_arguments</span> <span class="o">==</span> <span class="n">other</span><span class="o">.</span><span class="n">queue_arguments</span> <span class="ow">and</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">binding_arguments</span> <span class="o">==</span> <span class="n">other</span><span class="o">.</span><span class="n">binding_arguments</span> <span class="ow">and</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">durable</span> <span class="o">==</span> <span class="n">other</span><span class="o">.</span><span class="n">durable</span> <span class="ow">and</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">exclusive</span> <span class="o">==</span> <span class="n">other</span><span class="o">.</span><span class="n">exclusive</span> <span class="ow">and</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">auto_delete</span> <span class="o">==</span> <span class="n">other</span><span class="o">.</span><span class="n">auto_delete</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">False</span>
+
+    <span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="nb">super</span><span class="p">(</span><span class="n">Queue</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__repr__</span><span class="p">(</span>
+                 <span class="s">&#39;Queue </span><span class="si">%s</span><span class="s"> -&gt; </span><span class="si">%s</span><span class="s"> -&gt; </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+                                           <span class="bp">self</span><span class="o">.</span><span class="n">exchange</span><span class="p">,</span>
+                                           <span class="bp">self</span><span class="o">.</span><span class="n">routing_key</span><span class="p">))</span>
+
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="Queue.can_cache_declaration"><a class="viewcode-back" href="../../kombu/reference/kombu.entity.html#kombu.entity.Queue.can_cache_declaration">[docs]</a>    <span class="k">def</span> <span class="nf">can_cache_declaration</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">durable</span>
+</div>
+    <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="Queue.from_dict"><a class="viewcode-back" href="../../kombu/reference/kombu.entity.html#kombu.entity.Queue.from_dict">[docs]</a>    <span class="k">def</span> <span class="nf">from_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">queue</span><span class="p">,</span> <span class="o">**</span><span class="n">options</span><span class="p">):</span>
+        <span class="n">binding_key</span> <span class="o">=</span> <span class="n">options</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;binding_key&#39;</span><span class="p">)</span> <span class="ow">or</span> <span class="n">options</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;routing_key&#39;</span><span class="p">)</span>
+
+        <span class="n">e_durable</span> <span class="o">=</span> <span class="n">options</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;exchange_durable&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">e_durable</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="n">e_durable</span> <span class="o">=</span> <span class="n">options</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;durable&#39;</span><span class="p">)</span>
+
+        <span class="n">e_auto_delete</span> <span class="o">=</span> <span class="n">options</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;exchange_auto_delete&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">e_auto_delete</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="n">e_auto_delete</span> <span class="o">=</span> <span class="n">options</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;auto_delete&#39;</span><span class="p">)</span>
+
+        <span class="n">q_durable</span> <span class="o">=</span> <span class="n">options</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;queue_durable&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">q_durable</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="n">q_durable</span> <span class="o">=</span> <span class="n">options</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;durable&#39;</span><span class="p">)</span>
+
+        <span class="n">q_auto_delete</span> <span class="o">=</span> <span class="n">options</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;queue_auto_delete&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">q_auto_delete</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="n">q_auto_delete</span> <span class="o">=</span> <span class="n">options</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;auto_delete&#39;</span><span class="p">)</span>
+
+        <span class="n">e_arguments</span> <span class="o">=</span> <span class="n">options</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;exchange_arguments&#39;</span><span class="p">)</span>
+        <span class="n">q_arguments</span> <span class="o">=</span> <span class="n">options</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;queue_arguments&#39;</span><span class="p">)</span>
+        <span class="n">b_arguments</span> <span class="o">=</span> <span class="n">options</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;binding_arguments&#39;</span><span class="p">)</span>
+
+        <span class="n">exchange</span> <span class="o">=</span> <span class="n">Exchange</span><span class="p">(</span><span class="n">options</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;exchange&#39;</span><span class="p">),</span>
+                            <span class="nb">type</span><span class="o">=</span><span class="n">options</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;exchange_type&#39;</span><span class="p">),</span>
+                            <span class="n">delivery_mode</span><span class="o">=</span><span class="n">options</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;delivery_mode&#39;</span><span class="p">),</span>
+                            <span class="n">routing_key</span><span class="o">=</span><span class="n">options</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;routing_key&#39;</span><span class="p">),</span>
+                            <span class="n">durable</span><span class="o">=</span><span class="n">e_durable</span><span class="p">,</span>
+                            <span class="n">auto_delete</span><span class="o">=</span><span class="n">e_auto_delete</span><span class="p">,</span>
+                            <span class="n">arguments</span><span class="o">=</span><span class="n">e_arguments</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">Queue</span><span class="p">(</span><span class="n">queue</span><span class="p">,</span>
+                     <span class="n">exchange</span><span class="o">=</span><span class="n">exchange</span><span class="p">,</span>
+                     <span class="n">routing_key</span><span class="o">=</span><span class="n">binding_key</span><span class="p">,</span>
+                     <span class="n">durable</span><span class="o">=</span><span class="n">q_durable</span><span class="p">,</span>
+                     <span class="n">exclusive</span><span class="o">=</span><span class="n">options</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;exclusive&#39;</span><span class="p">),</span>
+                     <span class="n">auto_delete</span><span class="o">=</span><span class="n">q_auto_delete</span><span class="p">,</span>
+                     <span class="n">no_ack</span><span class="o">=</span><span class="n">options</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;no_ack&#39;</span><span class="p">),</span>
+                     <span class="n">queue_arguments</span><span class="o">=</span><span class="n">q_arguments</span><span class="p">,</span>
+                     <span class="n">binding_arguments</span><span class="o">=</span><span class="n">b_arguments</span><span class="p">)</span></div></div>
+</pre></div>
+
+      </div>
+      <div class="bottomnav">
+      
+        <p>
+        <a href="/">Home</a>:
+        <a class="uplink" href="../../index.html">Contents</a>
+        </p>
+
+      </div>
+
+    <div class="footer">
+        &copy; Copyright 2012, HDKNR.COM.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.2pre/3c28de26aac2.
+    </div>
+  </body>
+</html>

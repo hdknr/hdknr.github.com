@@ -10,7 +10,7 @@ django.core
 ===========
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/core/__init__.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/core/__init__.py>`_ 
 
 .. include:: cheat/django.core.rst
 
@@ -42,7 +42,7 @@ django.core.context_processors
 ==============================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/core/context_processors.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/core/context_processors.py>`_ 
 
 .. include:: cheat/django.core.context_processors.rst
 
@@ -55,7 +55,7 @@ django.core.exceptions
 ======================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/core/exceptions.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/core/exceptions.py>`_ 
 
 .. include:: cheat/django.core.exceptions.rst
 
@@ -68,7 +68,7 @@ django.core.paginator
 =====================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/core/paginator.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/core/paginator.py>`_ 
 
 .. include:: cheat/django.core.paginator.rst
 
@@ -81,24 +81,24 @@ django.core.signals
 ===================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/core/signals.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/core/signals.py>`_ 
 
 .. include:: cheat/django.core.signals.rst
 
 .. automodule:: django.core.signals
     :members:
 
-.. _django.core.template_loader:
+.. _django.core.signing:
 
-django.core.template_loader
-===========================
+django.core.signing
+===================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/core/template_loader.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/core/signing.py>`_ 
 
-.. include:: cheat/django.core.template_loader.rst
+.. include:: cheat/django.core.signing.rst
 
-.. automodule:: django.core.template_loader
+.. automodule:: django.core.signing
     :members:
 
 .. _django.core.urlresolvers:
@@ -107,7 +107,7 @@ django.core.urlresolvers
 ========================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/core/urlresolvers.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/core/urlresolvers.py>`_ 
 
 .. include:: cheat/django.core.urlresolvers.rst
 
@@ -120,11 +120,24 @@ django.core.validators
 ======================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/core/validators.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/core/validators.py>`_ 
 
 .. include:: cheat/django.core.validators.rst
 
 .. automodule:: django.core.validators
+    :members:
+
+.. _django.core.wsgi:
+
+django.core.wsgi
+================
+
+
+- `source <https://github.com/django/django/tree/master/django/core/wsgi.py>`_ 
+
+.. include:: cheat/django.core.wsgi.rst
+
+.. automodule:: django.core.wsgi
     :members:
 
 .. _django.core.xheaders:
@@ -133,7 +146,7 @@ django.core.xheaders
 ====================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/core/xheaders.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/core/xheaders.py>`_ 
 
 .. include:: cheat/django.core.xheaders.rst
 

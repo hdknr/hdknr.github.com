@@ -1,0 +1,834 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>kombu.transport.virtual &mdash; Kombu Docs 1 documentation</title>
+    
+    <link rel="stylesheet" href="../../../static/haiku.css" type="text/css" />
+    <link rel="stylesheet" href="../../../static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../../../static/print.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../',
+        VERSION:     '1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../../static/jquery.js"></script>
+    <script type="text/javascript" src="../../../static/underscore.js"></script>
+    <script type="text/javascript" src="../../../static/doctools.js"></script>
+    <script type="text/javascript" src="../../../static/theme_extras.js"></script>
+    <link rel="top" title="Kombu Docs 1 documentation" href="../../../index.html" />
+    <link rel="up" title="kombu.transport" href="../transport.html" /> 
+  </head>
+  <body>
+      <div class="header"><h1 class="heading"><a href="../../../index.html">
+          <span>Kombu Docs 1 documentation</span></a></h1>
+        <h2 class="heading"><span>kombu.transport.virtual</span></h2>
+      </div>
+      <div class="topnav">
+      
+        <p>
+        <a href="/">Home</a>:
+        <a class="uplink" href="../../../index.html">Contents</a>
+        </p>
+
+      </div>
+      <div class="content">
+        
+        
+  <h1>Source code for kombu.transport.virtual</h1><div class="highlight"><pre>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">kombu.transport.virtual</span>
+<span class="sd">=======================</span>
+
+<span class="sd">Virtual transport implementation.</span>
+
+<span class="sd">Emulates the AMQ API for non-AMQ transports.</span>
+
+<span class="sd">:copyright: (c) 2009, 2012 by Ask Solem.</span>
+<span class="sd">:license: BSD, see LICENSE for more details.</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">absolute_import</span>
+
+<span class="kn">import</span> <span class="nn">base64</span>
+<span class="kn">import</span> <span class="nn">socket</span>
+<span class="kn">import</span> <span class="nn">warnings</span>
+
+<span class="kn">from</span> <span class="nn">itertools</span> <span class="kn">import</span> <span class="n">count</span>
+<span class="kn">from</span> <span class="nn">time</span> <span class="kn">import</span> <span class="n">sleep</span><span class="p">,</span> <span class="n">time</span>
+<span class="kn">from</span> <span class="nn">Queue</span> <span class="kn">import</span> <span class="n">Empty</span>
+
+<span class="kn">from</span> <span class="nn">kombu.exceptions</span> <span class="kn">import</span> <span class="n">StdChannelError</span>
+<span class="kn">from</span> <span class="nn">kombu.utils</span> <span class="kn">import</span> <span class="n">emergency_dump_state</span><span class="p">,</span> <span class="n">say</span><span class="p">,</span> <span class="n">uuid</span>
+<span class="kn">from</span> <span class="nn">kombu.utils.compat</span> <span class="kn">import</span> <span class="n">OrderedDict</span>
+<span class="kn">from</span> <span class="nn">kombu.utils.encoding</span> <span class="kn">import</span> <span class="n">str_to_bytes</span><span class="p">,</span> <span class="n">bytes_to_str</span>
+<span class="kn">from</span> <span class="nn">kombu.utils.finalize</span> <span class="kn">import</span> <span class="n">Finalize</span>
+
+<span class="kn">from</span> <span class="nn">kombu.transport</span> <span class="kn">import</span> <span class="n">base</span>
+
+<span class="kn">from</span> <span class="nn">.scheduling</span> <span class="kn">import</span> <span class="n">FairCycle</span>
+<span class="kn">from</span> <span class="nn">.exchange</span> <span class="kn">import</span> <span class="n">STANDARD_EXCHANGE_TYPES</span>
+
+<span class="n">UNDELIVERABLE_FMT</span> <span class="o">=</span> <span class="s">&quot;&quot;&quot;</span><span class="se">\</span>
+<span class="s">Message could not be delivered: No queues bound to exchange </span><span class="si">%(exchange)r</span><span class="s"></span>
+<span class="s">using binding key </span><span class="si">%(routing_key)r</span><span class="s"></span>
+<span class="s">&quot;&quot;&quot;</span>
+
+
+<span class="k">class</span> <span class="nc">Base64</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="nf">encode</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">s</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">bytes_to_str</span><span class="p">(</span><span class="n">base64</span><span class="o">.</span><span class="n">b64encode</span><span class="p">(</span><span class="n">str_to_bytes</span><span class="p">(</span><span class="n">s</span><span class="p">)))</span>
+
+    <span class="k">def</span> <span class="nf">decode</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">s</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">base64</span><span class="o">.</span><span class="n">b64decode</span><span class="p">(</span><span class="n">str_to_bytes</span><span class="p">(</span><span class="n">s</span><span class="p">))</span>
+
+
+<span class="k">class</span> <span class="nc">NotEquivalentError</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Entity declaration is not equivalent to the previous declaration.&quot;&quot;&quot;</span>
+    <span class="k">pass</span>
+
+
+<span class="k">class</span> <span class="nc">UndeliverableWarning</span><span class="p">(</span><span class="ne">UserWarning</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;The message could not be delivered to a queue.&quot;&quot;&quot;</span>
+    <span class="k">pass</span>
+
+
+<div class="viewcode-block" id="BrokerState"><a class="viewcode-back" href="../../../reference/kombu.transport.virtual.html#kombu.transport.virtual.BrokerState">[docs]</a><span class="k">class</span> <span class="nc">BrokerState</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+
+    <span class="c">#: exchange declarations.</span>
+    <span class="n">exchanges</span> <span class="o">=</span> <span class="bp">None</span>
+
+    <span class="c">#: active bindings.</span>
+    <span class="n">bindings</span> <span class="o">=</span> <span class="bp">None</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">exchanges</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">bindings</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">exchanges</span> <span class="o">=</span> <span class="p">{}</span> <span class="k">if</span> <span class="n">exchanges</span> <span class="ow">is</span> <span class="bp">None</span> <span class="k">else</span> <span class="n">exchanges</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">bindings</span> <span class="o">=</span> <span class="p">{}</span>  <span class="k">if</span> <span class="n">bindings</span>  <span class="ow">is</span> <span class="bp">None</span> <span class="k">else</span> <span class="n">bindings</span>
+
+<div class="viewcode-block" id="BrokerState.clear"><a class="viewcode-back" href="../../../reference/kombu.transport.virtual.html#kombu.transport.virtual.BrokerState.clear">[docs]</a>    <span class="k">def</span> <span class="nf">clear</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">exchanges</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">bindings</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
+
+</div></div>
+<div class="viewcode-block" id="QoS"><a class="viewcode-back" href="../../../reference/kombu.transport.virtual.html#kombu.transport.virtual.QoS">[docs]</a><span class="k">class</span> <span class="nc">QoS</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Quality of Service guarantees.</span>
+
+<span class="sd">    Only supports `prefetch_count` at this point.</span>
+
+<span class="sd">    :param channel: AMQ Channel.</span>
+<span class="sd">    :keyword prefetch_count: Initial prefetch count (defaults to 0).</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="c">#: current prefetch count value</span>
+    <span class="n">prefetch_count</span> <span class="o">=</span> <span class="mi">0</span>
+
+    <span class="c">#: :class:`~collections.OrderedDict` of active messages.</span>
+    <span class="c">#: *NOTE*: Can only be modified by the consuming thread.</span>
+    <span class="n">_delivered</span> <span class="o">=</span> <span class="bp">None</span>
+
+    <span class="c">#: acks can be done by other threads than the consuming thread.</span>
+    <span class="c">#: Instead of a mutex, which doesn&#39;t perform well here, we mark</span>
+    <span class="c">#: the delivery tags as dirty, so subsequent calls to append() can remove</span>
+    <span class="c">#: them.</span>
+    <span class="n">_dirty</span> <span class="o">=</span> <span class="bp">None</span>
+
+    <span class="c">#: If disabled, unacked messages won&#39;t be restored at shutdown.</span>
+    <span class="n">restore_at_shutdown</span> <span class="o">=</span> <span class="bp">True</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">channel</span><span class="p">,</span> <span class="n">prefetch_count</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">channel</span> <span class="o">=</span> <span class="n">channel</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">prefetch_count</span> <span class="o">=</span> <span class="n">prefetch_count</span> <span class="ow">or</span> <span class="mi">0</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_delivered</span> <span class="o">=</span> <span class="n">OrderedDict</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_delivered</span><span class="o">.</span><span class="n">restored</span> <span class="o">=</span> <span class="bp">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_dirty</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_on_collect</span> <span class="o">=</span> <span class="n">Finalize</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                                    <span class="bp">self</span><span class="o">.</span><span class="n">restore_unacked_once</span><span class="p">,</span>
+                                    <span class="n">exitpriority</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+
+<div class="viewcode-block" id="QoS.can_consume"><a class="viewcode-back" href="../../../reference/kombu.transport.virtual.html#kombu.transport.virtual.QoS.can_consume">[docs]</a>    <span class="k">def</span> <span class="nf">can_consume</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns true if the channel can be consumed from.</span>
+
+<span class="sd">        Used to ensure the client adhers to currently active</span>
+<span class="sd">        prefetch limits.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">pcount</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">prefetch_count</span>
+        <span class="k">return</span> <span class="ow">not</span> <span class="n">pcount</span> <span class="ow">or</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_delivered</span><span class="p">)</span> <span class="o">-</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_dirty</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">pcount</span>
+</div>
+<div class="viewcode-block" id="QoS.append"><a class="viewcode-back" href="../../../reference/kombu.transport.virtual.html#kombu.transport.virtual.QoS.append">[docs]</a>    <span class="k">def</span> <span class="nf">append</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">message</span><span class="p">,</span> <span class="n">delivery_tag</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Append message to transactional state.&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_delivered</span><span class="p">[</span><span class="n">delivery_tag</span><span class="p">]</span> <span class="o">=</span> <span class="n">message</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_dirty</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_flush</span><span class="p">()</span>
+</div>
+<div class="viewcode-block" id="QoS.get"><a class="viewcode-back" href="../../../reference/kombu.transport.virtual.html#kombu.transport.virtual.QoS.get">[docs]</a>    <span class="k">def</span> <span class="nf">get</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">delivery_tag</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_delivered</span><span class="p">[</span><span class="n">delivery_tag</span><span class="p">]</span>
+</div>
+    <span class="k">def</span> <span class="nf">_flush</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Flush dirty (acked/rejected) tags from.&quot;&quot;&quot;</span>
+        <span class="n">dirty</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_dirty</span>
+        <span class="n">delivered</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_delivered</span>
+        <span class="k">while</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">dirty_tag</span> <span class="o">=</span> <span class="n">dirty</span><span class="o">.</span><span class="n">pop</span><span class="p">()</span>
+            <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+                <span class="k">break</span>
+            <span class="n">delivered</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="n">dirty_tag</span><span class="p">,</span> <span class="bp">None</span><span class="p">)</span>
+
+<div class="viewcode-block" id="QoS.ack"><a class="viewcode-back" href="../../../reference/kombu.transport.virtual.html#kombu.transport.virtual.QoS.ack">[docs]</a>    <span class="k">def</span> <span class="nf">ack</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">delivery_tag</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Acknowledge message and remove from transactional state.&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_dirty</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">delivery_tag</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="QoS.reject"><a class="viewcode-back" href="../../../reference/kombu.transport.virtual.html#kombu.transport.virtual.QoS.reject">[docs]</a>    <span class="k">def</span> <span class="nf">reject</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">delivery_tag</span><span class="p">,</span> <span class="n">requeue</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Remove from transactional state and requeue message.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">requeue</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">channel</span><span class="o">.</span><span class="n">_restore</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_delivered</span><span class="p">[</span><span class="n">delivery_tag</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_dirty</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">delivery_tag</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="QoS.restore_unacked"><a class="viewcode-back" href="../../../reference/kombu.transport.virtual.html#kombu.transport.virtual.QoS.restore_unacked">[docs]</a>    <span class="k">def</span> <span class="nf">restore_unacked</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Restore all unacknowledged messages.&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_flush</span><span class="p">()</span>
+        <span class="n">delivered</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_delivered</span>
+        <span class="n">errors</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="k">while</span> <span class="n">delivered</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">_</span><span class="p">,</span> <span class="n">message</span> <span class="o">=</span> <span class="n">delivered</span><span class="o">.</span><span class="n">popitem</span><span class="p">()</span>
+            <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>  <span class="c"># pragma: no cover</span>
+                <span class="k">break</span>
+
+            <span class="k">try</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">channel</span><span class="o">.</span><span class="n">_restore</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">BaseException</span><span class="p">,</span> <span class="n">exc</span><span class="p">:</span>
+                <span class="n">errors</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">exc</span><span class="p">,</span> <span class="n">message</span><span class="p">))</span>
+        <span class="n">delivered</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">errors</span>
+</div>
+<div class="viewcode-block" id="QoS.restore_unacked_once"><a class="viewcode-back" href="../../../reference/kombu.transport.virtual.html#kombu.transport.virtual.QoS.restore_unacked_once">[docs]</a>    <span class="k">def</span> <span class="nf">restore_unacked_once</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Restores all unacknowledged message at shutdown/gc collect.</span>
+
+<span class="sd">        Will only be done once for each instance.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_on_collect</span><span class="o">.</span><span class="n">cancel</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_flush</span><span class="p">()</span>
+        <span class="n">state</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_delivered</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">restore_at_shutdown</span><span class="p">:</span>
+            <span class="k">return</span>
+        <span class="k">elif</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">channel</span><span class="o">.</span><span class="n">do_restore</span> <span class="ow">or</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="s">&#39;restored&#39;</span><span class="p">,</span> <span class="bp">None</span><span class="p">):</span>
+            <span class="k">assert</span> <span class="ow">not</span> <span class="n">state</span>
+            <span class="k">return</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">state</span><span class="p">:</span>
+                <span class="n">say</span><span class="p">(</span><span class="s">&#39;Restoring </span><span class="si">%r</span><span class="s"> unacknowledged message(s).&#39;</span><span class="p">,</span>
+                        <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_delivered</span><span class="p">))</span>
+                <span class="n">unrestored</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">restore_unacked</span><span class="p">()</span>
+
+                <span class="k">if</span> <span class="n">unrestored</span><span class="p">:</span>
+                    <span class="n">errors</span><span class="p">,</span> <span class="n">messages</span> <span class="o">=</span> <span class="nb">zip</span><span class="p">(</span><span class="o">*</span><span class="n">unrestored</span><span class="p">)</span>
+                    <span class="n">say</span><span class="p">(</span><span class="s">&#39;UNABLE TO RESTORE </span><span class="si">%s</span><span class="s"> MESSAGES: </span><span class="si">%s</span><span class="s">&#39;</span><span class="p">,</span>
+                            <span class="nb">len</span><span class="p">(</span><span class="n">errors</span><span class="p">),</span> <span class="n">errors</span><span class="p">)</span>
+                    <span class="n">emergency_dump_state</span><span class="p">(</span><span class="n">messages</span><span class="p">)</span>
+        <span class="k">finally</span><span class="p">:</span>
+            <span class="n">state</span><span class="o">.</span><span class="n">restored</span> <span class="o">=</span> <span class="bp">True</span>
+
+</div></div>
+<div class="viewcode-block" id="Message"><a class="viewcode-back" href="../../../reference/kombu.transport.virtual.html#kombu.transport.virtual.Message">[docs]</a><span class="k">class</span> <span class="nc">Message</span><span class="p">(</span><span class="n">base</span><span class="o">.</span><span class="n">Message</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">channel</span><span class="p">,</span> <span class="n">payload</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_raw</span> <span class="o">=</span> <span class="n">payload</span>
+        <span class="n">properties</span> <span class="o">=</span> <span class="n">payload</span><span class="p">[</span><span class="s">&#39;properties&#39;</span><span class="p">]</span>
+        <span class="n">body</span> <span class="o">=</span> <span class="n">payload</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;body&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">body</span><span class="p">:</span>
+            <span class="n">body</span> <span class="o">=</span> <span class="n">channel</span><span class="o">.</span><span class="n">decode_body</span><span class="p">(</span><span class="n">body</span><span class="p">,</span> <span class="n">properties</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;body_encoding&#39;</span><span class="p">))</span>
+        <span class="n">fields</span> <span class="o">=</span> <span class="p">{</span><span class="s">&#39;body&#39;</span><span class="p">:</span> <span class="n">body</span><span class="p">,</span>
+                  <span class="s">&#39;delivery_tag&#39;</span><span class="p">:</span> <span class="n">properties</span><span class="p">[</span><span class="s">&#39;delivery_tag&#39;</span><span class="p">],</span>
+                  <span class="s">&#39;content_type&#39;</span><span class="p">:</span> <span class="n">payload</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;content-type&#39;</span><span class="p">),</span>
+                  <span class="s">&#39;content_encoding&#39;</span><span class="p">:</span> <span class="n">payload</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;content-encoding&#39;</span><span class="p">),</span>
+                  <span class="s">&#39;headers&#39;</span><span class="p">:</span> <span class="n">payload</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;headers&#39;</span><span class="p">),</span>
+                  <span class="s">&#39;properties&#39;</span><span class="p">:</span> <span class="n">properties</span><span class="p">,</span>
+                  <span class="s">&#39;delivery_info&#39;</span><span class="p">:</span> <span class="n">properties</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;delivery_info&#39;</span><span class="p">),</span>
+                  <span class="s">&#39;postencode&#39;</span><span class="p">:</span> <span class="s">&#39;utf-8&#39;</span><span class="p">}</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">Message</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="n">channel</span><span class="p">,</span> <span class="o">**</span><span class="nb">dict</span><span class="p">(</span><span class="n">kwargs</span><span class="p">,</span> <span class="o">**</span><span class="n">fields</span><span class="p">))</span>
+
+<div class="viewcode-block" id="Message.serializable"><a class="viewcode-back" href="../../../reference/kombu.transport.virtual.html#kombu.transport.virtual.Message.serializable">[docs]</a>    <span class="k">def</span> <span class="nf">serializable</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">props</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">properties</span>
+        <span class="n">body</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">channel</span><span class="o">.</span><span class="n">encode_body</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">body</span><span class="p">,</span>
+                                           <span class="n">props</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;body_encoding&#39;</span><span class="p">))</span>
+        <span class="n">headers</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">headers</span><span class="p">)</span>
+        <span class="c"># remove compression header</span>
+        <span class="n">headers</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s">&#39;compression&#39;</span><span class="p">,</span> <span class="bp">None</span><span class="p">)</span>
+        <span class="k">return</span> <span class="p">{</span><span class="s">&#39;body&#39;</span><span class="p">:</span> <span class="n">body</span><span class="p">,</span>
+                <span class="s">&#39;properties&#39;</span><span class="p">:</span> <span class="n">props</span><span class="p">,</span>
+                <span class="s">&#39;content-type&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">content_type</span><span class="p">,</span>
+                <span class="s">&#39;content-encoding&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">content_encoding</span><span class="p">,</span>
+                <span class="s">&#39;headers&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">headers</span><span class="p">}</span>
+
+</div></div>
+<div class="viewcode-block" id="AbstractChannel"><a class="viewcode-back" href="../../../reference/kombu.transport.virtual.html#kombu.transport.virtual.AbstractChannel">[docs]</a><span class="k">class</span> <span class="nc">AbstractChannel</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;This is an abstract class defining the channel methods</span>
+<span class="sd">    you&#39;d usually want to implement in a virtual channel.</span>
+
+<span class="sd">    Do not subclass directly, but rather inherit from :class:`Channel`</span>
+<span class="sd">    instead.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">_get</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">queue</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Get next message from `queue`.&quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s">&#39;Virtual channels must implement _get&#39;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_put</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">queue</span><span class="p">,</span> <span class="n">message</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Put `message` onto `queue`.&quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s">&#39;Virtual channels must implement _put&#39;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_purge</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">queue</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Remove all messages from `queue`.&quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s">&#39;Virtual channels must implement _purge&#39;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_size</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">queue</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Return the number of messages in `queue` as an :class:`int`.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="mi">0</span>
+
+    <span class="k">def</span> <span class="nf">_delete</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">queue</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Delete `queue`.</span>
+
+<span class="sd">        This just purges the queue, if you need to do more you can</span>
+<span class="sd">        override this method.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_purge</span><span class="p">(</span><span class="n">queue</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_new_queue</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">queue</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Create new queue.</span>
+
+<span class="sd">        Some implementations needs to do additional actions when</span>
+<span class="sd">        the queue is created.  You can do so by overriding this</span>
+<span class="sd">        method.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">pass</span>
+
+    <span class="k">def</span> <span class="nf">_has_queue</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">queue</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Verify that queue exists.</span>
+
+<span class="sd">        Should return :const:`True` if the queue exists or :const:`False`</span>
+<span class="sd">        otherwise.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">True</span>
+
+    <span class="k">def</span> <span class="nf">_poll</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cycle</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Poll a list of queues for available messages.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">cycle</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
+
+</div>
+<div class="viewcode-block" id="Channel"><a class="viewcode-back" href="../../../reference/kombu.transport.virtual.html#kombu.transport.virtual.Channel">[docs]</a><span class="k">class</span> <span class="nc">Channel</span><span class="p">(</span><span class="n">AbstractChannel</span><span class="p">,</span> <span class="n">base</span><span class="o">.</span><span class="n">StdChannel</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Virtual channel.</span>
+
+<span class="sd">    :param connection: The transport instance this channel is part of.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c">#: message class used.</span>
+    <span class="n">Message</span> <span class="o">=</span> <span class="n">Message</span>
+
+    <span class="c">#: QoS class used.</span>
+    <span class="n">QoS</span> <span class="o">=</span> <span class="n">QoS</span>
+
+    <span class="c">#: flag to restore unacked messages when channel</span>
+    <span class="c">#: goes out of scope.</span>
+    <span class="n">do_restore</span> <span class="o">=</span> <span class="bp">True</span>
+
+    <span class="c">#: mapping of exchange types and corresponding classes.</span>
+    <span class="n">exchange_types</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">STANDARD_EXCHANGE_TYPES</span><span class="p">)</span>
+
+    <span class="c">#: flag set if the channel supports fanout exchanges.</span>
+    <span class="n">supports_fanout</span> <span class="o">=</span> <span class="bp">False</span>
+
+    <span class="c">#: Binary &lt;-&gt; ASCII codecs.</span>
+    <span class="n">codecs</span> <span class="o">=</span> <span class="p">{</span><span class="s">&#39;base64&#39;</span><span class="p">:</span> <span class="n">Base64</span><span class="p">()}</span>
+
+    <span class="c">#: Default body encoding.</span>
+    <span class="c">#: NOTE: ``transport_options[&#39;body_encoding&#39;]`` will override this value.</span>
+    <span class="n">body_encoding</span> <span class="o">=</span> <span class="s">&#39;base64&#39;</span>
+
+    <span class="c">#: counter used to generate delivery tags for this channel.</span>
+    <span class="n">_next_delivery_tag</span> <span class="o">=</span> <span class="n">count</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">next</span>
+
+    <span class="c">#: Optional queue where messages with no route is delivered.</span>
+    <span class="c">#: Set by ``transport_options[&#39;deadletter_queue&#39;]``.</span>
+    <span class="n">deadletter_queue</span> <span class="o">=</span> <span class="bp">None</span>
+
+    <span class="c"># List of options to transfer from :attr:`transport_options`.</span>
+    <span class="n">from_transport_options</span> <span class="o">=</span> <span class="p">(</span><span class="s">&#39;body_encoding&#39;</span><span class="p">,</span> <span class="s">&#39;deadletter_queue&#39;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">connection</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">connection</span> <span class="o">=</span> <span class="n">connection</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_consumers</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_cycle</span> <span class="o">=</span> <span class="bp">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_tag_to_queue</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_active_queues</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_qos</span> <span class="o">=</span> <span class="bp">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">closed</span> <span class="o">=</span> <span class="bp">False</span>
+
+        <span class="c"># instantiate exchange types</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">exchange_types</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">((</span><span class="n">typ</span><span class="p">,</span> <span class="n">cls</span><span class="p">(</span><span class="bp">self</span><span class="p">))</span>
+                    <span class="k">for</span> <span class="n">typ</span><span class="p">,</span> <span class="n">cls</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">exchange_types</span><span class="o">.</span><span class="n">items</span><span class="p">())</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">channel_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">_next_channel_id</span><span class="p">()</span>
+
+        <span class="n">topts</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">transport_options</span>
+        <span class="k">for</span> <span class="n">opt_name</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">from_transport_options</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="nb">setattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">opt_name</span><span class="p">,</span> <span class="n">topts</span><span class="p">[</span><span class="n">opt_name</span><span class="p">])</span>
+            <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+                <span class="k">pass</span>
+
+<div class="viewcode-block" id="Channel.exchange_declare"><a class="viewcode-back" href="../../../reference/kombu.transport.virtual.html#kombu.transport.virtual.Channel.exchange_declare">[docs]</a>    <span class="k">def</span> <span class="nf">exchange_declare</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">exchange</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="s">&#39;direct&#39;</span><span class="p">,</span> <span class="n">durable</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span>
+            <span class="n">auto_delete</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">arguments</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">nowait</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">passive</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Declare exchange.&quot;&quot;&quot;</span>
+        <span class="nb">type</span> <span class="o">=</span> <span class="nb">type</span> <span class="ow">or</span> <span class="s">&#39;direct&#39;</span>
+        <span class="n">exchange</span> <span class="o">=</span> <span class="n">exchange</span> <span class="ow">or</span> <span class="s">&#39;amq.</span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="nb">type</span><span class="p">,</span> <span class="p">)</span>
+        <span class="k">if</span> <span class="n">passive</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">exchange</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">exchanges</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">StdChannelError</span><span class="p">(</span><span class="s">&#39;404&#39;</span><span class="p">,</span>
+                    <span class="s">u&#39;NOT_FOUND - no exchange </span><span class="si">%r</span><span class="s"> in vhost </span><span class="si">%r</span><span class="s">&#39;</span> <span class="o">%</span> <span class="p">(</span>
+                        <span class="n">exchange</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">virtual_host</span> <span class="ow">or</span> <span class="s">&#39;/&#39;</span><span class="p">),</span>
+                    <span class="p">(</span><span class="mi">50</span><span class="p">,</span> <span class="mi">10</span><span class="p">),</span> <span class="s">&#39;Channel.exchange_declare&#39;</span><span class="p">)</span>
+            <span class="k">return</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">prev</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">exchanges</span><span class="p">[</span><span class="n">exchange</span><span class="p">]</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">typeof</span><span class="p">(</span><span class="n">exchange</span><span class="p">)</span><span class="o">.</span><span class="n">equivalent</span><span class="p">(</span><span class="n">prev</span><span class="p">,</span> <span class="n">exchange</span><span class="p">,</span> <span class="nb">type</span><span class="p">,</span>
+                                                    <span class="n">durable</span><span class="p">,</span> <span class="n">auto_delete</span><span class="p">,</span>
+                                                    <span class="n">arguments</span><span class="p">):</span>
+                <span class="k">raise</span> <span class="n">NotEquivalentError</span><span class="p">(</span>
+                        <span class="s">&#39;Cannot redeclare exchange </span><span class="si">%r</span><span class="s"> in vhost </span><span class="si">%r</span><span class="s"> with &#39;</span>
+                        <span class="s">&#39;different type, durable or autodelete value&#39;</span> <span class="o">%</span> <span class="p">(</span>
+                            <span class="n">exchange</span><span class="p">,</span>
+                            <span class="bp">self</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">virtual_host</span> <span class="ow">or</span> <span class="s">&#39;/&#39;</span><span class="p">))</span>
+        <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">exchanges</span><span class="p">[</span><span class="n">exchange</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+                    <span class="s">&#39;type&#39;</span><span class="p">:</span> <span class="nb">type</span><span class="p">,</span>
+                    <span class="s">&#39;durable&#39;</span><span class="p">:</span> <span class="n">durable</span><span class="p">,</span>
+                    <span class="s">&#39;auto_delete&#39;</span><span class="p">:</span> <span class="n">auto_delete</span><span class="p">,</span>
+                    <span class="s">&#39;arguments&#39;</span><span class="p">:</span> <span class="n">arguments</span> <span class="ow">or</span> <span class="p">{},</span>
+                    <span class="s">&#39;table&#39;</span><span class="p">:</span> <span class="p">[],</span>
+            <span class="p">}</span>
+</div>
+<div class="viewcode-block" id="Channel.exchange_delete"><a class="viewcode-back" href="../../../reference/kombu.transport.virtual.html#kombu.transport.virtual.Channel.exchange_delete">[docs]</a>    <span class="k">def</span> <span class="nf">exchange_delete</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">exchange</span><span class="p">,</span> <span class="n">if_unused</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">nowait</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Delete `exchange` and all its bindings.&quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">rkey</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">queue</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_table</span><span class="p">(</span><span class="n">exchange</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">queue_delete</span><span class="p">(</span><span class="n">queue</span><span class="p">,</span> <span class="n">if_unused</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">if_empty</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">exchanges</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="n">exchange</span><span class="p">,</span> <span class="bp">None</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="Channel.queue_declare"><a class="viewcode-back" href="../../../reference/kombu.transport.virtual.html#kombu.transport.virtual.Channel.queue_declare">[docs]</a>    <span class="k">def</span> <span class="nf">queue_declare</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">queue</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">passive</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Declare queue.&quot;&quot;&quot;</span>
+        <span class="n">queue</span> <span class="o">=</span> <span class="n">queue</span> <span class="ow">or</span> <span class="s">&#39;amq.gen-</span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">uuid</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">passive</span> <span class="ow">and</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_has_queue</span><span class="p">(</span><span class="n">queue</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="n">StdChannelError</span><span class="p">(</span><span class="s">&#39;404&#39;</span><span class="p">,</span>
+                    <span class="s">u&#39;NOT_FOUND - no queue </span><span class="si">%r</span><span class="s"> in vhost </span><span class="si">%r</span><span class="s">&#39;</span> <span class="o">%</span> <span class="p">(</span>
+                        <span class="n">queue</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">virtual_host</span> <span class="ow">or</span> <span class="s">&#39;/&#39;</span><span class="p">),</span>
+                    <span class="p">(</span><span class="mi">50</span><span class="p">,</span> <span class="mi">10</span><span class="p">),</span> <span class="s">&#39;Channel.queue_declare&#39;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_new_queue</span><span class="p">(</span><span class="n">queue</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">queue</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_size</span><span class="p">(</span><span class="n">queue</span><span class="p">),</span> <span class="mi">0</span>
+</div>
+<div class="viewcode-block" id="Channel.queue_delete"><a class="viewcode-back" href="../../../reference/kombu.transport.virtual.html#kombu.transport.virtual.Channel.queue_delete">[docs]</a>    <span class="k">def</span> <span class="nf">queue_delete</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">queue</span><span class="p">,</span> <span class="n">if_unusued</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">if_empty</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Delete queue.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">if_empty</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_size</span><span class="p">(</span><span class="n">queue</span><span class="p">):</span>
+            <span class="k">return</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">exchange</span><span class="p">,</span> <span class="n">routing_key</span><span class="p">,</span> <span class="n">arguments</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">bindings</span><span class="p">[</span><span class="n">queue</span><span class="p">]</span>
+        <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+            <span class="k">return</span>
+        <span class="n">meta</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">typeof</span><span class="p">(</span><span class="n">exchange</span><span class="p">)</span><span class="o">.</span><span class="n">prepare_bind</span><span class="p">(</span><span class="n">queue</span><span class="p">,</span> <span class="n">exchange</span><span class="p">,</span>
+                                                  <span class="n">routing_key</span><span class="p">,</span> <span class="n">arguments</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_delete</span><span class="p">(</span><span class="n">queue</span><span class="p">,</span> <span class="n">exchange</span><span class="p">,</span> <span class="o">*</span><span class="n">meta</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">bindings</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="n">queue</span><span class="p">,</span> <span class="bp">None</span><span class="p">)</span>
+</div>
+    <span class="k">def</span> <span class="nf">after_reply_message_received</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">queue</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">queue_delete</span><span class="p">(</span><span class="n">queue</span><span class="p">)</span>
+
+<div class="viewcode-block" id="Channel.queue_bind"><a class="viewcode-back" href="../../../reference/kombu.transport.virtual.html#kombu.transport.virtual.Channel.queue_bind">[docs]</a>    <span class="k">def</span> <span class="nf">queue_bind</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">queue</span><span class="p">,</span> <span class="n">exchange</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">routing_key</span><span class="o">=</span><span class="s">&#39;&#39;</span><span class="p">,</span> <span class="n">arguments</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+            <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Bind `queue` to `exchange` with `routing key`.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">queue</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">bindings</span><span class="p">:</span>
+            <span class="k">return</span>
+        <span class="n">exchange</span> <span class="o">=</span> <span class="n">exchange</span> <span class="ow">or</span> <span class="s">&#39;amq.direct&#39;</span>
+        <span class="n">table</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">exchanges</span><span class="p">[</span><span class="n">exchange</span><span class="p">]</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="s">&#39;table&#39;</span><span class="p">,</span> <span class="p">[])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">bindings</span><span class="p">[</span><span class="n">queue</span><span class="p">]</span> <span class="o">=</span> <span class="n">exchange</span><span class="p">,</span> <span class="n">routing_key</span><span class="p">,</span> <span class="n">arguments</span>
+        <span class="n">meta</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">typeof</span><span class="p">(</span><span class="n">exchange</span><span class="p">)</span><span class="o">.</span><span class="n">prepare_bind</span><span class="p">(</span><span class="n">queue</span><span class="p">,</span>
+                                                  <span class="n">exchange</span><span class="p">,</span>
+                                                  <span class="n">routing_key</span><span class="p">,</span>
+                                                  <span class="n">arguments</span><span class="p">)</span>
+        <span class="n">table</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">meta</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">supports_fanout</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_queue_bind</span><span class="p">(</span><span class="n">exchange</span><span class="p">,</span> <span class="o">*</span><span class="n">meta</span><span class="p">)</span>
+</div>
+    <span class="k">def</span> <span class="nf">list_bindings</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">exchange</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_exchanges</span><span class="p">():</span>
+            <span class="n">table</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_table</span><span class="p">(</span><span class="n">exchange</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">routing_key</span><span class="p">,</span> <span class="n">pattern</span><span class="p">,</span> <span class="n">queue</span> <span class="ow">in</span> <span class="n">table</span><span class="p">:</span>
+                <span class="k">yield</span> <span class="n">queue</span><span class="p">,</span> <span class="n">exchange</span><span class="p">,</span> <span class="n">routing_key</span>
+
+<div class="viewcode-block" id="Channel.queue_purge"><a class="viewcode-back" href="../../../reference/kombu.transport.virtual.html#kombu.transport.virtual.Channel.queue_purge">[docs]</a>    <span class="k">def</span> <span class="nf">queue_purge</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">queue</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Remove all ready messages from queue.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_purge</span><span class="p">(</span><span class="n">queue</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="Channel.basic_publish"><a class="viewcode-back" href="../../../reference/kombu.transport.virtual.html#kombu.transport.virtual.Channel.basic_publish">[docs]</a>    <span class="k">def</span> <span class="nf">basic_publish</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">message</span><span class="p">,</span> <span class="n">exchange</span><span class="p">,</span> <span class="n">routing_key</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Publish message.&quot;&quot;&quot;</span>
+        <span class="n">props</span> <span class="o">=</span> <span class="n">message</span><span class="p">[</span><span class="s">&#39;properties&#39;</span><span class="p">]</span>
+        <span class="n">message</span><span class="p">[</span><span class="s">&#39;body&#39;</span><span class="p">],</span> <span class="n">props</span><span class="p">[</span><span class="s">&#39;body_encoding&#39;</span><span class="p">]</span> <span class="o">=</span> \
+                <span class="bp">self</span><span class="o">.</span><span class="n">encode_body</span><span class="p">(</span><span class="n">message</span><span class="p">[</span><span class="s">&#39;body&#39;</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">body_encoding</span><span class="p">)</span>
+        <span class="n">props</span><span class="p">[</span><span class="s">&#39;delivery_info&#39;</span><span class="p">][</span><span class="s">&#39;exchange&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">exchange</span>
+        <span class="n">props</span><span class="p">[</span><span class="s">&#39;delivery_info&#39;</span><span class="p">][</span><span class="s">&#39;routing_key&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">routing_key</span>
+        <span class="n">props</span><span class="p">[</span><span class="s">&#39;delivery_tag&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_next_delivery_tag</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">typeof</span><span class="p">(</span><span class="n">exchange</span><span class="p">)</span><span class="o">.</span><span class="n">deliver</span><span class="p">(</span><span class="n">message</span><span class="p">,</span>
+                                      <span class="n">exchange</span><span class="p">,</span> <span class="n">routing_key</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="Channel.basic_consume"><a class="viewcode-back" href="../../../reference/kombu.transport.virtual.html#kombu.transport.virtual.Channel.basic_consume">[docs]</a>    <span class="k">def</span> <span class="nf">basic_consume</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">queue</span><span class="p">,</span> <span class="n">no_ack</span><span class="p">,</span> <span class="n">callback</span><span class="p">,</span> <span class="n">consumer_tag</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Consume from `queue`&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_tag_to_queue</span><span class="p">[</span><span class="n">consumer_tag</span><span class="p">]</span> <span class="o">=</span> <span class="n">queue</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_active_queues</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">queue</span><span class="p">)</span>
+
+        <span class="k">def</span> <span class="nf">_callback</span><span class="p">(</span><span class="n">raw_message</span><span class="p">):</span>
+            <span class="n">message</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">Message</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">raw_message</span><span class="p">)</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">no_ack</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">qos</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">message</span><span class="p">,</span> <span class="n">message</span><span class="o">.</span><span class="n">delivery_tag</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">callback</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">_callbacks</span><span class="p">[</span><span class="n">queue</span><span class="p">]</span> <span class="o">=</span> <span class="n">_callback</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_consumers</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">consumer_tag</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_reset_cycle</span><span class="p">()</span>
+</div>
+<div class="viewcode-block" id="Channel.basic_cancel"><a class="viewcode-back" href="../../../reference/kombu.transport.virtual.html#kombu.transport.virtual.Channel.basic_cancel">[docs]</a>    <span class="k">def</span> <span class="nf">basic_cancel</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">consumer_tag</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Cancel consumer by consumer tag.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">consumer_tag</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_consumers</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_consumers</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">consumer_tag</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_reset_cycle</span><span class="p">()</span>
+            <span class="n">queue</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_tag_to_queue</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="n">consumer_tag</span><span class="p">,</span> <span class="bp">None</span><span class="p">)</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_active_queues</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">queue</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+                <span class="k">pass</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">_callbacks</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="n">queue</span><span class="p">,</span> <span class="bp">None</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="Channel.basic_get"><a class="viewcode-back" href="../../../reference/kombu.transport.virtual.html#kombu.transport.virtual.Channel.basic_get">[docs]</a>    <span class="k">def</span> <span class="nf">basic_get</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">queue</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Get message by direct access (synchronous).&quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get</span><span class="p">(</span><span class="n">queue</span><span class="p">)</span>
+        <span class="k">except</span> <span class="n">Empty</span><span class="p">:</span>
+            <span class="k">pass</span>
+</div>
+<div class="viewcode-block" id="Channel.basic_ack"><a class="viewcode-back" href="../../../reference/kombu.transport.virtual.html#kombu.transport.virtual.Channel.basic_ack">[docs]</a>    <span class="k">def</span> <span class="nf">basic_ack</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">delivery_tag</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Acknowledge message.&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">qos</span><span class="o">.</span><span class="n">ack</span><span class="p">(</span><span class="n">delivery_tag</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="Channel.basic_recover"><a class="viewcode-back" href="../../../reference/kombu.transport.virtual.html#kombu.transport.virtual.Channel.basic_recover">[docs]</a>    <span class="k">def</span> <span class="nf">basic_recover</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">requeue</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Recover unacked messages.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">requeue</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">qos</span><span class="o">.</span><span class="n">restore_unacked</span><span class="p">()</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s">&#39;Does not support recover(requeue=False)&#39;</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="Channel.basic_reject"><a class="viewcode-back" href="../../../reference/kombu.transport.virtual.html#kombu.transport.virtual.Channel.basic_reject">[docs]</a>    <span class="k">def</span> <span class="nf">basic_reject</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">delivery_tag</span><span class="p">,</span> <span class="n">requeue</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Reject message.&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">qos</span><span class="o">.</span><span class="n">reject</span><span class="p">(</span><span class="n">delivery_tag</span><span class="p">,</span> <span class="n">requeue</span><span class="o">=</span><span class="n">requeue</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="Channel.basic_qos"><a class="viewcode-back" href="../../../reference/kombu.transport.virtual.html#kombu.transport.virtual.Channel.basic_qos">[docs]</a>    <span class="k">def</span> <span class="nf">basic_qos</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">prefetch_size</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">prefetch_count</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+            <span class="n">apply_global</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Change QoS settings for this channel.</span>
+
+<span class="sd">        Only `prefetch_count` is supported.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">qos</span><span class="o">.</span><span class="n">prefetch_count</span> <span class="o">=</span> <span class="n">prefetch_count</span>
+</div>
+    <span class="k">def</span> <span class="nf">get_exchanges</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">exchanges</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span>
+
+<div class="viewcode-block" id="Channel.get_table"><a class="viewcode-back" href="../../../reference/kombu.transport.virtual.html#kombu.transport.virtual.Channel.get_table">[docs]</a>    <span class="k">def</span> <span class="nf">get_table</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">exchange</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Get table of bindings for `exchange`.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">exchanges</span><span class="p">[</span><span class="n">exchange</span><span class="p">][</span><span class="s">&#39;table&#39;</span><span class="p">]</span>
+</div>
+<div class="viewcode-block" id="Channel.typeof"><a class="viewcode-back" href="../../../reference/kombu.transport.virtual.html#kombu.transport.virtual.Channel.typeof">[docs]</a>    <span class="k">def</span> <span class="nf">typeof</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">exchange</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Get the exchange type instance for `exchange`.&quot;&quot;&quot;</span>
+        <span class="nb">type</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">exchanges</span><span class="p">[</span><span class="n">exchange</span><span class="p">][</span><span class="s">&#39;type&#39;</span><span class="p">]</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">exchange_types</span><span class="p">[</span><span class="nb">type</span><span class="p">]</span>
+</div>
+    <span class="k">def</span> <span class="nf">_lookup</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">exchange</span><span class="p">,</span> <span class="n">routing_key</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Find all queues matching `routing_key` for the given `exchange`.</span>
+
+<span class="sd">        Returns `default` if no queues matched.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">default</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="n">default</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">deadletter_queue</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">R</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">typeof</span><span class="p">(</span><span class="n">exchange</span><span class="p">)</span><span class="o">.</span><span class="n">lookup</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">get_table</span><span class="p">(</span><span class="n">exchange</span><span class="p">),</span>
+                                             <span class="n">exchange</span><span class="p">,</span> <span class="n">routing_key</span><span class="p">,</span> <span class="n">default</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+            <span class="n">R</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">R</span> <span class="ow">and</span> <span class="n">default</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="n">UndeliverableWarning</span><span class="p">(</span><span class="n">UNDELIVERABLE_FMT</span> <span class="o">%</span> <span class="p">{</span>
+                <span class="s">&#39;exchange&#39;</span><span class="p">:</span> <span class="n">exchange</span><span class="p">,</span> <span class="s">&#39;routing_key&#39;</span><span class="p">:</span> <span class="n">routing_key</span><span class="p">}))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_new_queue</span><span class="p">(</span><span class="n">default</span><span class="p">)</span>
+            <span class="n">R</span> <span class="o">=</span> <span class="p">[</span><span class="n">default</span><span class="p">]</span>
+        <span class="k">return</span> <span class="n">R</span>
+
+    <span class="k">def</span> <span class="nf">_restore</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">message</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Redeliver message to its original destination.&quot;&quot;&quot;</span>
+        <span class="n">delivery_info</span> <span class="o">=</span> <span class="n">message</span><span class="o">.</span><span class="n">delivery_info</span>
+        <span class="n">message</span> <span class="o">=</span> <span class="n">message</span><span class="o">.</span><span class="n">serializable</span><span class="p">()</span>
+        <span class="n">message</span><span class="p">[</span><span class="s">&#39;redelivered&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">True</span>
+        <span class="k">for</span> <span class="n">queue</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_lookup</span><span class="p">(</span><span class="n">delivery_info</span><span class="p">[</span><span class="s">&#39;exchange&#39;</span><span class="p">],</span>
+                                  <span class="n">delivery_info</span><span class="p">[</span><span class="s">&#39;routing_key&#39;</span><span class="p">]):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_put</span><span class="p">(</span><span class="n">queue</span><span class="p">,</span> <span class="n">message</span><span class="p">)</span>
+
+<div class="viewcode-block" id="Channel.drain_events"><a class="viewcode-back" href="../../../reference/kombu.transport.virtual.html#kombu.transport.virtual.Channel.drain_events">[docs]</a>    <span class="k">def</span> <span class="nf">drain_events</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_consumers</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">qos</span><span class="o">.</span><span class="n">can_consume</span><span class="p">():</span>
+            <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s">&#39;_get_many&#39;</span><span class="p">):</span>
+                <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_many</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_active_queues</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="n">timeout</span><span class="p">)</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_poll</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cycle</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="n">timeout</span><span class="p">)</span>
+        <span class="k">raise</span> <span class="n">Empty</span><span class="p">()</span>
+</div>
+<div class="viewcode-block" id="Channel.message_to_python"><a class="viewcode-back" href="../../../reference/kombu.transport.virtual.html#kombu.transport.virtual.Channel.message_to_python">[docs]</a>    <span class="k">def</span> <span class="nf">message_to_python</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">raw_message</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Convert raw message to :class:`Message` instance.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">raw_message</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">Message</span><span class="p">):</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">Message</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">payload</span><span class="o">=</span><span class="n">raw_message</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">raw_message</span>
+</div>
+<div class="viewcode-block" id="Channel.prepare_message"><a class="viewcode-back" href="../../../reference/kombu.transport.virtual.html#kombu.transport.virtual.Channel.prepare_message">[docs]</a>    <span class="k">def</span> <span class="nf">prepare_message</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">message_data</span><span class="p">,</span> <span class="n">priority</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+            <span class="n">content_type</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">content_encoding</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">headers</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+            <span class="n">properties</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Prepare message data.&quot;&quot;&quot;</span>
+        <span class="n">properties</span> <span class="o">=</span> <span class="n">properties</span> <span class="ow">or</span> <span class="p">{}</span>
+        <span class="n">info</span> <span class="o">=</span> <span class="n">properties</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="s">&#39;delivery_info&#39;</span><span class="p">,</span> <span class="p">{})</span>
+        <span class="n">info</span><span class="p">[</span><span class="s">&#39;priority&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">priority</span> <span class="ow">or</span> <span class="mi">0</span>
+
+        <span class="k">return</span> <span class="p">{</span><span class="s">&#39;body&#39;</span><span class="p">:</span> <span class="n">message_data</span><span class="p">,</span>
+                <span class="s">&#39;content-encoding&#39;</span><span class="p">:</span> <span class="n">content_encoding</span><span class="p">,</span>
+                <span class="s">&#39;content-type&#39;</span><span class="p">:</span> <span class="n">content_type</span><span class="p">,</span>
+                <span class="s">&#39;headers&#39;</span><span class="p">:</span> <span class="n">headers</span> <span class="ow">or</span> <span class="p">{},</span>
+                <span class="s">&#39;properties&#39;</span><span class="p">:</span> <span class="n">properties</span> <span class="ow">or</span> <span class="p">{}}</span>
+</div>
+<div class="viewcode-block" id="Channel.flow"><a class="viewcode-back" href="../../../reference/kombu.transport.virtual.html#kombu.transport.virtual.Channel.flow">[docs]</a>    <span class="k">def</span> <span class="nf">flow</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">active</span><span class="o">=</span><span class="bp">True</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Enable/disable message flow.</span>
+
+<span class="sd">        :raises NotImplementedError: as flow</span>
+<span class="sd">            is not implemented by the base virtual implementation.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s">&#39;virtual channels does not support flow.&#39;</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="Channel.close"><a class="viewcode-back" href="../../../reference/kombu.transport.virtual.html#kombu.transport.virtual.Channel.close">[docs]</a>    <span class="k">def</span> <span class="nf">close</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Close channel, cancel all consumers, and requeue unacked</span>
+<span class="sd">        messages.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">closed</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">closed</span> <span class="o">=</span> <span class="bp">True</span>
+            <span class="k">for</span> <span class="n">consumer</span> <span class="ow">in</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_consumers</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">basic_cancel</span><span class="p">(</span><span class="n">consumer</span><span class="p">)</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_qos</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_qos</span><span class="o">.</span><span class="n">restore_unacked_once</span><span class="p">()</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cycle</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_cycle</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_cycle</span> <span class="o">=</span> <span class="bp">None</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">connection</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">close_channel</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">exchange_types</span> <span class="o">=</span> <span class="bp">None</span>
+</div>
+    <span class="k">def</span> <span class="nf">encode_body</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">body</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">encoding</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">codecs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">encoding</span><span class="p">)</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="n">body</span><span class="p">),</span> <span class="n">encoding</span>
+        <span class="k">return</span> <span class="n">body</span><span class="p">,</span> <span class="n">encoding</span>
+
+    <span class="k">def</span> <span class="nf">decode_body</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">body</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">encoding</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">codecs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">encoding</span><span class="p">)</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="n">body</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">body</span>
+
+    <span class="k">def</span> <span class="nf">_reset_cycle</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_cycle</span> <span class="o">=</span> <span class="n">FairCycle</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_get</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_active_queues</span><span class="p">,</span> <span class="n">Empty</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__enter__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span>
+
+    <span class="k">def</span> <span class="nf">__exit__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">exc_info</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="Channel.state"><a class="viewcode-back" href="../../../reference/kombu.transport.virtual.html#kombu.transport.virtual.Channel.state">[docs]</a>    <span class="k">def</span> <span class="nf">state</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Broker state containing exchanges and bindings.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">state</span>
+</div>
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="Channel.qos"><a class="viewcode-back" href="../../../reference/kombu.transport.virtual.html#kombu.transport.virtual.Channel.qos">[docs]</a>    <span class="k">def</span> <span class="nf">qos</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;:class:`QoS` manager for this channel.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_qos</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_qos</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">QoS</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_qos</span>
+</div>
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">cycle</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cycle</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_reset_cycle</span><span class="p">()</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cycle</span>
+
+</div>
+<span class="k">class</span> <span class="nc">Management</span><span class="p">(</span><span class="n">base</span><span class="o">.</span><span class="n">Management</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">transport</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">Management</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="n">transport</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">channel</span> <span class="o">=</span> <span class="n">transport</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">channel</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">get_bindings</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">[</span><span class="nb">dict</span><span class="p">(</span><span class="n">destination</span><span class="o">=</span><span class="n">q</span><span class="p">,</span> <span class="n">source</span><span class="o">=</span><span class="n">e</span><span class="p">,</span> <span class="n">routing_key</span><span class="o">=</span><span class="n">r</span><span class="p">)</span>
+                    <span class="k">for</span> <span class="n">q</span><span class="p">,</span> <span class="n">e</span><span class="p">,</span> <span class="n">r</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">channel</span><span class="o">.</span><span class="n">list_bindings</span><span class="p">()]</span>
+
+    <span class="k">def</span> <span class="nf">close</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">channel</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+
+
+<div class="viewcode-block" id="Transport"><a class="viewcode-back" href="../../../reference/kombu.transport.virtual.html#kombu.transport.virtual.Transport">[docs]</a><span class="k">class</span> <span class="nc">Transport</span><span class="p">(</span><span class="n">base</span><span class="o">.</span><span class="n">Transport</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Virtual transport.</span>
+
+<span class="sd">    :param client: :class:`~kombu.Connection` instance</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">Channel</span> <span class="o">=</span> <span class="n">Channel</span>
+    <span class="n">Cycle</span> <span class="o">=</span> <span class="n">FairCycle</span>
+    <span class="n">Management</span> <span class="o">=</span> <span class="n">Management</span>
+
+    <span class="c">#: :class:`BrokerState` containing declared exchanges and</span>
+    <span class="c">#: bindings (set by constructor).</span>
+    <span class="n">state</span> <span class="o">=</span> <span class="n">BrokerState</span><span class="p">()</span>
+
+    <span class="c">#: :class:`~kombu.transport.virtual.scheduling.FairCycle` instance</span>
+    <span class="c">#: used to fairly drain events from channels (set by constructor).</span>
+    <span class="n">cycle</span> <span class="o">=</span> <span class="bp">None</span>
+
+    <span class="c">#: port number used when no port is specified.</span>
+    <span class="n">default_port</span> <span class="o">=</span> <span class="bp">None</span>
+
+    <span class="c">#: active channels.</span>
+    <span class="n">channels</span> <span class="o">=</span> <span class="bp">None</span>
+
+    <span class="c">#: queue/callback map.</span>
+    <span class="n">_callbacks</span> <span class="o">=</span> <span class="bp">None</span>
+
+    <span class="c">#: Time to sleep between unsuccessful polls.</span>
+    <span class="n">polling_interval</span> <span class="o">=</span> <span class="mf">1.0</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">client</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">client</span> <span class="o">=</span> <span class="n">client</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">channels</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_avail_channels</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_callbacks</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cycle</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">Cycle</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_drain_channel</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">channels</span><span class="p">,</span> <span class="n">Empty</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_next_channel_id</span> <span class="o">=</span> <span class="n">count</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">next</span>
+        <span class="n">polling_interval</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">transport_options</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;polling_interval&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">polling_interval</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">polling_interval</span> <span class="o">=</span> <span class="n">polling_interval</span>
+
+<div class="viewcode-block" id="Transport.create_channel"><a class="viewcode-back" href="../../../reference/kombu.transport.virtual.html#kombu.transport.virtual.Transport.create_channel">[docs]</a>    <span class="k">def</span> <span class="nf">create_channel</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">connection</span><span class="p">):</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_avail_channels</span><span class="o">.</span><span class="n">pop</span><span class="p">()</span>
+        <span class="k">except</span> <span class="ne">IndexError</span><span class="p">:</span>
+            <span class="n">channel</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">Channel</span><span class="p">(</span><span class="n">connection</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">channels</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">channel</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">channel</span>
+</div>
+<div class="viewcode-block" id="Transport.close_channel"><a class="viewcode-back" href="../../../reference/kombu.transport.virtual.html#kombu.transport.virtual.Transport.close_channel">[docs]</a>    <span class="k">def</span> <span class="nf">close_channel</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">channel</span><span class="p">):</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">channels</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">channel</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+                <span class="k">pass</span>
+        <span class="k">finally</span><span class="p">:</span>
+            <span class="n">channel</span><span class="o">.</span><span class="n">connection</span> <span class="o">=</span> <span class="bp">None</span>
+</div>
+<div class="viewcode-block" id="Transport.establish_connection"><a class="viewcode-back" href="../../../reference/kombu.transport.virtual.html#kombu.transport.virtual.Transport.establish_connection">[docs]</a>    <span class="k">def</span> <span class="nf">establish_connection</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c"># creates channel to verify connection.</span>
+        <span class="c"># this channel is then used as the next requested channel.</span>
+        <span class="c"># (returned by ``create_channel``).</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_avail_channels</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">create_channel</span><span class="p">(</span><span class="bp">self</span><span class="p">))</span>
+        <span class="k">return</span> <span class="bp">self</span>     <span class="c"># for drain events</span>
+</div>
+<div class="viewcode-block" id="Transport.close_connection"><a class="viewcode-back" href="../../../reference/kombu.transport.virtual.html#kombu.transport.virtual.Transport.close_connection">[docs]</a>    <span class="k">def</span> <span class="nf">close_connection</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">connection</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cycle</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">l</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_avail_channels</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">channels</span><span class="p">:</span>
+            <span class="k">while</span> <span class="n">l</span><span class="p">:</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="n">channel</span> <span class="o">=</span> <span class="n">l</span><span class="o">.</span><span class="n">pop</span><span class="p">()</span>
+                <span class="k">except</span> <span class="p">(</span><span class="ne">IndexError</span><span class="p">,</span> <span class="ne">KeyError</span><span class="p">):</span>  <span class="c"># pragma: no cover</span>
+                    <span class="k">pass</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">channel</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+</div>
+<div class="viewcode-block" id="Transport.drain_events"><a class="viewcode-back" href="../../../reference/kombu.transport.virtual.html#kombu.transport.virtual.Transport.drain_events">[docs]</a>    <span class="k">def</span> <span class="nf">drain_events</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">connection</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="n">loop</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="n">time_start</span> <span class="o">=</span> <span class="n">time</span><span class="p">()</span>
+        <span class="n">get</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cycle</span><span class="o">.</span><span class="n">get</span>
+        <span class="n">polling_interval</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">polling_interval</span>
+        <span class="k">while</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">item</span><span class="p">,</span> <span class="n">channel</span> <span class="o">=</span> <span class="n">get</span><span class="p">(</span><span class="n">timeout</span><span class="o">=</span><span class="n">timeout</span><span class="p">)</span>
+            <span class="k">except</span> <span class="n">Empty</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">timeout</span> <span class="ow">and</span> <span class="n">time</span><span class="p">()</span> <span class="o">-</span> <span class="n">time_start</span> <span class="o">&gt;=</span> <span class="n">timeout</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="n">socket</span><span class="o">.</span><span class="n">timeout</span><span class="p">()</span>
+                <span class="n">loop</span> <span class="o">+=</span> <span class="mi">1</span>
+                <span class="k">if</span> <span class="n">polling_interval</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+                    <span class="n">sleep</span><span class="p">(</span><span class="n">polling_interval</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">break</span>
+
+        <span class="n">message</span><span class="p">,</span> <span class="n">queue</span> <span class="o">=</span> <span class="n">item</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">queue</span> <span class="ow">or</span> <span class="n">queue</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_callbacks</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">KeyError</span><span class="p">(</span>
+                <span class="s">&quot;Received message for queue &#39;</span><span class="si">%s</span><span class="s">&#39; without consumers: </span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="p">(</span>
+                    <span class="n">queue</span><span class="p">,</span> <span class="n">message</span><span class="p">))</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_callbacks</span><span class="p">[</span><span class="n">queue</span><span class="p">](</span><span class="n">message</span><span class="p">)</span>
+</div>
+    <span class="k">def</span> <span class="nf">_drain_channel</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">channel</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">channel</span><span class="o">.</span><span class="n">drain_events</span><span class="p">(</span><span class="n">timeout</span><span class="o">=</span><span class="n">timeout</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">default_connection_params</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">{</span><span class="s">&#39;port&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">default_port</span><span class="p">,</span> <span class="s">&#39;hostname&#39;</span><span class="p">:</span> <span class="s">&#39;localhost&#39;</span><span class="p">}</span></div>
+</pre></div>
+
+      </div>
+      <div class="bottomnav">
+      
+        <p>
+        <a href="/">Home</a>:
+        <a class="uplink" href="../../../index.html">Contents</a>
+        </p>
+
+      </div>
+
+    <div class="footer">
+        &copy; Copyright 2012, HDKNR.COM.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.2pre/3c28de26aac2.
+    </div>
+  </body>
+</html>

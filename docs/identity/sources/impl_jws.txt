@@ -8,6 +8,20 @@ JOSE JWS:Implementation
 
     - ECDSA must be implemented
 
+Dependancy
+===========
+
+M2Crypto
+-----------
+
+- http://www.heikkitoivonen.net/m2crypto/api/
+
+
+BouncyCastle
+----------------
+
+- http://www.bouncycastle.org/csharp/
+
 JWS Token
 ==========
 

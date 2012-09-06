@@ -10,7 +10,7 @@ django.conf.locale.ru
 =====================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/conf/locale/ru/__init__.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/conf/locale/ru/__init__.py>`_ 
 
 .. include:: cheat/django.conf.locale.ru.rst
 
@@ -25,7 +25,7 @@ django.conf.locale.ru.formats
 =============================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/conf/locale/ru/formats.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/conf/locale/ru/formats.py>`_ 
 
 .. include:: cheat/django.conf.locale.ru.formats.rst
 

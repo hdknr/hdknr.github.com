@@ -10,7 +10,7 @@ django.forms.extras
 ===================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/forms/extras/__init__.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/forms/extras/__init__.py>`_ 
 
 .. include:: cheat/django.forms.extras.rst
 
@@ -25,7 +25,7 @@ django.forms.extras.widgets
 ===========================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/forms/extras/widgets.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/forms/extras/widgets.py>`_ 
 
 .. include:: cheat/django.forms.extras.widgets.rst
 

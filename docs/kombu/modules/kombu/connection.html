@@ -1,0 +1,947 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>kombu.connection &mdash; Kombu Docs 1 documentation</title>
+    
+    <link rel="stylesheet" href="../../static/haiku.css" type="text/css" />
+    <link rel="stylesheet" href="../../static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../../static/print.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../static/jquery.js"></script>
+    <script type="text/javascript" src="../../static/underscore.js"></script>
+    <script type="text/javascript" src="../../static/doctools.js"></script>
+    <script type="text/javascript" src="../../static/theme_extras.js"></script>
+    <link rel="top" title="Kombu Docs 1 documentation" href="../../index.html" />
+    <link rel="up" title="Module code" href="../index.html" /> 
+  </head>
+  <body>
+      <div class="header"><h1 class="heading"><a href="../../index.html">
+          <span>Kombu Docs 1 documentation</span></a></h1>
+        <h2 class="heading"><span>kombu.connection</span></h2>
+      </div>
+      <div class="topnav">
+      
+        <p>
+        <a href="/">Home</a>:
+        <a class="uplink" href="../../index.html">Contents</a>
+        </p>
+
+      </div>
+      <div class="content">
+        
+        
+  <h1>Source code for kombu.connection</h1><div class="highlight"><pre>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">kombu.connection</span>
+<span class="sd">================</span>
+
+<span class="sd">Broker connection and pools.</span>
+
+<span class="sd">:copyright: (c) 2009 - 2012 by Ask Solem.</span>
+<span class="sd">:license: BSD, see LICENSE for more details.</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">absolute_import</span>
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">with_statement</span>
+
+<span class="kn">import</span> <span class="nn">errno</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">socket</span>
+
+<span class="kn">from</span> <span class="nn">contextlib</span> <span class="kn">import</span> <span class="n">contextmanager</span>
+<span class="kn">from</span> <span class="nn">functools</span> <span class="kn">import</span> <span class="n">partial</span>
+<span class="kn">from</span> <span class="nn">itertools</span> <span class="kn">import</span> <span class="n">count</span>
+<span class="kn">from</span> <span class="nn">urllib</span> <span class="kn">import</span> <span class="n">quote</span>
+<span class="kn">from</span> <span class="nn">Queue</span> <span class="kn">import</span> <span class="n">Empty</span>
+<span class="c"># jython breaks on relative import for .exceptions for some reason</span>
+<span class="c"># (Issue #112)</span>
+<span class="kn">from</span> <span class="nn">kombu</span> <span class="kn">import</span> <span class="n">exceptions</span>
+<span class="kn">from</span> <span class="nn">.log</span> <span class="kn">import</span> <span class="n">get_logger</span>
+<span class="kn">from</span> <span class="nn">.transport</span> <span class="kn">import</span> <span class="n">AMQP_ALIAS</span><span class="p">,</span> <span class="n">get_transport_cls</span>
+<span class="kn">from</span> <span class="nn">.utils</span> <span class="kn">import</span> <span class="n">cached_property</span><span class="p">,</span> <span class="n">retry_over_time</span>
+<span class="kn">from</span> <span class="nn">.utils.compat</span> <span class="kn">import</span> <span class="n">OrderedDict</span><span class="p">,</span> <span class="n">LifoQueue</span> <span class="k">as</span> <span class="n">_LifoQueue</span>
+<span class="kn">from</span> <span class="nn">.utils.url</span> <span class="kn">import</span> <span class="n">parse_url</span>
+
+<span class="n">_LOG_CONNECTION</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;KOMBU_LOG_CONNECTION&#39;</span><span class="p">,</span> <span class="bp">False</span><span class="p">)</span>
+<span class="n">_LOG_CHANNEL</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;KOMBU_LOG_CHANNEL&#39;</span><span class="p">,</span> <span class="bp">False</span><span class="p">)</span>
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s">&#39;Connection&#39;</span><span class="p">,</span> <span class="s">&#39;ConnectionPool&#39;</span><span class="p">,</span> <span class="s">&#39;ChannelPool&#39;</span><span class="p">]</span>
+<span class="n">URI_PASSTHROUGH</span> <span class="o">=</span> <span class="nb">frozenset</span><span class="p">([</span><span class="s">&#39;sqla&#39;</span><span class="p">,</span> <span class="s">&#39;sqlalchemy&#39;</span><span class="p">])</span>
+
+<span class="n">logger</span> <span class="o">=</span> <span class="n">get_logger</span><span class="p">(</span><span class="n">__name__</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="Connection"><a class="viewcode-back" href="../../reference/kombu.connection.html#kombu.connection.Connection">[docs]</a><span class="k">class</span> <span class="nc">Connection</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;A connection to the broker.</span>
+
+<span class="sd">    :param URL:  Connection URL.</span>
+
+<span class="sd">    :keyword hostname: Default host name/address if not provided in the URL.</span>
+<span class="sd">    :keyword userid: Default user name if not provided in the URL.</span>
+<span class="sd">    :keyword password: Default password if not provided in the URL.</span>
+<span class="sd">    :keyword virtual_host: Default virtual host if not provided in the URL.</span>
+<span class="sd">    :keyword port: Default port if not provided in the URL.</span>
+<span class="sd">    :keyword ssl: Use SSL to connect to the server. Default is ``False``.</span>
+<span class="sd">      May not be supported by the specified transport.</span>
+<span class="sd">    :keyword transport: Default transport if not specified in the URL.</span>
+<span class="sd">    :keyword connect_timeout: Timeout in seconds for connecting to the</span>
+<span class="sd">      server. May not be supported by the specified transport.</span>
+<span class="sd">    :keyword transport_options: A dict of additional connection arguments to</span>
+<span class="sd">      pass to alternate kombu channel implementations.  Consult the transport</span>
+<span class="sd">      documentation for available options.</span>
+<span class="sd">    :keyword heartbeat: Heartbeat interval in int/float seconds.</span>
+<span class="sd">        Note that if heartbeats are enabled then the :meth:`heartbeat_check`</span>
+<span class="sd">        method must be called at an interval twice the frequency of the</span>
+<span class="sd">        heartbeat: e.g. if the heartbeat is 10, then the heartbeats must be</span>
+<span class="sd">        checked every 5 seconds (the rate can also be controlled by</span>
+<span class="sd">        the ``rate`` argument to :meth:`heartbeat_check``).</span>
+
+<span class="sd">    .. note::</span>
+
+<span class="sd">        The connection is established lazily when needed. If you need the</span>
+<span class="sd">        connection to be established, then force it to do so using</span>
+<span class="sd">        :meth:`connect`::</span>
+
+<span class="sd">            &gt;&gt;&gt; conn.connect()</span>
+
+<span class="sd">        Remember to always close the connection::</span>
+
+<span class="sd">            &gt;&gt;&gt; conn.release()</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">port</span> <span class="o">=</span> <span class="bp">None</span>
+    <span class="n">virtual_host</span> <span class="o">=</span> <span class="s">&#39;/&#39;</span>
+    <span class="n">connect_timeout</span> <span class="o">=</span> <span class="mi">5</span>
+
+    <span class="n">_closed</span> <span class="o">=</span> <span class="bp">None</span>
+    <span class="n">_connection</span> <span class="o">=</span> <span class="bp">None</span>
+    <span class="n">_default_channel</span> <span class="o">=</span> <span class="bp">None</span>
+    <span class="n">_transport</span> <span class="o">=</span> <span class="bp">None</span>
+    <span class="n">_logger</span> <span class="o">=</span> <span class="bp">False</span>
+    <span class="n">uri_prefix</span> <span class="o">=</span> <span class="bp">None</span>
+
+    <span class="c">#: The cache of declared entities is per connection,</span>
+    <span class="c">#: in case the server loses data.</span>
+    <span class="n">declared_entities</span> <span class="o">=</span> <span class="bp">None</span>
+
+    <span class="c">#: This is set to True if there is still more data to read</span>
+    <span class="c">#: after a call to :meth:`drain_nowait`.</span>
+    <span class="n">more_to_read</span> <span class="o">=</span> <span class="bp">False</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">hostname</span><span class="o">=</span><span class="s">&#39;localhost&#39;</span><span class="p">,</span> <span class="n">userid</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+            <span class="n">password</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">virtual_host</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">port</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">insist</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span>
+            <span class="n">ssl</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">transport</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">connect_timeout</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span>
+            <span class="n">transport_options</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">login_method</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">uri_prefix</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+            <span class="n">heartbeat</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="c"># have to spell the args out, just to get nice docstrings :(</span>
+        <span class="n">params</span> <span class="o">=</span> <span class="p">{</span><span class="s">&#39;hostname&#39;</span><span class="p">:</span> <span class="n">hostname</span><span class="p">,</span> <span class="s">&#39;userid&#39;</span><span class="p">:</span> <span class="n">userid</span><span class="p">,</span>
+                  <span class="s">&#39;password&#39;</span><span class="p">:</span> <span class="n">password</span><span class="p">,</span> <span class="s">&#39;virtual_host&#39;</span><span class="p">:</span> <span class="n">virtual_host</span><span class="p">,</span>
+                  <span class="s">&#39;port&#39;</span><span class="p">:</span> <span class="n">port</span><span class="p">,</span> <span class="s">&#39;insist&#39;</span><span class="p">:</span> <span class="n">insist</span><span class="p">,</span> <span class="s">&#39;ssl&#39;</span><span class="p">:</span> <span class="n">ssl</span><span class="p">,</span>
+                  <span class="s">&#39;transport&#39;</span><span class="p">:</span> <span class="n">transport</span><span class="p">,</span> <span class="s">&#39;connect_timeout&#39;</span><span class="p">:</span> <span class="n">connect_timeout</span><span class="p">,</span>
+                  <span class="s">&#39;login_method&#39;</span><span class="p">:</span> <span class="n">login_method</span><span class="p">,</span> <span class="s">&#39;heartbeat&#39;</span><span class="p">:</span> <span class="n">heartbeat</span><span class="p">}</span>
+        <span class="k">if</span> <span class="n">hostname</span> <span class="ow">and</span> <span class="s">&#39;://&#39;</span> <span class="ow">in</span> <span class="n">hostname</span><span class="p">:</span>
+            <span class="k">if</span> <span class="s">&#39;+&#39;</span> <span class="ow">in</span> <span class="n">hostname</span><span class="p">[:</span><span class="n">hostname</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="s">&#39;://&#39;</span><span class="p">)]:</span>
+                <span class="c"># e.g. sqla+mysql://root:masterkey@localhost/</span>
+                <span class="n">params</span><span class="p">[</span><span class="s">&#39;transport&#39;</span><span class="p">],</span> <span class="n">params</span><span class="p">[</span><span class="s">&#39;hostname&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">hostname</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&#39;+&#39;</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">uri_prefix</span> <span class="o">=</span> <span class="n">params</span><span class="p">[</span><span class="s">&#39;transport&#39;</span><span class="p">]</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">transport</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">URI_PASSTHROUGH</span><span class="p">:</span>
+                    <span class="n">params</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">parse_url</span><span class="p">(</span><span class="n">hostname</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_init_params</span><span class="p">(</span><span class="o">**</span><span class="n">params</span><span class="p">)</span>
+
+        <span class="c"># backend_cls argument will be removed shortly.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">transport_cls</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">transport_cls</span> <span class="ow">or</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;backend_cls&#39;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">transport_options</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="n">transport_options</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">transport_options</span> <span class="o">=</span> <span class="n">transport_options</span>
+
+        <span class="k">if</span> <span class="n">_LOG_CONNECTION</span><span class="p">:</span>  <span class="c"># pragma: no cover</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_logger</span> <span class="o">=</span> <span class="bp">True</span>
+
+        <span class="k">if</span> <span class="n">uri_prefix</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">uri_prefix</span> <span class="o">=</span> <span class="n">uri_prefix</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">declared_entities</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">_init_params</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">hostname</span><span class="p">,</span> <span class="n">userid</span><span class="p">,</span> <span class="n">password</span><span class="p">,</span> <span class="n">virtual_host</span><span class="p">,</span> <span class="n">port</span><span class="p">,</span>
+            <span class="n">insist</span><span class="p">,</span> <span class="n">ssl</span><span class="p">,</span> <span class="n">transport</span><span class="p">,</span> <span class="n">connect_timeout</span><span class="p">,</span> <span class="n">login_method</span><span class="p">,</span> <span class="n">heartbeat</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">hostname</span> <span class="o">=</span> <span class="n">hostname</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">userid</span> <span class="o">=</span> <span class="n">userid</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">password</span> <span class="o">=</span> <span class="n">password</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">login_method</span> <span class="o">=</span> <span class="n">login_method</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">virtual_host</span> <span class="o">=</span> <span class="n">virtual_host</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">virtual_host</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">port</span> <span class="o">=</span> <span class="n">port</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">port</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">insist</span> <span class="o">=</span> <span class="n">insist</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">connect_timeout</span> <span class="o">=</span> <span class="n">connect_timeout</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ssl</span> <span class="o">=</span> <span class="n">ssl</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">transport_cls</span> <span class="o">=</span> <span class="n">transport</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">heartbeat</span> <span class="o">=</span> <span class="n">heartbeat</span>
+
+    <span class="k">def</span> <span class="nf">_debug</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">msg</span><span class="p">,</span> <span class="n">ident</span><span class="o">=</span><span class="s">&#39;[Kombu connection:0x</span><span class="si">%(id)x</span><span class="s">] &#39;</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_logger</span><span class="p">:</span>  <span class="c"># pragma: no cover</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">((</span><span class="n">ident</span> <span class="o">+</span> <span class="nb">unicode</span><span class="p">(</span><span class="n">msg</span><span class="p">))</span> <span class="o">%</span> <span class="p">{</span><span class="s">&#39;id&#39;</span><span class="p">:</span> <span class="nb">id</span><span class="p">(</span><span class="bp">self</span><span class="p">)},</span>
+                         <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+<div class="viewcode-block" id="Connection.connect"><a class="viewcode-back" href="../../reference/kombu.connection.html#kombu.connection.Connection.connect">[docs]</a>    <span class="k">def</span> <span class="nf">connect</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Establish connection to server immediately.&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_closed</span> <span class="o">=</span> <span class="bp">False</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">connection</span>
+</div>
+<div class="viewcode-block" id="Connection.channel"><a class="viewcode-back" href="../../reference/kombu.connection.html#kombu.connection.Connection.channel">[docs]</a>    <span class="k">def</span> <span class="nf">channel</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Request a new channel.&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_debug</span><span class="p">(</span><span class="s">&#39;create channel&#39;</span><span class="p">)</span>
+        <span class="n">chan</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">transport</span><span class="o">.</span><span class="n">create_channel</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">connection</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">_LOG_CHANNEL</span><span class="p">:</span>  <span class="c"># pragma: no cover</span>
+            <span class="kn">from</span> <span class="nn">.utils.debug</span> <span class="kn">import</span> <span class="n">Logwrapped</span>
+            <span class="k">return</span> <span class="n">Logwrapped</span><span class="p">(</span><span class="n">chan</span><span class="p">,</span> <span class="s">&#39;kombu.channel&#39;</span><span class="p">,</span>
+                    <span class="s">&#39;[Kombu channel:</span><span class="si">%(channel_id)s</span><span class="s">] &#39;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">chan</span>
+</div>
+    <span class="k">def</span> <span class="nf">heartbeat_check</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">rate</span><span class="o">=</span><span class="mi">2</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Verify that hartbeats are sent and received.</span>
+
+<span class="sd">        If the current transport does not support heartbeats then</span>
+<span class="sd">        this is a noop operation.</span>
+
+<span class="sd">        :keyword rate: Rate is how often the tick is called</span>
+<span class="sd">            compared to the actual heartbeat value.  E.g. if</span>
+<span class="sd">            the heartbeat is set to 3 seconds, and the tick</span>
+<span class="sd">            is called every 3 / 2 seconds, then the rate is 2.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">transport</span><span class="o">.</span><span class="n">heartbeat_check</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">connection</span><span class="p">,</span> <span class="n">rate</span><span class="o">=</span><span class="n">rate</span><span class="p">)</span>
+
+<div class="viewcode-block" id="Connection.drain_events"><a class="viewcode-back" href="../../reference/kombu.connection.html#kombu.connection.Connection.drain_events">[docs]</a>    <span class="k">def</span> <span class="nf">drain_events</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Wait for a single event from the server.</span>
+
+<span class="sd">        :keyword timeout: Timeout in seconds before we give up.</span>
+<span class="sd">            Raises :exc:`socket.timeout` if the timeout is exceeded.</span>
+
+<span class="sd">        Usually used from an event loop.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">transport</span><span class="o">.</span><span class="n">drain_events</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">connection</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+</div>
+    <span class="k">def</span> <span class="nf">drain_nowait</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">drain_events</span><span class="p">(</span><span class="n">timeout</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+        <span class="k">except</span> <span class="n">socket</span><span class="o">.</span><span class="n">timeout</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">more_to_read</span> <span class="o">=</span> <span class="bp">False</span>
+            <span class="k">return</span> <span class="bp">False</span>
+        <span class="k">except</span> <span class="n">socket</span><span class="o">.</span><span class="n">error</span><span class="p">,</span> <span class="n">exc</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">exc</span><span class="o">.</span><span class="n">errno</span> <span class="ow">in</span> <span class="p">(</span><span class="n">errno</span><span class="o">.</span><span class="n">EAGAIN</span><span class="p">,</span> <span class="n">errno</span><span class="o">.</span><span class="n">EINTR</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">more_to_read</span> <span class="o">=</span> <span class="bp">False</span>
+                <span class="k">return</span> <span class="bp">False</span>
+            <span class="k">raise</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">more_to_read</span> <span class="o">=</span> <span class="bp">True</span>
+        <span class="k">return</span> <span class="bp">True</span>
+
+    <span class="k">def</span> <span class="nf">maybe_close_channel</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">channel</span><span class="p">):</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">channel</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+        <span class="k">except</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">connection_errors</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">channel_errors</span><span class="p">):</span>
+            <span class="k">pass</span>
+
+    <span class="k">def</span> <span class="nf">_do_close_self</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c"># Closes only the connection and channel(s) not transport.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">declared_entities</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_default_channel</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">maybe_close_channel</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_default_channel</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_connection</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">transport</span><span class="o">.</span><span class="n">close_connection</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_connection</span><span class="p">)</span>
+            <span class="k">except</span> <span class="bp">self</span><span class="o">.</span><span class="n">connection_errors</span> <span class="o">+</span> <span class="p">(</span><span class="ne">AttributeError</span><span class="p">,</span> <span class="n">socket</span><span class="o">.</span><span class="n">error</span><span class="p">):</span>
+                <span class="k">pass</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_connection</span> <span class="o">=</span> <span class="bp">None</span>
+
+    <span class="k">def</span> <span class="nf">_close</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_do_close_self</span><span class="p">()</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_transport</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_transport</span><span class="o">.</span><span class="n">client</span> <span class="o">=</span> <span class="bp">None</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_transport</span> <span class="o">=</span> <span class="bp">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_debug</span><span class="p">(</span><span class="s">&#39;closed&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_closed</span> <span class="o">=</span> <span class="bp">True</span>
+
+<div class="viewcode-block" id="Connection.release"><a class="viewcode-back" href="../../reference/kombu.connection.html#kombu.connection.Connection.release">[docs]</a>    <span class="k">def</span> <span class="nf">release</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Close the connection (if open).&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_close</span><span class="p">()</span></div>
+    <span class="n">close</span> <span class="o">=</span> <span class="n">release</span>
+
+<div class="viewcode-block" id="Connection.ensure_connection"><a class="viewcode-back" href="../../reference/kombu.connection.html#kombu.connection.Connection.ensure_connection">[docs]</a>    <span class="k">def</span> <span class="nf">ensure_connection</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">errback</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">max_retries</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+            <span class="n">interval_start</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">interval_step</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">interval_max</span><span class="o">=</span><span class="mi">30</span><span class="p">,</span>
+            <span class="n">callback</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Ensure we have a connection to the server.</span>
+
+<span class="sd">        If not retry establishing the connection with the settings</span>
+<span class="sd">        specified.</span>
+
+<span class="sd">        :keyword errback: Optional callback called each time the connection</span>
+<span class="sd">          can&#39;t be established. Arguments provided are the exception</span>
+<span class="sd">          raised and the interval that will be slept ``(exc, interval)``.</span>
+
+<span class="sd">        :keyword max_retries: Maximum number of times to retry.</span>
+<span class="sd">          If this limit is exceeded the connection error will be re-raised.</span>
+
+<span class="sd">        :keyword interval_start: The number of seconds we start sleeping for.</span>
+<span class="sd">        :keyword interval_step: How many seconds added to the interval</span>
+<span class="sd">          for each retry.</span>
+<span class="sd">        :keyword interval_max: Maximum number of seconds to sleep between</span>
+<span class="sd">          each retry.</span>
+<span class="sd">        :keyword callback: Optional callback that is called for every</span>
+<span class="sd">           internal iteration (1 s)</span>
+<span class="sd">        :keyword callback: Optional callback that is called for every</span>
+<span class="sd">           internal iteration (1 s).</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">retry_over_time</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">connect</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">connection_errors</span><span class="p">,</span> <span class="p">(),</span> <span class="p">{},</span>
+                        <span class="n">errback</span><span class="p">,</span> <span class="n">max_retries</span><span class="p">,</span>
+                        <span class="n">interval_start</span><span class="p">,</span> <span class="n">interval_step</span><span class="p">,</span> <span class="n">interval_max</span><span class="p">,</span> <span class="n">callback</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span>
+</div>
+    <span class="k">def</span> <span class="nf">revive</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">new_channel</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_default_channel</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">maybe_close_channel</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_default_channel</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_default_channel</span> <span class="o">=</span> <span class="bp">None</span>
+
+    <span class="k">def</span> <span class="nf">_default_ensure_callback</span><span class="p">(</span><span class="n">exc</span><span class="p">,</span> <span class="n">interval</span><span class="p">):</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s">&quot;Ensure: Couldn&#39;t send message: </span><span class="si">%r</span><span class="s">. Retry in </span><span class="si">%s</span><span class="s">s&quot;</span><span class="p">,</span>
+                     <span class="n">exc</span><span class="p">,</span> <span class="n">interval</span><span class="p">,</span> <span class="n">exc_info</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+
+<div class="viewcode-block" id="Connection.ensure"><a class="viewcode-back" href="../../reference/kombu.connection.html#kombu.connection.Connection.ensure">[docs]</a>    <span class="k">def</span> <span class="nf">ensure</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">obj</span><span class="p">,</span> <span class="n">fun</span><span class="p">,</span> <span class="n">errback</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">max_retries</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+            <span class="n">interval_start</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">interval_step</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">interval_max</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">on_revive</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Ensure operation completes, regardless of any channel/connection</span>
+<span class="sd">        errors occurring.</span>
+
+<span class="sd">        Will retry by establishing the connection, and reapplying</span>
+<span class="sd">        the function.</span>
+
+<span class="sd">        :param fun: Method to apply.</span>
+
+<span class="sd">        :keyword errback: Optional callback called each time the connection</span>
+<span class="sd">          can&#39;t be established. Arguments provided are the exception</span>
+<span class="sd">          raised and the interval that will be slept ``(exc, interval)``.</span>
+
+<span class="sd">        :keyword max_retries: Maximum number of times to retry.</span>
+<span class="sd">          If this limit is exceeded the connection error will be re-raised.</span>
+
+<span class="sd">        :keyword interval_start: The number of seconds we start sleeping for.</span>
+<span class="sd">        :keyword interval_step: How many seconds added to the interval</span>
+<span class="sd">          for each retry.</span>
+<span class="sd">        :keyword interval_max: Maximum number of seconds to sleep between</span>
+<span class="sd">          each retry.</span>
+
+<span class="sd">        **Example**</span>
+
+<span class="sd">        This is an example ensuring a publish operation::</span>
+
+<span class="sd">            &gt;&gt;&gt; def errback(exc, interval):</span>
+<span class="sd">            ...     print(&quot;Couldn&#39;t publish message: %r. Retry in %ds&quot; % (</span>
+<span class="sd">            ...             exc, interval))</span>
+<span class="sd">            &gt;&gt;&gt; publish = conn.ensure(producer, producer.publish,</span>
+<span class="sd">            ...                       errback=errback, max_retries=3)</span>
+<span class="sd">            &gt;&gt;&gt; publish(message, routing_key)</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">def</span> <span class="nf">_ensured</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+            <span class="n">got_connection</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="k">for</span> <span class="n">retries</span> <span class="ow">in</span> <span class="n">count</span><span class="p">(</span><span class="mi">0</span><span class="p">):</span>  <span class="c"># for infinity</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="k">return</span> <span class="n">fun</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+                <span class="k">except</span> <span class="bp">self</span><span class="o">.</span><span class="n">connection_errors</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">channel_errors</span><span class="p">,</span> <span class="n">exc</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_debug</span><span class="p">(</span><span class="s">&#39;ensure got exception: </span><span class="si">%r</span><span class="s">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">exc</span><span class="p">,</span> <span class="p">),</span>
+                                <span class="n">exc_info</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+                    <span class="k">if</span> <span class="n">got_connection</span><span class="p">:</span>
+                        <span class="k">raise</span>
+                    <span class="k">if</span> <span class="n">max_retries</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span> <span class="ow">and</span> <span class="n">retries</span> <span class="o">&gt;</span> <span class="n">max_retries</span><span class="p">:</span>
+                        <span class="k">raise</span>
+                    <span class="n">errback</span> <span class="ow">and</span> <span class="n">errback</span><span class="p">(</span><span class="n">exc</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_connection</span> <span class="o">=</span> <span class="bp">None</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_do_close_self</span><span class="p">()</span>
+                    <span class="n">remaining_retries</span> <span class="o">=</span> <span class="bp">None</span>
+                    <span class="k">if</span> <span class="n">max_retries</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+                        <span class="n">remaining_retries</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">max_retries</span> <span class="o">-</span> <span class="n">retries</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">ensure_connection</span><span class="p">(</span><span class="n">errback</span><span class="p">,</span>
+                                           <span class="n">remaining_retries</span><span class="p">,</span>
+                                           <span class="n">interval_start</span><span class="p">,</span>
+                                           <span class="n">interval_step</span><span class="p">,</span>
+                                           <span class="n">interval_max</span><span class="p">)</span>
+                    <span class="n">new_channel</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">channel</span><span class="p">()</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">revive</span><span class="p">(</span><span class="n">new_channel</span><span class="p">)</span>
+                    <span class="n">obj</span><span class="o">.</span><span class="n">revive</span><span class="p">(</span><span class="n">new_channel</span><span class="p">)</span>
+                    <span class="k">if</span> <span class="n">on_revive</span><span class="p">:</span>
+                        <span class="n">on_revive</span><span class="p">(</span><span class="n">new_channel</span><span class="p">)</span>
+                    <span class="n">got_connection</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="n">_ensured</span><span class="o">.</span><span class="n">func_name</span> <span class="o">=</span> <span class="n">_ensured</span><span class="o">.</span><span class="n">__name__</span> <span class="o">=</span> <span class="s">&quot;</span><span class="si">%s</span><span class="s">(ensured)&quot;</span> <span class="o">%</span> <span class="n">fun</span><span class="o">.</span><span class="n">__name__</span>
+        <span class="n">_ensured</span><span class="o">.</span><span class="n">__doc__</span> <span class="o">=</span> <span class="n">fun</span><span class="o">.</span><span class="n">__doc__</span>
+        <span class="n">_ensured</span><span class="o">.</span><span class="n">__module__</span> <span class="o">=</span> <span class="n">fun</span><span class="o">.</span><span class="n">__module__</span>
+        <span class="k">return</span> <span class="n">_ensured</span>
+</div>
+    <span class="k">def</span> <span class="nf">autoretry</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fun</span><span class="p">,</span> <span class="n">channel</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="o">**</span><span class="n">ensure_options</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Decorator for functions supporting a ``channel`` keyword argument.</span>
+
+<span class="sd">        The resulting callable will retry calling the function if</span>
+<span class="sd">        it raises connection or channel related errors.</span>
+<span class="sd">        The return value will be a tuple of ``(retval, last_created_channel)``.</span>
+
+<span class="sd">        If a ``channel`` is not provided, then one will be automatically</span>
+<span class="sd">        acquired (remember to close it afterwards).</span>
+
+<span class="sd">        See :meth:`ensure` for the full list of supported keyword arguments.</span>
+
+<span class="sd">        Example usage::</span>
+
+<span class="sd">            channel = connection.channel()</span>
+<span class="sd">            try:</span>
+<span class="sd">                ret, channel = connection.autoretry(publish_messages, channel)</span>
+<span class="sd">            finally:</span>
+<span class="sd">                channel.close()</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">channels</span> <span class="o">=</span> <span class="p">[</span><span class="n">channel</span><span class="p">]</span>
+        <span class="n">create_channel</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">channel</span>
+
+        <span class="k">class</span> <span class="nc">Revival</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+            <span class="n">__name__</span> <span class="o">=</span> <span class="n">fun</span><span class="o">.</span><span class="n">__name__</span>
+            <span class="n">__module__</span> <span class="o">=</span> <span class="n">fun</span><span class="o">.</span><span class="n">__module__</span>
+            <span class="n">__doc__</span> <span class="o">=</span> <span class="n">fun</span><span class="o">.</span><span class="n">__doc__</span>
+
+            <span class="k">def</span> <span class="nf">revive</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">channel</span><span class="p">):</span>
+                <span class="n">channels</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">channel</span>
+
+            <span class="k">def</span> <span class="nf">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+                <span class="k">if</span> <span class="n">channels</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">revive</span><span class="p">(</span><span class="n">create_channel</span><span class="p">())</span>
+                <span class="n">kwargs</span><span class="p">[</span><span class="s">&#39;channel&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">channels</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+                <span class="k">return</span> <span class="n">fun</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">),</span> <span class="n">channels</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+        <span class="n">revive</span> <span class="o">=</span> <span class="n">Revival</span><span class="p">()</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">ensure</span><span class="p">(</span><span class="n">revive</span><span class="p">,</span> <span class="n">revive</span><span class="p">,</span> <span class="o">**</span><span class="n">ensure_options</span><span class="p">)</span>
+
+<div class="viewcode-block" id="Connection.create_transport"><a class="viewcode-back" href="../../reference/kombu.connection.html#kombu.connection.Connection.create_transport">[docs]</a>    <span class="k">def</span> <span class="nf">create_transport</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_transport_cls</span><span class="p">()(</span><span class="n">client</span><span class="o">=</span><span class="bp">self</span><span class="p">)</span></div>
+    <span class="n">create_backend</span> <span class="o">=</span> <span class="n">create_transport</span>   <span class="c"># FIXME</span>
+
+<div class="viewcode-block" id="Connection.get_transport_cls"><a class="viewcode-back" href="../../reference/kombu.connection.html#kombu.connection.Connection.get_transport_cls">[docs]</a>    <span class="k">def</span> <span class="nf">get_transport_cls</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Get the currently used transport class.&quot;&quot;&quot;</span>
+        <span class="n">transport_cls</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">transport_cls</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">transport_cls</span> <span class="ow">or</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">transport_cls</span><span class="p">,</span> <span class="nb">basestring</span><span class="p">):</span>
+            <span class="n">transport_cls</span> <span class="o">=</span> <span class="n">get_transport_cls</span><span class="p">(</span><span class="n">transport_cls</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">transport_cls</span>
+</div>
+<div class="viewcode-block" id="Connection.clone"><a class="viewcode-back" href="../../reference/kombu.connection.html#kombu.connection.Connection.clone">[docs]</a>    <span class="k">def</span> <span class="nf">clone</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Create a copy of the connection with the same connection</span>
+<span class="sd">        settings.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="p">(</span><span class="o">**</span><span class="nb">dict</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_info</span><span class="p">(),</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">))</span>
+</div>
+    <span class="k">def</span> <span class="nf">_info</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">transport_cls</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">transport_cls</span> <span class="ow">or</span> <span class="s">&#39;amqp&#39;</span>
+        <span class="n">transport_cls</span> <span class="o">=</span> <span class="p">{</span><span class="n">AMQP_ALIAS</span><span class="p">:</span> <span class="s">&#39;amqp&#39;</span><span class="p">}</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">transport_cls</span><span class="p">,</span> <span class="n">transport_cls</span><span class="p">)</span>
+        <span class="n">D</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">transport</span><span class="o">.</span><span class="n">default_connection_params</span>
+        <span class="n">hostname</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">hostname</span> <span class="ow">or</span> <span class="n">D</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;hostname&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">uri_prefix</span><span class="p">:</span>
+            <span class="n">hostname</span> <span class="o">=</span> <span class="s">&#39;</span><span class="si">%s</span><span class="s">+</span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">uri_prefix</span><span class="p">,</span> <span class="n">hostname</span><span class="p">)</span>
+        <span class="n">info</span> <span class="o">=</span> <span class="p">((</span><span class="s">&#39;hostname&#39;</span><span class="p">,</span> <span class="n">hostname</span><span class="p">),</span>
+                <span class="p">(</span><span class="s">&#39;userid&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">userid</span> <span class="ow">or</span> <span class="n">D</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;userid&#39;</span><span class="p">)),</span>
+                <span class="p">(</span><span class="s">&#39;password&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">password</span> <span class="ow">or</span> <span class="n">D</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;password&#39;</span><span class="p">)),</span>
+                <span class="p">(</span><span class="s">&#39;virtual_host&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">virtual_host</span> <span class="ow">or</span> <span class="n">D</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;virtual_host&#39;</span><span class="p">)),</span>
+                <span class="p">(</span><span class="s">&#39;port&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">port</span> <span class="ow">or</span> <span class="n">D</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;port&#39;</span><span class="p">)),</span>
+                <span class="p">(</span><span class="s">&#39;insist&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">insist</span><span class="p">),</span>
+                <span class="p">(</span><span class="s">&#39;ssl&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">ssl</span><span class="p">),</span>
+                <span class="p">(</span><span class="s">&#39;transport&#39;</span><span class="p">,</span> <span class="n">transport_cls</span><span class="p">),</span>
+                <span class="p">(</span><span class="s">&#39;connect_timeout&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">connect_timeout</span><span class="p">),</span>
+                <span class="p">(</span><span class="s">&#39;transport_options&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">transport_options</span><span class="p">),</span>
+                <span class="p">(</span><span class="s">&#39;login_method&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">login_method</span> <span class="ow">or</span> <span class="n">D</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;login_method&#39;</span><span class="p">)),</span>
+                <span class="p">(</span><span class="s">&#39;uri_prefix&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">uri_prefix</span><span class="p">),</span>
+                <span class="p">(</span><span class="s">&#39;heartbeat&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">heartbeat</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">info</span>
+
+<div class="viewcode-block" id="Connection.info"><a class="viewcode-back" href="../../reference/kombu.connection.html#kombu.connection.Connection.info">[docs]</a>    <span class="k">def</span> <span class="nf">info</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Get connection info.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">OrderedDict</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_info</span><span class="p">())</span>
+</div>
+    <span class="k">def</span> <span class="nf">__eqhash__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="nb">hash</span><span class="p">(</span><span class="s">&#39;</span><span class="si">%s</span><span class="s">|</span><span class="si">%s</span><span class="s">|</span><span class="si">%s</span><span class="s">|</span><span class="si">%s</span><span class="s">|</span><span class="si">%s</span><span class="s">|</span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">transport_cls</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">hostname</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">userid</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">password</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">virtual_host</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">port</span><span class="p">))</span>
+
+    <span class="k">def</span> <span class="nf">as_uri</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">include_password</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">transport_cls</span> <span class="ow">in</span> <span class="n">URI_PASSTHROUGH</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">transport_cls</span> <span class="o">+</span> <span class="s">&#39;+&#39;</span> <span class="o">+</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">hostname</span> <span class="ow">or</span> <span class="s">&#39;localhost&#39;</span><span class="p">)</span>
+        <span class="n">quoteS</span> <span class="o">=</span> <span class="n">partial</span><span class="p">(</span><span class="n">quote</span><span class="p">,</span> <span class="n">safe</span><span class="o">=</span><span class="s">&#39;&#39;</span><span class="p">)</span>   <span class="c"># strict quote</span>
+        <span class="n">fields</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">info</span><span class="p">()</span>
+        <span class="n">port</span> <span class="o">=</span> <span class="n">fields</span><span class="p">[</span><span class="s">&#39;port&#39;</span><span class="p">]</span>
+        <span class="n">userid</span> <span class="o">=</span> <span class="n">fields</span><span class="p">[</span><span class="s">&#39;userid&#39;</span><span class="p">]</span>
+        <span class="n">password</span> <span class="o">=</span> <span class="n">fields</span><span class="p">[</span><span class="s">&#39;password&#39;</span><span class="p">]</span>
+        <span class="n">transport</span> <span class="o">=</span> <span class="n">fields</span><span class="p">[</span><span class="s">&#39;transport&#39;</span><span class="p">]</span>
+        <span class="n">url</span> <span class="o">=</span> <span class="s">&#39;</span><span class="si">%s</span><span class="s">://&#39;</span> <span class="o">%</span> <span class="n">transport</span>
+        <span class="k">if</span> <span class="n">userid</span><span class="p">:</span>
+            <span class="n">url</span> <span class="o">+=</span> <span class="n">quoteS</span><span class="p">(</span><span class="n">userid</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">include_password</span> <span class="ow">and</span> <span class="n">password</span><span class="p">:</span>
+                <span class="n">url</span> <span class="o">+=</span> <span class="s">&#39;:&#39;</span> <span class="o">+</span> <span class="n">quoteS</span><span class="p">(</span><span class="n">password</span><span class="p">)</span>
+            <span class="n">url</span> <span class="o">+=</span> <span class="s">&#39;@&#39;</span>
+        <span class="n">url</span> <span class="o">+=</span> <span class="n">quoteS</span><span class="p">(</span><span class="n">fields</span><span class="p">[</span><span class="s">&#39;hostname&#39;</span><span class="p">])</span>
+
+        <span class="c"># If the transport equals &#39;mongodb&#39; the</span>
+        <span class="c"># hostname contains a full mongodb connection</span>
+        <span class="c"># URI. Let pymongo retreive the port from there.</span>
+        <span class="k">if</span> <span class="n">port</span> <span class="ow">and</span> <span class="n">transport</span> <span class="o">!=</span> <span class="s">&#39;mongodb&#39;</span><span class="p">:</span>
+            <span class="n">url</span> <span class="o">+=</span> <span class="s">&#39;:&#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">port</span><span class="p">)</span>
+
+        <span class="n">url</span> <span class="o">+=</span> <span class="s">&#39;/&#39;</span> <span class="o">+</span> <span class="n">quote</span><span class="p">(</span><span class="n">fields</span><span class="p">[</span><span class="s">&#39;virtual_host&#39;</span><span class="p">])</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">uri_prefix</span><span class="p">:</span>
+            <span class="k">return</span> <span class="s">&#39;</span><span class="si">%s</span><span class="s">+</span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">uri_prefix</span><span class="p">,</span> <span class="n">url</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">url</span>
+
+<div class="viewcode-block" id="Connection.Pool"><a class="viewcode-back" href="../../reference/kombu.connection.html#kombu.connection.Connection.Pool">[docs]</a>    <span class="k">def</span> <span class="nf">Pool</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">limit</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">preload</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Pool of connections.</span>
+
+<span class="sd">        See :class:`ConnectionPool`.</span>
+
+<span class="sd">        :keyword limit: Maximum number of active connections.</span>
+<span class="sd">          Default is no limit.</span>
+<span class="sd">        :keyword preload: Number of connections to preload</span>
+<span class="sd">          when the pool is created.  Default is 0.</span>
+
+<span class="sd">        *Example usage*::</span>
+
+<span class="sd">            &gt;&gt;&gt; pool = connection.Pool(2)</span>
+<span class="sd">            &gt;&gt;&gt; c1 = pool.acquire()</span>
+<span class="sd">            &gt;&gt;&gt; c2 = pool.acquire()</span>
+<span class="sd">            &gt;&gt;&gt; c3 = pool.acquire()</span>
+<span class="sd">            Traceback (most recent call last):</span>
+<span class="sd">              File &quot;&lt;stdin&gt;&quot;, line 1, in &lt;module&gt;</span>
+<span class="sd">              File &quot;kombu/connection.py&quot;, line 354, in acquire</span>
+<span class="sd">              raise ConnectionLimitExceeded(self.limit)</span>
+<span class="sd">                kombu.exceptions.ConnectionLimitExceeded: 2</span>
+<span class="sd">            &gt;&gt;&gt; c1.release()</span>
+<span class="sd">            &gt;&gt;&gt; c3 = pool.acquire()</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">ConnectionPool</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">limit</span><span class="p">,</span> <span class="n">preload</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="Connection.ChannelPool"><a class="viewcode-back" href="../../reference/kombu.connection.html#kombu.connection.Connection.ChannelPool">[docs]</a>    <span class="k">def</span> <span class="nf">ChannelPool</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">limit</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">preload</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Pool of channels.</span>
+
+<span class="sd">        See :class:`ChannelPool`.</span>
+
+<span class="sd">        :keyword limit: Maximum number of active channels.</span>
+<span class="sd">          Default is no limit.</span>
+<span class="sd">        :keyword preload: Number of channels to preload</span>
+<span class="sd">          when the pool is created.  Default is 0.</span>
+
+<span class="sd">        *Example usage*::</span>
+
+<span class="sd">            &gt;&gt;&gt; pool = connection.ChannelPool(2)</span>
+<span class="sd">            &gt;&gt;&gt; c1 = pool.acquire()</span>
+<span class="sd">            &gt;&gt;&gt; c2 = pool.acquire()</span>
+<span class="sd">            &gt;&gt;&gt; c3 = pool.acquire()</span>
+<span class="sd">            Traceback (most recent call last):</span>
+<span class="sd">              File &quot;&lt;stdin&gt;&quot;, line 1, in &lt;module&gt;</span>
+<span class="sd">              File &quot;kombu/connection.py&quot;, line 354, in acquire</span>
+<span class="sd">              raise ChannelLimitExceeded(self.limit)</span>
+<span class="sd">                kombu.connection.ChannelLimitExceeded: 2</span>
+<span class="sd">            &gt;&gt;&gt; c1.release()</span>
+<span class="sd">            &gt;&gt;&gt; c3 = pool.acquire()</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">ChannelPool</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">limit</span><span class="p">,</span> <span class="n">preload</span><span class="p">)</span>
+</div>
+    <span class="k">def</span> <span class="nf">Producer</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">channel</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="kn">from</span> <span class="nn">.messaging</span> <span class="kn">import</span> <span class="n">Producer</span>
+        <span class="k">return</span> <span class="n">Producer</span><span class="p">(</span><span class="n">channel</span> <span class="ow">or</span> <span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">Consumer</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">queues</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">channel</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="kn">from</span> <span class="nn">.messaging</span> <span class="kn">import</span> <span class="n">Consumer</span>
+        <span class="k">return</span> <span class="n">Consumer</span><span class="p">(</span><span class="n">channel</span> <span class="ow">or</span> <span class="bp">self</span><span class="p">,</span> <span class="n">queues</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+<div class="viewcode-block" id="Connection.SimpleQueue"><a class="viewcode-back" href="../../reference/kombu.connection.html#kombu.connection.Connection.SimpleQueue">[docs]</a>    <span class="k">def</span> <span class="nf">SimpleQueue</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">no_ack</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">queue_opts</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+            <span class="n">exchange_opts</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">channel</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Create new :class:`~kombu.simple.SimpleQueue`, using a channel</span>
+<span class="sd">        from this connection.</span>
+
+<span class="sd">        If ``name`` is a string, a queue and exchange will be automatically</span>
+<span class="sd">        created using that name as the name of the queue and exchange,</span>
+<span class="sd">        also it will be used as the default routing key.</span>
+
+<span class="sd">        :param name: Name of the queue/or a :class:`~kombu.entity.Queue`.</span>
+<span class="sd">        :keyword no_ack: Disable acknowledgements. Default is false.</span>
+<span class="sd">        :keyword queue_opts: Additional keyword arguments passed to the</span>
+<span class="sd">          constructor of the automatically created</span>
+<span class="sd">          :class:`~kombu.entity.Queue`.</span>
+<span class="sd">        :keyword exchange_opts: Additional keyword arguments passed to the</span>
+<span class="sd">          constructor of the automatically created</span>
+<span class="sd">          :class:`~kombu.entity.Exchange`.</span>
+<span class="sd">        :keyword channel: Channel to use. If not specified a new channel</span>
+<span class="sd">           from the current connection will be used. Remember to call</span>
+<span class="sd">           :meth:`~kombu.simple.SimpleQueue.close` when done with the</span>
+<span class="sd">           object.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="kn">from</span> <span class="nn">.simple</span> <span class="kn">import</span> <span class="n">SimpleQueue</span>
+        <span class="k">return</span> <span class="n">SimpleQueue</span><span class="p">(</span><span class="n">channel</span> <span class="ow">or</span> <span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">no_ack</span><span class="p">,</span> <span class="n">queue_opts</span><span class="p">,</span>
+                           <span class="n">exchange_opts</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="Connection.SimpleBuffer"><a class="viewcode-back" href="../../reference/kombu.connection.html#kombu.connection.Connection.SimpleBuffer">[docs]</a>    <span class="k">def</span> <span class="nf">SimpleBuffer</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">no_ack</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">queue_opts</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+            <span class="n">exchange_opts</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">channel</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Create new :class:`~kombu.simple.SimpleQueue` using a channel</span>
+<span class="sd">        from this connection.</span>
+
+<span class="sd">        Same as :meth:`SimpleQueue`, but configured with buffering</span>
+<span class="sd">        semantics. The resulting queue and exchange will not be durable, also</span>
+<span class="sd">        auto delete is enabled. Messages will be transient (not persistent),</span>
+<span class="sd">        and acknowledgements are disabled (``no_ack``).</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="kn">from</span> <span class="nn">.simple</span> <span class="kn">import</span> <span class="n">SimpleBuffer</span>
+        <span class="k">return</span> <span class="n">SimpleBuffer</span><span class="p">(</span><span class="n">channel</span> <span class="ow">or</span> <span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">no_ack</span><span class="p">,</span> <span class="n">queue_opts</span><span class="p">,</span>
+                            <span class="n">exchange_opts</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+</div>
+    <span class="k">def</span> <span class="nf">_establish_connection</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_debug</span><span class="p">(</span><span class="s">&#39;establishing connection...&#39;</span><span class="p">)</span>
+        <span class="n">conn</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">transport</span><span class="o">.</span><span class="n">establish_connection</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_debug</span><span class="p">(</span><span class="s">&#39;connection established: </span><span class="si">%r</span><span class="s">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">conn</span><span class="p">,</span> <span class="p">))</span>
+        <span class="k">return</span> <span class="n">conn</span>
+
+    <span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;``x.__repr__() &lt;==&gt; repr(x)``&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="s">&#39;&lt;Connection: </span><span class="si">%s</span><span class="s"> at 0x</span><span class="si">%x</span><span class="s">&gt;&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">as_uri</span><span class="p">(),</span> <span class="nb">id</span><span class="p">(</span><span class="bp">self</span><span class="p">))</span>
+
+    <span class="k">def</span> <span class="nf">__copy__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;``x.__copy__() &lt;==&gt; copy(x)``&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">clone</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">__reduce__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">info</span><span class="p">()</span><span class="o">.</span><span class="n">values</span><span class="p">()),</span> <span class="bp">None</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__enter__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span>
+
+    <span class="k">def</span> <span class="nf">__exit__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">release</span><span class="p">()</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">connected</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns true if the connection has been established.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="p">(</span><span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_closed</span> <span class="ow">and</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_connection</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span> <span class="ow">and</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">transport</span><span class="o">.</span><span class="n">verify_connection</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_connection</span><span class="p">))</span>
+
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="Connection.connection"><a class="viewcode-back" href="../../reference/kombu.connection.html#kombu.connection.Connection.connection">[docs]</a>    <span class="k">def</span> <span class="nf">connection</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;The underlying connection object.</span>
+
+<span class="sd">        .. warning::</span>
+<span class="sd">            This instance is transport specific, so do not</span>
+<span class="sd">            depend on the interface of this object.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_closed</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">connected</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">declared_entities</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_default_channel</span> <span class="o">=</span> <span class="bp">None</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_connection</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_establish_connection</span><span class="p">()</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_closed</span> <span class="o">=</span> <span class="bp">False</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_connection</span>
+</div>
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">default_channel</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c"># make sure we&#39;re still connected, and if not refresh.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">connection</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_default_channel</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_default_channel</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">channel</span><span class="p">()</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_default_channel</span>
+
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="Connection.host"><a class="viewcode-back" href="../../reference/kombu.connection.html#kombu.connection.Connection.host">[docs]</a>    <span class="k">def</span> <span class="nf">host</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;The host as a host name/port pair separated by colon.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="s">&#39;:&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="bp">self</span><span class="o">.</span><span class="n">hostname</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">port</span><span class="p">)])</span>
+</div>
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="Connection.transport"><a class="viewcode-back" href="../../reference/kombu.connection.html#kombu.connection.Connection.transport">[docs]</a>    <span class="k">def</span> <span class="nf">transport</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_transport</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_transport</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">create_transport</span><span class="p">()</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_transport</span>
+</div>
+    <span class="nd">@cached_property</span>
+    <span class="k">def</span> <span class="nf">manager</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">transport</span><span class="o">.</span><span class="n">manager</span>
+
+    <span class="k">def</span> <span class="nf">get_manager</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">transport</span><span class="o">.</span><span class="n">get_manager</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="Connection.connection_errors"><a class="viewcode-back" href="../../reference/kombu.connection.html#kombu.connection.Connection.connection_errors">[docs]</a>    <span class="k">def</span> <span class="nf">connection_errors</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;List of exceptions that may be raised by the connection.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">transport</span><span class="o">.</span><span class="n">connection_errors</span>
+</div>
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="Connection.channel_errors"><a class="viewcode-back" href="../../reference/kombu.connection.html#kombu.connection.Connection.channel_errors">[docs]</a>    <span class="k">def</span> <span class="nf">channel_errors</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;List of exceptions that may be raised by the channel.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">transport</span><span class="o">.</span><span class="n">channel_errors</span>
+</div>
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">eventmap</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">transport</span><span class="o">.</span><span class="n">eventmap</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">connection</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">supports_heartbeats</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">transport</span><span class="o">.</span><span class="n">supports_heartbeats</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">is_evented</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">transport</span><span class="p">,</span> <span class="s">&#39;on_poll_start&#39;</span><span class="p">,</span> <span class="bp">None</span><span class="p">)</span></div>
+<span class="n">BrokerConnection</span> <span class="o">=</span> <span class="n">Connection</span>
+
+
+<span class="k">class</span> <span class="nc">Resource</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="n">LimitExceeded</span> <span class="o">=</span> <span class="n">exceptions</span><span class="o">.</span><span class="n">LimitExceeded</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">limit</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">preload</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">limit</span> <span class="o">=</span> <span class="n">limit</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">preload</span> <span class="o">=</span> <span class="n">preload</span> <span class="ow">or</span> <span class="mi">0</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_resource</span> <span class="o">=</span> <span class="n">_LifoQueue</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_dirty</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">setup</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">setup</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s">&#39;subclass responsibility&#39;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_add_when_empty</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">limit</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_dirty</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">limit</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="bp">self</span><span class="o">.</span><span class="n">LimitExceeded</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">limit</span><span class="p">)</span>
+        <span class="c"># All taken, put new on the queue and</span>
+        <span class="c"># try get again, this way the first in line</span>
+        <span class="c"># will get the resource.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_resource</span><span class="o">.</span><span class="n">put_nowait</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">new</span><span class="p">())</span>
+
+    <span class="k">def</span> <span class="nf">acquire</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">block</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Acquire resource.</span>
+
+<span class="sd">        :keyword block: If the limit is exceeded,</span>
+<span class="sd">          block until there is an available item.</span>
+<span class="sd">        :keyword timeout: Timeout to wait</span>
+<span class="sd">          if ``block`` is true. Default is :const:`None` (forever).</span>
+
+<span class="sd">        :raises LimitExceeded: if block is false</span>
+<span class="sd">          and the limit has been exceeded.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">limit</span><span class="p">:</span>
+            <span class="k">while</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="n">R</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_resource</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">block</span><span class="o">=</span><span class="n">block</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="n">timeout</span><span class="p">)</span>
+                <span class="k">except</span> <span class="n">Empty</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_add_when_empty</span><span class="p">()</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">R</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">prepare</span><span class="p">(</span><span class="n">R</span><span class="p">)</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_dirty</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">R</span><span class="p">)</span>
+                    <span class="k">break</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">R</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">prepare</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">new</span><span class="p">())</span>
+
+        <span class="k">def</span> <span class="nf">release</span><span class="p">():</span>
+            <span class="sd">&quot;&quot;&quot;Release resource so it can be used by another thread.</span>
+
+<span class="sd">            The caller is responsible for discarding the object,</span>
+<span class="sd">            and to never use the resource again.  A new resource must</span>
+<span class="sd">            be acquired if so needed.</span>
+
+<span class="sd">            &quot;&quot;&quot;</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">release</span><span class="p">(</span><span class="n">R</span><span class="p">)</span>
+        <span class="n">R</span><span class="o">.</span><span class="n">release</span> <span class="o">=</span> <span class="n">release</span>
+
+        <span class="k">return</span> <span class="n">R</span>
+
+    <span class="k">def</span> <span class="nf">prepare</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">resource</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">resource</span>
+
+    <span class="k">def</span> <span class="nf">close_resource</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">resource</span><span class="p">):</span>
+        <span class="n">resource</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">release_resource</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">resource</span><span class="p">):</span>
+        <span class="k">pass</span>
+
+    <span class="k">def</span> <span class="nf">replace</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">resource</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Replace resource with a new instance.  This can be used in case</span>
+<span class="sd">        of defective resources.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">limit</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_dirty</span><span class="o">.</span><span class="n">discard</span><span class="p">(</span><span class="n">resource</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">close_resource</span><span class="p">(</span><span class="n">resource</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">release</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">resource</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">limit</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_dirty</span><span class="o">.</span><span class="n">discard</span><span class="p">(</span><span class="n">resource</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_resource</span><span class="o">.</span><span class="n">put_nowait</span><span class="p">(</span><span class="n">resource</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">release_resource</span><span class="p">(</span><span class="n">resource</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">close_resource</span><span class="p">(</span><span class="n">resource</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">force_close_all</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Closes and removes all resources in the pool (also those in use).</span>
+
+<span class="sd">        Can be used to close resources from parent processes</span>
+<span class="sd">        after fork (e.g. sockets/connections).</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">dirty</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_dirty</span>
+        <span class="n">resource</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_resource</span>
+        <span class="k">while</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">dres</span> <span class="o">=</span> <span class="n">dirty</span><span class="o">.</span><span class="n">pop</span><span class="p">()</span>
+            <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+                <span class="k">break</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">close_resource</span><span class="p">(</span><span class="n">dres</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>  <span class="c"># Issue #78</span>
+                <span class="k">pass</span>
+
+        <span class="n">mutex</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">resource</span><span class="p">,</span> <span class="s">&#39;mutex&#39;</span><span class="p">,</span> <span class="bp">None</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">mutex</span><span class="p">:</span>
+            <span class="n">mutex</span><span class="o">.</span><span class="n">acquire</span><span class="p">()</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">while</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="n">res</span> <span class="o">=</span> <span class="n">resource</span><span class="o">.</span><span class="n">queue</span><span class="o">.</span><span class="n">pop</span><span class="p">()</span>
+                <span class="k">except</span> <span class="ne">IndexError</span><span class="p">:</span>
+                    <span class="k">break</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">close_resource</span><span class="p">(</span><span class="n">res</span><span class="p">)</span>
+                <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>
+                    <span class="k">pass</span>  <span class="c"># Issue #78</span>
+        <span class="k">finally</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">mutex</span><span class="p">:</span>
+                <span class="n">mutex</span><span class="o">.</span><span class="n">release</span><span class="p">()</span>
+
+    <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;KOMBU_DEBUG_POOL&#39;</span><span class="p">):</span>  <span class="c"># pragma: no cover</span>
+        <span class="n">_orig_acquire</span> <span class="o">=</span> <span class="n">acquire</span>
+        <span class="n">_orig_release</span> <span class="o">=</span> <span class="n">release</span>
+
+        <span class="n">_next_resource_id</span> <span class="o">=</span> <span class="mi">0</span>
+
+        <span class="k">def</span> <span class="nf">acquire</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>  <span class="c"># noqa</span>
+            <span class="kn">import</span> <span class="nn">traceback</span>
+            <span class="nb">id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_next_resource_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_next_resource_id</span> <span class="o">+</span> <span class="mi">1</span>
+            <span class="k">print</span><span class="p">(</span><span class="s">&#39;+</span><span class="si">%s</span><span class="s"> ACQUIRE </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="nb">id</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="o">.</span><span class="n">__name__</span><span class="p">,</span> <span class="p">))</span>
+            <span class="n">r</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_orig_acquire</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+            <span class="n">r</span><span class="o">.</span><span class="n">_resource_id</span> <span class="o">=</span> <span class="nb">id</span>
+            <span class="k">print</span><span class="p">(</span><span class="s">&#39;-</span><span class="si">%s</span><span class="s"> ACQUIRE </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="nb">id</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="o">.</span><span class="n">__name__</span><span class="p">,</span> <span class="p">))</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">r</span><span class="p">,</span> <span class="s">&#39;acquired_by&#39;</span><span class="p">):</span>
+                <span class="n">r</span><span class="o">.</span><span class="n">acquired_by</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="n">r</span><span class="o">.</span><span class="n">acquired_by</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">traceback</span><span class="o">.</span><span class="n">format_stack</span><span class="p">())</span>
+            <span class="k">return</span> <span class="n">r</span>
+
+        <span class="k">def</span> <span class="nf">release</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">resource</span><span class="p">):</span>  <span class="c"># noqa</span>
+            <span class="nb">id</span> <span class="o">=</span> <span class="n">resource</span><span class="o">.</span><span class="n">_resource_id</span>
+            <span class="k">print</span><span class="p">(</span><span class="s">&#39;+</span><span class="si">%s</span><span class="s"> RELEASE </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="nb">id</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="o">.</span><span class="n">__name__</span><span class="p">,</span> <span class="p">))</span>
+            <span class="n">r</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_orig_release</span><span class="p">(</span><span class="n">resource</span><span class="p">)</span>
+            <span class="k">print</span><span class="p">(</span><span class="s">&#39;-</span><span class="si">%s</span><span class="s"> RELEASE </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="nb">id</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="o">.</span><span class="n">__name__</span><span class="p">,</span> <span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_next_resource_id</span> <span class="o">-=</span> <span class="mi">1</span>
+            <span class="k">return</span> <span class="n">r</span>
+
+
+<div class="viewcode-block" id="ConnectionPool"><a class="viewcode-back" href="../../reference/kombu.connection.html#kombu.connection.ConnectionPool">[docs]</a><span class="k">class</span> <span class="nc">ConnectionPool</span><span class="p">(</span><span class="n">Resource</span><span class="p">):</span>
+    <span class="n">LimitExceeded</span> <span class="o">=</span> <span class="n">exceptions</span><span class="o">.</span><span class="n">ConnectionLimitExceeded</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">connection</span><span class="p">,</span> <span class="n">limit</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">preload</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">connection</span> <span class="o">=</span> <span class="n">connection</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">ConnectionPool</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="n">limit</span><span class="o">=</span><span class="n">limit</span><span class="p">,</span>
+                                             <span class="n">preload</span><span class="o">=</span><span class="n">preload</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">new</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">clone</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">release_resource</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">resource</span><span class="p">):</span>
+        <span class="n">resource</span><span class="o">.</span><span class="n">_debug</span><span class="p">(</span><span class="s">&#39;released&#39;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">close_resource</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">resource</span><span class="p">):</span>
+        <span class="n">resource</span><span class="o">.</span><span class="n">_close</span><span class="p">()</span>
+
+    <span class="nd">@contextmanager</span>
+    <span class="k">def</span> <span class="nf">acquire_channel</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">block</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">acquire</span><span class="p">(</span><span class="n">block</span><span class="o">=</span><span class="n">block</span><span class="p">)</span> <span class="k">as</span> <span class="n">connection</span><span class="p">:</span>
+            <span class="k">yield</span> <span class="n">connection</span><span class="p">,</span> <span class="n">connection</span><span class="o">.</span><span class="n">default_channel</span>
+
+    <span class="k">def</span> <span class="nf">setup</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">limit</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">xrange</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">limit</span><span class="p">):</span>
+                <span class="k">if</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">preload</span><span class="p">:</span>
+                    <span class="n">conn</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">new</span><span class="p">()</span>
+                    <span class="n">conn</span><span class="o">.</span><span class="n">connect</span><span class="p">()</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">conn</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">new</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_resource</span><span class="o">.</span><span class="n">put_nowait</span><span class="p">(</span><span class="n">conn</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">prepare</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">resource</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">callable</span><span class="p">(</span><span class="n">resource</span><span class="p">):</span>
+            <span class="n">resource</span> <span class="o">=</span> <span class="n">resource</span><span class="p">()</span>
+        <span class="n">resource</span><span class="o">.</span><span class="n">_debug</span><span class="p">(</span><span class="s">&#39;acquired&#39;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">resource</span>
+
+</div>
+<div class="viewcode-block" id="ChannelPool"><a class="viewcode-back" href="../../reference/kombu.connection.html#kombu.connection.ChannelPool">[docs]</a><span class="k">class</span> <span class="nc">ChannelPool</span><span class="p">(</span><span class="n">Resource</span><span class="p">):</span>
+    <span class="n">LimitExceeded</span> <span class="o">=</span> <span class="n">exceptions</span><span class="o">.</span><span class="n">ChannelLimitExceeded</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">connection</span><span class="p">,</span> <span class="n">limit</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">preload</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">connection</span> <span class="o">=</span> <span class="n">connection</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">ChannelPool</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="n">limit</span><span class="o">=</span><span class="n">limit</span><span class="p">,</span>
+                                          <span class="n">preload</span><span class="o">=</span><span class="n">preload</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">new</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">channel</span>
+
+    <span class="k">def</span> <span class="nf">setup</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">channel</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">new</span><span class="p">()</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">limit</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">xrange</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">limit</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_resource</span><span class="o">.</span><span class="n">put_nowait</span><span class="p">(</span>
+                    <span class="n">i</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">preload</span> <span class="ow">and</span> <span class="n">channel</span><span class="p">()</span> <span class="ow">or</span> <span class="n">channel</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">prepare</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">channel</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">callable</span><span class="p">(</span><span class="n">channel</span><span class="p">):</span>
+            <span class="n">channel</span> <span class="o">=</span> <span class="n">channel</span><span class="p">()</span>
+
+        <span class="k">return</span> <span class="n">channel</span>
+
+</div>
+<span class="k">def</span> <span class="nf">maybe_channel</span><span class="p">(</span><span class="n">channel</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Returns channel, or returns the default_channel if it&#39;s a</span>
+<span class="sd">    connection.&quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">channel</span><span class="p">,</span> <span class="n">Connection</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">channel</span><span class="o">.</span><span class="n">default_channel</span>
+    <span class="k">return</span> <span class="n">channel</span>
+</pre></div>
+
+      </div>
+      <div class="bottomnav">
+      
+        <p>
+        <a href="/">Home</a>:
+        <a class="uplink" href="../../index.html">Contents</a>
+        </p>
+
+      </div>
+
+    <div class="footer">
+        &copy; Copyright 2012, HDKNR.COM.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.2pre/3c28de26aac2.
+    </div>
+  </body>
+</html>

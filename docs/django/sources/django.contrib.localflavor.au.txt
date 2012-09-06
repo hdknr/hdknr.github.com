@@ -10,7 +10,7 @@ django.contrib.localflavor.au
 =============================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/localflavor/au/__init__.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/localflavor/au/__init__.py>`_ 
 
 .. include:: cheat/django.contrib.localflavor.au.rst
 
@@ -25,7 +25,7 @@ django.contrib.localflavor.au.au_states
 =======================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/localflavor/au/au_states.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/localflavor/au/au_states.py>`_ 
 
 .. include:: cheat/django.contrib.localflavor.au.au_states.rst
 
@@ -38,10 +38,23 @@ django.contrib.localflavor.au.forms
 ===================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/localflavor/au/forms.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/localflavor/au/forms.py>`_ 
 
 .. include:: cheat/django.contrib.localflavor.au.forms.rst
 
 .. automodule:: django.contrib.localflavor.au.forms
+    :members:
+
+.. _django.contrib.localflavor.au.models:
+
+django.contrib.localflavor.au.models
+====================================
+
+
+- `source <https://github.com/django/django/tree/master/django/contrib/localflavor/au/models.py>`_ 
+
+.. include:: cheat/django.contrib.localflavor.au.models.rst
+
+.. automodule:: django.contrib.localflavor.au.models
     :members:
 

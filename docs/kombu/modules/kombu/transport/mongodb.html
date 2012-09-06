@@ -1,0 +1,290 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>kombu.transport.mongodb &mdash; Kombu Docs 1 documentation</title>
+    
+    <link rel="stylesheet" href="../../../static/haiku.css" type="text/css" />
+    <link rel="stylesheet" href="../../../static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../../../static/print.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../',
+        VERSION:     '1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../../static/jquery.js"></script>
+    <script type="text/javascript" src="../../../static/underscore.js"></script>
+    <script type="text/javascript" src="../../../static/doctools.js"></script>
+    <script type="text/javascript" src="../../../static/theme_extras.js"></script>
+    <link rel="top" title="Kombu Docs 1 documentation" href="../../../index.html" />
+    <link rel="up" title="kombu.transport" href="../transport.html" /> 
+  </head>
+  <body>
+      <div class="header"><h1 class="heading"><a href="../../../index.html">
+          <span>Kombu Docs 1 documentation</span></a></h1>
+        <h2 class="heading"><span>kombu.transport.mongodb</span></h2>
+      </div>
+      <div class="topnav">
+      
+        <p>
+        <a href="/">Home</a>:
+        <a class="uplink" href="../../../index.html">Contents</a>
+        </p>
+
+      </div>
+      <div class="content">
+        
+        
+  <h1>Source code for kombu.transport.mongodb</h1><div class="highlight"><pre>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">kombu.transport.mongodb</span>
+<span class="sd">=======================</span>
+
+<span class="sd">MongoDB transport.</span>
+
+<span class="sd">:copyright: (c) 2010 - 2012 by Flavio Percoco Premoli.</span>
+<span class="sd">:license: BSD, see LICENSE for more details.</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">absolute_import</span>
+
+<span class="kn">from</span> <span class="nn">Queue</span> <span class="kn">import</span> <span class="n">Empty</span>
+
+<span class="kn">import</span> <span class="nn">pymongo</span>
+
+<span class="kn">from</span> <span class="nn">pymongo</span> <span class="kn">import</span> <span class="n">errors</span>
+<span class="kn">from</span> <span class="nn">anyjson</span> <span class="kn">import</span> <span class="n">loads</span><span class="p">,</span> <span class="n">dumps</span>
+<span class="kn">from</span> <span class="nn">pymongo.connection</span> <span class="kn">import</span> <span class="n">Connection</span>
+
+<span class="kn">from</span> <span class="nn">kombu.exceptions</span> <span class="kn">import</span> <span class="n">StdChannelError</span>
+
+<span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">virtual</span>
+
+<span class="n">DEFAULT_HOST</span> <span class="o">=</span> <span class="s">&#39;127.0.0.1&#39;</span>
+<span class="n">DEFAULT_PORT</span> <span class="o">=</span> <span class="mi">27017</span>
+
+<span class="n">__author__</span> <span class="o">=</span> <span class="s">&quot;&quot;&quot;</span><span class="se">\</span>
+<span class="s">Flavio [FlaPer87] Percoco Premoli &lt;flaper87@flaper87.org&gt;;</span><span class="se">\</span>
+<span class="s">Scott Lyons &lt;scottalyons@gmail.com&gt;;</span><span class="se">\</span>
+<span class="s">&quot;&quot;&quot;</span>
+
+
+<div class="viewcode-block" id="Channel"><a class="viewcode-back" href="../../../reference/kombu.transport.mongodb.html#kombu.transport.mongodb.Channel">[docs]</a><span class="k">class</span> <span class="nc">Channel</span><span class="p">(</span><span class="n">virtual</span><span class="o">.</span><span class="n">Channel</span><span class="p">):</span>
+    <span class="n">_client</span> <span class="o">=</span> <span class="bp">None</span>
+    <span class="n">supports_fanout</span> <span class="o">=</span> <span class="bp">True</span>
+    <span class="n">_fanout_queues</span> <span class="o">=</span> <span class="p">{}</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">vargs</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="n">super_</span> <span class="o">=</span> <span class="nb">super</span><span class="p">(</span><span class="n">Channel</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span>
+        <span class="n">super_</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="o">*</span><span class="n">vargs</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_queue_cursors</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_queue_readcounts</span> <span class="o">=</span> <span class="p">{}</span>
+
+    <span class="k">def</span> <span class="nf">_new_queue</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">queue</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="k">pass</span>
+
+    <span class="k">def</span> <span class="nf">_get</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">queue</span><span class="p">):</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">queue</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fanout_queues</span><span class="p">:</span>
+                <span class="n">msg</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_queue_cursors</span><span class="p">[</span><span class="n">queue</span><span class="p">]</span><span class="o">.</span><span class="n">next</span><span class="p">()</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_queue_readcounts</span><span class="p">[</span><span class="n">queue</span><span class="p">]</span> <span class="o">+=</span> <span class="mi">1</span>
+                <span class="k">return</span> <span class="n">loads</span><span class="p">(</span><span class="n">msg</span><span class="p">[</span><span class="s">&#39;payload&#39;</span><span class="p">])</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">msg</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">command</span><span class="p">(</span><span class="s">&#39;findandmodify&#39;</span><span class="p">,</span> <span class="s">&#39;messages&#39;</span><span class="p">,</span>
+                    <span class="n">query</span><span class="o">=</span><span class="p">{</span><span class="s">&#39;queue&#39;</span><span class="p">:</span> <span class="n">queue</span><span class="p">},</span>
+                    <span class="n">sort</span><span class="o">=</span><span class="p">{</span><span class="s">&#39;_id&#39;</span><span class="p">:</span> <span class="n">pymongo</span><span class="o">.</span><span class="n">ASCENDING</span><span class="p">},</span> <span class="n">remove</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+        <span class="k">except</span> <span class="n">errors</span><span class="o">.</span><span class="n">OperationFailure</span><span class="p">,</span> <span class="n">exc</span><span class="p">:</span>
+            <span class="k">if</span> <span class="s">&#39;No matching object found&#39;</span> <span class="ow">in</span> <span class="n">exc</span><span class="o">.</span><span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span>
+                <span class="k">raise</span> <span class="n">Empty</span><span class="p">()</span>
+            <span class="k">raise</span>
+        <span class="k">except</span> <span class="ne">StopIteration</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">Empty</span><span class="p">()</span>
+
+        <span class="c"># as of mongo 2.0 empty results won&#39;t raise an error</span>
+        <span class="k">if</span> <span class="n">msg</span><span class="p">[</span><span class="s">&#39;value&#39;</span><span class="p">]</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">Empty</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">loads</span><span class="p">(</span><span class="n">msg</span><span class="p">[</span><span class="s">&#39;value&#39;</span><span class="p">][</span><span class="s">&#39;payload&#39;</span><span class="p">])</span>
+
+    <span class="k">def</span> <span class="nf">_size</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">queue</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">queue</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fanout_queues</span><span class="p">:</span>
+            <span class="k">return</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_queue_cursors</span><span class="p">[</span><span class="n">queue</span><span class="p">]</span><span class="o">.</span><span class="n">count</span><span class="p">()</span> <span class="o">-</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_queue_readcounts</span><span class="p">[</span><span class="n">queue</span><span class="p">])</span>
+
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">messages</span><span class="o">.</span><span class="n">find</span><span class="p">({</span><span class="s">&#39;queue&#39;</span><span class="p">:</span> <span class="n">queue</span><span class="p">})</span><span class="o">.</span><span class="n">count</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">_put</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">queue</span><span class="p">,</span> <span class="n">message</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">messages</span><span class="o">.</span><span class="n">insert</span><span class="p">({</span><span class="s">&#39;payload&#39;</span><span class="p">:</span> <span class="n">dumps</span><span class="p">(</span><span class="n">message</span><span class="p">),</span>
+                                     <span class="s">&#39;queue&#39;</span><span class="p">:</span> <span class="n">queue</span><span class="p">})</span>
+
+    <span class="k">def</span> <span class="nf">_purge</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">queue</span><span class="p">):</span>
+        <span class="n">size</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_size</span><span class="p">(</span><span class="n">queue</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">queue</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fanout_queues</span><span class="p">:</span>
+            <span class="n">cursor</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_queue_cursors</span><span class="p">[</span><span class="n">queue</span><span class="p">]</span>
+            <span class="n">cursor</span><span class="o">.</span><span class="n">rewind</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_queue_cursors</span><span class="p">[</span><span class="n">queue</span><span class="p">]</span> <span class="o">=</span> <span class="n">cursor</span><span class="o">.</span><span class="n">skip</span><span class="p">(</span><span class="n">cursor</span><span class="o">.</span><span class="n">count</span><span class="p">())</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">messages</span><span class="o">.</span><span class="n">remove</span><span class="p">({</span><span class="s">&#39;queue&#39;</span><span class="p">:</span> <span class="n">queue</span><span class="p">})</span>
+        <span class="k">return</span> <span class="n">size</span>
+
+<div class="viewcode-block" id="Channel.close"><a class="viewcode-back" href="../../../reference/kombu.transport.mongodb.html#kombu.transport.mongodb.Channel.close">[docs]</a>    <span class="k">def</span> <span class="nf">close</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">Channel</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_client</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_client</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">end_request</span><span class="p">()</span>
+</div>
+    <span class="k">def</span> <span class="nf">_open</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        See mongodb uri documentation:</span>
+<span class="sd">        http://www.mongodb.org/display/DOCS/Connections</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">conninfo</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">client</span>
+
+        <span class="n">dbname</span> <span class="o">=</span> <span class="bp">None</span>
+        <span class="n">hostname</span> <span class="o">=</span> <span class="bp">None</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">conninfo</span><span class="o">.</span><span class="n">hostname</span><span class="p">:</span>
+            <span class="n">conninfo</span><span class="o">.</span><span class="n">hostname</span> <span class="o">=</span> <span class="n">DEFAULT_HOST</span>
+
+        <span class="k">for</span> <span class="n">part</span> <span class="ow">in</span> <span class="n">conninfo</span><span class="o">.</span><span class="n">hostname</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&#39;/&#39;</span><span class="p">):</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">hostname</span><span class="p">:</span>
+                <span class="n">hostname</span> <span class="o">=</span> <span class="s">&#39;mongodb://&#39;</span> <span class="o">+</span> <span class="n">part</span>
+                <span class="k">continue</span>
+
+            <span class="n">dbname</span> <span class="o">=</span> <span class="n">part</span>
+            <span class="k">if</span> <span class="s">&#39;?&#39;</span> <span class="ow">in</span> <span class="n">part</span><span class="p">:</span>
+                <span class="c"># In case someone is passing options</span>
+                <span class="c"># to the mongodb connection. Right now</span>
+                <span class="c"># it is not permitted by kombu</span>
+                <span class="n">dbname</span><span class="p">,</span> <span class="n">options</span> <span class="o">=</span> <span class="n">part</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&#39;?&#39;</span><span class="p">)</span>
+                <span class="n">hostname</span> <span class="o">+=</span> <span class="s">&#39;/?&#39;</span> <span class="o">+</span> <span class="n">options</span>
+
+        <span class="n">hostname</span> <span class="o">=</span> <span class="s">&quot;</span><span class="si">%s</span><span class="s">/</span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">hostname</span><span class="p">,</span> <span class="n">dbname</span> <span class="ow">in</span> <span class="p">[</span><span class="bp">None</span><span class="p">,</span> <span class="s">&quot;/&quot;</span><span class="p">]</span> <span class="ow">and</span> <span class="s">&quot;admin&quot;</span> \
+                                                                    <span class="ow">or</span> <span class="n">dbname</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">dbname</span> <span class="ow">or</span> <span class="n">dbname</span> <span class="o">==</span> <span class="s">&quot;/&quot;</span><span class="p">:</span>
+            <span class="n">dbname</span> <span class="o">=</span> <span class="s">&quot;kombu_default&quot;</span>
+
+        <span class="c"># At this point we expect the hostname to be something like</span>
+        <span class="c"># (considering replica set form too):</span>
+        <span class="c">#</span>
+        <span class="c">#   mongodb://[username:password@]host1[:port1][,host2[:port2],</span>
+        <span class="c">#   ...[,hostN[:portN]]][/[?options]]</span>
+        <span class="n">mongoconn</span> <span class="o">=</span> <span class="n">Connection</span><span class="p">(</span><span class="n">host</span><span class="o">=</span><span class="n">hostname</span><span class="p">)</span>
+        <span class="n">version</span> <span class="o">=</span> <span class="n">mongoconn</span><span class="o">.</span><span class="n">server_info</span><span class="p">()[</span><span class="s">&#39;version&#39;</span><span class="p">]</span>
+        <span class="k">if</span> <span class="nb">tuple</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="n">version</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&#39;.&#39;</span><span class="p">)[:</span><span class="mi">2</span><span class="p">]))</span> <span class="o">&lt;</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">3</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span>
+                <span class="s">&#39;Kombu requires MongoDB version 1.3+, but connected to </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="p">(</span>
+                    <span class="n">version</span><span class="p">,</span> <span class="p">))</span>
+
+        <span class="n">database</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">mongoconn</span><span class="p">,</span> <span class="n">dbname</span><span class="p">)</span>
+
+        <span class="c"># This is done by the connection uri</span>
+        <span class="c"># if conninfo.userid:</span>
+        <span class="c">#     database.authenticate(conninfo.userid, conninfo.password)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">db</span> <span class="o">=</span> <span class="n">database</span>
+        <span class="n">col</span> <span class="o">=</span> <span class="n">database</span><span class="o">.</span><span class="n">messages</span>
+        <span class="n">col</span><span class="o">.</span><span class="n">ensure_index</span><span class="p">([(</span><span class="s">&#39;queue&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)])</span>
+
+        <span class="k">if</span> <span class="s">&#39;messages.broadcast&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">database</span><span class="o">.</span><span class="n">collection_names</span><span class="p">():</span>
+            <span class="n">capsize</span> <span class="o">=</span> <span class="n">conninfo</span><span class="o">.</span><span class="n">transport_options</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
+                            <span class="s">&#39;capped_queue_size&#39;</span><span class="p">)</span> <span class="ow">or</span> <span class="mi">100000</span>
+            <span class="n">database</span><span class="o">.</span><span class="n">create_collection</span><span class="p">(</span><span class="s">&#39;messages.broadcast&#39;</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="n">capsize</span><span class="p">,</span>
+                                                             <span class="n">capped</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">bcast</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">database</span><span class="p">,</span> <span class="s">&#39;messages.broadcast&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">bcast</span><span class="o">.</span><span class="n">ensure_index</span><span class="p">([(</span><span class="s">&#39;queue&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)])</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">routing</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">database</span><span class="p">,</span> <span class="s">&#39;messages.routing&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">routing</span><span class="o">.</span><span class="n">ensure_index</span><span class="p">([(</span><span class="s">&#39;queue&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="p">(</span><span class="s">&#39;exchange&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)])</span>
+        <span class="k">return</span> <span class="n">database</span>
+
+    <span class="c">#TODO: Store a more complete exchange metatable in the routing collection</span>
+<div class="viewcode-block" id="Channel.get_table"><a class="viewcode-back" href="../../../reference/kombu.transport.mongodb.html#kombu.transport.mongodb.Channel.get_table">[docs]</a>    <span class="k">def</span> <span class="nf">get_table</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">exchange</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Get table of bindings for ``exchange``.&quot;&quot;&quot;</span>
+        <span class="n">brokerRoutes</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">messages</span><span class="o">.</span><span class="n">routing</span><span class="o">.</span><span class="n">find</span><span class="p">({</span>
+                            <span class="s">&#39;exchange&#39;</span><span class="p">:</span> <span class="n">exchange</span><span class="p">})</span>
+
+        <span class="n">localRoutes</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">exchanges</span><span class="p">[</span><span class="n">exchange</span><span class="p">][</span><span class="s">&#39;table&#39;</span><span class="p">]</span>
+        <span class="k">for</span> <span class="n">route</span> <span class="ow">in</span> <span class="n">brokerRoutes</span><span class="p">:</span>
+            <span class="n">localRoutes</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">route</span><span class="p">[</span><span class="s">&#39;routing_key&#39;</span><span class="p">],</span>
+                                <span class="n">route</span><span class="p">[</span><span class="s">&#39;pattern&#39;</span><span class="p">],</span>
+                                <span class="n">route</span><span class="p">[</span><span class="s">&#39;queue&#39;</span><span class="p">]))</span>
+        <span class="k">return</span> <span class="nb">set</span><span class="p">(</span><span class="n">localRoutes</span><span class="p">)</span>
+</div>
+    <span class="k">def</span> <span class="nf">_put_fanout</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">exchange</span><span class="p">,</span> <span class="n">message</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Deliver fanout message.&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">messages</span><span class="o">.</span><span class="n">broadcast</span><span class="o">.</span><span class="n">insert</span><span class="p">({</span><span class="s">&#39;payload&#39;</span><span class="p">:</span> <span class="n">dumps</span><span class="p">(</span><span class="n">message</span><span class="p">),</span>
+                                               <span class="s">&#39;queue&#39;</span><span class="p">:</span> <span class="n">exchange</span><span class="p">})</span>
+
+    <span class="k">def</span> <span class="nf">_queue_bind</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">exchange</span><span class="p">,</span> <span class="n">routing_key</span><span class="p">,</span> <span class="n">pattern</span><span class="p">,</span> <span class="n">queue</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">typeof</span><span class="p">(</span><span class="n">exchange</span><span class="p">)</span><span class="o">.</span><span class="n">type</span> <span class="o">==</span> <span class="s">&#39;fanout&#39;</span><span class="p">:</span>
+            <span class="n">cursor</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">bcast</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="n">query</span><span class="o">=</span><span class="p">{</span><span class="s">&#39;queue&#39;</span><span class="p">:</span> <span class="n">exchange</span><span class="p">},</span>
+                                     <span class="n">sort</span><span class="o">=</span><span class="p">[(</span><span class="s">&#39;$natural&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)],</span> <span class="n">tailable</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+            <span class="c"># Fast forward the cursor past old events</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_queue_cursors</span><span class="p">[</span><span class="n">queue</span><span class="p">]</span> <span class="o">=</span> <span class="n">cursor</span><span class="o">.</span><span class="n">skip</span><span class="p">(</span><span class="n">cursor</span><span class="o">.</span><span class="n">count</span><span class="p">())</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_queue_readcounts</span><span class="p">[</span><span class="n">queue</span><span class="p">]</span> <span class="o">=</span> <span class="n">cursor</span><span class="o">.</span><span class="n">count</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_fanout_queues</span><span class="p">[</span><span class="n">queue</span><span class="p">]</span> <span class="o">=</span> <span class="n">exchange</span>
+
+        <span class="n">meta</span> <span class="o">=</span> <span class="p">{</span><span class="s">&#39;exchange&#39;</span><span class="p">:</span> <span class="n">exchange</span><span class="p">,</span>
+                <span class="s">&#39;queue&#39;</span><span class="p">:</span> <span class="n">queue</span><span class="p">,</span>
+                <span class="s">&#39;routing_key&#39;</span><span class="p">:</span> <span class="n">routing_key</span><span class="p">,</span>
+                <span class="s">&#39;pattern&#39;</span><span class="p">:</span> <span class="n">pattern</span><span class="p">}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">messages</span><span class="o">.</span><span class="n">routing</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">meta</span><span class="p">,</span> <span class="n">meta</span><span class="p">,</span> <span class="n">upsert</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+
+<div class="viewcode-block" id="Channel.queue_delete"><a class="viewcode-back" href="../../../reference/kombu.transport.mongodb.html#kombu.transport.mongodb.Channel.queue_delete">[docs]</a>    <span class="k">def</span> <span class="nf">queue_delete</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">queue</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">routing</span><span class="o">.</span><span class="n">remove</span><span class="p">({</span><span class="s">&#39;queue&#39;</span><span class="p">:</span> <span class="n">queue</span><span class="p">})</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">Channel</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">queue_delete</span><span class="p">(</span><span class="n">queue</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">queue</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fanout_queues</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_queue_cursors</span><span class="p">[</span><span class="n">queue</span><span class="p">]</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_queue_cursors</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="n">queue</span><span class="p">,</span> <span class="bp">None</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_fanout_queues</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="n">queue</span><span class="p">,</span> <span class="bp">None</span><span class="p">)</span>
+</div>
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="Channel.client"><a class="viewcode-back" href="../../../reference/kombu.transport.mongodb.html#kombu.transport.mongodb.Channel.client">[docs]</a>    <span class="k">def</span> <span class="nf">client</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_client</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_client</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_open</span><span class="p">()</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_client</span>
+
+</div></div>
+<div class="viewcode-block" id="Transport"><a class="viewcode-back" href="../../../reference/kombu.transport.mongodb.html#kombu.transport.mongodb.Transport">[docs]</a><span class="k">class</span> <span class="nc">Transport</span><span class="p">(</span><span class="n">virtual</span><span class="o">.</span><span class="n">Transport</span><span class="p">):</span>
+    <span class="n">Channel</span> <span class="o">=</span> <span class="n">Channel</span>
+
+    <span class="n">polling_interval</span> <span class="o">=</span> <span class="mi">1</span>
+    <span class="n">default_port</span> <span class="o">=</span> <span class="n">DEFAULT_PORT</span>
+    <span class="n">connection_errors</span> <span class="o">=</span> <span class="p">(</span><span class="n">errors</span><span class="o">.</span><span class="n">ConnectionFailure</span><span class="p">,</span> <span class="p">)</span>
+    <span class="n">channel_errors</span> <span class="o">=</span> <span class="p">(</span><span class="n">StdChannelError</span><span class="p">,</span>
+                      <span class="n">errors</span><span class="o">.</span><span class="n">ConnectionFailure</span><span class="p">,</span>
+                      <span class="n">errors</span><span class="o">.</span><span class="n">OperationFailure</span><span class="p">,</span> <span class="p">)</span>
+    <span class="n">driver_type</span> <span class="o">=</span> <span class="s">&#39;mongodb&#39;</span>
+    <span class="n">driver_name</span> <span class="o">=</span> <span class="s">&#39;pymongo&#39;</span>
+
+<div class="viewcode-block" id="Transport.driver_version"><a class="viewcode-back" href="../../../reference/kombu.transport.mongodb.html#kombu.transport.mongodb.Transport.driver_version">[docs]</a>    <span class="k">def</span> <span class="nf">driver_version</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">pymongo</span><span class="o">.</span><span class="n">version</span></div></div>
+</pre></div>
+
+      </div>
+      <div class="bottomnav">
+      
+        <p>
+        <a href="/">Home</a>:
+        <a class="uplink" href="../../../index.html">Contents</a>
+        </p>
+
+      </div>
+
+    <div class="footer">
+        &copy; Copyright 2012, HDKNR.COM.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.2pre/3c28de26aac2.
+    </div>
+  </body>
+</html>

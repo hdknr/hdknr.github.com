@@ -10,7 +10,7 @@ django.contrib.messages.tests
 =============================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/messages/tests/__init__.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/messages/tests/__init__.py>`_ 
 
 .. include:: cheat/django.contrib.messages.tests.rst
 
@@ -25,7 +25,7 @@ django.contrib.messages.tests.base
 ==================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/messages/tests/base.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/messages/tests/base.py>`_ 
 
 .. include:: cheat/django.contrib.messages.tests.base.rst
 
@@ -38,7 +38,7 @@ django.contrib.messages.tests.cookie
 ====================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/messages/tests/cookie.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/messages/tests/cookie.py>`_ 
 
 .. include:: cheat/django.contrib.messages.tests.cookie.rst
 
@@ -51,7 +51,7 @@ django.contrib.messages.tests.fallback
 ======================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/messages/tests/fallback.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/messages/tests/fallback.py>`_ 
 
 .. include:: cheat/django.contrib.messages.tests.fallback.rst
 
@@ -64,7 +64,7 @@ django.contrib.messages.tests.middleware
 ========================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/messages/tests/middleware.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/messages/tests/middleware.py>`_ 
 
 .. include:: cheat/django.contrib.messages.tests.middleware.rst
 
@@ -77,7 +77,7 @@ django.contrib.messages.tests.session
 =====================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/messages/tests/session.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/messages/tests/session.py>`_ 
 
 .. include:: cheat/django.contrib.messages.tests.session.rst
 
@@ -90,23 +90,10 @@ django.contrib.messages.tests.urls
 ==================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/messages/tests/urls.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/messages/tests/urls.py>`_ 
 
 .. include:: cheat/django.contrib.messages.tests.urls.rst
 
 .. automodule:: django.contrib.messages.tests.urls
-    :members:
-
-.. _django.contrib.messages.tests.user_messages:
-
-django.contrib.messages.tests.user_messages
-===========================================
-
-
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/messages/tests/user_messages.py>`_ 
-
-.. include:: cheat/django.contrib.messages.tests.user_messages.rst
-
-.. automodule:: django.contrib.messages.tests.user_messages
     :members:
 

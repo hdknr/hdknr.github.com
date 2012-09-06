@@ -10,7 +10,7 @@ django.contrib.localflavor.fi
 =============================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/localflavor/fi/__init__.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/localflavor/fi/__init__.py>`_ 
 
 .. include:: cheat/django.contrib.localflavor.fi.rst
 
@@ -25,7 +25,7 @@ django.contrib.localflavor.fi.fi_municipalities
 ===============================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/localflavor/fi/fi_municipalities.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/localflavor/fi/fi_municipalities.py>`_ 
 
 .. include:: cheat/django.contrib.localflavor.fi.fi_municipalities.rst
 
@@ -38,7 +38,7 @@ django.contrib.localflavor.fi.forms
 ===================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/localflavor/fi/forms.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/localflavor/fi/forms.py>`_ 
 
 .. include:: cheat/django.contrib.localflavor.fi.forms.rst
 

@@ -10,7 +10,7 @@ django.core.files
 =================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/core/files/__init__.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/core/files/__init__.py>`_ 
 
 .. include:: cheat/django.core.files.rst
 
@@ -25,7 +25,7 @@ django.core.files.base
 ======================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/core/files/base.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/core/files/base.py>`_ 
 
 .. include:: cheat/django.core.files.base.rst
 
@@ -38,7 +38,7 @@ django.core.files.images
 ========================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/core/files/images.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/core/files/images.py>`_ 
 
 .. include:: cheat/django.core.files.images.rst
 
@@ -51,7 +51,7 @@ django.core.files.locks
 =======================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/core/files/locks.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/core/files/locks.py>`_ 
 
 .. include:: cheat/django.core.files.locks.rst
 
@@ -64,7 +64,7 @@ django.core.files.move
 ======================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/core/files/move.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/core/files/move.py>`_ 
 
 .. include:: cheat/django.core.files.move.rst
 
@@ -77,7 +77,7 @@ django.core.files.storage
 =========================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/core/files/storage.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/core/files/storage.py>`_ 
 
 .. include:: cheat/django.core.files.storage.rst
 
@@ -90,7 +90,7 @@ django.core.files.temp
 ======================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/core/files/temp.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/core/files/temp.py>`_ 
 
 .. include:: cheat/django.core.files.temp.rst
 
@@ -103,7 +103,7 @@ django.core.files.uploadedfile
 ==============================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/core/files/uploadedfile.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/core/files/uploadedfile.py>`_ 
 
 .. include:: cheat/django.core.files.uploadedfile.rst
 
@@ -116,7 +116,7 @@ django.core.files.uploadhandler
 ===============================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/core/files/uploadhandler.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/core/files/uploadhandler.py>`_ 
 
 .. include:: cheat/django.core.files.uploadhandler.rst
 
@@ -129,7 +129,7 @@ django.core.files.utils
 =======================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/core/files/utils.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/core/files/utils.py>`_ 
 
 .. include:: cheat/django.core.files.utils.rst
 

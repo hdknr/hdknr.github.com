@@ -10,7 +10,7 @@ django.contrib.localflavor.uy
 =============================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/localflavor/uy/__init__.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/localflavor/uy/__init__.py>`_ 
 
 .. include:: cheat/django.contrib.localflavor.uy.rst
 
@@ -25,7 +25,7 @@ django.contrib.localflavor.uy.forms
 ===================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/localflavor/uy/forms.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/localflavor/uy/forms.py>`_ 
 
 .. include:: cheat/django.contrib.localflavor.uy.forms.rst
 
@@ -38,7 +38,7 @@ django.contrib.localflavor.uy.util
 ==================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/localflavor/uy/util.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/localflavor/uy/util.py>`_ 
 
 .. include:: cheat/django.contrib.localflavor.uy.util.rst
 
@@ -51,7 +51,7 @@ django.contrib.localflavor.uy.uy_departaments
 =============================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/localflavor/uy/uy_departaments.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/localflavor/uy/uy_departaments.py>`_ 
 
 .. include:: cheat/django.contrib.localflavor.uy.uy_departaments.rst
 

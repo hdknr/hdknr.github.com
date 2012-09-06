@@ -10,7 +10,7 @@ django.bin
 ==========
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/bin/__init__.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/bin/__init__.py>`_ 
 
 .. include:: cheat/django.bin.rst
 
@@ -25,7 +25,7 @@ django.bin.daily_cleanup
 ========================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/bin/daily_cleanup.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/bin/daily_cleanup.py>`_ 
 
 .. include:: cheat/django.bin.daily_cleanup.rst
 
@@ -38,7 +38,7 @@ django.bin.django-admin
 =======================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/bin/django-admin.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/bin/django-admin.py>`_ 
 
 .. include:: cheat/django.bin.django-admin.rst
 
@@ -51,7 +51,7 @@ django.bin.unique-messages
 ==========================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/bin/unique-messages.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/bin/unique-messages.py>`_ 
 
 .. include:: cheat/django.bin.unique-messages.rst
 

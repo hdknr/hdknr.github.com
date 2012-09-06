@@ -10,7 +10,7 @@ django.contrib.admin
 ====================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/admin/__init__.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/admin/__init__.py>`_ 
 
 .. include:: cheat/django.contrib.admin.rst
 
@@ -32,24 +32,24 @@ django.contrib.admin.actions
 ============================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/admin/actions.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/admin/actions.py>`_ 
 
 .. include:: cheat/django.contrib.admin.actions.rst
 
 .. automodule:: django.contrib.admin.actions
     :members:
 
-.. _django.contrib.admin.filterspecs:
+.. _django.contrib.admin.filters:
 
-django.contrib.admin.filterspecs
-================================
+django.contrib.admin.filters
+============================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/admin/filterspecs.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/admin/filters.py>`_ 
 
-.. include:: cheat/django.contrib.admin.filterspecs.rst
+.. include:: cheat/django.contrib.admin.filters.rst
 
-.. automodule:: django.contrib.admin.filterspecs
+.. automodule:: django.contrib.admin.filters
     :members:
 
 .. _django.contrib.admin.forms:
@@ -58,7 +58,7 @@ django.contrib.admin.forms
 ==========================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/admin/forms.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/admin/forms.py>`_ 
 
 .. include:: cheat/django.contrib.admin.forms.rst
 
@@ -71,7 +71,7 @@ django.contrib.admin.helpers
 ============================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/admin/helpers.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/admin/helpers.py>`_ 
 
 .. include:: cheat/django.contrib.admin.helpers.rst
 
@@ -84,7 +84,7 @@ django.contrib.admin.models
 ===========================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/admin/models.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/admin/models.py>`_ 
 
 .. include:: cheat/django.contrib.admin.models.rst
 
@@ -97,7 +97,7 @@ django.contrib.admin.options
 ============================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/admin/options.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/admin/options.py>`_ 
 
 .. include:: cheat/django.contrib.admin.options.rst
 
@@ -110,11 +110,24 @@ django.contrib.admin.sites
 ==========================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/admin/sites.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/admin/sites.py>`_ 
 
 .. include:: cheat/django.contrib.admin.sites.rst
 
 .. automodule:: django.contrib.admin.sites
+    :members:
+
+.. _django.contrib.admin.tests:
+
+django.contrib.admin.tests
+==========================
+
+
+- `source <https://github.com/django/django/tree/master/django/contrib/admin/tests.py>`_ 
+
+.. include:: cheat/django.contrib.admin.tests.rst
+
+.. automodule:: django.contrib.admin.tests
     :members:
 
 .. _django.contrib.admin.util:
@@ -123,7 +136,7 @@ django.contrib.admin.util
 =========================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/admin/util.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/admin/util.py>`_ 
 
 .. include:: cheat/django.contrib.admin.util.rst
 
@@ -136,7 +149,7 @@ django.contrib.admin.validation
 ===============================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/admin/validation.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/admin/validation.py>`_ 
 
 .. include:: cheat/django.contrib.admin.validation.rst
 
@@ -149,7 +162,7 @@ django.contrib.admin.widgets
 ============================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/admin/widgets.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/admin/widgets.py>`_ 
 
 .. include:: cheat/django.contrib.admin.widgets.rst
 

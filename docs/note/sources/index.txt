@@ -25,6 +25,7 @@ Misc
     smb
     redis
     development
+    apache
 
     glossary
 

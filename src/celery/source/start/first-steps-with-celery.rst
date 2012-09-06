@@ -188,7 +188,7 @@ setup_loader()では CELERY_LOADERをDjangoLoaderに設定します。
 
 CeleryはこのCELERY_LOADERクラスを celery.app.default_loader として設定し、
 このローダーを使って Celeryアプリケーションインスタンスを作成する事になります。
-( この方法で生成されたアプリケーションを old applcation と読んでいるようです :doc:`api/celery.app` ) 
+( この方法で生成されたアプリケーションを old applcation と読んでいるようです :mod:`celery.app` ) 
 
     - https://github.com/celery/celery/blob/master/celery/app/__init__.py#L37
 

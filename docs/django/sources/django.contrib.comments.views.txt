@@ -10,7 +10,7 @@ django.contrib.comments.views
 =============================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/comments/views/__init__.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/comments/views/__init__.py>`_ 
 
 .. include:: cheat/django.contrib.comments.views.rst
 
@@ -25,7 +25,7 @@ django.contrib.comments.views.comments
 ======================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/comments/views/comments.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/comments/views/comments.py>`_ 
 
 .. include:: cheat/django.contrib.comments.views.comments.rst
 
@@ -38,7 +38,7 @@ django.contrib.comments.views.moderation
 ========================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/comments/views/moderation.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/comments/views/moderation.py>`_ 
 
 .. include:: cheat/django.contrib.comments.views.moderation.rst
 
@@ -51,7 +51,7 @@ django.contrib.comments.views.utils
 ===================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/comments/views/utils.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/comments/views/utils.py>`_ 
 
 .. include:: cheat/django.contrib.comments.views.utils.rst
 

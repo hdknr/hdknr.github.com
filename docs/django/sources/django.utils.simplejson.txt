@@ -10,7 +10,7 @@ django.utils.simplejson
 =======================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/utils/simplejson/__init__.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/utils/simplejson/__init__.py>`_ 
 
 .. include:: cheat/django.utils.simplejson.rst
 
@@ -25,7 +25,7 @@ django.utils.simplejson.decoder
 ===============================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/utils/simplejson/decoder.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/utils/simplejson/decoder.py>`_ 
 
 .. include:: cheat/django.utils.simplejson.decoder.rst
 
@@ -38,7 +38,7 @@ django.utils.simplejson.encoder
 ===============================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/utils/simplejson/encoder.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/utils/simplejson/encoder.py>`_ 
 
 .. include:: cheat/django.utils.simplejson.encoder.rst
 
@@ -51,7 +51,7 @@ django.utils.simplejson.scanner
 ===============================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/utils/simplejson/scanner.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/utils/simplejson/scanner.py>`_ 
 
 .. include:: cheat/django.utils.simplejson.scanner.rst
 
@@ -64,7 +64,7 @@ django.utils.simplejson.tool
 ============================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/utils/simplejson/tool.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/utils/simplejson/tool.py>`_ 
 
 .. include:: cheat/django.utils.simplejson.tool.rst
 

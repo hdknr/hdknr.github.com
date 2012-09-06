@@ -10,7 +10,7 @@ django.template
 ===============
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/template/__init__.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/template/__init__.py>`_ 
 
 .. include:: cheat/django.template.rst
 
@@ -25,7 +25,7 @@ django.template.base
 ====================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/template/base.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/template/base.py>`_ 
 
 .. include:: cheat/django.template.base.rst
 
@@ -38,7 +38,7 @@ django.template.context
 =======================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/template/context.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/template/context.py>`_ 
 
 .. include:: cheat/django.template.context.rst
 
@@ -51,7 +51,7 @@ django.template.debug
 =====================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/template/debug.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/template/debug.py>`_ 
 
 .. include:: cheat/django.template.debug.rst
 
@@ -64,7 +64,7 @@ django.template.defaultfilters
 ==============================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/template/defaultfilters.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/template/defaultfilters.py>`_ 
 
 .. include:: cheat/django.template.defaultfilters.rst
 
@@ -77,7 +77,7 @@ django.template.defaulttags
 ===========================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/template/defaulttags.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/template/defaulttags.py>`_ 
 
 .. include:: cheat/django.template.defaulttags.rst
 
@@ -90,7 +90,7 @@ django.template.loader
 ======================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/template/loader.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/template/loader.py>`_ 
 
 .. include:: cheat/django.template.loader.rst
 
@@ -103,7 +103,7 @@ django.template.loader_tags
 ===========================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/template/loader_tags.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/template/loader_tags.py>`_ 
 
 .. include:: cheat/django.template.loader_tags.rst
 
@@ -116,7 +116,7 @@ django.template.response
 ========================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/template/response.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/template/response.py>`_ 
 
 .. include:: cheat/django.template.response.rst
 
@@ -129,7 +129,7 @@ django.template.smartif
 =======================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/template/smartif.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/template/smartif.py>`_ 
 
 .. include:: cheat/django.template.smartif.rst
 

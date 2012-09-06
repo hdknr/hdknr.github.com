@@ -10,7 +10,7 @@ django.core.management
 ======================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/core/management/__init__.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/core/management/__init__.py>`_ 
 
 .. include:: cheat/django.core.management.rst
 
@@ -25,7 +25,7 @@ django.core.management.base
 ===========================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/core/management/base.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/core/management/base.py>`_ 
 
 .. include:: cheat/django.core.management.base.rst
 
@@ -38,7 +38,7 @@ django.core.management.color
 ============================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/core/management/color.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/core/management/color.py>`_ 
 
 .. include:: cheat/django.core.management.color.rst
 
@@ -51,11 +51,24 @@ django.core.management.sql
 ==========================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/core/management/sql.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/core/management/sql.py>`_ 
 
 .. include:: cheat/django.core.management.sql.rst
 
 .. automodule:: django.core.management.sql
+    :members:
+
+.. _django.core.management.templates:
+
+django.core.management.templates
+================================
+
+
+- `source <https://github.com/django/django/tree/master/django/core/management/templates.py>`_ 
+
+.. include:: cheat/django.core.management.templates.rst
+
+.. automodule:: django.core.management.templates
     :members:
 
 .. _django.core.management.validation:
@@ -64,7 +77,7 @@ django.core.management.validation
 =================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/core/management/validation.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/core/management/validation.py>`_ 
 
 .. include:: cheat/django.core.management.validation.rst
 

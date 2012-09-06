@@ -10,7 +10,7 @@ django.contrib.gis.maps.openlayers
 ==================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/maps/openlayers/__init__.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/maps/openlayers/__init__.py>`_ 
 
 .. include:: cheat/django.contrib.gis.maps.openlayers.rst
 

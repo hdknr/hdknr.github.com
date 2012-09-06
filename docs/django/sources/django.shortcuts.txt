@@ -10,7 +10,7 @@ django.shortcuts
 ================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/shortcuts/__init__.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/shortcuts/__init__.py>`_ 
 
 .. include:: cheat/django.shortcuts.rst
 

@@ -10,7 +10,7 @@ django.contrib.localflavor.cl
 =============================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/localflavor/cl/__init__.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/localflavor/cl/__init__.py>`_ 
 
 .. include:: cheat/django.contrib.localflavor.cl.rst
 
@@ -25,7 +25,7 @@ django.contrib.localflavor.cl.cl_regions
 ========================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/localflavor/cl/cl_regions.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/localflavor/cl/cl_regions.py>`_ 
 
 .. include:: cheat/django.contrib.localflavor.cl.cl_regions.rst
 
@@ -38,7 +38,7 @@ django.contrib.localflavor.cl.forms
 ===================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/localflavor/cl/forms.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/localflavor/cl/forms.py>`_ 
 
 .. include:: cheat/django.contrib.localflavor.cl.forms.rst
 

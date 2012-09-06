@@ -47,7 +47,8 @@ head
 tip
 ----
 
-リポジトリおいて最も新しく追加された `revision`_ であると同時に、最も新しく変更された `head`_ のこと
+- tipは `head` です。
+- リポジトリおいて最も新しく追加された `revision`_ であると同時に、最も新しく変更された `head`_ のこと
 
 default
 --------
@@ -63,11 +64,12 @@ branch
 - http://mercurial.selenic.com/wiki/Branch
 - "diverged line of development"
 
-branchは3つの方法で作成される
+branchは4つの方法で作成される
 
 - レポジトリクローン
 - `anonymous branch`_
 - `named branch`_
+- `bookmarks`
 
 anonymous branch
 -------------------------
@@ -91,6 +93,14 @@ multiple heads
 ---------------------
 
 - `anonymous branch`_ が複数できている状態の事
+
+bookmarks
+------------
+
+- `changeset` へのタグみたいなもの
+- :doc:`git` のブランチに近い
+- `branch` はデフォルトで消し去れないが、 `bookmarks` は消す事ができる
+- ローカルでブランチングする時には `bookmarks` を使って、　チームのマスターでは計画的に `branch` を作成する。
 
 Cheat
 ======
@@ -190,13 +200,12 @@ Git/Mercurial
 
     * - 取得したもので更新(b)
       - git merge origin/master
-      - hg update [#]_
+      - :ref:`hg.update` 
 
     * - 最新を取得して更新(a+b)
       - git pull
       - hg pull -u
 
-.. [#] hg up, hg checkout, hg co 等でも良い
 
 
 
@@ -268,7 +277,7 @@ log
 ツリー表示(glog)
 ----------------------
 
-:term:`hg glog` を使う為に、extension の `設定`
+:ref:`hg.glog` を使う為に、extension の `設定`
  　
 ::
 
@@ -287,11 +296,12 @@ log
 削除(strip)
 ------------
 
-- :term:`hg strip` コマンドを使うには MqExtension が必要
+- :ref:`hg.strip` コマンドを使うには :term:`MqExtension` が必要
 
 - hgrc に設定
 
 ::
+
     [extensions]
     mq =
  
@@ -400,14 +410,77 @@ Bookmark
 Command
 ================================================================================================
 
+(`コマンド一覧 <http://mercurial.selenic.com/wiki/HgCommands>`_ )
+
+.. _hg.update:
+
+hg update
+-----------
+
+- `作業領域の内容更新します。 <http://mercurial.selenic.com/wiki/Update>`_
+- (ないしリビジョンの切り替え)
+- alias : update,up,checout,co
+- ブランチ、リビジョンも切り替えます。
+
+    .. code-block:: bash
+    
+            (main)hdknr@wzy:~/ve/main/src/adconnect/samples/X509$ hg update RefCtlr
+            ファイルの更新数 0、 マージ数 0、 削除数 0、 衝突未解消数 0
+
+            (main)hdknr@wzy:~/ve/main/src/adconnect/samples/X509$ hg branch
+            RefCtlr
+
+            (main)hdknr@wzy:~/ve/main/src/adconnect/samples/X509$ hg update default
+            ファイルの更新数 0、 マージ数 0、 削除数 0、 衝突未解消数 0
+
+            (main)hdknr@wzy:~/ve/main/src/adconnect/samples/X509$ hg branch
+            default
+        
+
+.. _hg.glog:
+
+hg glog
+----------
+
+- グラフィックログの表示。 http://mercurial.selenic.com/wiki/GraphlogExtension
+
+.. _hg.strip:
+
+hg strip
+-----------
+
+- `チェンジセットを削除 <http://mercurial.selenic.com/wiki/Strip>`_
+- :term:`MqExtension`
+
+.. _hg.bookmark:
+.. _hg.bookmarks:
+
+hg bookmarks
+---------------
+
+- ブックマークの管理 
+
+hg revert
+-------------
+
+- `親リビジョンの状態でファイルを復旧 <http://mercurial.selenic.com/wiki/Revert>`_
+- rm した時とかコミット前だったらこれで対応可能。
+
+-  -a --all                  引数指定が無い場合に、 全ファイルの内容を復旧
+-  -d --date 日時            当該日時の最新リビジョンを使用
+-  -r --rev リビジョン       当該リビジョン時点の内容で復旧
+-  -C --no-backup            取り消し実施前内容のバックアップを抑止
+-  -I --include パターン [+] パターンに合致したファイルを処理対象に追加
+-  -X --exclude パターン [+] パターンに合致したファイルを処理対象から除外
+-  -n --dry-run              実施予定の処理内容の表示のみで処理実施は抑止
+-     --mq                   パッチ管理リポジトリへの操作
+
+Extensions
+=============
 
 .. glossary::
 
-    hg glog
-        グラフィックログの表示。 http://mercurial.selenic.com/wiki/GraphlogExtension
+    MqExtension
+        - 本体同梱されてます。
+        - http://mercurial.selenic.com/wiki/MqExtension
 
-    hg strip
-        チェンジセットを削除。 http://mercurial.selenic.com/wiki/Strip
-
-    hg bookmarks
-        ブックマークの管理 

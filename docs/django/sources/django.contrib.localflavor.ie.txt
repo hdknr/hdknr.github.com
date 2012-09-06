@@ -10,7 +10,7 @@ django.contrib.localflavor.ie
 =============================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/localflavor/ie/__init__.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/localflavor/ie/__init__.py>`_ 
 
 .. include:: cheat/django.contrib.localflavor.ie.rst
 
@@ -25,7 +25,7 @@ django.contrib.localflavor.ie.forms
 ===================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/localflavor/ie/forms.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/localflavor/ie/forms.py>`_ 
 
 .. include:: cheat/django.contrib.localflavor.ie.forms.rst
 
@@ -38,7 +38,7 @@ django.contrib.localflavor.ie.ie_counties
 =========================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/localflavor/ie/ie_counties.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/localflavor/ie/ie_counties.py>`_ 
 
 .. include:: cheat/django.contrib.localflavor.ie.ie_counties.rst
 

@@ -10,7 +10,7 @@ django.templatetags
 ===================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/templatetags/__init__.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/templatetags/__init__.py>`_ 
 
 .. include:: cheat/django.templatetags.rst
 
@@ -25,7 +25,7 @@ django.templatetags.cache
 =========================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/templatetags/cache.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/templatetags/cache.py>`_ 
 
 .. include:: cheat/django.templatetags.cache.rst
 
@@ -38,7 +38,7 @@ django.templatetags.future
 ==========================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/templatetags/future.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/templatetags/future.py>`_ 
 
 .. include:: cheat/django.templatetags.future.rst
 
@@ -51,7 +51,7 @@ django.templatetags.i18n
 ========================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/templatetags/i18n.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/templatetags/i18n.py>`_ 
 
 .. include:: cheat/django.templatetags.i18n.rst
 
@@ -64,7 +64,7 @@ django.templatetags.l10n
 ========================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/templatetags/l10n.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/templatetags/l10n.py>`_ 
 
 .. include:: cheat/django.templatetags.l10n.rst
 
@@ -77,10 +77,23 @@ django.templatetags.static
 ==========================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/templatetags/static.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/templatetags/static.py>`_ 
 
 .. include:: cheat/django.templatetags.static.rst
 
 .. automodule:: django.templatetags.static
+    :members:
+
+.. _django.templatetags.tz:
+
+django.templatetags.tz
+======================
+
+
+- `source <https://github.com/django/django/tree/master/django/templatetags/tz.py>`_ 
+
+.. include:: cheat/django.templatetags.tz.rst
+
+.. automodule:: django.templatetags.tz
     :members:
 

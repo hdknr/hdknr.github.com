@@ -4,13 +4,9 @@ OpenID Connect Discovery 1.0
 
 .. contents:: Table of Contents
 
-Based on `OpenID Connect Discovery 1.0 - draft 07 <http://openid.bitbucket.org/openid-connect-discovery-1_0.html>`_
+Based on `OpenID Connect Discovery 1.0 - draft 09 <http://openid.bitbucket.org/openid-connect-discovery-1_0.html>`_
 
-(December 22, 2011)
-
-.. todo::
-
-    - May 25, 2012, Draft 09
+(May 25, 2012)
 
 .. _discovery.abstract:
 

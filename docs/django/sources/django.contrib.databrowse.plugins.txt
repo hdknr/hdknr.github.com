@@ -10,7 +10,7 @@ django.contrib.databrowse.plugins
 =================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/databrowse/plugins/__init__.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/databrowse/plugins/__init__.py>`_ 
 
 .. include:: cheat/django.contrib.databrowse.plugins.rst
 
@@ -25,7 +25,7 @@ django.contrib.databrowse.plugins.calendars
 ===========================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/databrowse/plugins/calendars.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/databrowse/plugins/calendars.py>`_ 
 
 .. include:: cheat/django.contrib.databrowse.plugins.calendars.rst
 
@@ -38,7 +38,7 @@ django.contrib.databrowse.plugins.fieldchoices
 ==============================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/databrowse/plugins/fieldchoices.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/databrowse/plugins/fieldchoices.py>`_ 
 
 .. include:: cheat/django.contrib.databrowse.plugins.fieldchoices.rst
 
@@ -51,7 +51,7 @@ django.contrib.databrowse.plugins.objects
 =========================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/databrowse/plugins/objects.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/databrowse/plugins/objects.py>`_ 
 
 .. include:: cheat/django.contrib.databrowse.plugins.objects.rst
 

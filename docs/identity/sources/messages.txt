@@ -89,6 +89,10 @@ Based on `OpenID Connect Messages 1.0 - draft 12 <http://openid.bitbucket.org/op
 
 .. include:: messages/2_2_3.rst
 
+.. _messages_2_2_4:
+
+.. include:: messages/2_2_4.rst
+
 .. _messages_2_3:
 
 .. include:: messages/2_3.rst

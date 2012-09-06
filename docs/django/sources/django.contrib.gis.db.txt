@@ -10,7 +10,7 @@ django.contrib.gis.db
 =====================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/db/__init__.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/db/__init__.py>`_ 
 
 .. include:: cheat/django.contrib.gis.db.rst
 
@@ -21,8 +21,6 @@ django.contrib.gis.db
 
 Sub
 ====
-
-- :doc:`django.contrib.gis.db.backend`
 
 - :doc:`django.contrib.gis.db.backends`
 

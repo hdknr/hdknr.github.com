@@ -4,11 +4,8 @@ OpenID Connect Standard 1.0
 
 .. contents:: Connect Standard
 
-Based on `OpenID Connect Standard 1.0 - draft 07 <http://openid.bitbucket.org/openid-connect-standard-1_0.html>`_
-(December 22, 2011)
-
-.. todo::
-    Noe Draft 12, June 23,2012 
+Based on `OpenID Connect Standard 1.0 - draft 13 <http://openid.bitbucket.org/openid-connect-standard-1_0.html>`_
+( August 13, 2012 )
 
 .. _standard_abstract:
 

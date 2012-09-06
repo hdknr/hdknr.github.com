@@ -10,7 +10,7 @@ django.contrib.localflavor.kw
 =============================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/localflavor/kw/__init__.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/localflavor/kw/__init__.py>`_ 
 
 .. include:: cheat/django.contrib.localflavor.kw.rst
 
@@ -25,7 +25,7 @@ django.contrib.localflavor.kw.forms
 ===================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/localflavor/kw/forms.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/localflavor/kw/forms.py>`_ 
 
 .. include:: cheat/django.contrib.localflavor.kw.forms.rst
 

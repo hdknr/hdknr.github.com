@@ -10,7 +10,7 @@ django.contrib.admin.views
 ==========================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/admin/views/__init__.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/admin/views/__init__.py>`_ 
 
 .. include:: cheat/django.contrib.admin.views.rst
 
@@ -25,7 +25,7 @@ django.contrib.admin.views.decorators
 =====================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/admin/views/decorators.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/admin/views/decorators.py>`_ 
 
 .. include:: cheat/django.contrib.admin.views.decorators.rst
 
@@ -38,7 +38,7 @@ django.contrib.admin.views.main
 ===============================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/admin/views/main.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/admin/views/main.py>`_ 
 
 .. include:: cheat/django.contrib.admin.views.main.rst
 

@@ -2,10 +2,8 @@
 OpenID Connect Dynamic Client Registration 1.0
 ===============================================
 
-Based on `OpenID Connect Dynamic Client Registration 1.0 - draft 05 <http://openid.net/specs/openid-connect-registration-1_0.html>`_ .
+Based on `OpenID Connect Dynamic Client Registration 1.0 - draft 11 <http://openid.net/specs/openid-connect-registration-1_0.html>`_ .
 
-.. todo::
-    Now draft 11 ( http://openid.net/specs/openid-connect-registration-1_0.html ), May 25, 2012 is available.
 
 .. _reg.abstract:
 

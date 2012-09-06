@@ -10,7 +10,7 @@ django.contrib.gis
 ==================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/__init__.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/__init__.py>`_ 
 
 .. include:: cheat/django.contrib.gis.rst
 
@@ -29,6 +29,8 @@ Sub
 - :doc:`django.contrib.gis.forms`
 
 - :doc:`django.contrib.gis.gdal`
+
+- :doc:`django.contrib.gis.geoip`
 
 - :doc:`django.contrib.gis.geometry`
 
@@ -50,7 +52,7 @@ django.contrib.gis.feeds
 ========================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/feeds.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/feeds.py>`_ 
 
 .. include:: cheat/django.contrib.gis.feeds.rst
 
@@ -63,7 +65,7 @@ django.contrib.gis.measure
 ==========================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/measure.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/measure.py>`_ 
 
 .. include:: cheat/django.contrib.gis.measure.rst
 
@@ -76,7 +78,7 @@ django.contrib.gis.models
 =========================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/models.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/models.py>`_ 
 
 .. include:: cheat/django.contrib.gis.models.rst
 
@@ -89,10 +91,23 @@ django.contrib.gis.shortcuts
 ============================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/shortcuts.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/shortcuts.py>`_ 
 
 .. include:: cheat/django.contrib.gis.shortcuts.rst
 
 .. automodule:: django.contrib.gis.shortcuts
+    :members:
+
+.. _django.contrib.gis.views:
+
+django.contrib.gis.views
+========================
+
+
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/views.py>`_ 
+
+.. include:: cheat/django.contrib.gis.views.rst
+
+.. automodule:: django.contrib.gis.views
     :members:
 

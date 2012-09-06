@@ -58,15 +58,6 @@ celery
     celery.bin.camqadm
     celery.bin.celeryd_multi
 
-django-celery
-===============
-
-.. toctree::
-    :maxdepth: 1
-
-    djcelery.models
-    djcelery.loaders
-
 django-kombu
 ====================
 

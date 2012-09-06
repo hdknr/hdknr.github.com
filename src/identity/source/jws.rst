@@ -4,11 +4,8 @@ JSON Web Signature (JWS)
 
 .. contents:: Table of Contents
 Based on 
-`JWS Draft  04 <http://tools.ietf.org/html/draft-ietf-jose-json-web-signature-04>`_
-( July 16, 2012 ) 
-
-..  note::
-    - http://tools.ietf.org/html/draft-ietf-jose-json-web-signature-04
+`JWS Draft  05 <http://tools.ietf.org/html/draft-ietf-jose-json-web-signature-05>`_
+( July 30, 2012 )
 
 .. _jws.abstract:
 

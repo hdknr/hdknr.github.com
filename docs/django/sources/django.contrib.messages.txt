@@ -10,7 +10,7 @@ django.contrib.messages
 =======================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/messages/__init__.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/messages/__init__.py>`_ 
 
 .. include:: cheat/django.contrib.messages.rst
 
@@ -32,7 +32,7 @@ django.contrib.messages.api
 ===========================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/messages/api.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/messages/api.py>`_ 
 
 .. include:: cheat/django.contrib.messages.api.rst
 
@@ -45,7 +45,7 @@ django.contrib.messages.constants
 =================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/messages/constants.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/messages/constants.py>`_ 
 
 .. include:: cheat/django.contrib.messages.constants.rst
 
@@ -58,7 +58,7 @@ django.contrib.messages.context_processors
 ==========================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/messages/context_processors.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/messages/context_processors.py>`_ 
 
 .. include:: cheat/django.contrib.messages.context_processors.rst
 
@@ -71,7 +71,7 @@ django.contrib.messages.middleware
 ==================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/messages/middleware.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/messages/middleware.py>`_ 
 
 .. include:: cheat/django.contrib.messages.middleware.rst
 
@@ -84,7 +84,7 @@ django.contrib.messages.models
 ==============================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/messages/models.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/messages/models.py>`_ 
 
 .. include:: cheat/django.contrib.messages.models.rst
 
@@ -97,7 +97,7 @@ django.contrib.messages.utils
 =============================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/messages/utils.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/messages/utils.py>`_ 
 
 .. include:: cheat/django.contrib.messages.utils.rst
 

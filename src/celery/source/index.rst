@@ -15,6 +15,36 @@ Welcome to Celery's documentation!
     start/first-steps-with-celery
     start/next-steps
 
+ユーザーガイド
+--------------------
+    
+.. toctree::
+    :maxdepth: 2
+
+    userguide/index
+
+django-celery
+-----------------
+
+.. toctree::
+    :maxdepth: 2
+
+    djcelery/index 
+
+Manual
+---------------
+
+.. toctree::
+    :maxdepth: 1 
+
+    configuration
+    tutorials/index
+    api/index
+    changelog
+    faq
+
+メイン
+-------
 Contents:
 
 .. toctree::
@@ -22,9 +52,6 @@ Contents:
 
     about
     component
-    tasks
-    calling
-    workers
     broker
     serialize
     cron
@@ -32,7 +59,6 @@ Contents:
     debug
     io
     resource
-    api/index
     terms
 
 Indices and tables

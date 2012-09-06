@@ -10,7 +10,7 @@ django.db.backends.dummy
 ========================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/db/backends/dummy/__init__.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/db/backends/dummy/__init__.py>`_ 
 
 .. include:: cheat/django.db.backends.dummy.rst
 
@@ -25,7 +25,7 @@ django.db.backends.dummy.base
 =============================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/db/backends/dummy/base.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/db/backends/dummy/base.py>`_ 
 
 .. include:: cheat/django.db.backends.dummy.base.rst
 

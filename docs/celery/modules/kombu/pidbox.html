@@ -1,0 +1,332 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>kombu.pidbox &mdash; Celery 1 documentation</title>
+    
+    <link rel="stylesheet" href="../../static/haiku.css" type="text/css" />
+    <link rel="stylesheet" href="../../static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../../static/print.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../static/jquery.js"></script>
+    <script type="text/javascript" src="../../static/underscore.js"></script>
+    <script type="text/javascript" src="../../static/doctools.js"></script>
+    <script type="text/javascript" src="../../static/theme_extras.js"></script>
+    <link rel="author" title="About these documents" href="../../about.html" />
+    <link rel="top" title="Celery 1 documentation" href="../../index.html" />
+    <link rel="up" title="Module code" href="../index.html" /> 
+  </head>
+  <body>
+      <div class="header"><h1 class="heading"><a href="../../index.html">
+          <span>Celery 1 documentation</span></a></h1>
+        <h2 class="heading"><span>kombu.pidbox</span></h2>
+      </div>
+      <div class="topnav">
+      
+        <p>
+        <a href="/">Home</a>:
+        <a class="uplink" href="../../index.html">Contents</a>
+        </p>
+
+      </div>
+      <div class="content">
+        
+        
+  <h1>Source code for kombu.pidbox</h1><div class="highlight"><pre>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">kombu.pidbox</span>
+<span class="sd">===============</span>
+
+<span class="sd">Generic process mailbox.</span>
+
+<span class="sd">:copyright: (c) 2009 - 2012 by Ask Solem.</span>
+<span class="sd">:license: BSD, see LICENSE for more details.</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">absolute_import</span>
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">with_statement</span>
+
+<span class="kn">import</span> <span class="nn">socket</span>
+
+<span class="kn">from</span> <span class="nn">copy</span> <span class="kn">import</span> <span class="n">copy</span>
+<span class="kn">from</span> <span class="nn">itertools</span> <span class="kn">import</span> <span class="n">count</span>
+
+<span class="kn">from</span> <span class="nn">.entity</span> <span class="kn">import</span> <span class="n">Exchange</span><span class="p">,</span> <span class="n">Queue</span>
+<span class="kn">from</span> <span class="nn">.messaging</span> <span class="kn">import</span> <span class="n">Consumer</span><span class="p">,</span> <span class="n">Producer</span>
+<span class="kn">from</span> <span class="nn">.utils</span> <span class="kn">import</span> <span class="n">kwdict</span><span class="p">,</span> <span class="n">uuid</span>
+
+<span class="n">REPLY_QUEUE_EXPIRES</span> <span class="o">=</span> <span class="mi">10</span>
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s">&#39;Node&#39;</span><span class="p">,</span> <span class="s">&#39;Mailbox&#39;</span><span class="p">]</span>
+
+
+<div class="viewcode-block" id="Node"><a class="viewcode-back" href="../../kombu/reference/kombu.pidbox.html#kombu.pidbox.Node">[docs]</a><span class="k">class</span> <span class="nc">Node</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+
+    <span class="c">#: hostname of the node.</span>
+    <span class="n">hostname</span> <span class="o">=</span> <span class="bp">None</span>
+
+    <span class="c">#: the :class:`Mailbox` this is a node for.</span>
+    <span class="n">mailbox</span> <span class="o">=</span> <span class="bp">None</span>
+
+    <span class="c">#: map of method name/handlers.</span>
+    <span class="n">handlers</span> <span class="o">=</span> <span class="bp">None</span>
+
+    <span class="c">#: current context (passed on to handlers)</span>
+    <span class="n">state</span> <span class="o">=</span> <span class="bp">None</span>
+
+    <span class="c">#: current channel.</span>
+    <span class="n">channel</span> <span class="o">=</span> <span class="bp">None</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">hostname</span><span class="p">,</span> <span class="n">state</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">channel</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">handlers</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+            <span class="n">mailbox</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">channel</span> <span class="o">=</span> <span class="n">channel</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mailbox</span> <span class="o">=</span> <span class="n">mailbox</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">hostname</span> <span class="o">=</span> <span class="n">hostname</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">state</span> <span class="o">=</span> <span class="n">state</span>
+        <span class="k">if</span> <span class="n">handlers</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="n">handlers</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">handlers</span> <span class="o">=</span> <span class="n">handlers</span>
+
+<div class="viewcode-block" id="Node.Consumer"><a class="viewcode-back" href="../../kombu/reference/kombu.pidbox.html#kombu.pidbox.Node.Consumer">[docs]</a>    <span class="k">def</span> <span class="nf">Consumer</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">channel</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="o">**</span><span class="n">options</span><span class="p">):</span>
+        <span class="n">options</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="s">&#39;no_ack&#39;</span><span class="p">,</span> <span class="bp">True</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">Consumer</span><span class="p">(</span><span class="n">channel</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">channel</span><span class="p">,</span>
+                        <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">mailbox</span><span class="o">.</span><span class="n">get_queue</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">hostname</span><span class="p">)],</span>
+                        <span class="o">**</span><span class="n">options</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="Node.handler"><a class="viewcode-back" href="../../kombu/reference/kombu.pidbox.html#kombu.pidbox.Node.handler">[docs]</a>    <span class="k">def</span> <span class="nf">handler</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fun</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">handlers</span><span class="p">[</span><span class="n">fun</span><span class="o">.</span><span class="n">__name__</span><span class="p">]</span> <span class="o">=</span> <span class="n">fun</span>
+        <span class="k">return</span> <span class="n">fun</span>
+</div>
+<div class="viewcode-block" id="Node.listen"><a class="viewcode-back" href="../../kombu/reference/kombu.pidbox.html#kombu.pidbox.Node.listen">[docs]</a>    <span class="k">def</span> <span class="nf">listen</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">channel</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">callback</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="n">callback</span> <span class="o">=</span> <span class="n">callback</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">handle_message</span>
+        <span class="n">consumer</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">Consumer</span><span class="p">(</span><span class="n">channel</span><span class="o">=</span><span class="n">channel</span><span class="p">,</span>
+                                 <span class="n">callbacks</span><span class="o">=</span><span class="p">[</span><span class="n">callback</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">handle_message</span><span class="p">])</span>
+        <span class="n">consumer</span><span class="o">.</span><span class="n">consume</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">consumer</span>
+</div>
+<div class="viewcode-block" id="Node.dispatch"><a class="viewcode-back" href="../../kombu/reference/kombu.pidbox.html#kombu.pidbox.Node.dispatch">[docs]</a>    <span class="k">def</span> <span class="nf">dispatch</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">method</span><span class="p">,</span> <span class="n">arguments</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">reply_to</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="n">arguments</span> <span class="o">=</span> <span class="n">arguments</span> <span class="ow">or</span> <span class="p">{}</span>
+        <span class="n">handle</span> <span class="o">=</span> <span class="n">reply_to</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">handle_call</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">handle_cast</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">reply</span> <span class="o">=</span> <span class="n">handle</span><span class="p">(</span><span class="n">method</span><span class="p">,</span> <span class="n">kwdict</span><span class="p">(</span><span class="n">arguments</span><span class="p">))</span>
+        <span class="k">except</span> <span class="ne">SystemExit</span><span class="p">:</span>
+            <span class="k">raise</span>
+        <span class="k">except</span> <span class="ne">Exception</span><span class="p">,</span> <span class="n">exc</span><span class="p">:</span>
+            <span class="n">reply</span> <span class="o">=</span> <span class="p">{</span><span class="s">&#39;error&#39;</span><span class="p">:</span> <span class="nb">repr</span><span class="p">(</span><span class="n">exc</span><span class="p">)}</span>
+
+        <span class="k">if</span> <span class="n">reply_to</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">reply</span><span class="p">({</span><span class="bp">self</span><span class="o">.</span><span class="n">hostname</span><span class="p">:</span> <span class="n">reply</span><span class="p">},</span>
+                       <span class="n">exchange</span><span class="o">=</span><span class="n">reply_to</span><span class="p">[</span><span class="s">&#39;exchange&#39;</span><span class="p">],</span>
+                       <span class="n">routing_key</span><span class="o">=</span><span class="n">reply_to</span><span class="p">[</span><span class="s">&#39;routing_key&#39;</span><span class="p">])</span>
+        <span class="k">return</span> <span class="n">reply</span>
+</div>
+<div class="viewcode-block" id="Node.handle"><a class="viewcode-back" href="../../kombu/reference/kombu.pidbox.html#kombu.pidbox.Node.handle">[docs]</a>    <span class="k">def</span> <span class="nf">handle</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">method</span><span class="p">,</span> <span class="n">arguments</span><span class="o">=</span><span class="p">{}):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">handlers</span><span class="p">[</span><span class="n">method</span><span class="p">](</span><span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="p">,</span> <span class="o">**</span><span class="n">arguments</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="Node.handle_call"><a class="viewcode-back" href="../../kombu/reference/kombu.pidbox.html#kombu.pidbox.Node.handle_call">[docs]</a>    <span class="k">def</span> <span class="nf">handle_call</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">method</span><span class="p">,</span> <span class="n">arguments</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">handle</span><span class="p">(</span><span class="n">method</span><span class="p">,</span> <span class="n">arguments</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="Node.handle_cast"><a class="viewcode-back" href="../../kombu/reference/kombu.pidbox.html#kombu.pidbox.Node.handle_cast">[docs]</a>    <span class="k">def</span> <span class="nf">handle_cast</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">method</span><span class="p">,</span> <span class="n">arguments</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">handle</span><span class="p">(</span><span class="n">method</span><span class="p">,</span> <span class="n">arguments</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="Node.handle_message"><a class="viewcode-back" href="../../kombu/reference/kombu.pidbox.html#kombu.pidbox.Node.handle_message">[docs]</a>    <span class="k">def</span> <span class="nf">handle_message</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">body</span><span class="p">,</span> <span class="n">message</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="n">method</span> <span class="o">=</span> <span class="n">body</span><span class="p">[</span><span class="s">&#39;method&#39;</span><span class="p">]</span>
+        <span class="n">destination</span> <span class="o">=</span> <span class="n">body</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;destination&#39;</span><span class="p">)</span>
+        <span class="n">reply_to</span> <span class="o">=</span> <span class="n">body</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;reply_to&#39;</span><span class="p">)</span>
+        <span class="n">arguments</span> <span class="o">=</span> <span class="n">body</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;arguments&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">destination</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">hostname</span> <span class="ow">in</span> <span class="n">destination</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">dispatch</span><span class="p">(</span><span class="n">method</span><span class="p">,</span> <span class="n">arguments</span><span class="p">,</span> <span class="n">reply_to</span><span class="p">)</span></div>
+    <span class="n">dispatch_from_message</span> <span class="o">=</span> <span class="n">handle_message</span>
+
+<div class="viewcode-block" id="Node.reply"><a class="viewcode-back" href="../../kombu/reference/kombu.pidbox.html#kombu.pidbox.Node.reply">[docs]</a>    <span class="k">def</span> <span class="nf">reply</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">exchange</span><span class="p">,</span> <span class="n">routing_key</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mailbox</span><span class="o">.</span><span class="n">_publish_reply</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">exchange</span><span class="p">,</span> <span class="n">routing_key</span><span class="p">,</span>
+                                    <span class="n">channel</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">channel</span><span class="p">)</span>
+
+</div></div>
+<div class="viewcode-block" id="Mailbox"><a class="viewcode-back" href="../../kombu/reference/kombu.pidbox.html#kombu.pidbox.Mailbox">[docs]</a><span class="k">class</span> <span class="nc">Mailbox</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="n">node_cls</span> <span class="o">=</span> <span class="n">Node</span>
+    <span class="n">exchange_fmt</span> <span class="o">=</span> <span class="s">&#39;</span><span class="si">%s</span><span class="s">.pidbox&#39;</span>
+    <span class="n">reply_exchange_fmt</span> <span class="o">=</span> <span class="s">&#39;reply.</span><span class="si">%s</span><span class="s">.pidbox&#39;</span>
+
+    <span class="c">#: Name of application.</span>
+    <span class="n">namespace</span> <span class="o">=</span> <span class="bp">None</span>
+
+    <span class="c">#: Connection (if bound).</span>
+    <span class="n">connection</span> <span class="o">=</span> <span class="bp">None</span>
+
+    <span class="c">#: Exchange type (usually direct, or fanout for broadcast).</span>
+    <span class="nb">type</span> <span class="o">=</span> <span class="s">&#39;direct&#39;</span>
+
+    <span class="c">#: mailbox exchange (init by constructor).</span>
+    <span class="n">exchange</span> <span class="o">=</span> <span class="bp">None</span>
+
+    <span class="c">#: exchange to send replies to.</span>
+    <span class="n">reply_exchange</span> <span class="o">=</span> <span class="bp">None</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">namespace</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="s">&#39;direct&#39;</span><span class="p">,</span> <span class="n">connection</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">namespace</span> <span class="o">=</span> <span class="n">namespace</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">connection</span> <span class="o">=</span> <span class="n">connection</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="nb">type</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">exchange</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_exchange</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">namespace</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">type</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">reply_exchange</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_reply_exchange</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">namespace</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">connection</span><span class="p">):</span>
+        <span class="n">bound</span> <span class="o">=</span> <span class="n">copy</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+        <span class="n">bound</span><span class="o">.</span><span class="n">connection</span> <span class="o">=</span> <span class="n">connection</span>
+        <span class="k">return</span> <span class="n">bound</span>
+
+<div class="viewcode-block" id="Mailbox.Node"><a class="viewcode-back" href="../../kombu/reference/kombu.pidbox.html#kombu.pidbox.Mailbox.Node">[docs]</a>    <span class="k">def</span> <span class="nf">Node</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">hostname</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">state</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">channel</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">handlers</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="n">hostname</span> <span class="o">=</span> <span class="n">hostname</span> <span class="ow">or</span> <span class="n">socket</span><span class="o">.</span><span class="n">gethostname</span><span class="p">()</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">node_cls</span><span class="p">(</span><span class="n">hostname</span><span class="p">,</span> <span class="n">state</span><span class="p">,</span> <span class="n">channel</span><span class="p">,</span> <span class="n">handlers</span><span class="p">,</span> <span class="n">mailbox</span><span class="o">=</span><span class="bp">self</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="Mailbox.call"><a class="viewcode-back" href="../../kombu/reference/kombu.pidbox.html#kombu.pidbox.Mailbox.call">[docs]</a>    <span class="k">def</span> <span class="nf">call</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">destination</span><span class="p">,</span> <span class="n">command</span><span class="p">,</span> <span class="n">kwargs</span><span class="o">=</span><span class="p">{},</span> <span class="n">timeout</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+            <span class="n">callback</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">channel</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_broadcast</span><span class="p">(</span><span class="n">command</span><span class="p">,</span> <span class="n">kwargs</span><span class="p">,</span> <span class="n">destination</span><span class="p">,</span>
+                               <span class="n">reply</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="n">timeout</span><span class="p">,</span>
+                               <span class="n">callback</span><span class="o">=</span><span class="n">callback</span><span class="p">,</span>
+                               <span class="n">channel</span><span class="o">=</span><span class="n">channel</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="Mailbox.cast"><a class="viewcode-back" href="../../kombu/reference/kombu.pidbox.html#kombu.pidbox.Mailbox.cast">[docs]</a>    <span class="k">def</span> <span class="nf">cast</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">destination</span><span class="p">,</span> <span class="n">command</span><span class="p">,</span> <span class="n">kwargs</span><span class="o">=</span><span class="p">{}):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_broadcast</span><span class="p">(</span><span class="n">command</span><span class="p">,</span> <span class="n">kwargs</span><span class="p">,</span> <span class="n">destination</span><span class="p">,</span> <span class="n">reply</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="Mailbox.abcast"><a class="viewcode-back" href="../../kombu/reference/kombu.pidbox.html#kombu.pidbox.Mailbox.abcast">[docs]</a>    <span class="k">def</span> <span class="nf">abcast</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">command</span><span class="p">,</span> <span class="n">kwargs</span><span class="o">=</span><span class="p">{}):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_broadcast</span><span class="p">(</span><span class="n">command</span><span class="p">,</span> <span class="n">kwargs</span><span class="p">,</span> <span class="n">reply</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="Mailbox.multi_call"><a class="viewcode-back" href="../../kombu/reference/kombu.pidbox.html#kombu.pidbox.Mailbox.multi_call">[docs]</a>    <span class="k">def</span> <span class="nf">multi_call</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">command</span><span class="p">,</span> <span class="n">kwargs</span><span class="o">=</span><span class="p">{},</span> <span class="n">timeout</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+            <span class="n">limit</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">callback</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">channel</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_broadcast</span><span class="p">(</span><span class="n">command</span><span class="p">,</span> <span class="n">kwargs</span><span class="p">,</span> <span class="n">reply</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span>
+                               <span class="n">timeout</span><span class="o">=</span><span class="n">timeout</span><span class="p">,</span> <span class="n">limit</span><span class="o">=</span><span class="n">limit</span><span class="p">,</span>
+                               <span class="n">callback</span><span class="o">=</span><span class="n">callback</span><span class="p">,</span>
+                               <span class="n">channel</span><span class="o">=</span><span class="n">channel</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="Mailbox.get_reply_queue"><a class="viewcode-back" href="../../kombu/reference/kombu.pidbox.html#kombu.pidbox.Mailbox.get_reply_queue">[docs]</a>    <span class="k">def</span> <span class="nf">get_reply_queue</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ticket</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">Queue</span><span class="p">(</span><span class="s">&#39;</span><span class="si">%s</span><span class="s">.</span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">ticket</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">reply_exchange</span><span class="o">.</span><span class="n">name</span><span class="p">),</span>
+                     <span class="n">exchange</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">reply_exchange</span><span class="p">,</span>
+                     <span class="n">routing_key</span><span class="o">=</span><span class="n">ticket</span><span class="p">,</span>
+                     <span class="n">durable</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span>
+                     <span class="n">auto_delete</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span>
+                     <span class="n">queue_arguments</span><span class="o">=</span><span class="p">{</span>
+                         <span class="s">&#39;x-expires&#39;</span><span class="p">:</span> <span class="nb">int</span><span class="p">(</span><span class="n">REPLY_QUEUE_EXPIRES</span> <span class="o">*</span> <span class="mi">1000</span><span class="p">),</span>
+                     <span class="p">})</span>
+</div>
+<div class="viewcode-block" id="Mailbox.get_queue"><a class="viewcode-back" href="../../kombu/reference/kombu.pidbox.html#kombu.pidbox.Mailbox.get_queue">[docs]</a>    <span class="k">def</span> <span class="nf">get_queue</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">hostname</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">Queue</span><span class="p">(</span><span class="s">&#39;</span><span class="si">%s</span><span class="s">.</span><span class="si">%s</span><span class="s">.pidbox&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">hostname</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">namespace</span><span class="p">),</span>
+                     <span class="n">exchange</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">exchange</span><span class="p">,</span>
+                     <span class="n">durable</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span>
+                     <span class="n">auto_delete</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+</div>
+    <span class="k">def</span> <span class="nf">_publish_reply</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">reply</span><span class="p">,</span> <span class="n">exchange</span><span class="p">,</span> <span class="n">routing_key</span><span class="p">,</span> <span class="n">channel</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="n">chan</span> <span class="o">=</span> <span class="n">channel</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">default_channel</span>
+        <span class="n">exchange</span> <span class="o">=</span> <span class="n">Exchange</span><span class="p">(</span><span class="n">exchange</span><span class="p">,</span> <span class="n">exchange_type</span><span class="o">=</span><span class="s">&#39;direct&#39;</span><span class="p">,</span>
+                                      <span class="n">delivery_mode</span><span class="o">=</span><span class="s">&#39;transient&#39;</span><span class="p">,</span>
+                                      <span class="n">durable</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span>
+        <span class="n">producer</span> <span class="o">=</span> <span class="n">Producer</span><span class="p">(</span><span class="n">chan</span><span class="p">,</span> <span class="n">exchange</span><span class="o">=</span><span class="n">exchange</span><span class="p">,</span>
+                                  <span class="n">auto_declare</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+        <span class="n">producer</span><span class="o">.</span><span class="n">publish</span><span class="p">(</span><span class="n">reply</span><span class="p">,</span> <span class="n">routing_key</span><span class="o">=</span><span class="n">routing_key</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_publish</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="nb">type</span><span class="p">,</span> <span class="n">arguments</span><span class="p">,</span> <span class="n">destination</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">reply_ticket</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+            <span class="n">channel</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="n">message</span> <span class="o">=</span> <span class="p">{</span><span class="s">&#39;method&#39;</span><span class="p">:</span> <span class="nb">type</span><span class="p">,</span>
+                   <span class="s">&#39;arguments&#39;</span><span class="p">:</span> <span class="n">arguments</span><span class="p">,</span>
+                   <span class="s">&#39;destination&#39;</span><span class="p">:</span> <span class="n">destination</span><span class="p">}</span>
+        <span class="k">if</span> <span class="n">reply_ticket</span><span class="p">:</span>
+            <span class="n">message</span><span class="p">[</span><span class="s">&#39;reply_to&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span><span class="s">&#39;exchange&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">reply_exchange</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+                                   <span class="s">&#39;routing_key&#39;</span><span class="p">:</span> <span class="n">reply_ticket</span><span class="p">}</span>
+        <span class="n">chan</span> <span class="o">=</span> <span class="n">channel</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">default_channel</span>
+        <span class="n">producer</span> <span class="o">=</span> <span class="n">Producer</span><span class="p">(</span><span class="n">chan</span><span class="p">,</span> <span class="n">exchange</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">exchange</span><span class="p">)</span>
+        <span class="n">producer</span><span class="o">.</span><span class="n">publish</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_broadcast</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">command</span><span class="p">,</span> <span class="n">arguments</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">destination</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+            <span class="n">reply</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">limit</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">callback</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">channel</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">destination</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span> <span class="ow">and</span> \
+                <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">destination</span><span class="p">,</span> <span class="p">(</span><span class="nb">list</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">)):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s">&#39;destination must be a list/tuple not </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="p">(</span>
+                    <span class="nb">type</span><span class="p">(</span><span class="n">destination</span><span class="p">)))</span>
+
+        <span class="n">arguments</span> <span class="o">=</span> <span class="n">arguments</span> <span class="ow">or</span> <span class="p">{}</span>
+        <span class="n">reply_ticket</span> <span class="o">=</span> <span class="n">reply</span> <span class="ow">and</span> <span class="n">uuid</span><span class="p">()</span> <span class="ow">or</span> <span class="bp">None</span>
+        <span class="n">chan</span> <span class="o">=</span> <span class="n">channel</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">default_channel</span>
+
+        <span class="c"># Set reply limit to number of destinations (if specified)</span>
+        <span class="k">if</span> <span class="n">limit</span> <span class="ow">is</span> <span class="bp">None</span> <span class="ow">and</span> <span class="n">destination</span><span class="p">:</span>
+            <span class="n">limit</span> <span class="o">=</span> <span class="n">destination</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">destination</span><span class="p">)</span> <span class="ow">or</span> <span class="bp">None</span>
+
+        <span class="k">if</span> <span class="n">reply_ticket</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">get_reply_queue</span><span class="p">(</span><span class="n">reply_ticket</span><span class="p">)(</span><span class="n">chan</span><span class="p">)</span><span class="o">.</span><span class="n">declare</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_publish</span><span class="p">(</span><span class="n">command</span><span class="p">,</span> <span class="n">arguments</span><span class="p">,</span> <span class="n">destination</span><span class="o">=</span><span class="n">destination</span><span class="p">,</span>
+                                          <span class="n">reply_ticket</span><span class="o">=</span><span class="n">reply_ticket</span><span class="p">,</span>
+                                          <span class="n">channel</span><span class="o">=</span><span class="n">chan</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">reply_ticket</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_collect</span><span class="p">(</span><span class="n">reply_ticket</span><span class="p">,</span> <span class="n">limit</span><span class="o">=</span><span class="n">limit</span><span class="p">,</span>
+                                               <span class="n">timeout</span><span class="o">=</span><span class="n">timeout</span><span class="p">,</span>
+                                               <span class="n">callback</span><span class="o">=</span><span class="n">callback</span><span class="p">,</span>
+                                               <span class="n">channel</span><span class="o">=</span><span class="n">chan</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_collect</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ticket</span><span class="p">,</span> <span class="n">limit</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+            <span class="n">callback</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">channel</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="n">chan</span> <span class="o">=</span> <span class="n">channel</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">default_channel</span>
+        <span class="n">queue</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_reply_queue</span><span class="p">(</span><span class="n">ticket</span><span class="p">)</span>
+        <span class="n">consumer</span> <span class="o">=</span> <span class="n">Consumer</span><span class="p">(</span><span class="n">channel</span><span class="p">,</span> <span class="p">[</span><span class="n">queue</span><span class="p">],</span> <span class="n">no_ack</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+        <span class="n">responses</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="k">def</span> <span class="nf">on_message</span><span class="p">(</span><span class="n">body</span><span class="p">,</span> <span class="n">message</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">callback</span><span class="p">:</span>
+                <span class="n">callback</span><span class="p">(</span><span class="n">body</span><span class="p">)</span>
+            <span class="n">responses</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">body</span><span class="p">)</span>
+
+        <span class="n">consumer</span><span class="o">.</span><span class="n">register_callback</span><span class="p">(</span><span class="n">on_message</span><span class="p">)</span>
+        <span class="k">with</span> <span class="n">consumer</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">limit</span> <span class="ow">and</span> <span class="nb">range</span><span class="p">(</span><span class="n">limit</span><span class="p">)</span> <span class="ow">or</span> <span class="n">count</span><span class="p">():</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">drain_events</span><span class="p">(</span><span class="n">timeout</span><span class="o">=</span><span class="n">timeout</span><span class="p">)</span>
+                <span class="k">except</span> <span class="n">socket</span><span class="o">.</span><span class="n">timeout</span><span class="p">:</span>
+                    <span class="k">break</span>
+            <span class="k">return</span> <span class="n">responses</span>
+        <span class="n">chan</span><span class="o">.</span><span class="n">after_reply_message_received</span><span class="p">(</span><span class="n">queue</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_get_exchange</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">namespace</span><span class="p">,</span> <span class="nb">type</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">Exchange</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">exchange_fmt</span> <span class="o">%</span> <span class="n">namespace</span><span class="p">,</span>
+                        <span class="nb">type</span><span class="o">=</span><span class="nb">type</span><span class="p">,</span>
+                        <span class="n">durable</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span>
+                        <span class="n">delivery_mode</span><span class="o">=</span><span class="s">&#39;transient&#39;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_get_reply_exchange</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">namespace</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">Exchange</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">reply_exchange_fmt</span> <span class="o">%</span> <span class="n">namespace</span><span class="p">,</span>
+                        <span class="nb">type</span><span class="o">=</span><span class="s">&#39;direct&#39;</span><span class="p">,</span>
+                        <span class="n">durable</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span>
+                        <span class="n">delivery_mode</span><span class="o">=</span><span class="s">&#39;transient&#39;</span><span class="p">)</span></div>
+</pre></div>
+
+      </div>
+      <div class="bottomnav">
+      
+        <p>
+        <a href="/">Home</a>:
+        <a class="uplink" href="../../index.html">Contents</a>
+        </p>
+
+      </div>
+
+    <div class="footer">
+        &copy; Copyright 2012, HDKNR.COM.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.2pre/3c28de26aac2.
+    </div>
+  </body>
+</html>

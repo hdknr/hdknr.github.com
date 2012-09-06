@@ -10,7 +10,7 @@ django.middleware
 =================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/middleware/__init__.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/middleware/__init__.py>`_ 
 
 .. include:: cheat/django.middleware.rst
 
@@ -25,11 +25,24 @@ django.middleware.cache
 =======================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/middleware/cache.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/middleware/cache.py>`_ 
 
 .. include:: cheat/django.middleware.cache.rst
 
 .. automodule:: django.middleware.cache
+    :members:
+
+.. _django.middleware.clickjacking:
+
+django.middleware.clickjacking
+==============================
+
+
+- `source <https://github.com/django/django/tree/master/django/middleware/clickjacking.py>`_ 
+
+.. include:: cheat/django.middleware.clickjacking.rst
+
+.. automodule:: django.middleware.clickjacking
     :members:
 
 .. _django.middleware.common:
@@ -38,7 +51,7 @@ django.middleware.common
 ========================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/middleware/common.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/middleware/common.py>`_ 
 
 .. include:: cheat/django.middleware.common.rst
 
@@ -51,7 +64,7 @@ django.middleware.csrf
 ======================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/middleware/csrf.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/middleware/csrf.py>`_ 
 
 .. include:: cheat/django.middleware.csrf.rst
 
@@ -64,7 +77,7 @@ django.middleware.doc
 =====================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/middleware/doc.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/middleware/doc.py>`_ 
 
 .. include:: cheat/django.middleware.doc.rst
 
@@ -77,7 +90,7 @@ django.middleware.gzip
 ======================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/middleware/gzip.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/middleware/gzip.py>`_ 
 
 .. include:: cheat/django.middleware.gzip.rst
 
@@ -90,7 +103,7 @@ django.middleware.http
 ======================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/middleware/http.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/middleware/http.py>`_ 
 
 .. include:: cheat/django.middleware.http.rst
 
@@ -103,7 +116,7 @@ django.middleware.locale
 ========================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/middleware/locale.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/middleware/locale.py>`_ 
 
 .. include:: cheat/django.middleware.locale.rst
 
@@ -116,7 +129,7 @@ django.middleware.transaction
 =============================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/middleware/transaction.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/middleware/transaction.py>`_ 
 
 .. include:: cheat/django.middleware.transaction.rst
 

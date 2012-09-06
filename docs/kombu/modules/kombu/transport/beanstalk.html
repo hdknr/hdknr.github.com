@@ -1,0 +1,210 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>kombu.transport.beanstalk &mdash; Kombu Docs 1 documentation</title>
+    
+    <link rel="stylesheet" href="../../../static/haiku.css" type="text/css" />
+    <link rel="stylesheet" href="../../../static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../../../static/print.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../',
+        VERSION:     '1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../../static/jquery.js"></script>
+    <script type="text/javascript" src="../../../static/underscore.js"></script>
+    <script type="text/javascript" src="../../../static/doctools.js"></script>
+    <script type="text/javascript" src="../../../static/theme_extras.js"></script>
+    <link rel="top" title="Kombu Docs 1 documentation" href="../../../index.html" />
+    <link rel="up" title="kombu.transport" href="../transport.html" /> 
+  </head>
+  <body>
+      <div class="header"><h1 class="heading"><a href="../../../index.html">
+          <span>Kombu Docs 1 documentation</span></a></h1>
+        <h2 class="heading"><span>kombu.transport.beanstalk</span></h2>
+      </div>
+      <div class="topnav">
+      
+        <p>
+        <a href="/">Home</a>:
+        <a class="uplink" href="../../../index.html">Contents</a>
+        </p>
+
+      </div>
+      <div class="content">
+        
+        
+  <h1>Source code for kombu.transport.beanstalk</h1><div class="highlight"><pre>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">kombu.transport.beanstalk</span>
+<span class="sd">=========================</span>
+
+<span class="sd">Beanstalk transport.</span>
+
+<span class="sd">:copyright: (c) 2010 - 2012 by David Ziegler.</span>
+<span class="sd">:license: BSD, see LICENSE for more details.</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">absolute_import</span>
+
+<span class="kn">import</span> <span class="nn">beanstalkc</span>
+<span class="kn">import</span> <span class="nn">socket</span>
+
+<span class="kn">from</span> <span class="nn">anyjson</span> <span class="kn">import</span> <span class="n">loads</span><span class="p">,</span> <span class="n">dumps</span>
+<span class="kn">from</span> <span class="nn">Queue</span> <span class="kn">import</span> <span class="n">Empty</span>
+
+<span class="kn">from</span> <span class="nn">kombu.exceptions</span> <span class="kn">import</span> <span class="n">StdChannelError</span>
+
+<span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">virtual</span>
+
+<span class="n">DEFAULT_PORT</span> <span class="o">=</span> <span class="mi">11300</span>
+
+<span class="n">__author__</span> <span class="o">=</span> <span class="s">&#39;David Ziegler &lt;david.ziegler@gmail.com&gt;&#39;</span>
+
+
+<div class="viewcode-block" id="Channel"><a class="viewcode-back" href="../../../reference/kombu.transport.beanstalk.html#kombu.transport.beanstalk.Channel">[docs]</a><span class="k">class</span> <span class="nc">Channel</span><span class="p">(</span><span class="n">virtual</span><span class="o">.</span><span class="n">Channel</span><span class="p">):</span>
+    <span class="n">_client</span> <span class="o">=</span> <span class="bp">None</span>
+
+    <span class="k">def</span> <span class="nf">_parse_job</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job</span><span class="p">):</span>
+        <span class="n">item</span><span class="p">,</span> <span class="n">dest</span> <span class="o">=</span> <span class="bp">None</span><span class="p">,</span> <span class="bp">None</span>
+        <span class="k">if</span> <span class="n">job</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">item</span> <span class="o">=</span> <span class="n">loads</span><span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">body</span><span class="p">)</span>
+                <span class="n">dest</span> <span class="o">=</span> <span class="n">job</span><span class="o">.</span><span class="n">stats</span><span class="p">()[</span><span class="s">&#39;tube&#39;</span><span class="p">]</span>
+            <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+                <span class="n">job</span><span class="o">.</span><span class="n">bury</span><span class="p">()</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">job</span><span class="o">.</span><span class="n">delete</span><span class="p">()</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">Empty</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">item</span><span class="p">,</span> <span class="n">dest</span>
+
+    <span class="k">def</span> <span class="nf">_put</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">queue</span><span class="p">,</span> <span class="n">message</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="n">extra</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">priority</span> <span class="o">=</span> <span class="n">message</span><span class="p">[</span><span class="s">&#39;properties&#39;</span><span class="p">][</span><span class="s">&#39;delivery_info&#39;</span><span class="p">][</span><span class="s">&#39;priority&#39;</span><span class="p">]</span>
+        <span class="n">ttr</span> <span class="o">=</span> <span class="n">message</span><span class="p">[</span><span class="s">&#39;properties&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;ttr&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">ttr</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="n">extra</span><span class="p">[</span><span class="s">&#39;ttr&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">ttr</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">use</span><span class="p">(</span><span class="n">queue</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">put</span><span class="p">(</span><span class="n">dumps</span><span class="p">(</span><span class="n">message</span><span class="p">),</span> <span class="n">priority</span><span class="o">=</span><span class="n">priority</span><span class="p">,</span> <span class="o">**</span><span class="n">extra</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_get</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">queue</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">queue</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">watching</span><span class="p">():</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">watch</span><span class="p">(</span><span class="n">queue</span><span class="p">)</span>
+
+        <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">ignore</span><span class="p">(</span><span class="n">active</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">active</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">watching</span><span class="p">()</span>
+                <span class="k">if</span> <span class="n">active</span> <span class="o">!=</span> <span class="n">queue</span><span class="p">]</span>
+
+        <span class="n">job</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">reserve</span><span class="p">(</span><span class="n">timeout</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">item</span><span class="p">,</span> <span class="n">dest</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_parse_job</span><span class="p">(</span><span class="n">job</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">item</span>
+
+    <span class="k">def</span> <span class="nf">_get_many</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">queues</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="mi">1</span><span class="p">):</span>
+        <span class="c"># timeout of None will cause beanstalk to timeout waiting</span>
+        <span class="c"># for a new request</span>
+        <span class="k">if</span> <span class="n">timeout</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="n">timeout</span> <span class="o">=</span> <span class="mi">1</span>
+
+        <span class="n">watching</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">watching</span><span class="p">()</span>
+
+        <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">watch</span><span class="p">(</span><span class="n">active</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">active</span> <span class="ow">in</span> <span class="n">queues</span>
+                <span class="k">if</span> <span class="n">active</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">watching</span><span class="p">]</span>
+
+        <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">ignore</span><span class="p">(</span><span class="n">active</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">active</span> <span class="ow">in</span> <span class="n">watching</span>
+                <span class="k">if</span> <span class="n">active</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">queues</span><span class="p">]</span>
+
+        <span class="n">job</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">reserve</span><span class="p">(</span><span class="n">timeout</span><span class="o">=</span><span class="n">timeout</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_parse_job</span><span class="p">(</span><span class="n">job</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_purge</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">queue</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">queue</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">watching</span><span class="p">():</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">watch</span><span class="p">(</span><span class="n">queue</span><span class="p">)</span>
+
+        <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">ignore</span><span class="p">(</span><span class="n">active</span><span class="p">)</span>
+                <span class="k">for</span> <span class="n">active</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">watching</span><span class="p">()</span>
+                    <span class="k">if</span> <span class="n">active</span> <span class="o">!=</span> <span class="n">queue</span><span class="p">]</span>
+        <span class="n">count</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">while</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">job</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">reserve</span><span class="p">(</span><span class="n">timeout</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">job</span><span class="p">:</span>
+                <span class="n">job</span><span class="o">.</span><span class="n">delete</span><span class="p">()</span>
+                <span class="n">count</span> <span class="o">+=</span> <span class="mi">1</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">break</span>
+        <span class="k">return</span> <span class="n">count</span>
+
+    <span class="k">def</span> <span class="nf">_size</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">queue</span><span class="p">):</span>
+        <span class="k">return</span> <span class="mi">0</span>
+
+    <span class="k">def</span> <span class="nf">_open</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">conninfo</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">client</span>
+        <span class="n">host</span> <span class="o">=</span> <span class="n">conninfo</span><span class="o">.</span><span class="n">hostname</span> <span class="ow">or</span> <span class="s">&#39;localhost&#39;</span>
+        <span class="n">port</span> <span class="o">=</span> <span class="n">conninfo</span><span class="o">.</span><span class="n">port</span> <span class="ow">or</span> <span class="n">DEFAULT_PORT</span>
+        <span class="n">conn</span> <span class="o">=</span> <span class="n">beanstalkc</span><span class="o">.</span><span class="n">Connection</span><span class="p">(</span><span class="n">host</span><span class="o">=</span><span class="n">host</span><span class="p">,</span> <span class="n">port</span><span class="o">=</span><span class="n">port</span><span class="p">)</span>
+        <span class="n">conn</span><span class="o">.</span><span class="n">connect</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">conn</span>
+
+<div class="viewcode-block" id="Channel.close"><a class="viewcode-back" href="../../../reference/kombu.transport.beanstalk.html#kombu.transport.beanstalk.Channel.close">[docs]</a>    <span class="k">def</span> <span class="nf">close</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_client</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_client</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">Channel</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+</div>
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="Channel.client"><a class="viewcode-back" href="../../../reference/kombu.transport.beanstalk.html#kombu.transport.beanstalk.Channel.client">[docs]</a>    <span class="k">def</span> <span class="nf">client</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_client</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_client</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_open</span><span class="p">()</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_client</span>
+
+</div></div>
+<div class="viewcode-block" id="Transport"><a class="viewcode-back" href="../../../reference/kombu.transport.beanstalk.html#kombu.transport.beanstalk.Transport">[docs]</a><span class="k">class</span> <span class="nc">Transport</span><span class="p">(</span><span class="n">virtual</span><span class="o">.</span><span class="n">Transport</span><span class="p">):</span>
+    <span class="n">Channel</span> <span class="o">=</span> <span class="n">Channel</span>
+
+    <span class="n">polling_interval</span> <span class="o">=</span> <span class="mi">1</span>
+    <span class="n">default_port</span> <span class="o">=</span> <span class="n">DEFAULT_PORT</span>
+    <span class="n">connection_errors</span> <span class="o">=</span> <span class="p">(</span><span class="n">socket</span><span class="o">.</span><span class="n">error</span><span class="p">,</span>
+                         <span class="n">beanstalkc</span><span class="o">.</span><span class="n">SocketError</span><span class="p">,</span>
+                         <span class="ne">IOError</span><span class="p">)</span>
+    <span class="n">channel_errors</span> <span class="o">=</span> <span class="p">(</span><span class="n">StdChannelError</span><span class="p">,</span>
+                      <span class="n">socket</span><span class="o">.</span><span class="n">error</span><span class="p">,</span>
+                      <span class="ne">IOError</span><span class="p">,</span>
+                      <span class="n">beanstalkc</span><span class="o">.</span><span class="n">SocketError</span><span class="p">,</span>
+                      <span class="n">beanstalkc</span><span class="o">.</span><span class="n">BeanstalkcException</span><span class="p">)</span>
+    <span class="n">driver_type</span> <span class="o">=</span> <span class="s">&#39;beanstalk&#39;</span>
+    <span class="n">driver_name</span> <span class="o">=</span> <span class="s">&#39;beanstalkc&#39;</span>
+
+<div class="viewcode-block" id="Transport.driver_version"><a class="viewcode-back" href="../../../reference/kombu.transport.beanstalk.html#kombu.transport.beanstalk.Transport.driver_version">[docs]</a>    <span class="k">def</span> <span class="nf">driver_version</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">beanstalkc</span><span class="o">.</span><span class="n">__version__</span></div></div>
+</pre></div>
+
+      </div>
+      <div class="bottomnav">
+      
+        <p>
+        <a href="/">Home</a>:
+        <a class="uplink" href="../../../index.html">Contents</a>
+        </p>
+
+      </div>
+
+    <div class="footer">
+        &copy; Copyright 2012, HDKNR.COM.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.2pre/3c28de26aac2.
+    </div>
+  </body>
+</html>

@@ -10,7 +10,7 @@ django.contrib.webdesign.templatetags
 =====================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/webdesign/templatetags/__init__.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/webdesign/templatetags/__init__.py>`_ 
 
 .. include:: cheat/django.contrib.webdesign.templatetags.rst
 
@@ -25,7 +25,7 @@ django.contrib.webdesign.templatetags.webdesign
 ===============================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/webdesign/templatetags/webdesign.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/webdesign/templatetags/webdesign.py>`_ 
 
 .. include:: cheat/django.contrib.webdesign.templatetags.webdesign.rst
 

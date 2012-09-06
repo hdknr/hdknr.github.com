@@ -10,7 +10,7 @@ django.db.backends.mysql
 ========================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/db/backends/mysql/__init__.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/db/backends/mysql/__init__.py>`_ 
 
 .. include:: cheat/django.db.backends.mysql.rst
 
@@ -25,7 +25,7 @@ django.db.backends.mysql.base
 =============================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/db/backends/mysql/base.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/db/backends/mysql/base.py>`_ 
 
 .. include:: cheat/django.db.backends.mysql.base.rst
 
@@ -38,7 +38,7 @@ django.db.backends.mysql.client
 ===============================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/db/backends/mysql/client.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/db/backends/mysql/client.py>`_ 
 
 .. include:: cheat/django.db.backends.mysql.client.rst
 
@@ -51,7 +51,7 @@ django.db.backends.mysql.compiler
 =================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/db/backends/mysql/compiler.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/db/backends/mysql/compiler.py>`_ 
 
 .. include:: cheat/django.db.backends.mysql.compiler.rst
 
@@ -64,7 +64,7 @@ django.db.backends.mysql.creation
 =================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/db/backends/mysql/creation.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/db/backends/mysql/creation.py>`_ 
 
 .. include:: cheat/django.db.backends.mysql.creation.rst
 
@@ -77,7 +77,7 @@ django.db.backends.mysql.introspection
 ======================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/db/backends/mysql/introspection.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/db/backends/mysql/introspection.py>`_ 
 
 .. include:: cheat/django.db.backends.mysql.introspection.rst
 
@@ -90,7 +90,7 @@ django.db.backends.mysql.validation
 ===================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/db/backends/mysql/validation.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/db/backends/mysql/validation.py>`_ 
 
 .. include:: cheat/django.db.backends.mysql.validation.rst
 

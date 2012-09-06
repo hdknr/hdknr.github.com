@@ -10,7 +10,7 @@ django.contrib.gis.geometry
 ===========================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/geometry/__init__.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/geometry/__init__.py>`_ 
 
 .. include:: cheat/django.contrib.gis.geometry.rst
 
@@ -25,7 +25,7 @@ django.contrib.gis.geometry.regex
 =================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/geometry/regex.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/geometry/regex.py>`_ 
 
 .. include:: cheat/django.contrib.gis.geometry.regex.rst
 
@@ -38,7 +38,7 @@ django.contrib.gis.geometry.test_data
 =====================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/gis/geometry/test_data.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/gis/geometry/test_data.py>`_ 
 
 .. include:: cheat/django.contrib.gis.geometry.test_data.rst
 

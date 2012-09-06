@@ -1,0 +1,371 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>kombu.utils &mdash; Kombu Docs 1 documentation</title>
+    
+    <link rel="stylesheet" href="../../static/haiku.css" type="text/css" />
+    <link rel="stylesheet" href="../../static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../../static/print.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../static/jquery.js"></script>
+    <script type="text/javascript" src="../../static/underscore.js"></script>
+    <script type="text/javascript" src="../../static/doctools.js"></script>
+    <script type="text/javascript" src="../../static/theme_extras.js"></script>
+    <link rel="top" title="Kombu Docs 1 documentation" href="../../index.html" />
+    <link rel="up" title="Module code" href="../index.html" /> 
+  </head>
+  <body>
+      <div class="header"><h1 class="heading"><a href="../../index.html">
+          <span>Kombu Docs 1 documentation</span></a></h1>
+        <h2 class="heading"><span>kombu.utils</span></h2>
+      </div>
+      <div class="topnav">
+      
+        <p>
+        <a href="/">Home</a>:
+        <a class="uplink" href="../../index.html">Contents</a>
+        </p>
+
+      </div>
+      <div class="content">
+        
+        
+  <h1>Source code for kombu.utils</h1><div class="highlight"><pre>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">kombu.utils</span>
+<span class="sd">===========</span>
+
+<span class="sd">Internal utilities.</span>
+
+<span class="sd">:copyright: (c) 2009 - 2012 by Ask Solem.</span>
+<span class="sd">:license: BSD, see LICENSE for more details.</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">absolute_import</span>
+
+<span class="kn">import</span> <span class="nn">sys</span>
+
+<span class="kn">from</span> <span class="nn">contextlib</span> <span class="kn">import</span> <span class="n">contextmanager</span>
+<span class="kn">from</span> <span class="nn">time</span> <span class="kn">import</span> <span class="n">sleep</span>
+<span class="kn">from</span> <span class="nn">uuid</span> <span class="kn">import</span> <span class="n">UUID</span><span class="p">,</span> <span class="n">uuid4</span> <span class="k">as</span> <span class="n">_uuid4</span><span class="p">,</span> <span class="n">_uuid_generate_random</span>
+
+<span class="kn">from</span> <span class="nn">.encoding</span> <span class="kn">import</span> <span class="n">safe_repr</span> <span class="k">as</span> <span class="n">_safe_repr</span>
+
+<span class="k">try</span><span class="p">:</span>
+    <span class="kn">import</span> <span class="nn">ctypes</span>
+<span class="k">except</span><span class="p">:</span>
+    <span class="n">ctypes</span> <span class="o">=</span> <span class="bp">None</span>  <span class="c"># noqa</span>
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s">&#39;EqualityDict&#39;</span><span class="p">,</span> <span class="s">&#39;say&#39;</span><span class="p">,</span> <span class="s">&#39;uuid&#39;</span><span class="p">,</span> <span class="s">&#39;kwdict&#39;</span><span class="p">,</span> <span class="s">&#39;maybe_list&#39;</span><span class="p">,</span>
+           <span class="s">&#39;fxrange&#39;</span><span class="p">,</span> <span class="s">&#39;fxrangemax&#39;</span><span class="p">,</span> <span class="s">&#39;retry_over_time&#39;</span><span class="p">,</span>
+           <span class="s">&#39;emergency_dump_state&#39;</span><span class="p">,</span> <span class="s">&#39;cached_property&#39;</span><span class="p">,</span>
+           <span class="s">&#39;reprkwargs&#39;</span><span class="p">,</span> <span class="s">&#39;reprcall&#39;</span><span class="p">,</span> <span class="s">&#39;nested&#39;</span><span class="p">]</span>
+
+
+<span class="k">def</span> <span class="nf">eqhash</span><span class="p">(</span><span class="n">o</span><span class="p">):</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">o</span><span class="o">.</span><span class="n">__eqhash__</span><span class="p">()</span>
+    <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>
+        <span class="k">return</span> <span class="nb">hash</span><span class="p">(</span><span class="n">o</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="EqualityDict"><a class="viewcode-back" href="../../reference/kombu.utils.html#kombu.utils.EqualityDict">[docs]</a><span class="k">class</span> <span class="nc">EqualityDict</span><span class="p">(</span><span class="nb">dict</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="nf">__getitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">):</span>
+        <span class="n">h</span> <span class="o">=</span> <span class="n">eqhash</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">h</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">__missing__</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
+        <span class="k">return</span> <span class="nb">dict</span><span class="o">.</span><span class="n">__getitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">h</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__setitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="k">return</span> <span class="nb">dict</span><span class="o">.</span><span class="n">__setitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">eqhash</span><span class="p">(</span><span class="n">key</span><span class="p">),</span> <span class="n">value</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__delitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">):</span>
+        <span class="k">return</span> <span class="nb">dict</span><span class="o">.</span><span class="n">__delitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">eqhash</span><span class="p">(</span><span class="n">key</span><span class="p">))</span>
+
+</div>
+<div class="viewcode-block" id="say"><a class="viewcode-back" href="../../reference/kombu.utils.html#kombu.utils.say">[docs]</a><span class="k">def</span> <span class="nf">say</span><span class="p">(</span><span class="n">m</span><span class="p">,</span> <span class="o">*</span><span class="n">s</span><span class="p">):</span>
+    <span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">m</span><span class="p">)</span> <span class="o">%</span> <span class="n">s</span> <span class="o">+</span> <span class="s">&#39;</span><span class="se">\n</span><span class="s">&#39;</span><span class="p">)</span>
+
+</div>
+<span class="k">def</span> <span class="nf">uuid4</span><span class="p">():</span>
+    <span class="c"># Workaround for http://bugs.python.org/issue4607</span>
+    <span class="k">if</span> <span class="n">ctypes</span> <span class="ow">and</span> <span class="n">_uuid_generate_random</span><span class="p">:</span>  <span class="c"># pragma: no cover</span>
+        <span class="nb">buffer</span> <span class="o">=</span> <span class="n">ctypes</span><span class="o">.</span><span class="n">create_string_buffer</span><span class="p">(</span><span class="mi">16</span><span class="p">)</span>
+        <span class="n">_uuid_generate_random</span><span class="p">(</span><span class="nb">buffer</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">UUID</span><span class="p">(</span><span class="nb">bytes</span><span class="o">=</span><span class="nb">buffer</span><span class="o">.</span><span class="n">raw</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">_uuid4</span><span class="p">()</span>
+
+
+<div class="viewcode-block" id="uuid"><a class="viewcode-back" href="../../reference/kombu.utils.html#kombu.utils.uuid">[docs]</a><span class="k">def</span> <span class="nf">uuid</span><span class="p">():</span>
+    <span class="sd">&quot;&quot;&quot;Generate a unique id, having - hopefully - a very small chance of</span>
+<span class="sd">    collision.</span>
+
+<span class="sd">    For now this is provided by :func:`uuid.uuid4`.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="nb">str</span><span class="p">(</span><span class="n">uuid4</span><span class="p">())</span></div>
+<span class="n">gen_unique_id</span> <span class="o">=</span> <span class="n">uuid</span>
+
+
+<span class="k">if</span> <span class="n">sys</span><span class="o">.</span><span class="n">version_info</span> <span class="o">&gt;=</span> <span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">6</span><span class="p">,</span> <span class="mi">5</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="nf">kwdict</span><span class="p">(</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">kwargs</span>
+<span class="k">else</span><span class="p">:</span>
+<div class="viewcode-block" id="kwdict"><a class="viewcode-back" href="../../reference/kombu.utils.html#kombu.utils.kwdict">[docs]</a>    <span class="k">def</span> <span class="nf">kwdict</span><span class="p">(</span><span class="n">kwargs</span><span class="p">):</span>  <span class="c"># pragma: no cover  # noqa</span>
+        <span class="sd">&quot;&quot;&quot;Make sure keyword arguments are not in Unicode.</span>
+
+<span class="sd">        This should be fixed in newer Python versions,</span>
+<span class="sd">        see: http://bugs.python.org/issue4978.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="nb">dict</span><span class="p">((</span><span class="n">key</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s">&#39;utf-8&#39;</span><span class="p">),</span> <span class="n">value</span><span class="p">)</span>
+                        <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">items</span><span class="p">())</span>
+
+</div>
+<div class="viewcode-block" id="maybe_list"><a class="viewcode-back" href="../../reference/kombu.utils.html#kombu.utils.maybe_list">[docs]</a><span class="k">def</span> <span class="nf">maybe_list</span><span class="p">(</span><span class="n">v</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">v</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+        <span class="k">return</span> <span class="p">[]</span>
+    <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="s">&#39;__iter__&#39;</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">v</span>
+    <span class="k">return</span> <span class="p">[</span><span class="n">v</span><span class="p">]</span>
+
+</div>
+<div class="viewcode-block" id="fxrange"><a class="viewcode-back" href="../../reference/kombu.utils.html#kombu.utils.fxrange">[docs]</a><span class="k">def</span> <span class="nf">fxrange</span><span class="p">(</span><span class="n">start</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">stop</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">step</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">repeatlast</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+    <span class="n">cur</span> <span class="o">=</span> <span class="n">start</span> <span class="o">*</span> <span class="mf">1.0</span>
+    <span class="k">while</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">stop</span> <span class="ow">or</span> <span class="n">cur</span> <span class="o">&lt;=</span> <span class="n">stop</span><span class="p">:</span>
+            <span class="k">yield</span> <span class="n">cur</span>
+            <span class="n">cur</span> <span class="o">+=</span> <span class="n">step</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">repeatlast</span><span class="p">:</span>
+                <span class="k">break</span>
+            <span class="k">yield</span> <span class="n">cur</span> <span class="o">-</span> <span class="n">step</span>
+
+</div>
+<div class="viewcode-block" id="fxrangemax"><a class="viewcode-back" href="../../reference/kombu.utils.html#kombu.utils.fxrangemax">[docs]</a><span class="k">def</span> <span class="nf">fxrangemax</span><span class="p">(</span><span class="n">start</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">stop</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">step</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="nb">max</span><span class="o">=</span><span class="mf">100.0</span><span class="p">):</span>
+    <span class="n">sum_</span><span class="p">,</span> <span class="n">cur</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span> <span class="n">start</span> <span class="o">*</span> <span class="mf">1.0</span>
+    <span class="k">while</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">sum_</span> <span class="o">&gt;=</span> <span class="nb">max</span><span class="p">:</span>
+            <span class="k">break</span>
+        <span class="k">yield</span> <span class="n">cur</span>
+        <span class="k">if</span> <span class="n">stop</span><span class="p">:</span>
+            <span class="n">cur</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">cur</span> <span class="o">+</span> <span class="n">step</span><span class="p">,</span> <span class="n">stop</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">cur</span> <span class="o">+=</span> <span class="n">step</span>
+        <span class="n">sum_</span> <span class="o">+=</span> <span class="n">cur</span>
+
+</div>
+<div class="viewcode-block" id="retry_over_time"><a class="viewcode-back" href="../../reference/kombu.utils.html#kombu.utils.retry_over_time">[docs]</a><span class="k">def</span> <span class="nf">retry_over_time</span><span class="p">(</span><span class="n">fun</span><span class="p">,</span> <span class="n">catch</span><span class="p">,</span> <span class="n">args</span><span class="o">=</span><span class="p">[],</span> <span class="n">kwargs</span><span class="o">=</span><span class="p">{},</span> <span class="n">errback</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+        <span class="n">max_retries</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">interval_start</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">interval_step</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">interval_max</span><span class="o">=</span><span class="mi">30</span><span class="p">,</span>
+        <span class="n">callback</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Retry the function over and over until max retries is exceeded.</span>
+
+<span class="sd">    For each retry we sleep a for a while before we try again, this interval</span>
+<span class="sd">    is increased for every retry until the max seconds is reached.</span>
+
+<span class="sd">    :param fun: The function to try</span>
+<span class="sd">    :param catch: Exceptions to catch, can be either tuple or a single</span>
+<span class="sd">        exception class.</span>
+<span class="sd">    :keyword args: Positional arguments passed on to the function.</span>
+<span class="sd">    :keyword kwargs: Keyword arguments passed on to the function.</span>
+<span class="sd">    :keyword errback: Callback for when an exception in ``catch`` is raised.</span>
+<span class="sd">        The callback must take two arguments: ``exc`` and ``interval``, where</span>
+<span class="sd">        ``exc`` is the exception instance, and ``interval`` is the time in</span>
+<span class="sd">        seconds to sleep next..</span>
+<span class="sd">    :keyword max_retries: Maximum number of retries before we give up.</span>
+<span class="sd">        If this is not set, we will retry forever.</span>
+<span class="sd">    :keyword interval_start: How long (in seconds) we start sleeping between</span>
+<span class="sd">        retries.</span>
+<span class="sd">    :keyword interval_step: By how much the interval is increased for each</span>
+<span class="sd">        retry.</span>
+<span class="sd">    :keyword interval_max: Maximum number of seconds to sleep between retries.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">retries</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">interval_range</span> <span class="o">=</span> <span class="n">fxrange</span><span class="p">(</span><span class="n">interval_start</span><span class="p">,</span>
+                             <span class="n">interval_max</span> <span class="o">+</span> <span class="n">interval_start</span><span class="p">,</span>
+                             <span class="n">interval_step</span><span class="p">,</span> <span class="n">repeatlast</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+
+    <span class="k">for</span> <span class="n">retries</span><span class="p">,</span> <span class="n">interval</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">interval_range</span><span class="p">):</span>  <span class="c"># for infinity</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">fun</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="k">except</span> <span class="n">catch</span><span class="p">,</span> <span class="n">exc</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">max_retries</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span> <span class="ow">and</span> <span class="n">retries</span> <span class="o">&gt;</span> <span class="n">max_retries</span><span class="p">:</span>
+                <span class="k">raise</span>
+            <span class="k">if</span> <span class="n">callback</span><span class="p">:</span>
+                <span class="n">callback</span><span class="p">()</span>
+            <span class="k">if</span> <span class="n">errback</span><span class="p">:</span>
+                <span class="n">errback</span><span class="p">(</span><span class="n">exc</span><span class="p">,</span> <span class="n">interval</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">fxrange</span><span class="p">(</span><span class="n">stop</span><span class="o">=</span><span class="n">interval</span><span class="p">):</span>
+                <span class="k">if</span> <span class="n">i</span> <span class="ow">and</span> <span class="n">callback</span><span class="p">:</span>
+                    <span class="n">callback</span><span class="p">()</span>
+                <span class="n">sleep</span><span class="p">(</span><span class="mf">1.0</span><span class="p">)</span>
+
+</div>
+<div class="viewcode-block" id="emergency_dump_state"><a class="viewcode-back" href="../../reference/kombu.utils.html#kombu.utils.emergency_dump_state">[docs]</a><span class="k">def</span> <span class="nf">emergency_dump_state</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="n">open_file</span><span class="o">=</span><span class="nb">open</span><span class="p">,</span> <span class="n">dump</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+    <span class="kn">from</span> <span class="nn">pprint</span> <span class="kn">import</span> <span class="n">pformat</span>
+    <span class="kn">from</span> <span class="nn">tempfile</span> <span class="kn">import</span> <span class="n">mktemp</span>
+
+    <span class="k">if</span> <span class="n">dump</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+        <span class="kn">import</span> <span class="nn">pickle</span>
+        <span class="n">dump</span> <span class="o">=</span> <span class="n">pickle</span><span class="o">.</span><span class="n">dump</span>
+    <span class="n">persist</span> <span class="o">=</span> <span class="n">mktemp</span><span class="p">()</span>
+    <span class="n">say</span><span class="p">(</span><span class="s">&#39;EMERGENCY DUMP STATE TO FILE -&gt; </span><span class="si">%s</span><span class="s"> &lt;-&#39;</span> <span class="o">%</span> <span class="n">persist</span><span class="p">)</span>
+    <span class="n">fh</span> <span class="o">=</span> <span class="n">open_file</span><span class="p">(</span><span class="n">persist</span><span class="p">,</span> <span class="s">&#39;w&#39;</span><span class="p">)</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">dump</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="n">fh</span><span class="p">,</span> <span class="n">protocol</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span><span class="p">,</span> <span class="n">exc</span><span class="p">:</span>
+            <span class="n">say</span><span class="p">(</span><span class="s">&#39;Cannot pickle state: </span><span class="si">%r</span><span class="s">. Fallback to pformat.&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">exc</span><span class="p">,</span> <span class="p">))</span>
+            <span class="n">fh</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">pformat</span><span class="p">(</span><span class="n">state</span><span class="p">))</span>
+    <span class="k">finally</span><span class="p">:</span>
+        <span class="n">fh</span><span class="o">.</span><span class="n">flush</span><span class="p">()</span>
+        <span class="n">fh</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">persist</span>
+
+</div>
+<div class="viewcode-block" id="cached_property"><a class="viewcode-back" href="../../reference/kombu.utils.html#kombu.utils.cached_property">[docs]</a><span class="k">class</span> <span class="nc">cached_property</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Property descriptor that caches the return value</span>
+<span class="sd">    of the get function.</span>
+
+<span class="sd">    *Examples*</span>
+
+<span class="sd">    .. code-block:: python</span>
+
+<span class="sd">        @cached_property</span>
+<span class="sd">        def connection(self):</span>
+<span class="sd">            return Connection()</span>
+
+<span class="sd">        @connection.setter  # Prepares stored value</span>
+<span class="sd">        def connection(self, value):</span>
+<span class="sd">            if value is None:</span>
+<span class="sd">                raise TypeError(&#39;Connection must be a connection&#39;)</span>
+<span class="sd">            return value</span>
+
+<span class="sd">        @connection.deleter</span>
+<span class="sd">        def connection(self, value):</span>
+<span class="sd">            # Additional action to do at del(self.attr)</span>
+<span class="sd">            if value is not None:</span>
+<span class="sd">                print(&#39;Connection %r deleted&#39; % (value, ))</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fget</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">fset</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">fdel</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">doc</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__get</span> <span class="o">=</span> <span class="n">fget</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__set</span> <span class="o">=</span> <span class="n">fset</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__del</span> <span class="o">=</span> <span class="n">fdel</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__doc__</span> <span class="o">=</span> <span class="n">doc</span> <span class="ow">or</span> <span class="n">fget</span><span class="o">.</span><span class="n">__doc__</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__name__</span> <span class="o">=</span> <span class="n">fget</span><span class="o">.</span><span class="n">__name__</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__module__</span> <span class="o">=</span> <span class="n">fget</span><span class="o">.</span><span class="n">__module__</span>
+
+    <span class="k">def</span> <span class="nf">__get__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">obj</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">obj</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">obj</span><span class="o">.</span><span class="n">__dict__</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">__name__</span><span class="p">]</span>
+        <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+            <span class="n">value</span> <span class="o">=</span> <span class="n">obj</span><span class="o">.</span><span class="n">__dict__</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">__name__</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__get</span><span class="p">(</span><span class="n">obj</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">value</span>
+
+    <span class="k">def</span> <span class="nf">__set__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">obj</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">obj</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">__set</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="n">value</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__set</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
+        <span class="n">obj</span><span class="o">.</span><span class="n">__dict__</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">__name__</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span>
+
+    <span class="k">def</span> <span class="nf">__delete__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">obj</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">obj</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">value</span> <span class="o">=</span> <span class="n">obj</span><span class="o">.</span><span class="n">__dict__</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__name__</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+            <span class="k">pass</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">__del</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">__del</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">setter</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fset</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__get</span><span class="p">,</span> <span class="n">fset</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">__del</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">deleter</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fdel</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__get</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">__set</span><span class="p">,</span> <span class="n">fdel</span><span class="p">)</span>
+
+</div>
+<div class="viewcode-block" id="reprkwargs"><a class="viewcode-back" href="../../reference/kombu.utils.html#kombu.utils.reprkwargs">[docs]</a><span class="k">def</span> <span class="nf">reprkwargs</span><span class="p">(</span><span class="n">kwargs</span><span class="p">,</span> <span class="n">sep</span><span class="o">=</span><span class="s">&#39;, &#39;</span><span class="p">,</span> <span class="n">fmt</span><span class="o">=</span><span class="s">&#39;</span><span class="si">%s</span><span class="s">=</span><span class="si">%s</span><span class="s">&#39;</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">sep</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">fmt</span> <span class="o">%</span> <span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="n">_safe_repr</span><span class="p">(</span><span class="n">v</span><span class="p">))</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">iteritems</span><span class="p">())</span>
+
+</div>
+<div class="viewcode-block" id="reprcall"><a class="viewcode-back" href="../../reference/kombu.utils.html#kombu.utils.reprcall">[docs]</a><span class="k">def</span> <span class="nf">reprcall</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">args</span><span class="o">=</span><span class="p">(),</span> <span class="n">kwargs</span><span class="o">=</span><span class="p">{},</span> <span class="n">sep</span><span class="o">=</span><span class="s">&#39;, &#39;</span><span class="p">):</span>
+    <span class="k">return</span> <span class="s">&#39;</span><span class="si">%s</span><span class="s">(</span><span class="si">%s%s%s</span><span class="s">)&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">sep</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="n">_safe_repr</span><span class="p">,</span> <span class="n">args</span> <span class="ow">or</span> <span class="p">())),</span>
+                           <span class="p">(</span><span class="n">args</span> <span class="ow">and</span> <span class="n">kwargs</span><span class="p">)</span> <span class="ow">and</span> <span class="n">sep</span> <span class="ow">or</span> <span class="s">&#39;&#39;</span><span class="p">,</span>
+                           <span class="n">reprkwargs</span><span class="p">(</span><span class="n">kwargs</span><span class="p">,</span> <span class="n">sep</span><span class="p">))</span>
+
+</div>
+<span class="nd">@contextmanager</span>
+<div class="viewcode-block" id="nested"><a class="viewcode-back" href="../../reference/kombu.utils.html#kombu.utils.nested">[docs]</a><span class="k">def</span> <span class="nf">nested</span><span class="p">(</span><span class="o">*</span><span class="n">managers</span><span class="p">):</span>  <span class="c"># pragma: no cover</span>
+    <span class="sd">&quot;&quot;&quot;Combine multiple context managers into a single nested</span>
+<span class="sd">    context manager.&quot;&quot;&quot;</span>
+    <span class="n">exits</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="nb">vars</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">exc</span> <span class="o">=</span> <span class="p">(</span><span class="bp">None</span><span class="p">,</span> <span class="bp">None</span><span class="p">,</span> <span class="bp">None</span><span class="p">)</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">mgr</span> <span class="ow">in</span> <span class="n">managers</span><span class="p">:</span>
+                <span class="nb">exit</span> <span class="o">=</span> <span class="n">mgr</span><span class="o">.</span><span class="n">__exit__</span>
+                <span class="n">enter</span> <span class="o">=</span> <span class="n">mgr</span><span class="o">.</span><span class="n">__enter__</span>
+                <span class="nb">vars</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">enter</span><span class="p">())</span>
+                <span class="n">exits</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">exit</span><span class="p">)</span>
+            <span class="k">yield</span> <span class="nb">vars</span>
+        <span class="k">except</span><span class="p">:</span>
+            <span class="n">exc</span> <span class="o">=</span> <span class="n">sys</span><span class="o">.</span><span class="n">exc_info</span><span class="p">()</span>
+        <span class="k">finally</span><span class="p">:</span>
+            <span class="k">while</span> <span class="n">exits</span><span class="p">:</span>
+                <span class="nb">exit</span> <span class="o">=</span> <span class="n">exits</span><span class="o">.</span><span class="n">pop</span><span class="p">()</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="nb">exit</span><span class="p">(</span><span class="o">*</span><span class="n">exc</span><span class="p">):</span>
+                        <span class="n">exc</span> <span class="o">=</span> <span class="p">(</span><span class="bp">None</span><span class="p">,</span> <span class="bp">None</span><span class="p">,</span> <span class="bp">None</span><span class="p">)</span>
+                <span class="k">except</span><span class="p">:</span>
+                    <span class="n">exc</span> <span class="o">=</span> <span class="n">sys</span><span class="o">.</span><span class="n">exc_info</span><span class="p">()</span>
+            <span class="k">if</span> <span class="n">exc</span> <span class="o">!=</span> <span class="p">(</span><span class="bp">None</span><span class="p">,</span> <span class="bp">None</span><span class="p">,</span> <span class="bp">None</span><span class="p">):</span>
+                <span class="c"># Don&#39;t rely on sys.exc_info() still containing</span>
+                <span class="c"># the right information. Another exception may</span>
+                <span class="c"># have been raised and caught by an exit method</span>
+                <span class="k">raise</span> <span class="n">exc</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">exc</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">exc</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
+    <span class="k">finally</span><span class="p">:</span>
+        <span class="k">del</span><span class="p">(</span><span class="n">exc</span><span class="p">)</span></div>
+</pre></div>
+
+      </div>
+      <div class="bottomnav">
+      
+        <p>
+        <a href="/">Home</a>:
+        <a class="uplink" href="../../index.html">Contents</a>
+        </p>
+
+      </div>
+
+    <div class="footer">
+        &copy; Copyright 2012, HDKNR.COM.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.2pre/3c28de26aac2.
+    </div>
+  </body>
+</html>

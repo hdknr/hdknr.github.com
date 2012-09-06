@@ -1,0 +1,296 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>kombu.common &mdash; Kombu Docs 1 documentation</title>
+    
+    <link rel="stylesheet" href="../../static/haiku.css" type="text/css" />
+    <link rel="stylesheet" href="../../static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../../static/print.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../static/jquery.js"></script>
+    <script type="text/javascript" src="../../static/underscore.js"></script>
+    <script type="text/javascript" src="../../static/doctools.js"></script>
+    <script type="text/javascript" src="../../static/theme_extras.js"></script>
+    <link rel="top" title="Kombu Docs 1 documentation" href="../../index.html" />
+    <link rel="up" title="Module code" href="../index.html" /> 
+  </head>
+  <body>
+      <div class="header"><h1 class="heading"><a href="../../index.html">
+          <span>Kombu Docs 1 documentation</span></a></h1>
+        <h2 class="heading"><span>kombu.common</span></h2>
+      </div>
+      <div class="topnav">
+      
+        <p>
+        <a href="/">Home</a>:
+        <a class="uplink" href="../../index.html">Contents</a>
+        </p>
+
+      </div>
+      <div class="content">
+        
+        
+  <h1>Source code for kombu.common</h1><div class="highlight"><pre>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">kombu.common</span>
+<span class="sd">============</span>
+
+<span class="sd">Common Utilities.</span>
+
+<span class="sd">:copyright: (c) 2009 - 2012 by Ask Solem.</span>
+<span class="sd">:license: BSD, see LICENSE for more details.</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">absolute_import</span>
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">with_statement</span>
+
+<span class="kn">import</span> <span class="nn">socket</span>
+
+<span class="kn">from</span> <span class="nn">collections</span> <span class="kn">import</span> <span class="n">deque</span>
+<span class="kn">from</span> <span class="nn">functools</span> <span class="kn">import</span> <span class="n">partial</span>
+<span class="kn">from</span> <span class="nn">itertools</span> <span class="kn">import</span> <span class="n">count</span>
+
+<span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">serialization</span>
+<span class="kn">from</span> <span class="nn">.entity</span> <span class="kn">import</span> <span class="n">Exchange</span><span class="p">,</span> <span class="n">Queue</span>
+<span class="kn">from</span> <span class="nn">.exceptions</span> <span class="kn">import</span> <span class="n">StdChannelError</span>
+<span class="kn">from</span> <span class="nn">.log</span> <span class="kn">import</span> <span class="n">Log</span>
+<span class="kn">from</span> <span class="nn">.messaging</span> <span class="kn">import</span> <span class="n">Consumer</span> <span class="k">as</span> <span class="n">_Consumer</span>
+<span class="kn">from</span> <span class="nn">.utils</span> <span class="kn">import</span> <span class="n">uuid</span>
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s">&#39;Broadcast&#39;</span><span class="p">,</span> <span class="s">&#39;maybe_declare&#39;</span><span class="p">,</span> <span class="s">&#39;uuid&#39;</span><span class="p">,</span>
+           <span class="s">&#39;itermessages&#39;</span><span class="p">,</span> <span class="s">&#39;send_reply&#39;</span><span class="p">,</span> <span class="s">&#39;isend_reply&#39;</span><span class="p">,</span>
+           <span class="s">&#39;collect_replies&#39;</span><span class="p">,</span> <span class="s">&#39;insured&#39;</span><span class="p">,</span> <span class="s">&#39;ipublish&#39;</span><span class="p">,</span> <span class="s">&#39;drain_consumer&#39;</span><span class="p">,</span>
+           <span class="s">&#39;eventloop&#39;</span><span class="p">]</span>
+
+<span class="n">insured_logger</span> <span class="o">=</span> <span class="n">Log</span><span class="p">(</span><span class="s">&#39;kombu.insurance&#39;</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="Broadcast"><a class="viewcode-back" href="../../reference/kombu.common.html#kombu.common.Broadcast">[docs]</a><span class="k">class</span> <span class="nc">Broadcast</span><span class="p">(</span><span class="n">Queue</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Convenience class used to define broadcast queues.</span>
+
+<span class="sd">    Every queue instance will have a unique name,</span>
+<span class="sd">    and both the queue and exchange is configured with auto deletion.</span>
+
+<span class="sd">    :keyword name: This is used as the name of the exchange.</span>
+<span class="sd">    :keyword queue: By default a unique id is used for the queue</span>
+<span class="sd">       name for every consumer.  You can specify a custom queue</span>
+<span class="sd">       name here.</span>
+<span class="sd">    :keyword \*\*kwargs: See :class:`~kombu.entity.Queue` for a list</span>
+<span class="sd">        of additional keyword arguments supported.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">queue</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="k">return</span> <span class="nb">super</span><span class="p">(</span><span class="n">Broadcast</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span>
+                    <span class="n">name</span><span class="o">=</span><span class="n">queue</span> <span class="ow">or</span> <span class="s">&#39;bcast.</span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">uuid</span><span class="p">(),</span> <span class="p">),</span>
+                    <span class="o">**</span><span class="nb">dict</span><span class="p">({</span><span class="s">&#39;alias&#39;</span><span class="p">:</span> <span class="n">name</span><span class="p">,</span>
+                            <span class="s">&#39;auto_delete&#39;</span><span class="p">:</span> <span class="bp">True</span><span class="p">,</span>
+                            <span class="s">&#39;exchange&#39;</span><span class="p">:</span> <span class="n">Exchange</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="s">&#39;fanout&#39;</span><span class="p">),</span>
+                           <span class="p">},</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">))</span>
+
+</div>
+<span class="k">def</span> <span class="nf">declaration_cached</span><span class="p">(</span><span class="n">entity</span><span class="p">,</span> <span class="n">channel</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">entity</span> <span class="ow">in</span> <span class="n">channel</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">declared_entities</span>
+
+
+<div class="viewcode-block" id="maybe_declare"><a class="viewcode-back" href="../../reference/kombu.common.html#kombu.common.maybe_declare">[docs]</a><span class="k">def</span> <span class="nf">maybe_declare</span><span class="p">(</span><span class="n">entity</span><span class="p">,</span> <span class="n">channel</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">retry</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="o">**</span><span class="n">retry_policy</span><span class="p">):</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">entity</span><span class="o">.</span><span class="n">is_bound</span><span class="p">:</span>
+        <span class="k">assert</span> <span class="n">channel</span>
+        <span class="n">entity</span> <span class="o">=</span> <span class="n">entity</span><span class="o">.</span><span class="n">bind</span><span class="p">(</span><span class="n">channel</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">retry</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">_imaybe_declare</span><span class="p">(</span><span class="n">entity</span><span class="p">,</span> <span class="o">**</span><span class="n">retry_policy</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">_maybe_declare</span><span class="p">(</span><span class="n">entity</span><span class="p">)</span>
+
+</div>
+<span class="k">def</span> <span class="nf">_maybe_declare</span><span class="p">(</span><span class="n">entity</span><span class="p">):</span>
+    <span class="n">channel</span> <span class="o">=</span> <span class="n">entity</span><span class="o">.</span><span class="n">channel</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">channel</span><span class="o">.</span><span class="n">connection</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">StdChannelError</span><span class="p">(</span><span class="s">&quot;channel disconnected&quot;</span><span class="p">)</span>
+    <span class="n">declared</span> <span class="o">=</span> <span class="n">channel</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">declared_entities</span>
+    <span class="k">if</span> <span class="n">entity</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">declared</span> <span class="ow">or</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">entity</span><span class="p">,</span> <span class="s">&#39;auto_delete&#39;</span><span class="p">,</span> <span class="bp">None</span><span class="p">):</span>
+        <span class="n">entity</span><span class="o">.</span><span class="n">declare</span><span class="p">()</span>
+        <span class="n">declared</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">entity</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">True</span>
+    <span class="k">return</span> <span class="bp">False</span>
+
+
+<span class="k">def</span> <span class="nf">_imaybe_declare</span><span class="p">(</span><span class="n">entity</span><span class="p">,</span> <span class="o">**</span><span class="n">retry_policy</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">entity</span><span class="o">.</span><span class="n">channel</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">ensure</span><span class="p">(</span><span class="n">entity</span><span class="p">,</span> <span class="n">_maybe_declare</span><span class="p">,</span>
+                             <span class="o">**</span><span class="n">retry_policy</span><span class="p">)(</span><span class="n">entity</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="drain_consumer"><a class="viewcode-back" href="../../reference/kombu.common.html#kombu.common.drain_consumer">[docs]</a><span class="k">def</span> <span class="nf">drain_consumer</span><span class="p">(</span><span class="n">consumer</span><span class="p">,</span> <span class="n">limit</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">callbacks</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+    <span class="n">acc</span> <span class="o">=</span> <span class="n">deque</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">on_message</span><span class="p">(</span><span class="n">body</span><span class="p">,</span> <span class="n">message</span><span class="p">):</span>
+        <span class="n">acc</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">body</span><span class="p">,</span> <span class="n">message</span><span class="p">))</span>
+
+    <span class="n">consumer</span><span class="o">.</span><span class="n">callbacks</span> <span class="o">=</span> <span class="p">[</span><span class="n">on_message</span><span class="p">]</span> <span class="o">+</span> <span class="p">(</span><span class="n">callbacks</span> <span class="ow">or</span> <span class="p">[])</span>
+
+    <span class="k">with</span> <span class="n">consumer</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="n">eventloop</span><span class="p">(</span><span class="n">consumer</span><span class="o">.</span><span class="n">channel</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">client</span><span class="p">,</span>
+                           <span class="n">limit</span><span class="o">=</span><span class="n">limit</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="n">timeout</span><span class="p">,</span> <span class="n">ignore_timeouts</span><span class="o">=</span><span class="bp">True</span><span class="p">):</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="k">yield</span> <span class="n">acc</span><span class="o">.</span><span class="n">popleft</span><span class="p">()</span>
+            <span class="k">except</span> <span class="ne">IndexError</span><span class="p">:</span>
+                <span class="k">pass</span>
+
+</div>
+<div class="viewcode-block" id="itermessages"><a class="viewcode-back" href="../../reference/kombu.common.html#kombu.common.itermessages">[docs]</a><span class="k">def</span> <span class="nf">itermessages</span><span class="p">(</span><span class="n">conn</span><span class="p">,</span> <span class="n">channel</span><span class="p">,</span> <span class="n">queue</span><span class="p">,</span> <span class="n">limit</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+        <span class="n">Consumer</span><span class="o">=</span><span class="n">_Consumer</span><span class="p">,</span> <span class="n">callbacks</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">drain_consumer</span><span class="p">(</span><span class="n">Consumer</span><span class="p">(</span><span class="n">channel</span><span class="p">,</span> <span class="n">queues</span><span class="o">=</span><span class="p">[</span><span class="n">queue</span><span class="p">],</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">),</span>
+                          <span class="n">limit</span><span class="o">=</span><span class="n">limit</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="n">timeout</span><span class="p">,</span> <span class="n">callbacks</span><span class="o">=</span><span class="n">callbacks</span><span class="p">)</span>
+
+</div>
+<div class="viewcode-block" id="eventloop"><a class="viewcode-back" href="../../reference/kombu.common.html#kombu.common.eventloop">[docs]</a><span class="k">def</span> <span class="nf">eventloop</span><span class="p">(</span><span class="n">conn</span><span class="p">,</span> <span class="n">limit</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">ignore_timeouts</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Best practice generator wrapper around ``Connection.drain_events``.</span>
+
+<span class="sd">    Able to drain events forever, with a limit, and optionally ignoring</span>
+<span class="sd">    timeout errors (a timeout of 1 is often used in environments where</span>
+<span class="sd">    the socket can get &quot;stuck&quot;, and is a best practice for Kombu consumers).</span>
+
+<span class="sd">    **Examples**</span>
+
+<span class="sd">    ``eventloop`` is a generator::</span>
+
+<span class="sd">        &gt;&gt;&gt; from kombu.common import eventloop</span>
+
+<span class="sd">        &gt;&gt;&gt; it = eventloop(connection, timeout=1, ignore_timeouts=True)</span>
+<span class="sd">        &gt;&gt;&gt; it.next()   # one event consumed, or timed out.</span>
+
+<span class="sd">        &gt;&gt;&gt; for _ in eventloop(connection, timeout=1, ignore_timeouts=True):</span>
+<span class="sd">        ...     pass  # loop forever.</span>
+
+<span class="sd">    It also takes an optional limit parameter, and timeout errors</span>
+<span class="sd">    are propagated by default::</span>
+
+<span class="sd">        for _ in eventloop(connection, limit=1, timeout=1):</span>
+<span class="sd">            pass</span>
+
+<span class="sd">    .. seealso::</span>
+
+<span class="sd">        :func:`itermessages`, which is an event loop bound to one or more</span>
+<span class="sd">        consumers, that yields any messages received.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">limit</span> <span class="ow">and</span> <span class="nb">xrange</span><span class="p">(</span><span class="n">limit</span><span class="p">)</span> <span class="ow">or</span> <span class="n">count</span><span class="p">():</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">yield</span> <span class="n">conn</span><span class="o">.</span><span class="n">drain_events</span><span class="p">(</span><span class="n">timeout</span><span class="o">=</span><span class="n">timeout</span><span class="p">)</span>
+        <span class="k">except</span> <span class="n">socket</span><span class="o">.</span><span class="n">timeout</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">timeout</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">ignore_timeouts</span><span class="p">:</span>
+                <span class="k">raise</span>
+        <span class="k">except</span> <span class="n">socket</span><span class="o">.</span><span class="n">error</span><span class="p">:</span>
+            <span class="k">pass</span>
+
+</div>
+<div class="viewcode-block" id="send_reply"><a class="viewcode-back" href="../../reference/kombu.common.html#kombu.common.send_reply">[docs]</a><span class="k">def</span> <span class="nf">send_reply</span><span class="p">(</span><span class="n">exchange</span><span class="p">,</span> <span class="n">req</span><span class="p">,</span> <span class="n">msg</span><span class="p">,</span> <span class="n">producer</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="o">**</span><span class="n">props</span><span class="p">):</span>
+    <span class="n">content_type</span> <span class="o">=</span> <span class="n">req</span><span class="o">.</span><span class="n">content_type</span>
+    <span class="n">serializer</span> <span class="o">=</span> <span class="n">serialization</span><span class="o">.</span><span class="n">registry</span><span class="o">.</span><span class="n">type_to_name</span><span class="p">[</span><span class="n">content_type</span><span class="p">]</span>
+    <span class="n">maybe_declare</span><span class="p">(</span><span class="n">exchange</span><span class="p">,</span> <span class="n">producer</span><span class="o">.</span><span class="n">channel</span><span class="p">)</span>
+    <span class="n">producer</span><span class="o">.</span><span class="n">publish</span><span class="p">(</span><span class="n">msg</span><span class="p">,</span> <span class="n">exchange</span><span class="o">=</span><span class="n">exchange</span><span class="p">,</span>
+            <span class="o">**</span><span class="nb">dict</span><span class="p">({</span><span class="s">&#39;routing_key&#39;</span><span class="p">:</span> <span class="n">req</span><span class="o">.</span><span class="n">properties</span><span class="p">[</span><span class="s">&#39;reply_to&#39;</span><span class="p">],</span>
+                    <span class="s">&#39;correlation_id&#39;</span><span class="p">:</span> <span class="n">req</span><span class="o">.</span><span class="n">properties</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;correlation_id&#39;</span><span class="p">),</span>
+                    <span class="s">&#39;serializer&#39;</span><span class="p">:</span> <span class="n">serializer</span><span class="p">},</span>
+                    <span class="o">**</span><span class="n">props</span><span class="p">))</span>
+
+</div>
+<div class="viewcode-block" id="isend_reply"><a class="viewcode-back" href="../../reference/kombu.common.html#kombu.common.isend_reply">[docs]</a><span class="k">def</span> <span class="nf">isend_reply</span><span class="p">(</span><span class="n">pool</span><span class="p">,</span> <span class="n">exchange</span><span class="p">,</span> <span class="n">req</span><span class="p">,</span> <span class="n">msg</span><span class="p">,</span> <span class="n">props</span><span class="p">,</span> <span class="o">**</span><span class="n">retry_policy</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">ipublish</span><span class="p">(</span><span class="n">pool</span><span class="p">,</span> <span class="n">send_reply</span><span class="p">,</span>
+                    <span class="p">(</span><span class="n">exchange</span><span class="p">,</span> <span class="n">req</span><span class="p">,</span> <span class="n">msg</span><span class="p">),</span> <span class="n">props</span><span class="p">,</span> <span class="o">**</span><span class="n">retry_policy</span><span class="p">)</span>
+
+</div>
+<div class="viewcode-block" id="collect_replies"><a class="viewcode-back" href="../../reference/kombu.common.html#kombu.common.collect_replies">[docs]</a><span class="k">def</span> <span class="nf">collect_replies</span><span class="p">(</span><span class="n">conn</span><span class="p">,</span> <span class="n">channel</span><span class="p">,</span> <span class="n">queue</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="n">no_ack</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="s">&#39;no_ack&#39;</span><span class="p">,</span> <span class="bp">True</span><span class="p">)</span>
+    <span class="n">received</span> <span class="o">=</span> <span class="bp">False</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">body</span><span class="p">,</span> <span class="n">message</span> <span class="ow">in</span> <span class="n">itermessages</span><span class="p">(</span><span class="n">conn</span><span class="p">,</span> <span class="n">channel</span><span class="p">,</span> <span class="n">queue</span><span class="p">,</span>
+                                          <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">no_ack</span><span class="p">:</span>
+                <span class="n">message</span><span class="o">.</span><span class="n">ack</span><span class="p">()</span>
+            <span class="n">received</span> <span class="o">=</span> <span class="bp">True</span>
+            <span class="k">yield</span> <span class="n">body</span>
+    <span class="k">finally</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">received</span><span class="p">:</span>
+            <span class="n">channel</span><span class="o">.</span><span class="n">after_reply_message_received</span><span class="p">(</span><span class="n">queue</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+
+</div>
+<span class="k">def</span> <span class="nf">_ensure_errback</span><span class="p">(</span><span class="n">exc</span><span class="p">,</span> <span class="n">interval</span><span class="p">):</span>
+    <span class="n">insured_logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span>
+        <span class="s">&#39;Connection error: </span><span class="si">%r</span><span class="s">. Retry in </span><span class="si">%s</span><span class="s">s</span><span class="se">\n</span><span class="s">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">exc</span><span class="p">,</span> <span class="n">interval</span><span class="p">),</span>
+            <span class="n">exc_info</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">revive_connection</span><span class="p">(</span><span class="n">connection</span><span class="p">,</span> <span class="n">channel</span><span class="p">,</span> <span class="n">on_revive</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">on_revive</span><span class="p">:</span>
+        <span class="n">on_revive</span><span class="p">(</span><span class="n">channel</span><span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">revive_producer</span><span class="p">(</span><span class="n">producer</span><span class="p">,</span> <span class="n">channel</span><span class="p">,</span> <span class="n">on_revive</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+    <span class="n">revive_connection</span><span class="p">(</span><span class="n">producer</span><span class="o">.</span><span class="n">connection</span><span class="p">,</span> <span class="n">channel</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">on_revive</span><span class="p">:</span>
+        <span class="n">on_revive</span><span class="p">(</span><span class="n">channel</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="insured"><a class="viewcode-back" href="../../reference/kombu.common.html#kombu.common.insured">[docs]</a><span class="k">def</span> <span class="nf">insured</span><span class="p">(</span><span class="n">pool</span><span class="p">,</span> <span class="n">fun</span><span class="p">,</span> <span class="n">args</span><span class="p">,</span> <span class="n">kwargs</span><span class="p">,</span> <span class="n">errback</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">on_revive</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="o">**</span><span class="n">opts</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Ensures function performing broker commands completes</span>
+<span class="sd">    despite intermittent connection failures.&quot;&quot;&quot;</span>
+    <span class="n">errback</span> <span class="o">=</span> <span class="n">errback</span> <span class="ow">or</span> <span class="n">_ensure_errback</span>
+
+    <span class="k">with</span> <span class="n">pool</span><span class="o">.</span><span class="n">acquire</span><span class="p">(</span><span class="n">block</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span> <span class="k">as</span> <span class="n">conn</span><span class="p">:</span>
+        <span class="n">conn</span><span class="o">.</span><span class="n">ensure_connection</span><span class="p">(</span><span class="n">errback</span><span class="o">=</span><span class="n">errback</span><span class="p">)</span>
+        <span class="c"># we cache the channel for subsequent calls, this has to be</span>
+        <span class="c"># reset on revival.</span>
+        <span class="n">channel</span> <span class="o">=</span> <span class="n">conn</span><span class="o">.</span><span class="n">default_channel</span>
+        <span class="n">revive</span> <span class="o">=</span> <span class="n">partial</span><span class="p">(</span><span class="n">revive_connection</span><span class="p">,</span> <span class="n">conn</span><span class="p">,</span> <span class="n">on_revive</span><span class="o">=</span><span class="n">on_revive</span><span class="p">)</span>
+        <span class="n">insured</span> <span class="o">=</span> <span class="n">conn</span><span class="o">.</span><span class="n">autoretry</span><span class="p">(</span><span class="n">fun</span><span class="p">,</span> <span class="n">channel</span><span class="p">,</span> <span class="n">errback</span><span class="o">=</span><span class="n">errback</span><span class="p">,</span>
+                                 <span class="n">on_revive</span><span class="o">=</span><span class="n">revive</span><span class="p">,</span> <span class="o">**</span><span class="n">opts</span><span class="p">)</span>
+        <span class="n">retval</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">insured</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="nb">dict</span><span class="p">(</span><span class="n">kwargs</span><span class="p">,</span> <span class="n">connection</span><span class="o">=</span><span class="n">conn</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">retval</span>
+
+</div>
+<div class="viewcode-block" id="ipublish"><a class="viewcode-back" href="../../reference/kombu.common.html#kombu.common.ipublish">[docs]</a><span class="k">def</span> <span class="nf">ipublish</span><span class="p">(</span><span class="n">pool</span><span class="p">,</span> <span class="n">fun</span><span class="p">,</span> <span class="n">args</span><span class="o">=</span><span class="p">(),</span> <span class="n">kwargs</span><span class="o">=</span><span class="p">{},</span> <span class="n">errback</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">on_revive</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+        <span class="o">**</span><span class="n">retry_policy</span><span class="p">):</span>
+    <span class="k">with</span> <span class="n">pool</span><span class="o">.</span><span class="n">acquire</span><span class="p">(</span><span class="n">block</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span> <span class="k">as</span> <span class="n">producer</span><span class="p">:</span>
+        <span class="n">errback</span> <span class="o">=</span> <span class="n">errback</span> <span class="ow">or</span> <span class="n">_ensure_errback</span>
+        <span class="n">revive</span> <span class="o">=</span> <span class="n">partial</span><span class="p">(</span><span class="n">revive_producer</span><span class="p">,</span> <span class="n">producer</span><span class="p">,</span> <span class="n">on_revive</span><span class="o">=</span><span class="n">on_revive</span><span class="p">)</span>
+        <span class="n">f</span> <span class="o">=</span> <span class="n">producer</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">ensure</span><span class="p">(</span><span class="n">producer</span><span class="p">,</span> <span class="n">fun</span><span class="p">,</span> <span class="n">on_revive</span><span class="o">=</span><span class="n">revive</span><span class="p">,</span>
+                                       <span class="n">errback</span><span class="o">=</span><span class="n">errback</span><span class="p">,</span> <span class="o">**</span><span class="n">retry_policy</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">f</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="nb">dict</span><span class="p">(</span><span class="n">kwargs</span><span class="p">,</span> <span class="n">producer</span><span class="o">=</span><span class="n">producer</span><span class="p">))</span>
+
+</div>
+<span class="k">def</span> <span class="nf">entry_to_queue</span><span class="p">(</span><span class="n">queue</span><span class="p">,</span> <span class="o">**</span><span class="n">options</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">Queue</span><span class="o">.</span><span class="n">from_dict</span><span class="p">(</span><span class="n">queue</span><span class="p">,</span> <span class="o">**</span><span class="n">options</span><span class="p">)</span>
+</pre></div>
+
+      </div>
+      <div class="bottomnav">
+      
+        <p>
+        <a href="/">Home</a>:
+        <a class="uplink" href="../../index.html">Contents</a>
+        </p>
+
+      </div>
+
+    <div class="footer">
+        &copy; Copyright 2012, HDKNR.COM.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.2pre/3c28de26aac2.
+    </div>
+  </body>
+</html>

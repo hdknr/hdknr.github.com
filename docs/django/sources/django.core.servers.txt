@@ -10,7 +10,7 @@ django.core.servers
 ===================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/core/servers/__init__.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/core/servers/__init__.py>`_ 
 
 .. include:: cheat/django.core.servers.rst
 
@@ -25,7 +25,7 @@ django.core.servers.basehttp
 ============================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/core/servers/basehttp.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/core/servers/basehttp.py>`_ 
 
 .. include:: cheat/django.core.servers.basehttp.rst
 
@@ -38,7 +38,7 @@ django.core.servers.fastcgi
 ===========================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/core/servers/fastcgi.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/core/servers/fastcgi.py>`_ 
 
 .. include:: cheat/django.core.servers.fastcgi.rst
 

@@ -10,7 +10,7 @@ django.db.backends.sqlite3
 ==========================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/db/backends/sqlite3/__init__.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/db/backends/sqlite3/__init__.py>`_ 
 
 .. include:: cheat/django.db.backends.sqlite3.rst
 
@@ -25,7 +25,7 @@ django.db.backends.sqlite3.base
 ===============================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/db/backends/sqlite3/base.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/db/backends/sqlite3/base.py>`_ 
 
 .. include:: cheat/django.db.backends.sqlite3.base.rst
 
@@ -38,7 +38,7 @@ django.db.backends.sqlite3.client
 =================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/db/backends/sqlite3/client.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/db/backends/sqlite3/client.py>`_ 
 
 .. include:: cheat/django.db.backends.sqlite3.client.rst
 
@@ -51,7 +51,7 @@ django.db.backends.sqlite3.creation
 ===================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/db/backends/sqlite3/creation.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/db/backends/sqlite3/creation.py>`_ 
 
 .. include:: cheat/django.db.backends.sqlite3.creation.rst
 
@@ -64,7 +64,7 @@ django.db.backends.sqlite3.introspection
 ========================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/db/backends/sqlite3/introspection.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/db/backends/sqlite3/introspection.py>`_ 
 
 .. include:: cheat/django.db.backends.sqlite3.introspection.rst
 

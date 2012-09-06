@@ -1,0 +1,324 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>kombu.transport.pika &mdash; Kombu Docs 1 documentation</title>
+    
+    <link rel="stylesheet" href="../../../static/haiku.css" type="text/css" />
+    <link rel="stylesheet" href="../../../static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../../../static/print.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../',
+        VERSION:     '1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../../static/jquery.js"></script>
+    <script type="text/javascript" src="../../../static/underscore.js"></script>
+    <script type="text/javascript" src="../../../static/doctools.js"></script>
+    <script type="text/javascript" src="../../../static/theme_extras.js"></script>
+    <link rel="top" title="Kombu Docs 1 documentation" href="../../../index.html" />
+    <link rel="up" title="kombu.transport" href="../transport.html" /> 
+  </head>
+  <body>
+      <div class="header"><h1 class="heading"><a href="../../../index.html">
+          <span>Kombu Docs 1 documentation</span></a></h1>
+        <h2 class="heading"><span>kombu.transport.pika</span></h2>
+      </div>
+      <div class="topnav">
+      
+        <p>
+        <a href="/">Home</a>:
+        <a class="uplink" href="../../../index.html">Contents</a>
+        </p>
+
+      </div>
+      <div class="content">
+        
+        
+  <h1>Source code for kombu.transport.pika</h1><div class="highlight"><pre>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">kombu.transport.pika</span>
+<span class="sd">====================</span>
+
+<span class="sd">Pika transport.</span>
+
+<span class="sd">:copyright: (c) 2009 - 2012 by Ask Solem.</span>
+<span class="sd">:license: BSD, see LICENSE for more details.</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">absolute_import</span>
+
+<span class="kn">import</span> <span class="nn">socket</span>
+
+<span class="kn">from</span> <span class="nn">operator</span> <span class="kn">import</span> <span class="n">attrgetter</span>
+
+<span class="kn">from</span> <span class="nn">kombu.exceptions</span> <span class="kn">import</span> <span class="n">StdChannelError</span><span class="p">,</span> <span class="n">VersionMismatch</span>
+
+<span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">base</span>
+
+<span class="kn">from</span> <span class="nn">pika</span> <span class="kn">import</span> <span class="n">channel</span>  <span class="c"># must be here to raise import error</span>
+<span class="k">try</span><span class="p">:</span>
+    <span class="kn">from</span> <span class="nn">pika</span> <span class="kn">import</span> <span class="n">asyncore_adapter</span>
+<span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
+    <span class="k">raise</span> <span class="n">VersionMismatch</span><span class="p">(</span><span class="s">&#39;Kombu only works with pika version 0.5.2&#39;</span><span class="p">)</span>
+<span class="kn">from</span> <span class="nn">pika</span> <span class="kn">import</span> <span class="n">blocking_adapter</span>
+<span class="kn">from</span> <span class="nn">pika</span> <span class="kn">import</span> <span class="n">connection</span>
+<span class="kn">from</span> <span class="nn">pika</span> <span class="kn">import</span> <span class="n">exceptions</span>
+<span class="kn">from</span> <span class="nn">pika.spec</span> <span class="kn">import</span> <span class="n">Basic</span><span class="p">,</span> <span class="n">BasicProperties</span>
+
+
+<span class="n">DEFAULT_PORT</span> <span class="o">=</span> <span class="mi">5672</span>
+
+
+<span class="n">BASIC_PROPERTIES</span> <span class="o">=</span> <span class="p">(</span><span class="s">&#39;content_type&#39;</span><span class="p">,</span> <span class="s">&#39;content_encoding&#39;</span><span class="p">,</span>
+                    <span class="s">&#39;headers&#39;</span><span class="p">,</span> <span class="s">&#39;delivery_mode&#39;</span><span class="p">,</span> <span class="s">&#39;priority&#39;</span><span class="p">,</span>
+                    <span class="s">&#39;correlation_id&#39;</span><span class="p">,</span> <span class="s">&#39;reply_to&#39;</span><span class="p">,</span> <span class="s">&#39;expiration&#39;</span><span class="p">,</span>
+                    <span class="s">&#39;message_id&#39;</span><span class="p">,</span> <span class="s">&#39;timestamp&#39;</span><span class="p">,</span> <span class="s">&#39;type&#39;</span><span class="p">,</span> <span class="s">&#39;user_id&#39;</span><span class="p">,</span>
+                    <span class="s">&#39;app_id&#39;</span><span class="p">,</span> <span class="s">&#39;cluster_id&#39;</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="Message"><a class="viewcode-back" href="../../../reference/kombu.transport.pika.html#kombu.transport.pika.Message">[docs]</a><span class="k">class</span> <span class="nc">Message</span><span class="p">(</span><span class="n">base</span><span class="o">.</span><span class="n">Message</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">channel</span><span class="p">,</span> <span class="n">amqp_message</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="n">channel_id</span><span class="p">,</span> <span class="n">method</span><span class="p">,</span> <span class="n">props</span><span class="p">,</span> <span class="n">body</span> <span class="o">=</span> <span class="n">amqp_message</span>
+        <span class="n">propdict</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">BASIC_PROPERTIES</span><span class="p">,</span>
+                        <span class="n">attrgetter</span><span class="p">(</span><span class="o">*</span><span class="n">BASIC_PROPERTIES</span><span class="p">)(</span><span class="n">props</span><span class="p">)))</span>
+
+        <span class="n">kwargs</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s">&#39;body&#39;</span><span class="p">:</span> <span class="n">body</span><span class="p">,</span>
+                       <span class="s">&#39;delivery_tag&#39;</span><span class="p">:</span> <span class="n">method</span><span class="o">.</span><span class="n">delivery_tag</span><span class="p">,</span>
+                       <span class="s">&#39;content_type&#39;</span><span class="p">:</span> <span class="n">props</span><span class="o">.</span><span class="n">content_type</span><span class="p">,</span>
+                       <span class="s">&#39;content_encoding&#39;</span><span class="p">:</span> <span class="n">props</span><span class="o">.</span><span class="n">content_encoding</span><span class="p">,</span>
+                       <span class="s">&#39;headers&#39;</span><span class="p">:</span> <span class="n">props</span><span class="o">.</span><span class="n">headers</span><span class="p">,</span>
+                       <span class="s">&#39;properties&#39;</span><span class="p">:</span> <span class="n">propdict</span><span class="p">,</span>
+                       <span class="s">&#39;delivery_info&#39;</span><span class="p">:</span> <span class="nb">dict</span><span class="p">(</span>
+                            <span class="n">consumer_tag</span><span class="o">=</span><span class="nb">getattr</span><span class="p">(</span><span class="n">method</span><span class="p">,</span> <span class="s">&#39;consumer_tag&#39;</span><span class="p">,</span> <span class="bp">None</span><span class="p">),</span>
+                            <span class="n">routing_key</span><span class="o">=</span><span class="n">method</span><span class="o">.</span><span class="n">routing_key</span><span class="p">,</span>
+                            <span class="n">delivery_tag</span><span class="o">=</span><span class="n">method</span><span class="o">.</span><span class="n">delivery_tag</span><span class="p">,</span>
+                            <span class="n">redelivered</span><span class="o">=</span><span class="n">method</span><span class="o">.</span><span class="n">redelivered</span><span class="p">,</span>
+                            <span class="n">exchange</span><span class="o">=</span><span class="n">method</span><span class="o">.</span><span class="n">exchange</span><span class="p">)})</span>
+
+        <span class="nb">super</span><span class="p">(</span><span class="n">Message</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="n">channel</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+</div>
+<div class="viewcode-block" id="Channel"><a class="viewcode-back" href="../../../reference/kombu.transport.pika.html#kombu.transport.pika.Channel">[docs]</a><span class="k">class</span> <span class="nc">Channel</span><span class="p">(</span><span class="n">channel</span><span class="o">.</span><span class="n">Channel</span><span class="p">,</span> <span class="n">base</span><span class="o">.</span><span class="n">StdChannel</span><span class="p">):</span>
+    <span class="n">Message</span> <span class="o">=</span> <span class="n">Message</span>
+
+<div class="viewcode-block" id="Channel.basic_get"><a class="viewcode-back" href="../../../reference/kombu.transport.pika.html#kombu.transport.pika.Channel.basic_get">[docs]</a>    <span class="k">def</span> <span class="nf">basic_get</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">queue</span><span class="p">,</span> <span class="n">no_ack</span><span class="p">):</span>
+        <span class="n">method</span> <span class="o">=</span> <span class="n">channel</span><span class="o">.</span><span class="n">Channel</span><span class="o">.</span><span class="n">basic_get</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">queue</span><span class="o">=</span><span class="n">queue</span><span class="p">,</span> <span class="n">no_ack</span><span class="o">=</span><span class="n">no_ack</span><span class="p">)</span>
+        <span class="c"># pika returns semi-predicates (GetEmpty/GetOk).</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">method</span><span class="p">,</span> <span class="n">Basic</span><span class="o">.</span><span class="n">GetEmpty</span><span class="p">):</span>
+            <span class="k">return</span>
+        <span class="k">return</span> <span class="bp">None</span><span class="p">,</span> <span class="n">method</span><span class="p">,</span> <span class="n">method</span><span class="o">.</span><span class="n">_properties</span><span class="p">,</span> <span class="n">method</span><span class="o">.</span><span class="n">_body</span>
+</div>
+<div class="viewcode-block" id="Channel.queue_purge"><a class="viewcode-back" href="../../../reference/kombu.transport.pika.html#kombu.transport.pika.Channel.queue_purge">[docs]</a>    <span class="k">def</span> <span class="nf">queue_purge</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">queue</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">nowait</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">channel</span><span class="o">.</span><span class="n">Channel</span><span class="o">.</span><span class="n">queue_purge</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">queue</span><span class="o">=</span><span class="n">queue</span><span class="p">,</span> <span class="n">nowait</span><span class="o">=</span><span class="n">nowait</span><span class="p">)</span> \
+                              <span class="o">.</span><span class="n">message_count</span>
+</div>
+<div class="viewcode-block" id="Channel.basic_publish"><a class="viewcode-back" href="../../../reference/kombu.transport.pika.html#kombu.transport.pika.Channel.basic_publish">[docs]</a>    <span class="k">def</span> <span class="nf">basic_publish</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">message</span><span class="p">,</span> <span class="n">exchange</span><span class="p">,</span> <span class="n">routing_key</span><span class="p">,</span> <span class="n">mandatory</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span>
+            <span class="n">immediate</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+        <span class="n">message_data</span><span class="p">,</span> <span class="n">properties</span> <span class="o">=</span> <span class="n">message</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">channel</span><span class="o">.</span><span class="n">Channel</span><span class="o">.</span><span class="n">basic_publish</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                                                 <span class="n">exchange</span><span class="p">,</span>
+                                                 <span class="n">routing_key</span><span class="p">,</span>
+                                                 <span class="n">message_data</span><span class="p">,</span>
+                                                 <span class="n">properties</span><span class="p">,</span>
+                                                 <span class="n">mandatory</span><span class="p">,</span>
+                                                 <span class="n">immediate</span><span class="p">)</span>
+        <span class="k">finally</span><span class="p">:</span>
+            <span class="c"># Pika does not automatically flush the outbound buffer</span>
+            <span class="c"># TODO async: Needs to support `nowait`.</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">handler</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">flush_outbound</span><span class="p">()</span>
+</div>
+<div class="viewcode-block" id="Channel.basic_consume"><a class="viewcode-back" href="../../../reference/kombu.transport.pika.html#kombu.transport.pika.Channel.basic_consume">[docs]</a>    <span class="k">def</span> <span class="nf">basic_consume</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">queue</span><span class="p">,</span> <span class="n">no_ack</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">consumer_tag</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+            <span class="n">callback</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">nowait</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+
+        <span class="c"># Kombu callbacks only take a single `message` argument,</span>
+        <span class="c"># but pika applies with 4 arguments, so need to wrap</span>
+        <span class="c"># these into a single tuple.</span>
+        <span class="k">def</span> <span class="nf">_callback_decode</span><span class="p">(</span><span class="n">channel</span><span class="p">,</span> <span class="n">method</span><span class="p">,</span> <span class="n">header</span><span class="p">,</span> <span class="n">body</span><span class="p">):</span>
+            <span class="k">return</span> <span class="n">callback</span><span class="p">((</span><span class="n">channel</span><span class="p">,</span> <span class="n">method</span><span class="p">,</span> <span class="n">header</span><span class="p">,</span> <span class="n">body</span><span class="p">))</span>
+
+        <span class="k">return</span> <span class="n">channel</span><span class="o">.</span><span class="n">Channel</span><span class="o">.</span><span class="n">basic_consume</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">_callback_decode</span><span class="p">,</span>
+                                             <span class="n">queue</span><span class="p">,</span> <span class="n">no_ack</span><span class="p">,</span>
+                                             <span class="bp">False</span><span class="p">,</span> <span class="n">consumer_tag</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="Channel.prepare_message"><a class="viewcode-back" href="../../../reference/kombu.transport.pika.html#kombu.transport.pika.Channel.prepare_message">[docs]</a>    <span class="k">def</span> <span class="nf">prepare_message</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">message_data</span><span class="p">,</span> <span class="n">priority</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+            <span class="n">content_type</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">content_encoding</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">headers</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+            <span class="n">properties</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="n">properties</span> <span class="o">=</span> <span class="n">BasicProperties</span><span class="p">(</span><span class="n">priority</span><span class="o">=</span><span class="n">priority</span><span class="p">,</span>
+                                     <span class="n">content_type</span><span class="o">=</span><span class="n">content_type</span><span class="p">,</span>
+                                     <span class="n">content_encoding</span><span class="o">=</span><span class="n">content_encoding</span><span class="p">,</span>
+                                     <span class="n">headers</span><span class="o">=</span><span class="n">headers</span><span class="p">,</span>
+                                     <span class="o">**</span><span class="n">properties</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">message_data</span><span class="p">,</span> <span class="n">properties</span>
+</div>
+<div class="viewcode-block" id="Channel.message_to_python"><a class="viewcode-back" href="../../../reference/kombu.transport.pika.html#kombu.transport.pika.Channel.message_to_python">[docs]</a>    <span class="k">def</span> <span class="nf">message_to_python</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">raw_message</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">Message</span><span class="p">(</span><span class="n">channel</span><span class="o">=</span><span class="bp">self</span><span class="p">,</span> <span class="n">amqp_message</span><span class="o">=</span><span class="n">raw_message</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="Channel.basic_ack"><a class="viewcode-back" href="../../../reference/kombu.transport.pika.html#kombu.transport.pika.Channel.basic_ack">[docs]</a>    <span class="k">def</span> <span class="nf">basic_ack</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">delivery_tag</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">channel</span><span class="o">.</span><span class="n">Channel</span><span class="o">.</span><span class="n">basic_ack</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">delivery_tag</span><span class="p">)</span>
+</div>
+    <span class="k">def</span> <span class="nf">__enter__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span>
+
+    <span class="k">def</span> <span class="nf">__exit__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">exc_info</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+
+<div class="viewcode-block" id="Channel.close"><a class="viewcode-back" href="../../../reference/kombu.transport.pika.html#kombu.transport.pika.Channel.close">[docs]</a>    <span class="k">def</span> <span class="nf">close</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">Channel</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+        <span class="k">if</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s">&#39;handler&#39;</span><span class="p">,</span> <span class="bp">None</span><span class="p">):</span>
+            <span class="k">if</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">handler</span><span class="p">,</span> <span class="s">&#39;connection&#39;</span><span class="p">,</span> <span class="bp">None</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">handler</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">channels</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">handler</span><span class="o">.</span><span class="n">channel_number</span><span class="p">,</span> <span class="bp">None</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">handler</span><span class="o">.</span><span class="n">connection</span> <span class="o">=</span> <span class="bp">None</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">handler</span> <span class="o">=</span> <span class="bp">None</span>
+</div>
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="Channel.channel_id"><a class="viewcode-back" href="../../../reference/kombu.transport.pika.html#kombu.transport.pika.Channel.channel_id">[docs]</a>    <span class="k">def</span> <span class="nf">channel_id</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">channel_number</span>
+
+</div></div>
+<div class="viewcode-block" id="BlockingConnection"><a class="viewcode-back" href="../../../reference/kombu.transport.pika.html#kombu.transport.pika.BlockingConnection">[docs]</a><span class="k">class</span> <span class="nc">BlockingConnection</span><span class="p">(</span><span class="n">blocking_adapter</span><span class="o">.</span><span class="n">BlockingConnection</span><span class="p">):</span>
+    <span class="n">Super</span> <span class="o">=</span> <span class="n">blocking_adapter</span><span class="o">.</span><span class="n">BlockingConnection</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">client</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">client</span> <span class="o">=</span> <span class="n">client</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">Super</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+<div class="viewcode-block" id="BlockingConnection.channel"><a class="viewcode-back" href="../../../reference/kombu.transport.pika.html#kombu.transport.pika.BlockingConnection.channel">[docs]</a>    <span class="k">def</span> <span class="nf">channel</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">c</span> <span class="o">=</span> <span class="n">Channel</span><span class="p">(</span><span class="n">channel</span><span class="o">.</span><span class="n">ChannelHandler</span><span class="p">(</span><span class="bp">self</span><span class="p">))</span>
+        <span class="n">c</span><span class="o">.</span><span class="n">connection</span> <span class="o">=</span> <span class="bp">self</span>
+        <span class="k">return</span> <span class="n">c</span>
+</div>
+<div class="viewcode-block" id="BlockingConnection.close"><a class="viewcode-back" href="../../../reference/kombu.transport.pika.html#kombu.transport.pika.BlockingConnection.close">[docs]</a>    <span class="k">def</span> <span class="nf">close</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">client</span> <span class="o">=</span> <span class="bp">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">Super</span><span class="o">.</span><span class="n">close</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="BlockingConnection.ensure_drain_events"><a class="viewcode-back" href="../../../reference/kombu.transport.pika.html#kombu.transport.pika.BlockingConnection.ensure_drain_events">[docs]</a>    <span class="k">def</span> <span class="nf">ensure_drain_events</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">drain_events</span><span class="p">(</span><span class="n">timeout</span><span class="o">=</span><span class="n">timeout</span><span class="p">)</span>
+
+</div></div>
+<div class="viewcode-block" id="AsyncoreConnection"><a class="viewcode-back" href="../../../reference/kombu.transport.pika.html#kombu.transport.pika.AsyncoreConnection">[docs]</a><span class="k">class</span> <span class="nc">AsyncoreConnection</span><span class="p">(</span><span class="n">asyncore_adapter</span><span class="o">.</span><span class="n">AsyncoreConnection</span><span class="p">):</span>
+    <span class="n">_event_counter</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">Super</span> <span class="o">=</span> <span class="n">asyncore_adapter</span><span class="o">.</span><span class="n">AsyncoreConnection</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">client</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">client</span> <span class="o">=</span> <span class="n">client</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">Super</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+<div class="viewcode-block" id="AsyncoreConnection.channel"><a class="viewcode-back" href="../../../reference/kombu.transport.pika.html#kombu.transport.pika.AsyncoreConnection.channel">[docs]</a>    <span class="k">def</span> <span class="nf">channel</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">c</span> <span class="o">=</span> <span class="n">Channel</span><span class="p">(</span><span class="n">channel</span><span class="o">.</span><span class="n">ChannelHandler</span><span class="p">(</span><span class="bp">self</span><span class="p">))</span>
+        <span class="n">c</span><span class="o">.</span><span class="n">connection</span> <span class="o">=</span> <span class="bp">self</span>
+        <span class="k">return</span> <span class="n">c</span>
+</div>
+<div class="viewcode-block" id="AsyncoreConnection.ensure_drain_events"><a class="viewcode-back" href="../../../reference/kombu.transport.pika.html#kombu.transport.pika.AsyncoreConnection.ensure_drain_events">[docs]</a>    <span class="k">def</span> <span class="nf">ensure_drain_events</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="c"># asyncore connection does not raise socket.timeout when timing out</span>
+        <span class="c"># so need to do a little trick here to mimic the behavior</span>
+        <span class="c"># of sync connection.</span>
+        <span class="n">current_events</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_event_counter</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">drain_events</span><span class="p">(</span><span class="n">timeout</span><span class="o">=</span><span class="n">timeout</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">timeout</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_event_counter</span> <span class="o">&lt;=</span> <span class="n">current_events</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">socket</span><span class="o">.</span><span class="n">timeout</span><span class="p">(</span><span class="s">&#39;timed out&#39;</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="AsyncoreConnection.on_data_available"><a class="viewcode-back" href="../../../reference/kombu.transport.pika.html#kombu.transport.pika.AsyncoreConnection.on_data_available">[docs]</a>    <span class="k">def</span> <span class="nf">on_data_available</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">buf</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_event_counter</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">Super</span><span class="o">.</span><span class="n">on_data_available</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">buf</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="AsyncoreConnection.close"><a class="viewcode-back" href="../../../reference/kombu.transport.pika.html#kombu.transport.pika.AsyncoreConnection.close">[docs]</a>    <span class="k">def</span> <span class="nf">close</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">client</span> <span class="o">=</span> <span class="bp">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">Super</span><span class="o">.</span><span class="n">close</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+
+</div></div>
+<div class="viewcode-block" id="SyncTransport"><a class="viewcode-back" href="../../../reference/kombu.transport.pika.html#kombu.transport.pika.SyncTransport">[docs]</a><span class="k">class</span> <span class="nc">SyncTransport</span><span class="p">(</span><span class="n">base</span><span class="o">.</span><span class="n">Transport</span><span class="p">):</span>
+    <span class="n">Message</span> <span class="o">=</span> <span class="n">Message</span>
+    <span class="n">Connection</span> <span class="o">=</span> <span class="n">BlockingConnection</span>
+
+    <span class="n">default_port</span> <span class="o">=</span> <span class="n">DEFAULT_PORT</span>
+    <span class="n">connection_errors</span> <span class="o">=</span> <span class="p">(</span><span class="n">socket</span><span class="o">.</span><span class="n">error</span><span class="p">,</span>
+                         <span class="n">exceptions</span><span class="o">.</span><span class="n">ConnectionClosed</span><span class="p">,</span>
+                         <span class="n">exceptions</span><span class="o">.</span><span class="n">ChannelClosed</span><span class="p">,</span>
+                         <span class="n">exceptions</span><span class="o">.</span><span class="n">LoginError</span><span class="p">,</span>
+                         <span class="n">exceptions</span><span class="o">.</span><span class="n">NoFreeChannels</span><span class="p">,</span>
+                         <span class="n">exceptions</span><span class="o">.</span><span class="n">DuplicateConsumerTag</span><span class="p">,</span>
+                         <span class="n">exceptions</span><span class="o">.</span><span class="n">UnknownConsumerTag</span><span class="p">,</span>
+                         <span class="n">exceptions</span><span class="o">.</span><span class="n">RecursiveOperationDetected</span><span class="p">,</span>
+                         <span class="n">exceptions</span><span class="o">.</span><span class="n">ContentTransmissionForbidden</span><span class="p">,</span>
+                         <span class="n">exceptions</span><span class="o">.</span><span class="n">ProtocolSyntaxError</span><span class="p">)</span>
+    <span class="n">channel_errors</span> <span class="o">=</span> <span class="p">(</span><span class="n">StdChannelError</span><span class="p">,</span>
+                      <span class="n">exceptions</span><span class="o">.</span><span class="n">ChannelClosed</span><span class="p">,</span>
+                      <span class="n">exceptions</span><span class="o">.</span><span class="n">DuplicateConsumerTag</span><span class="p">,</span>
+                      <span class="n">exceptions</span><span class="o">.</span><span class="n">UnknownConsumerTag</span><span class="p">,</span>
+                      <span class="n">exceptions</span><span class="o">.</span><span class="n">ProtocolSyntaxError</span><span class="p">)</span>
+    <span class="n">driver_type</span> <span class="o">=</span> <span class="s">&#39;amqp&#39;</span>
+    <span class="n">driver_name</span> <span class="o">=</span> <span class="s">&#39;pika&#39;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">client</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">client</span> <span class="o">=</span> <span class="n">client</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">default_port</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;default_port&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">default_port</span><span class="p">)</span>
+
+<div class="viewcode-block" id="SyncTransport.driver_version"><a class="viewcode-back" href="../../../reference/kombu.transport.pika.html#kombu.transport.pika.SyncTransport.driver_version">[docs]</a>    <span class="k">def</span> <span class="nf">driver_version</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="kn">import</span> <span class="nn">pika</span>
+        <span class="k">return</span> <span class="n">pika</span><span class="o">.</span><span class="n">__version__</span>
+</div>
+<div class="viewcode-block" id="SyncTransport.create_channel"><a class="viewcode-back" href="../../../reference/kombu.transport.pika.html#kombu.transport.pika.SyncTransport.create_channel">[docs]</a>    <span class="k">def</span> <span class="nf">create_channel</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">connection</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">connection</span><span class="o">.</span><span class="n">channel</span><span class="p">()</span>
+</div>
+<div class="viewcode-block" id="SyncTransport.drain_events"><a class="viewcode-back" href="../../../reference/kombu.transport.pika.html#kombu.transport.pika.SyncTransport.drain_events">[docs]</a>    <span class="k">def</span> <span class="nf">drain_events</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">connection</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">connection</span><span class="o">.</span><span class="n">ensure_drain_events</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="SyncTransport.establish_connection"><a class="viewcode-back" href="../../../reference/kombu.transport.pika.html#kombu.transport.pika.SyncTransport.establish_connection">[docs]</a>    <span class="k">def</span> <span class="nf">establish_connection</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Establish connection to the AMQP broker.&quot;&quot;&quot;</span>
+        <span class="n">conninfo</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span>
+        <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">default_value</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">default_connection_params</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">conninfo</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="bp">None</span><span class="p">):</span>
+                <span class="nb">setattr</span><span class="p">(</span><span class="n">conninfo</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">default_value</span><span class="p">)</span>
+        <span class="n">credentials</span> <span class="o">=</span> <span class="n">connection</span><span class="o">.</span><span class="n">PlainCredentials</span><span class="p">(</span><span class="n">conninfo</span><span class="o">.</span><span class="n">userid</span><span class="p">,</span>
+                                                  <span class="n">conninfo</span><span class="o">.</span><span class="n">password</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">Connection</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="p">,</span>
+                               <span class="n">connection</span><span class="o">.</span><span class="n">ConnectionParameters</span><span class="p">(</span>
+                                    <span class="n">conninfo</span><span class="o">.</span><span class="n">hostname</span><span class="p">,</span> <span class="n">port</span><span class="o">=</span><span class="n">conninfo</span><span class="o">.</span><span class="n">port</span><span class="p">,</span>
+                                    <span class="n">virtual_host</span><span class="o">=</span><span class="n">conninfo</span><span class="o">.</span><span class="n">virtual_host</span><span class="p">,</span>
+                                    <span class="n">credentials</span><span class="o">=</span><span class="n">credentials</span><span class="p">))</span>
+</div>
+<div class="viewcode-block" id="SyncTransport.close_connection"><a class="viewcode-back" href="../../../reference/kombu.transport.pika.html#kombu.transport.pika.SyncTransport.close_connection">[docs]</a>    <span class="k">def</span> <span class="nf">close_connection</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">connection</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Close the AMQP broker connection.&quot;&quot;&quot;</span>
+        <span class="n">connection</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+</div>
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="SyncTransport.default_connection_params"><a class="viewcode-back" href="../../../reference/kombu.transport.pika.html#kombu.transport.pika.SyncTransport.default_connection_params">[docs]</a>    <span class="k">def</span> <span class="nf">default_connection_params</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">{</span><span class="s">&#39;hostname&#39;</span><span class="p">:</span> <span class="s">&#39;localhost&#39;</span><span class="p">,</span> <span class="s">&#39;port&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">default_port</span><span class="p">,</span>
+                <span class="s">&#39;userid&#39;</span><span class="p">:</span> <span class="s">&#39;guest&#39;</span><span class="p">,</span> <span class="s">&#39;password&#39;</span><span class="p">:</span> <span class="s">&#39;guest&#39;</span><span class="p">}</span>
+
+</div></div>
+<div class="viewcode-block" id="AsyncoreTransport"><a class="viewcode-back" href="../../../reference/kombu.transport.pika.html#kombu.transport.pika.AsyncoreTransport">[docs]</a><span class="k">class</span> <span class="nc">AsyncoreTransport</span><span class="p">(</span><span class="n">SyncTransport</span><span class="p">):</span>
+    <span class="n">Connection</span> <span class="o">=</span> <span class="n">AsyncoreConnection</span></div>
+</pre></div>
+
+      </div>
+      <div class="bottomnav">
+      
+        <p>
+        <a href="/">Home</a>:
+        <a class="uplink" href="../../../index.html">Contents</a>
+        </p>
+
+      </div>
+
+    <div class="footer">
+        &copy; Copyright 2012, HDKNR.COM.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.2pre/3c28de26aac2.
+    </div>
+  </body>
+</html>

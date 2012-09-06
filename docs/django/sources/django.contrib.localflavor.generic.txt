@@ -10,7 +10,7 @@ django.contrib.localflavor.generic
 ==================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/localflavor/generic/__init__.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/localflavor/generic/__init__.py>`_ 
 
 .. include:: cheat/django.contrib.localflavor.generic.rst
 
@@ -25,7 +25,7 @@ django.contrib.localflavor.generic.forms
 ========================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/localflavor/generic/forms.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/localflavor/generic/forms.py>`_ 
 
 .. include:: cheat/django.contrib.localflavor.generic.forms.rst
 

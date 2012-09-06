@@ -10,7 +10,7 @@ django.core.handlers
 ====================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/core/handlers/__init__.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/core/handlers/__init__.py>`_ 
 
 .. include:: cheat/django.core.handlers.rst
 
@@ -25,7 +25,7 @@ django.core.handlers.base
 =========================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/core/handlers/base.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/core/handlers/base.py>`_ 
 
 .. include:: cheat/django.core.handlers.base.rst
 
@@ -38,7 +38,7 @@ django.core.handlers.modpython
 ==============================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/core/handlers/modpython.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/core/handlers/modpython.py>`_ 
 
 .. include:: cheat/django.core.handlers.modpython.rst
 
@@ -51,7 +51,7 @@ django.core.handlers.profiler-hotshot
 =====================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/core/handlers/profiler-hotshot.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/core/handlers/profiler-hotshot.py>`_ 
 
 .. include:: cheat/django.core.handlers.profiler-hotshot.rst
 
@@ -64,7 +64,7 @@ django.core.handlers.wsgi
 =========================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/core/handlers/wsgi.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/core/handlers/wsgi.py>`_ 
 
 .. include:: cheat/django.core.handlers.wsgi.rst
 

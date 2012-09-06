@@ -1,0 +1,389 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>kombu.transport.amqplib &mdash; Kombu Docs 1 documentation</title>
+    
+    <link rel="stylesheet" href="../../../static/haiku.css" type="text/css" />
+    <link rel="stylesheet" href="../../../static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../../../static/print.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../',
+        VERSION:     '1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../../static/jquery.js"></script>
+    <script type="text/javascript" src="../../../static/underscore.js"></script>
+    <script type="text/javascript" src="../../../static/doctools.js"></script>
+    <script type="text/javascript" src="../../../static/theme_extras.js"></script>
+    <link rel="top" title="Kombu Docs 1 documentation" href="../../../index.html" />
+    <link rel="up" title="kombu.transport" href="../transport.html" /> 
+  </head>
+  <body>
+      <div class="header"><h1 class="heading"><a href="../../../index.html">
+          <span>Kombu Docs 1 documentation</span></a></h1>
+        <h2 class="heading"><span>kombu.transport.amqplib</span></h2>
+      </div>
+      <div class="topnav">
+      
+        <p>
+        <a href="/">Home</a>:
+        <a class="uplink" href="../../../index.html">Contents</a>
+        </p>
+
+      </div>
+      <div class="content">
+        
+        
+  <h1>Source code for kombu.transport.amqplib</h1><div class="highlight"><pre>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">kombu.transport.amqplib</span>
+<span class="sd">=======================</span>
+
+<span class="sd">amqplib transport.</span>
+
+<span class="sd">:copyright: (c) 2009 - 2012 by Ask Solem.</span>
+<span class="sd">:license: BSD, see LICENSE for more details.</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">absolute_import</span>
+
+<span class="kn">import</span> <span class="nn">socket</span>
+
+<span class="k">try</span><span class="p">:</span>
+    <span class="kn">from</span> <span class="nn">ssl</span> <span class="kn">import</span> <span class="n">SSLError</span>
+<span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
+    <span class="k">class</span> <span class="nc">SSLError</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>  <span class="c"># noqa</span>
+        <span class="k">pass</span>
+
+<span class="kn">from</span> <span class="nn">amqplib</span> <span class="kn">import</span> <span class="n">client_0_8</span> <span class="k">as</span> <span class="n">amqp</span>
+<span class="kn">from</span> <span class="nn">amqplib.client_0_8</span> <span class="kn">import</span> <span class="n">transport</span>
+<span class="kn">from</span> <span class="nn">amqplib.client_0_8.channel</span> <span class="kn">import</span> <span class="n">Channel</span> <span class="k">as</span> <span class="n">_Channel</span>
+<span class="kn">from</span> <span class="nn">amqplib.client_0_8.exceptions</span> <span class="kn">import</span> <span class="n">AMQPConnectionException</span>
+<span class="kn">from</span> <span class="nn">amqplib.client_0_8.exceptions</span> <span class="kn">import</span> <span class="n">AMQPChannelException</span>
+
+<span class="kn">from</span> <span class="nn">kombu.exceptions</span> <span class="kn">import</span> <span class="n">StdChannelError</span>
+<span class="kn">from</span> <span class="nn">kombu.utils.encoding</span> <span class="kn">import</span> <span class="n">str_to_bytes</span>
+<span class="kn">from</span> <span class="nn">kombu.utils.amq_manager</span> <span class="kn">import</span> <span class="n">get_manager</span>
+
+<span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">base</span>
+
+<span class="n">DEFAULT_PORT</span> <span class="o">=</span> <span class="mi">5672</span>
+<span class="n">HAS_MSG_PEEK</span> <span class="o">=</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">socket</span><span class="p">,</span> <span class="s">&#39;MSG_PEEK&#39;</span><span class="p">)</span>
+
+<span class="c"># amqplib&#39;s handshake mistakenly identifies as protocol version 1191,</span>
+<span class="c"># this breaks in RabbitMQ tip, which no longer falls back to</span>
+<span class="c"># 0-8 for unknown ids.</span>
+<span class="n">transport</span><span class="o">.</span><span class="n">AMQP_PROTOCOL_HEADER</span> <span class="o">=</span> <span class="n">str_to_bytes</span><span class="p">(</span><span class="s">&#39;AMQP</span><span class="se">\x01\x01\x08\x00</span><span class="s">&#39;</span><span class="p">)</span>
+
+
+<span class="c"># - fixes warnings when socket is not connected.</span>
+<span class="k">class</span> <span class="nc">_TCPTransport</span><span class="p">(</span><span class="n">transport</span><span class="o">.</span><span class="n">TCPTransport</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="nf">__del__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">transport</span><span class="o">.</span><span class="n">_AbstractTransport</span><span class="o">.</span><span class="n">__del__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+        <span class="k">except</span> <span class="n">socket</span><span class="o">.</span><span class="n">error</span><span class="p">:</span>
+            <span class="k">pass</span>
+        <span class="k">finally</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">sock</span> <span class="o">=</span> <span class="bp">None</span>
+<span class="n">transport</span><span class="o">.</span><span class="n">TCPTransport</span> <span class="o">=</span> <span class="n">_TCPTransport</span>
+
+
+<span class="k">class</span> <span class="nc">_SSLTransport</span><span class="p">(</span><span class="n">transport</span><span class="o">.</span><span class="n">SSLTransport</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">host</span><span class="p">,</span> <span class="n">connect_timeout</span><span class="p">,</span> <span class="n">ssl</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">ssl</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">sslopts</span> <span class="o">=</span> <span class="n">ssl</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sslobj</span> <span class="o">=</span> <span class="bp">None</span>
+
+        <span class="n">transport</span><span class="o">.</span><span class="n">_AbstractTransport</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">host</span><span class="p">,</span> <span class="n">connect_timeout</span><span class="p">)</span>
+<span class="n">transport</span><span class="o">.</span><span class="n">SSLTransport</span> <span class="o">=</span> <span class="n">_SSLTransport</span>
+
+
+<div class="viewcode-block" id="Connection"><a class="viewcode-back" href="../../../reference/kombu.transport.amqplib.html#kombu.transport.amqplib.Connection">[docs]</a><span class="k">class</span> <span class="nc">Connection</span><span class="p">(</span><span class="n">amqp</span><span class="o">.</span><span class="n">Connection</span><span class="p">):</span>  <span class="c"># pragma: no cover</span>
+
+    <span class="k">def</span> <span class="nf">_do_close</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="c"># amqplib does not ignore socket errors when connection</span>
+        <span class="c"># is closed on the remote end.</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="nb">super</span><span class="p">(</span><span class="n">Connection</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">_do_close</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="k">except</span> <span class="n">socket</span><span class="o">.</span><span class="n">error</span><span class="p">:</span>
+            <span class="k">pass</span>
+
+    <span class="k">def</span> <span class="nf">_dispatch_basic_return</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">channel</span><span class="p">,</span> <span class="n">args</span><span class="p">,</span> <span class="n">msg</span><span class="p">):</span>
+        <span class="n">reply_code</span> <span class="o">=</span> <span class="n">args</span><span class="o">.</span><span class="n">read_short</span><span class="p">()</span>
+        <span class="n">reply_text</span> <span class="o">=</span> <span class="n">args</span><span class="o">.</span><span class="n">read_shortstr</span><span class="p">()</span>
+        <span class="n">exchange</span> <span class="o">=</span> <span class="n">args</span><span class="o">.</span><span class="n">read_shortstr</span><span class="p">()</span>
+        <span class="n">routing_key</span> <span class="o">=</span> <span class="n">args</span><span class="o">.</span><span class="n">read_shortstr</span><span class="p">()</span>
+
+        <span class="n">exc</span> <span class="o">=</span> <span class="n">AMQPChannelException</span><span class="p">(</span><span class="n">reply_code</span><span class="p">,</span> <span class="n">reply_text</span><span class="p">,</span> <span class="p">(</span><span class="mi">50</span><span class="p">,</span> <span class="mi">60</span><span class="p">))</span>
+        <span class="k">if</span> <span class="n">channel</span><span class="o">.</span><span class="n">events</span><span class="p">[</span><span class="s">&#39;basic_return&#39;</span><span class="p">]:</span>
+            <span class="k">for</span> <span class="n">callback</span> <span class="ow">in</span> <span class="n">channel</span><span class="o">.</span><span class="n">events</span><span class="p">[</span><span class="s">&#39;basic_return&#39;</span><span class="p">]:</span>
+                <span class="n">callback</span><span class="p">(</span><span class="n">exc</span><span class="p">,</span> <span class="n">exchange</span><span class="p">,</span> <span class="n">routing_key</span><span class="p">,</span> <span class="n">msg</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">exc</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">Connection</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_method_override</span> <span class="o">=</span> <span class="p">{(</span><span class="mi">60</span><span class="p">,</span> <span class="mi">50</span><span class="p">):</span> <span class="bp">self</span><span class="o">.</span><span class="n">_dispatch_basic_return</span><span class="p">}</span>
+
+<div class="viewcode-block" id="Connection.drain_events"><a class="viewcode-back" href="../../../reference/kombu.transport.amqplib.html#kombu.transport.amqplib.Connection.drain_events">[docs]</a>    <span class="k">def</span> <span class="nf">drain_events</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Wait for an event on a channel.&quot;&quot;&quot;</span>
+        <span class="n">chanmap</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">channels</span>
+        <span class="n">chanid</span><span class="p">,</span> <span class="n">method_sig</span><span class="p">,</span> <span class="n">args</span><span class="p">,</span> <span class="n">content</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_wait_multiple</span><span class="p">(</span>
+                <span class="n">chanmap</span><span class="p">,</span> <span class="bp">None</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="n">timeout</span><span class="p">)</span>
+
+        <span class="n">channel</span> <span class="o">=</span> <span class="n">chanmap</span><span class="p">[</span><span class="n">chanid</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="n">content</span> \
+        <span class="ow">and</span> <span class="n">channel</span><span class="o">.</span><span class="n">auto_decode</span> \
+        <span class="ow">and</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">content</span><span class="p">,</span> <span class="s">&#39;content_encoding&#39;</span><span class="p">):</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">content</span><span class="o">.</span><span class="n">body</span> <span class="o">=</span> <span class="n">content</span><span class="o">.</span><span class="n">body</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="n">content</span><span class="o">.</span><span class="n">content_encoding</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+                <span class="k">pass</span>
+
+        <span class="n">amqp_method</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_method_override</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">method_sig</span><span class="p">)</span> <span class="ow">or</span> \
+                        <span class="n">channel</span><span class="o">.</span><span class="n">_METHOD_MAP</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">method_sig</span><span class="p">,</span> <span class="bp">None</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">amqp_method</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s">&#39;Unknown AMQP method (</span><span class="si">%d</span><span class="s">, </span><span class="si">%d</span><span class="s">)&#39;</span> <span class="o">%</span> <span class="n">method_sig</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">content</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">amqp_method</span><span class="p">(</span><span class="n">channel</span><span class="p">,</span> <span class="n">args</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">amqp_method</span><span class="p">(</span><span class="n">channel</span><span class="p">,</span> <span class="n">args</span><span class="p">,</span> <span class="n">content</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="Connection.read_timeout"><a class="viewcode-back" href="../../../reference/kombu.transport.amqplib.html#kombu.transport.amqplib.Connection.read_timeout">[docs]</a>    <span class="k">def</span> <span class="nf">read_timeout</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">timeout</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">method_reader</span><span class="o">.</span><span class="n">read_method</span><span class="p">()</span>
+        <span class="n">sock</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">transport</span><span class="o">.</span><span class="n">sock</span>
+        <span class="n">prev</span> <span class="o">=</span> <span class="n">sock</span><span class="o">.</span><span class="n">gettimeout</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">prev</span> <span class="o">!=</span> <span class="n">timeout</span><span class="p">:</span>
+            <span class="n">sock</span><span class="o">.</span><span class="n">settimeout</span><span class="p">(</span><span class="n">timeout</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">method_reader</span><span class="o">.</span><span class="n">read_method</span><span class="p">()</span>
+            <span class="k">except</span> <span class="n">SSLError</span><span class="p">,</span> <span class="n">exc</span><span class="p">:</span>
+                <span class="c"># http://bugs.python.org/issue10272</span>
+                <span class="k">if</span> <span class="s">&#39;timed out&#39;</span> <span class="ow">in</span> <span class="nb">str</span><span class="p">(</span><span class="n">exc</span><span class="p">):</span>
+                    <span class="k">raise</span> <span class="n">socket</span><span class="o">.</span><span class="n">timeout</span><span class="p">()</span>
+                <span class="k">raise</span>
+        <span class="k">finally</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">prev</span> <span class="o">!=</span> <span class="n">timeout</span><span class="p">:</span>
+                <span class="n">sock</span><span class="o">.</span><span class="n">settimeout</span><span class="p">(</span><span class="n">prev</span><span class="p">)</span>
+</div>
+    <span class="k">def</span> <span class="nf">_wait_multiple</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">channels</span><span class="p">,</span> <span class="n">allowed_methods</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">channel_id</span><span class="p">,</span> <span class="n">channel</span> <span class="ow">in</span> <span class="n">channels</span><span class="o">.</span><span class="n">iteritems</span><span class="p">():</span>
+            <span class="n">method_queue</span> <span class="o">=</span> <span class="n">channel</span><span class="o">.</span><span class="n">method_queue</span>
+            <span class="k">for</span> <span class="n">queued_method</span> <span class="ow">in</span> <span class="n">method_queue</span><span class="p">:</span>
+                <span class="n">method_sig</span> <span class="o">=</span> <span class="n">queued_method</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+                <span class="k">if</span> <span class="p">(</span><span class="n">allowed_methods</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">)</span> \
+                <span class="ow">or</span> <span class="p">(</span><span class="n">method_sig</span> <span class="ow">in</span> <span class="n">allowed_methods</span><span class="p">)</span> \
+                <span class="ow">or</span> <span class="p">(</span><span class="n">method_sig</span> <span class="o">==</span> <span class="p">(</span><span class="mi">20</span><span class="p">,</span> <span class="mi">40</span><span class="p">)):</span>
+                    <span class="n">method_queue</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">queued_method</span><span class="p">)</span>
+                    <span class="n">method_sig</span><span class="p">,</span> <span class="n">args</span><span class="p">,</span> <span class="n">content</span> <span class="o">=</span> <span class="n">queued_method</span>
+                    <span class="k">return</span> <span class="n">channel_id</span><span class="p">,</span> <span class="n">method_sig</span><span class="p">,</span> <span class="n">args</span><span class="p">,</span> <span class="n">content</span>
+
+        <span class="c"># Nothing queued, need to wait for a method from the peer</span>
+        <span class="n">read_timeout</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">read_timeout</span>
+        <span class="n">wait</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">wait</span>
+        <span class="k">while</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">channel</span><span class="p">,</span> <span class="n">method_sig</span><span class="p">,</span> <span class="n">args</span><span class="p">,</span> <span class="n">content</span> <span class="o">=</span> <span class="n">read_timeout</span><span class="p">(</span><span class="n">timeout</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="p">(</span><span class="n">channel</span> <span class="ow">in</span> <span class="n">channels</span><span class="p">)</span> \
+            <span class="ow">and</span> <span class="p">((</span><span class="n">allowed_methods</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">)</span> \
+                <span class="ow">or</span> <span class="p">(</span><span class="n">method_sig</span> <span class="ow">in</span> <span class="n">allowed_methods</span><span class="p">)</span> \
+                <span class="ow">or</span> <span class="p">(</span><span class="n">method_sig</span> <span class="o">==</span> <span class="p">(</span><span class="mi">20</span><span class="p">,</span> <span class="mi">40</span><span class="p">))):</span>
+                <span class="k">return</span> <span class="n">channel</span><span class="p">,</span> <span class="n">method_sig</span><span class="p">,</span> <span class="n">args</span><span class="p">,</span> <span class="n">content</span>
+
+            <span class="c"># Not the channel and/or method we were looking for. Queue</span>
+            <span class="c"># this method for later</span>
+            <span class="n">channels</span><span class="p">[</span><span class="n">channel</span><span class="p">]</span><span class="o">.</span><span class="n">method_queue</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">method_sig</span><span class="p">,</span> <span class="n">args</span><span class="p">,</span> <span class="n">content</span><span class="p">))</span>
+
+            <span class="c">#</span>
+            <span class="c"># If we just queued up a method for channel 0 (the Connection</span>
+            <span class="c"># itself) it&#39;s probably a close method in reaction to some</span>
+            <span class="c"># error, so deal with it right away.</span>
+            <span class="c">#</span>
+            <span class="k">if</span> <span class="n">channel</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">wait</span><span class="p">()</span>
+
+<div class="viewcode-block" id="Connection.channel"><a class="viewcode-back" href="../../../reference/kombu.transport.amqplib.html#kombu.transport.amqplib.Connection.channel">[docs]</a>    <span class="k">def</span> <span class="nf">channel</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">channel_id</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">channels</span><span class="p">[</span><span class="n">channel_id</span><span class="p">]</span>
+        <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">Channel</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">channel_id</span><span class="p">)</span>
+
+</div></div>
+<div class="viewcode-block" id="Message"><a class="viewcode-back" href="../../../reference/kombu.transport.amqplib.html#kombu.transport.amqplib.Message">[docs]</a><span class="k">class</span> <span class="nc">Message</span><span class="p">(</span><span class="n">base</span><span class="o">.</span><span class="n">Message</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">channel</span><span class="p">,</span> <span class="n">msg</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="n">props</span> <span class="o">=</span> <span class="n">msg</span><span class="o">.</span><span class="n">properties</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">Message</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="n">channel</span><span class="p">,</span>
+                <span class="n">body</span><span class="o">=</span><span class="n">msg</span><span class="o">.</span><span class="n">body</span><span class="p">,</span>
+                <span class="n">delivery_tag</span><span class="o">=</span><span class="n">msg</span><span class="o">.</span><span class="n">delivery_tag</span><span class="p">,</span>
+                <span class="n">content_type</span><span class="o">=</span><span class="n">props</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;content_type&#39;</span><span class="p">),</span>
+                <span class="n">content_encoding</span><span class="o">=</span><span class="n">props</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;content_encoding&#39;</span><span class="p">),</span>
+                <span class="n">delivery_info</span><span class="o">=</span><span class="n">msg</span><span class="o">.</span><span class="n">delivery_info</span><span class="p">,</span>
+                <span class="n">properties</span><span class="o">=</span><span class="n">msg</span><span class="o">.</span><span class="n">properties</span><span class="p">,</span>
+                <span class="n">headers</span><span class="o">=</span><span class="n">props</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;application_headers&#39;</span><span class="p">)</span> <span class="ow">or</span> <span class="p">{},</span>
+                <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+</div>
+<div class="viewcode-block" id="Channel"><a class="viewcode-back" href="../../../reference/kombu.transport.amqplib.html#kombu.transport.amqplib.Channel">[docs]</a><span class="k">class</span> <span class="nc">Channel</span><span class="p">(</span><span class="n">_Channel</span><span class="p">,</span> <span class="n">base</span><span class="o">.</span><span class="n">StdChannel</span><span class="p">):</span>
+    <span class="n">Message</span> <span class="o">=</span> <span class="n">Message</span>
+    <span class="n">events</span> <span class="o">=</span> <span class="p">{</span><span class="s">&#39;basic_return&#39;</span><span class="p">:</span> <span class="p">[]}</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">no_ack_consumers</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">Channel</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+<div class="viewcode-block" id="Channel.prepare_message"><a class="viewcode-back" href="../../../reference/kombu.transport.amqplib.html#kombu.transport.amqplib.Channel.prepare_message">[docs]</a>    <span class="k">def</span> <span class="nf">prepare_message</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">message_data</span><span class="p">,</span> <span class="n">priority</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+                <span class="n">content_type</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">content_encoding</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">headers</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+                <span class="n">properties</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Encapsulate data into a AMQP message.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">amqp</span><span class="o">.</span><span class="n">Message</span><span class="p">(</span><span class="n">message_data</span><span class="p">,</span> <span class="n">priority</span><span class="o">=</span><span class="n">priority</span><span class="p">,</span>
+                            <span class="n">content_type</span><span class="o">=</span><span class="n">content_type</span><span class="p">,</span>
+                            <span class="n">content_encoding</span><span class="o">=</span><span class="n">content_encoding</span><span class="p">,</span>
+                            <span class="n">application_headers</span><span class="o">=</span><span class="n">headers</span><span class="p">,</span>
+                            <span class="o">**</span><span class="n">properties</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="Channel.message_to_python"><a class="viewcode-back" href="../../../reference/kombu.transport.amqplib.html#kombu.transport.amqplib.Channel.message_to_python">[docs]</a>    <span class="k">def</span> <span class="nf">message_to_python</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">raw_message</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Convert encoded message body back to a Python value.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">Message</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">raw_message</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="Channel.close"><a class="viewcode-back" href="../../../reference/kombu.transport.amqplib.html#kombu.transport.amqplib.Channel.close">[docs]</a>    <span class="k">def</span> <span class="nf">close</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="nb">super</span><span class="p">(</span><span class="n">Channel</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+        <span class="k">finally</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">connection</span> <span class="o">=</span> <span class="bp">None</span>
+</div>
+<div class="viewcode-block" id="Channel.basic_consume"><a class="viewcode-back" href="../../../reference/kombu.transport.amqplib.html#kombu.transport.amqplib.Channel.basic_consume">[docs]</a>    <span class="k">def</span> <span class="nf">basic_consume</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="n">consumer_tag</span> <span class="o">=</span> <span class="nb">super</span><span class="p">(</span><span class="n">Channel</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">basic_consume</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">kwargs</span><span class="p">[</span><span class="s">&#39;no_ack&#39;</span><span class="p">]:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">no_ack_consumers</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">consumer_tag</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">consumer_tag</span>
+</div>
+<div class="viewcode-block" id="Channel.basic_cancel"><a class="viewcode-back" href="../../../reference/kombu.transport.amqplib.html#kombu.transport.amqplib.Channel.basic_cancel">[docs]</a>    <span class="k">def</span> <span class="nf">basic_cancel</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">consumer_tag</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">no_ack_consumers</span><span class="o">.</span><span class="n">discard</span><span class="p">(</span><span class="n">consumer_tag</span><span class="p">)</span>
+        <span class="k">return</span> <span class="nb">super</span><span class="p">(</span><span class="n">Channel</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">basic_cancel</span><span class="p">(</span><span class="n">consumer_tag</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+</div></div>
+<div class="viewcode-block" id="Transport"><a class="viewcode-back" href="../../../reference/kombu.transport.amqplib.html#kombu.transport.amqplib.Transport">[docs]</a><span class="k">class</span> <span class="nc">Transport</span><span class="p">(</span><span class="n">base</span><span class="o">.</span><span class="n">Transport</span><span class="p">):</span>
+    <span class="n">Connection</span> <span class="o">=</span> <span class="n">Connection</span>
+
+    <span class="n">default_port</span> <span class="o">=</span> <span class="n">DEFAULT_PORT</span>
+
+    <span class="c"># it&#39;s very annoying that amqplib sometimes raises AttributeError</span>
+    <span class="c"># if the connection is lost, but nothing we can do about that here.</span>
+    <span class="n">connection_errors</span> <span class="o">=</span> <span class="p">(</span><span class="n">AMQPConnectionException</span><span class="p">,</span>
+                         <span class="n">socket</span><span class="o">.</span><span class="n">error</span><span class="p">,</span>
+                         <span class="ne">IOError</span><span class="p">,</span>
+                         <span class="ne">OSError</span><span class="p">,</span>
+                         <span class="ne">AttributeError</span><span class="p">)</span>
+    <span class="n">channel_errors</span> <span class="o">=</span> <span class="p">(</span><span class="n">StdChannelError</span><span class="p">,</span> <span class="n">AMQPChannelException</span><span class="p">,</span> <span class="p">)</span>
+
+    <span class="n">nb_keep_draining</span> <span class="o">=</span> <span class="bp">True</span>
+    <span class="n">driver_name</span> <span class="o">=</span> <span class="s">&quot;amqplib&quot;</span>
+    <span class="n">driver_type</span> <span class="o">=</span> <span class="s">&quot;amqp&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">client</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">client</span> <span class="o">=</span> <span class="n">client</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">default_port</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&quot;default_port&quot;</span><span class="p">)</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">default_port</span>
+
+<div class="viewcode-block" id="Transport.create_channel"><a class="viewcode-back" href="../../../reference/kombu.transport.amqplib.html#kombu.transport.amqplib.Transport.create_channel">[docs]</a>    <span class="k">def</span> <span class="nf">create_channel</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">connection</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">connection</span><span class="o">.</span><span class="n">channel</span><span class="p">()</span>
+</div>
+<div class="viewcode-block" id="Transport.drain_events"><a class="viewcode-back" href="../../../reference/kombu.transport.amqplib.html#kombu.transport.amqplib.Transport.drain_events">[docs]</a>    <span class="k">def</span> <span class="nf">drain_events</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">connection</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">connection</span><span class="o">.</span><span class="n">drain_events</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="Transport.establish_connection"><a class="viewcode-back" href="../../../reference/kombu.transport.amqplib.html#kombu.transport.amqplib.Transport.establish_connection">[docs]</a>    <span class="k">def</span> <span class="nf">establish_connection</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Establish connection to the AMQP broker.&quot;&quot;&quot;</span>
+        <span class="n">conninfo</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span>
+        <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">default_value</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">default_connection_params</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">conninfo</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="bp">None</span><span class="p">):</span>
+                <span class="nb">setattr</span><span class="p">(</span><span class="n">conninfo</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">default_value</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">conninfo</span><span class="o">.</span><span class="n">hostname</span> <span class="o">==</span> <span class="s">&#39;localhost&#39;</span><span class="p">:</span>
+            <span class="n">conninfo</span><span class="o">.</span><span class="n">hostname</span> <span class="o">=</span> <span class="s">&#39;127.0.0.1&#39;</span>
+        <span class="n">conn</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">Connection</span><span class="p">(</span><span class="n">host</span><span class="o">=</span><span class="n">conninfo</span><span class="o">.</span><span class="n">host</span><span class="p">,</span>
+                               <span class="n">userid</span><span class="o">=</span><span class="n">conninfo</span><span class="o">.</span><span class="n">userid</span><span class="p">,</span>
+                               <span class="n">password</span><span class="o">=</span><span class="n">conninfo</span><span class="o">.</span><span class="n">password</span><span class="p">,</span>
+                               <span class="n">login_method</span><span class="o">=</span><span class="n">conninfo</span><span class="o">.</span><span class="n">login_method</span><span class="p">,</span>
+                               <span class="n">virtual_host</span><span class="o">=</span><span class="n">conninfo</span><span class="o">.</span><span class="n">virtual_host</span><span class="p">,</span>
+                               <span class="n">insist</span><span class="o">=</span><span class="n">conninfo</span><span class="o">.</span><span class="n">insist</span><span class="p">,</span>
+                               <span class="n">ssl</span><span class="o">=</span><span class="n">conninfo</span><span class="o">.</span><span class="n">ssl</span><span class="p">,</span>
+                               <span class="n">connect_timeout</span><span class="o">=</span><span class="n">conninfo</span><span class="o">.</span><span class="n">connect_timeout</span><span class="p">)</span>
+        <span class="n">conn</span><span class="o">.</span><span class="n">client</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span>
+        <span class="k">return</span> <span class="n">conn</span>
+</div>
+<div class="viewcode-block" id="Transport.close_connection"><a class="viewcode-back" href="../../../reference/kombu.transport.amqplib.html#kombu.transport.amqplib.Transport.close_connection">[docs]</a>    <span class="k">def</span> <span class="nf">close_connection</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">connection</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Close the AMQP broker connection.&quot;&quot;&quot;</span>
+        <span class="n">connection</span><span class="o">.</span><span class="n">client</span> <span class="o">=</span> <span class="bp">None</span>
+        <span class="n">connection</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+</div>
+<div class="viewcode-block" id="Transport.is_alive"><a class="viewcode-back" href="../../../reference/kombu.transport.amqplib.html#kombu.transport.amqplib.Transport.is_alive">[docs]</a>    <span class="k">def</span> <span class="nf">is_alive</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">connection</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">HAS_MSG_PEEK</span><span class="p">:</span>
+            <span class="n">sock</span> <span class="o">=</span> <span class="n">connection</span><span class="o">.</span><span class="n">transport</span><span class="o">.</span><span class="n">sock</span>
+            <span class="n">prev</span> <span class="o">=</span> <span class="n">sock</span><span class="o">.</span><span class="n">gettimeout</span><span class="p">()</span>
+            <span class="n">sock</span><span class="o">.</span><span class="n">settimeout</span><span class="p">(</span><span class="mf">0.0001</span><span class="p">)</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">sock</span><span class="o">.</span><span class="n">recv</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">socket</span><span class="o">.</span><span class="n">MSG_PEEK</span><span class="p">)</span>
+            <span class="k">except</span> <span class="n">socket</span><span class="o">.</span><span class="n">timeout</span><span class="p">:</span>
+                <span class="k">pass</span>
+            <span class="k">except</span> <span class="n">socket</span><span class="o">.</span><span class="n">error</span><span class="p">:</span>
+                <span class="k">return</span> <span class="bp">False</span>
+            <span class="k">finally</span><span class="p">:</span>
+                <span class="n">sock</span><span class="o">.</span><span class="n">settimeout</span><span class="p">(</span><span class="n">prev</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">True</span>
+</div>
+<div class="viewcode-block" id="Transport.verify_connection"><a class="viewcode-back" href="../../../reference/kombu.transport.amqplib.html#kombu.transport.amqplib.Transport.verify_connection">[docs]</a>    <span class="k">def</span> <span class="nf">verify_connection</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">connection</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">connection</span><span class="o">.</span><span class="n">channels</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_alive</span><span class="p">(</span><span class="n">connection</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="Transport.eventmap"><a class="viewcode-back" href="../../../reference/kombu.transport.amqplib.html#kombu.transport.amqplib.Transport.eventmap">[docs]</a>    <span class="k">def</span> <span class="nf">eventmap</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">connection</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">{</span><span class="n">connection</span><span class="o">.</span><span class="n">method_reader</span><span class="o">.</span><span class="n">source</span><span class="o">.</span><span class="n">sock</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">drain_nowait</span><span class="p">}</span>
+</div>
+<div class="viewcode-block" id="Transport.on_poll_init"><a class="viewcode-back" href="../../../reference/kombu.transport.amqplib.html#kombu.transport.amqplib.Transport.on_poll_init">[docs]</a>    <span class="k">def</span> <span class="nf">on_poll_init</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">poller</span><span class="p">):</span>
+        <span class="k">pass</span>
+</div>
+<div class="viewcode-block" id="Transport.on_poll_start"><a class="viewcode-back" href="../../../reference/kombu.transport.amqplib.html#kombu.transport.amqplib.Transport.on_poll_start">[docs]</a>    <span class="k">def</span> <span class="nf">on_poll_start</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">{}</span>
+</div>
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="Transport.default_connection_params"><a class="viewcode-back" href="../../../reference/kombu.transport.amqplib.html#kombu.transport.amqplib.Transport.default_connection_params">[docs]</a>    <span class="k">def</span> <span class="nf">default_connection_params</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">{</span><span class="s">&#39;userid&#39;</span><span class="p">:</span> <span class="s">&#39;guest&#39;</span><span class="p">,</span> <span class="s">&#39;password&#39;</span><span class="p">:</span> <span class="s">&#39;guest&#39;</span><span class="p">,</span>
+                <span class="s">&#39;port&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">default_port</span><span class="p">,</span>
+                <span class="s">&#39;hostname&#39;</span><span class="p">:</span> <span class="s">&#39;localhost&#39;</span><span class="p">,</span> <span class="s">&#39;login_method&#39;</span><span class="p">:</span> <span class="s">&#39;AMQPLAIN&#39;</span><span class="p">}</span>
+</div>
+<div class="viewcode-block" id="Transport.get_manager"><a class="viewcode-back" href="../../../reference/kombu.transport.amqplib.html#kombu.transport.amqplib.Transport.get_manager">[docs]</a>    <span class="k">def</span> <span class="nf">get_manager</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">get_manager</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div></div>
+</pre></div>
+
+      </div>
+      <div class="bottomnav">
+      
+        <p>
+        <a href="/">Home</a>:
+        <a class="uplink" href="../../../index.html">Contents</a>
+        </p>
+
+      </div>
+
+    <div class="footer">
+        &copy; Copyright 2012, HDKNR.COM.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.2pre/3c28de26aac2.
+    </div>
+  </body>
+</html>

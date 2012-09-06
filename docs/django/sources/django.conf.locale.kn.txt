@@ -10,7 +10,7 @@ django.conf.locale.kn
 =====================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/conf/locale/kn/__init__.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/conf/locale/kn/__init__.py>`_ 
 
 .. include:: cheat/django.conf.locale.kn.rst
 
@@ -25,7 +25,7 @@ django.conf.locale.kn.formats
 =============================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/conf/locale/kn/formats.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/conf/locale/kn/formats.py>`_ 
 
 .. include:: cheat/django.conf.locale.kn.formats.rst
 

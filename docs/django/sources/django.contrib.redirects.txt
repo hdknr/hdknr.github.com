@@ -10,7 +10,7 @@ django.contrib.redirects
 ========================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/redirects/__init__.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/redirects/__init__.py>`_ 
 
 .. include:: cheat/django.contrib.redirects.rst
 
@@ -25,7 +25,7 @@ django.contrib.redirects.admin
 ==============================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/redirects/admin.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/redirects/admin.py>`_ 
 
 .. include:: cheat/django.contrib.redirects.admin.rst
 
@@ -38,7 +38,7 @@ django.contrib.redirects.middleware
 ===================================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/redirects/middleware.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/redirects/middleware.py>`_ 
 
 .. include:: cheat/django.contrib.redirects.middleware.rst
 
@@ -51,7 +51,7 @@ django.contrib.redirects.models
 ===============================
 
 
-- `source <https://code.djangoproject.com/browser/django/trunk/django/contrib/redirects/models.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/redirects/models.py>`_ 
 
 .. include:: cheat/django.contrib.redirects.models.rst
 
