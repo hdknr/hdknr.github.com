@@ -2,6 +2,27 @@
 JSON
 ========
 
+.. contents:: JSON
+
+
+JSON.NET
+===========
+
+Install
+---------
+
+`NuGet <http://note.harajuku-tech.org/jsonnet-96303>`_ ::
+
+    PM> Install-Package Newtonsoft.Json 
+
+ソースコード::
+
+    $ git clone https://github.com/JamesNK/Newtonsoft.Json.git
+
+
+RFC4627
+=============
+
 - "The application/json Media Type for JavaScript Object Notation (JSON)"(:rfc:`4627`)
 
 2.5. Strings
