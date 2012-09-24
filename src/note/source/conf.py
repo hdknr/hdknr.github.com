@@ -316,4 +316,4 @@ if os.uname()[0]=='Darwin':
     pngmath_latex = '/usr/texbin/latex'
     pngmath_dvipng = '/usr/texbin/dvipng'
 
-exclude_patterns = [ 'trac/*.*',]
+exclude_patterns = [ 'trac/*.*', 'apache/*',]

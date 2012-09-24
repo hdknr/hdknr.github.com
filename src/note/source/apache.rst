@@ -109,3 +109,7 @@ mod_macro
 
 - http://people.apache.org/~fabien/mod_macro/ 
 
+インストール
+----------------
+
+.. include:: apache/mod_macro.install.rst
