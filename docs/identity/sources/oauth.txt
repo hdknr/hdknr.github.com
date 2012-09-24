@@ -4,13 +4,7 @@ The OAuth 2.0 Authorization Protocol
 
 .. contents:: Table of Contents
 
-Based on `The OAuth 2.0 Authorization Protocol draft-ietf-oauth-v2-30 <http://tools.ietf.org/html/draft-ietf-oauth-v2-30>`_
-
-.. todo::
-
-    Checke the Draft 30 - July 15, 2012 
-
-        - http://tools.ietf.org/html/draft-ietf-oauth-v2-30
+Based on `The OAuth 2.0 Authorization Protocol draft-ietf-oauth-v2-31 <http://tools.ietf.org/html/draft-ietf-oauth-v2-31>`_
 
 .. _oauth_abstract:
 

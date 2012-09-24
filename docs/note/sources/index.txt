@@ -15,6 +15,7 @@ Misc
     swd
     python
     python_csharp
+    php
     pattern
     mysql
     cookie
@@ -26,7 +27,9 @@ Misc
     redis
     development
     apache
-
+    rest
+    javascript
+    jquery
     glossary
 
 Security:
@@ -47,8 +50,10 @@ Tools:
 .. toctree::
     :maxdepth: 2
 
+    trac
     git
     hg
+    subversion
     tmux
     graphviz
 

@@ -17,6 +17,8 @@ Contents:
     ext
     graphviz
     github
+    theme
+    memo
     glossary
 
 Indices and tables
