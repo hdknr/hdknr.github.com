@@ -34,7 +34,7 @@ Install
     root_setup# aptitude install libyaml-dev -y
     root_setup# aptitude install pkg-config -y
     root_setup# aptitude install apparix tree  -y
-
+    root_setup# aptitude install libpq-dev  libmemcached-dev -y
 
 インストール後
 -----------------

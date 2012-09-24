@@ -315,3 +315,5 @@ os.environ['DJANGO_SETTINGS_MODULE'] = 'app.settings'
 if os.uname()[0]=='Darwin':
     pngmath_latex = '/usr/texbin/latex'
     pngmath_dvipng = '/usr/texbin/dvipng'
+
+exclude_patterns = [ 'trac/*.*',]

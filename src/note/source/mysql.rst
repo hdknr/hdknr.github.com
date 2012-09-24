@@ -81,6 +81,7 @@ SQL
 .. code-block:: mysql
 
     CREATE DATABASE `newdatabase` DEFAULT CHARACTER SET utf8 COLLATE utf8_general_ci;
+    GRANT ALL on newdatabase.* to 'newdatabase_user'@'%' identified by 'newdatabase_password' WITH GRANT OPTION;
 
 
 - encoding

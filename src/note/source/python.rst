@@ -3,6 +3,12 @@ Python
 ======================
 
 .. contents:: Python
+    :local:
+
+.. glossary::
+    
+    Python
+        Computer Lauguage
 
 Install
 =========
@@ -29,6 +35,11 @@ Homebrew
 virtualenv
 ----------------
 
+.. glossary::
+
+    virtualenv
+        TBD    
+
 .. code-block:: bash
 
     Squeeze$ sudo easy_install pip
@@ -36,6 +47,15 @@ virtualenv
     Squeeze$ sudo pip install virtualenv
     Squeeze$ sudo pip install virtualenvwrapper
 
+
+2.7はglobalは参照しない
+^^^^^^^^^^^^^^^^^^^^^^^
+
+オプションで参照出来るようにする事が可能。
+
+.. code-block:: bash
+
+    mkvirutalenv --system-site-packages planet
 
 Encoding
 ==========
@@ -162,4 +182,14 @@ setterを定義しないとread-only
     '\x83\xd9?1\xe5\x0c\xff\xc8\xa5\x870\xd6\xe4u\xfe\xef'
     >>> os.urandom(32)
     'ld\xc6\x88\x12\xddZ\xabs\x97\xb7N\x10J\xe0\xd9!\xd1\x10\xdf\x9b\x02R\xfexk\xeef\x1f\x0bdl'
+
+.. _python.wsgi:
+
+WSGI
+=====
+
+.. glossary::
+
+    mod_wsgi
+        :term:`apache` インターフェース
 

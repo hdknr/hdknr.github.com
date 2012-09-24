@@ -3,7 +3,12 @@ apache
 =========
 
 .. contents::
+    :local:
     
+.. glossary::
+    
+    apache
+        apache webserver
 
 設定
 ========
@@ -97,4 +102,10 @@ HostNameLookupをOffにする
 
 
 
+.. _apache.mod_macro:
+
+mod_macro
+===========
+
+- http://people.apache.org/~fabien/mod_macro/ 
 

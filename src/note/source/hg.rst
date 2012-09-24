@@ -3,6 +3,7 @@ Mercurial
 ==========
 
 .. contents:: Mercurial
+    :local:
 
 Basic
 =======
@@ -87,6 +88,25 @@ named branch
 - ある親から派生したリビジョンとその子孫につけられる名前
 - リポジトリは初期状態で単一の名前付きブランチ(`default`_)を持っている
 - また、そのブランチのHEADリビジョンを指す。
+
+named branch の作成
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+- なるだけ `bookbark` の方がいいでしょう。
+
+    .. code-block:: bash
+    
+        (docs)Peeko:django-celery-about hide$ hg branch pyconjp2012
+    
+        marked working directory as branch pyconjp2012
+        (branches are permanent and global, did you want a bookmark?)
+
+    .. (docs)Peeko:django-celery-about hide$ hg branch development
+
+        marked working directory as branch development
+        (branches are permanent and global, did you want a bookmark?)
+
+
 
 
 multiple heads
