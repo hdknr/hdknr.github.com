@@ -10,6 +10,19 @@ apache
     apache
         apache webserver
 
+インストール
+===============
+
+Debian
+--------
+
+.. code-block:: bash
+
+    $ sudo aptitude install apache2
+
+- `履歴 <static/apache/aptitude_apache2.txt>`_
+
+
 設定
 ========
 
@@ -55,28 +68,6 @@ SSL
 
 - SSLPassPhraseDialog cannot occur within <VirtualHost> section
 
-mod_rewrite : URL リライト
--------------------------------
-
-- 有効
-
-.. code-block:: bash
-
-    $ sudo a2enmod rewrite
-    $ sudo /etc/init.d/apache2 force-reload 
-
-- 設定したいディレクトリの.htaccsss
-
-::
-
-    Options FollowSymLinks
-    RewriteEngine   On
-
-    RewriteRule ^$  /wine/  [R]
-
-- `サーバー変数 <http://harajuku-tech.posterous.com/htaccess-rewrit>`_
-- `拡張子操作 <http://harajuku-tech.posterous.com/modrewrite-html-php>`_
-
 
 管理
 ======
@@ -101,6 +92,41 @@ HostNameLookupをOffにする
   - defaultではoffのようです。
 
 
+.. _apache.mod_rewrite:
+
+mod_rewrite : URL リライト
+=============================================
+
+- 有効
+
+.. code-block:: bash
+
+    $ sudo a2enmod rewrite
+    $ sudo /etc/init.d/apache2 force-reload 
+
+- 設定したいディレクトリの.htaccsss
+
+::
+
+    Options FollowSymLinks
+    RewriteEngine   On
+
+    RewriteRule ^$  /wine/  [R]
+
+- `サーバー変数 <http://harajuku-tech.posterous.com/htaccess-rewrit>`_
+- `拡張子操作 <http://harajuku-tech.posterous.com/modrewrite-html-php>`_
+
+.. _apache.mod_proxy:
+
+mod_proxy
+=============================================
+
+- http://httpd.apache.org/docs/2.2/ja/mod/mod_proxy.html
+
+- sudo a2enmod proxy
+
+    .. literalinclude:: _static/apache/enable_mod_proxy.txt 
+        :language: bash
 
 .. _apache.mod_macro:
 
@@ -112,4 +138,18 @@ mod_macro
 インストール
 ----------------
 
-.. include:: apache/mod_macro.install.rst
+- apache 2.2 には mod_macro-1.1.11 をインストールします。
+
+.. literalinclude:: _static/apache/mod_macro.install.txt
+    :language: bash
+
+.. _apache.mod_dav_svn:
+
+mod_dav_svn
+=============
+
+- :doc:`debian` パッケージだと簡単です。
+
+    .. literalinclude:: _static/apache/mod_dav_svn.install.txt
+    
+

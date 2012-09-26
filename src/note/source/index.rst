@@ -54,6 +54,7 @@ Tools:
     git
     hg
     subversion
+    jenkins
     tmux
     graphviz
 

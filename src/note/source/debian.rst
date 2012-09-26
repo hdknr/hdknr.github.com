@@ -18,6 +18,17 @@ Documents
 Install
 =========
 
+.. _debian.install.release:
+
+Release
+---------
+
+.. glossary::
+
+    wheezy
+        - http://www.debian.org/releases/wheezy/
+        - パッケージ : http://packages.debian.org/ja/wheezy/
+
 よくやる一括インストール
 ----------------------------------------
 
@@ -64,6 +75,12 @@ sshキー作成::
 
     $ git clone git://github.com/hdknr/bin.git
 
+その他のパッケージ
+--------------------
+
+- :doc:`jenkins` は入れた方がいいですね。
+
+
 その他
 =======
 
@@ -102,3 +119,13 @@ sshキー作成::
     $ sudo gpg --armor --export 72A7496B45499429 | sudo apt-key add -
 
 
+.. _debian.packages:
+
+パッケージ
+============
+
+.. glossary::
+
+    daemon
+        - C、C++ 又は Perl 以外の言語 (すなわち、/bin/sh や Java) で デーモンを書く用途に役立ちます。
+        - http://packages.debian.org/ja/wheezy/daemon

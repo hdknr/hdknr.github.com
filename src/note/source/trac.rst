@@ -18,6 +18,7 @@ apacheでの配置
 - プロジェクトを複数立てるとして、 それぞれのプロジェクト名は {{ prj }} とします。
 - :term:`Python` は :term:`virtualenv` として環境を構築します。
 - 移行することを考えて、全てのファイルは ベースディレクトリ以下に置きます。
+- :term:`apache.mod_dav_svn` がインストールされていること。
 
 .. _trac.apache.tree:
 
