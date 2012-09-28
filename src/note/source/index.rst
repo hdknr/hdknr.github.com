@@ -31,6 +31,7 @@ Misc
     javascript
     jquery
     glossary
+    software_design
 
 Security:
 

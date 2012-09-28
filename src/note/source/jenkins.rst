@@ -166,6 +166,22 @@ Jenkinsインストール
 起動
 ====
 
+コマンド
+----------
+
+- :ref:`jenkins.files.initd` 参照
+
+::
+
+    (main)hdknr@wzy:~$ sudo /etc/init.d/jenkins stop
+    [ ok ] Stopping Jenkins Continuous Integration Server: jenkins.
+
+    (main)hdknr@wzy:~$ sudo /etc/init.d/jenkins start
+    [ ok ] Starting Jenkins Continuous Integration Server: jenkins.
+
+    (main)hdknr@wzy:~$ sudo /etc/init.d/jenkins restart
+    [ ok ] Restarting Jenkins Continuous Integration Server: jenkins.    
+
 TCP8080
 ----------
 
@@ -200,5 +216,17 @@ mod_proxyでアクセス
 - :ref:`apache.mod_proxy` を有効にしていること( mod_ajp, mod_rewrite などでも出来なくはないです)
 - :ref:`apache.mod_macro` をインストールしていること。
 
+設定
+^^^^^^
+
+- Jenkinsの設定マクロ
+
+    .. literalinclude:: _static/apache/mod_macro/conf/macro.jenkins.xml
+        :language: xml
+
+- このマクロで仮想ディレクトリを定義した例。 このファイルは、httpd.confからインクルードされます。
+
+    .. literalinclude:: _static/apache/mod_macro/conf/vdir.all.conf
+        :language: xml
 
 

@@ -22,6 +22,11 @@ Debian
 
 - `履歴 <static/apache/aptitude_apache2.txt>`_
 
+apxs2 コンパイラとかの為に
+
+.. code-block:: bash
+
+    $ sudo aptitude install apache2-threaded-dev 
 
 設定
 ========
@@ -142,6 +147,80 @@ mod_macro
 
 .. literalinclude:: _static/apache/mod_macro.install.txt
     :language: bash
+
+.. _apache.mod_macro.conf:
+
+mod_macro設定パターン
+------------------------
+
+.. _apache.mod_macro.tree:
+
+ツリー
+^^^^^^^^^
+
+::
+
+    $base
+      |
+      +-- $host
+            |
+            +--- conf
+            |     |
+            |     +---- macro.httpd.xml
+            |     +---- macro.auth.xml
+            |     +---- macro.ssl.xml
+            |     +---- macro.jenkins.xml
+            |     +---- macro......xml
+            |     |
+            |     +---- httpd.conf
+            |     +---- vdir.all.conf
+            |     |
+            |     +---- .htpasswd.user
+            |     +---- .htpasswd.admin
+            |     +---- .htpasswd.....
+            |
+            +--- logs
+            |     |
+            |     +---- access.log
+            |     +---- error.log
+            |
+            +--- www
+                  |
+                  +---- index.html
+                  +---- .....
+                  |
+                  
+    
+
+.. _apache.mod_macro.conf.macro.httpd.xml:
+
+macro.httpd.xml
+^^^^^^^^^^^^^^^^^
+
+.. literalinclude:: _static/apache/mod_macro/conf/macro.httpd.xml
+    :language: xml
+
+.. _apache.mod_macro.conf.httpd.conf:
+
+httpd.conf
+^^^^^^^^^^^^^^^^^
+
+- :ref:`apache.mod_macro.conf.macro.httpd.xml` をつかって httpd.conf を定義する。
+- 以下の例は dev.lafoglia.jp サイトの仮想サーバーの例。
+
+    .. literalinclude:: _static/apache/mod_macro/conf/httpd.conf
+        :language: xml
+
+- これをシンボリックリンクする
+
+    ::
+
+        $ ls -l /etc/apache2/sites-enabled/
+
+        合計 0
+        lrwxrwxrwx 1 root root 26  9月 26 11:36 000-default -> ../sites-available/default
+        lrwxrwxrwx 1 root root 49  9月 27 05:33 dev.lafoglia.jp.conf -> /home/hdknr/sites/dev.lafoglia.jp/conf/httpd.conf
+
 
 .. _apache.mod_dav_svn:
 
