@@ -20,6 +20,7 @@ Contents:
     uehara
     higashi
     jingumae
+    yoyogi
 
     terms
 
