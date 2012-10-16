@@ -23,7 +23,7 @@ infix operator:中置演算子
     Prefix Notation
     ポーランド記法
     Polish Notation 
-        - http://ja.wikipedia.org/wiki/ポーランド記法
+        - `ポーランド記法(Wikipedia) <http://ja.wikipedia.org/wiki/%E3%83%9D%E3%83%BC%E3%83%A9%E3%83%B3%E3%83%89%E8%A8%98%E6%B3%95>`_
 
 概要
 =====
@@ -50,7 +50,7 @@ InfixをPrefixで使う
 PrefixをInfixで使う
 =======================
 
-バッククオート(`)で囲むと、 :term:`Infix Notaion` できる。
+バッククオート(`)で囲むと、 :term:`Infix Notation` できる。
 
 .. code-block:: haskell
 

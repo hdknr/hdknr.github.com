@@ -12,7 +12,26 @@ Contents:
     :maxdepth: 2
 
     haskell 
+    ghci
+    language
+    if
+    case
+    operators
+    infix
+    unary
+    list
+    list_comprehension
+    tuple
+    type
+    function
+    higer_order_function
+    recursion
+    sectioning
+    factorial
 
+    syntax
+
+    terms
 
 
 Indices and tables
