@@ -63,3 +63,14 @@ Terms
     YAGNI
     You Aren't Going to Need It
         今必要のあることだけをやれ。
+
+    DoD
+    Definition of Done
+        完了の定義。
+
+        - クオリティ基準
+        - プロセス標準( レビューアーのチェック入れたか、とか)
+
+    DoR
+    Definition of Ready
+        - http://note.harajuku-tech.org/definition-of-ready-2010-08-14-kawaguti-idway
