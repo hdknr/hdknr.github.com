@@ -80,6 +80,15 @@ Entity Framework
 
     PM> Add-Migration session-move-to-connect-lib
 
+対象のデータベースコンテキストを含むプロジェクトが「スタートアッププロジェクト」なっていないとエラーになるので、
+-StartUpProjectName オプションを付けるようにした方が良いかも。
+
+::
+
+    PM> Add-Migration session-move-to-connect-lib -StartUpProjectName AdConnect
+
+
+
 マイグレーション反映 
 ------------------------------
 
@@ -120,6 +129,23 @@ Entity Framework
         }   
     }   
 
+
+Add-Migrationがうまく行かない
+------------------------------
+
+- マイグレーション対象のプロッジェクトをソリューションの「スタートアッププロジェクト」にすること！
+
+::
+
+    PM> Add-Migration ReStart
+
+    Could not load assembly 'AdConnect'. 
+    (If you are using Code First Migrations inside Visual Studio this can happen 
+    if the startUp project for your solution does not reference the project 
+    that contains your migrations. 
+
+    You can either change the startUp project for your solution 
+    or use the -StartUpProjectName parameter.)
 
 
 One-To-One Relation

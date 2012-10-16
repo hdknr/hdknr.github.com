@@ -500,6 +500,14 @@ git remote (git-remote) - manage set of tracked repositories
 ===============================================================
 
 
+URLを変更(http->sshとか)
+------------------------------------
+
+::
+
+    $ git remote set-url origin git@github.com:hdknr/orevim.git
+
+
 .. _git-fetch:
 
 git fetch  (git-fetch) - Download objects and refs from another repository
