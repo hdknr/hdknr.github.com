@@ -1,6 +1,5 @@
 ========
-Terms
-========
+Terms ========
 
 
 Digital Identity

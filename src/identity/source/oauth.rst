@@ -1,50 +1,51 @@
 ========================================================
-The OAuth 2.0 Authorization Protocol
+The OAuth 2.0 Authorization Framework
 ========================================================
 
 .. contents:: Table of Contents
 
-Based on `The OAuth 2.0 Authorization Protocol draft-ietf-oauth-v2-31 <http://tools.ietf.org/html/draft-ietf-oauth-v2-31>`_
+
+- An annotated document based on :rfc:`6749`
+
 
 .. _oauth_abstract:
 
 .. include:: oauth/abstract.rst
 
-.. _oauth_1:
+.. _oauth.1:
 
 .. include:: oauth/1.rst
 
-.. _oauth_1_1:
+.. _oauth.1.1:
 
-.. include:: oauth/1_1.rst
+.. include:: oauth/1.1.rst
 
-.. _oauth_1_2:
+.. _oauth.1.2:
 
-.. include:: oauth/1_2.rst
+.. include:: oauth/1.2.rst
 
-.. _oauth_1_3:
+.. _oauth.1.3:
 
-.. include:: oauth/1_3.rst
+.. include:: oauth/1.3.rst
+
+.. _oauth.1.3.1:
+
+.. include:: oauth/1.3.1.rst
+
+.. _oauth.1.3.2:
+
+.. include:: oauth/1.3.2.rst
+
+.. _oauth.1.3.3:
+
+.. include:: oauth/1.3.3.rst
+
+.. _oauth.1.3.4:
+
+.. include:: oauth/1.3.4.rst
 
 .. note::
-
-    1.3 used to be 1.5 in v.20.
-
-.. _oauth_1_3_1:
-
-.. include:: oauth/1_3_1.rst
-
-.. _oauth_1_3_2:
-
-.. include:: oauth/1_3_2.rst
-
-.. _oauth_1_3_3:
-
-.. include:: oauth/1_3_3.rst
-
-.. _oauth_1_3_4:
-
-.. include:: oauth/1_3_4.rst
+    **CHECKPOINT** for READING  2012-10-16
 
 .. _oauth_1_4:
 
@@ -138,9 +139,9 @@ Based on `The OAuth 2.0 Authorization Protocol draft-ietf-oauth-v2-31 <http://to
 
 .. include:: oauth/4.rst
 
-.. _oauth_4_1:
+.. _oauth.4.1:
 
-.. include:: oauth/4_1.rst
+.. include:: oauth/4.1.rst
 
 .. _oauth_4_1_1:
 
