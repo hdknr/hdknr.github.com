@@ -7,7 +7,8 @@ Technight #9
 Cloud Identity Summit '12 TOI
 ==========================================
 
-- 工藤達夫
+- `工藤達雄(@tkudos)  <https://twitter.com/tkudos>`_ 
+
 
 内容
 ----

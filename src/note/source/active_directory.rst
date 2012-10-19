@@ -3,6 +3,15 @@ Active Directory
 =======================================
 
 .. contents:: AD
+    :local:        
+
+Install
+=========
+
+- `Windows Server 2008 R2 にインストール <http://note.harajuku-tech.org/windows-2008-active-directory>`_
+
+
+
 
 Active Directory & Connect
 ==================================

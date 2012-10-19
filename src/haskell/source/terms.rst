@@ -181,3 +181,13 @@
     式
         - (TBD)
     
+    型シグネチャー
+    Type Signagure
+        - http://stackoverflow.com/questions/6929305/good-tutorial-for-haskell-type-signatures
+
+    関数束縛
+        - (TBD)
+
+    
+    パターン束縛
+        - (TBD)

@@ -26,6 +26,8 @@ Contents:
     function
     higer_order_function
     recursion
+    let
+    where 
     sectioning
     factorial
 

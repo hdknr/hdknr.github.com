@@ -4,8 +4,8 @@ OpenID Connect Messages 1.0
 
 .. contents:: Table of Contents
 
-Based on `OpenID Connect Messages 1.0 - draft 12 <http://openid.bitbucket.org/openid-connect-messages-1_0.html>`_
-( June 23, 2012 )
+Based on `OpenID Connect Messages 1.0 - draft 13 <http://openid.bitbucket.org/openid-connect-messages-1_0.html>`_
+( August 30, 2012 ) 
 
 .. _messages_abstract:
 
@@ -47,6 +47,15 @@ Based on `OpenID Connect Messages 1.0 - draft 12 <http://openid.bitbucket.org/op
 .. _messages_2_1_1_1_1:
 
 .. include:: messages/2_1_1_1_1.rst
+
+.. _messages_2_1_1_1_2:
+
+.. include:: messages/2_1_1_1_2.rst
+
+.. _messages_2_1_1_1_3:
+
+.. include:: messages/2_1_1_1_3.rst
+
 
 .. _messages_2_1_2:
 

@@ -44,22 +44,34 @@ The OAuth 2.0 Authorization Framework
 
 .. include:: oauth/1.3.4.rst
 
+.. _oauth.1.4:
+
+.. include:: oauth/1.4.rst
+
+.. _oauth.1.5:
+
+.. include:: oauth/1.5.rst
+
+.. _oauth.1.6:
+
+.. include:: oauth/1.6.rst
+
+.. _oauth.1.7:
+
+.. include:: oauth/1.7.rst
+
+.. _oauth.1.8:
+
+.. include:: oauth/1.8.rst
+
+.. _oauth.1.9:
+
+.. include:: oauth/1.9.rst
+
 .. note::
     **CHECKPOINT** for READING  2012-10-16
 
-.. _oauth_1_4:
-
-.. include:: oauth/1_4.rst
-
-.. _oauth_1_5:
-
-.. include:: oauth/1_5.rst
-
-.. _oauth_1_6:
-
-.. include:: oauth/1_6.rst
-
-.. _oauth_2:
+.. _oauth.2:
 
 .. include:: oauth/2.rst
 
