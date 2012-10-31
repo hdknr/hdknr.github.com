@@ -6,7 +6,7 @@ A JSON Web Key (JWK) is a JSON data structure that represents a set of public ke
 Requirements Language
 ========================================
 
-The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in RFC 2119 [:term:`RFC2119`].
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in RFC 2119 :term:`[RFC2119]`.
 
 Status of this Memo
 ========================================
