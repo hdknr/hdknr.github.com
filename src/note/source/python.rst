@@ -193,3 +193,14 @@ WSGI
     mod_wsgi
         :term:`apache` インターフェース
 
+Debug
+======
+
+コールスタック
+------------------
+
+.. code-block:: python
+
+    import traceback
+    traceback.print_stack()
+

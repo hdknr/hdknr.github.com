@@ -3,6 +3,7 @@ SMB
 ====
 
 .. contents:: SMB
+    :local:
 
 Mac
 ====
@@ -18,6 +19,8 @@ misc
 -----
 
 - `Debianに入れてMac Finderから接続 <http://harajuku-tech.posterous.com/samba-on-debian>`_
+- `シンボリックリンクが見えない <http://note.harajuku-tech.org/samba>`_
+
 
 Windows
 ==========

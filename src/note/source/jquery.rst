@@ -97,3 +97,18 @@ UI
 - http://jqueryui.com/
 - https://github.com/addyosmani/jquery-ui-bootstrap
 - http://masonry.desandro.com/
+
+
+セレクタ
+========
+
+contains
+-----------
+
+- 入力文字列を含むリストアイテムの背景を黄色にする
+
+.. literalinclude:: _static/jquery/selector_contains.html
+   :language: html
+
+
+

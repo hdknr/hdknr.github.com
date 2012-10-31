@@ -46,6 +46,14 @@ Security:
     connect
     aes
 
+Social:
+
+.. toctree::
+    :maxdepth: 2
+
+    facebook
+    twitter
+
 Tools:
 
 .. toctree::
@@ -83,6 +91,7 @@ Mac:
 
     brew
     xcode
+
 
 Windows:
 
