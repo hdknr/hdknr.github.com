@@ -4,21 +4,95 @@ OpenID Connect Basic Client Profile 1.0
 
 .. contents:: Connect Basic Client
 
-Based on http://openid.bitbucket.org/openid-connect-basic-1_0.html#token_request
-,June 23, 2012.
-
+Based on http://openid.bitbucket.org/openid-connect-basic-1_0.html
+(draft 20 )
 
 .. _basic_abstract: 
 
 .. include:: basic/abstract.rst
 
-.. _basic_1:
+.. _basic.1:
 
 .. include:: basic/1.rst
 
-.. _basic_2:
+.. _basic.1.1:
+
+.. include:: basic/1.1.rst
+
+.. _basic.2:
 
 .. include:: basic/2.rst
+
+.. _basic.2.1:
+
+.. include:: basic/2.1.rst
+
+.. _basic.2.2:
+
+.. include:: basic/2.2.rst
+
+.. _basic.2.2.1:
+
+.. include:: basic/2.2.1.rst
+
+.. _basic.2.2.2:
+
+.. include:: basic/2.2.2.rst
+
+.. _basic.2.2.3:
+
+.. include:: basic/2.2.3.rst
+
+.. _basic.2.2.4:
+
+.. include:: basic/2.2.4.rst
+
+.. _basic.2.2.5:
+
+.. include:: basic/2.2.5.rst
+
+.. _basic.2.2.5.1:
+
+.. include:: basic/2.2.5.1.rst
+
+.. _basic.2.2.5.2:
+
+.. include:: basic/2.2.5.2.rst
+
+.. _basic.2.2.6:
+
+.. include:: basic/2.2.6.rst
+
+.. _basic.2.2.6.1:
+
+.. include:: basic/2.2.6.1.rst
+
+.. _basic.2.2.6.2:
+
+.. include:: basic/2.2.6.2.rst
+
+.. _basic.2.3:
+
+.. include:: basic/2.3.rst
+
+.. _basic.2.4:
+
+.. include:: basic/2.4.rst
+
+.. _basic.2.5:
+
+.. include:: basic/2.5.rst
+
+.. _basic.2.5.1:
+
+.. include:: basic/2.5.1.rst
+
+.. _basic.2.5.2:
+
+.. include:: basic/2.5.2.rst
+
+.. note::
+    - upto this 2012-10-26
 
 .. _basic_3:
 
