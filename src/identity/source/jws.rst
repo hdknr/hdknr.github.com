@@ -120,17 +120,17 @@ Based on
 
 .. include:: jws/8.rst 
 
-.. _jws.10:
+.. _jws.9:
 
-.. include:: jws/10.rst 
+.. include:: jws/9.rst 
 
-.. _jws.10.1:
+.. _jws.9.1:
 
-.. include:: jws/10.1.rst 
+.. include:: jws/9.1.rst 
 
-.. _jws.10.2:
+.. _jws.9.2:
 
-.. include:: jws/10.2.rst 
+.. include:: jws/9.2.rst 
 
 .. _jws.appendix.a:
 
@@ -183,6 +183,23 @@ Based on
 .. _jws.appendix.a.3.3:
 
 .. include:: jws/appendix.a.3.3.rst 
+
+.. _jws.appendix.a.4:
+
+.. include:: jws/appendix.a.4.rst 
+
+.. _jws.appendix.a.4.1:
+
+.. include:: jws/appendix.a.4.1.rst 
+
+.. _jws.appendix.a.4.2:
+
+.. include:: jws/appendix.a.4.2.rst 
+
+.. _jws.appendix.a.4.3:
+
+.. include:: jws/appendix.a.4.3.rst 
+
 
 .. _jws.appendix.b:
 
