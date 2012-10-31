@@ -44,3 +44,12 @@ Entropy
 
 - http://en.wikipedia.org/wiki/Entropy_(information_theory)
 
+
+
+note
+=====
+
+- bearer でいいのは？
+- mac key といちづけは？
+- holder of key はどう考えているのか？
+

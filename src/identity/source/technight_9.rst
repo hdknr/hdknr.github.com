@@ -225,3 +225,10 @@ Cambrian Explosion of Everything
 
 URL
 -------
+
+
+Resource
+============
+
+- http://www.slideshare.net/shingoyamanaka/shingo-yamanaka-oidfj-openid-technight-9
+- http://www.slideshare.net/shingoyamanaka/tetsuo-yamashita-idcf-openid-technight-9
