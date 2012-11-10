@@ -17,6 +17,9 @@ DATABASES = {
         'PASSWORD': '',                  # Not used with sqlite3.
         'HOST': '',                      # Set to empty string for localhost. Not used with sqlite3.
         'PORT': '',                      # Set to empty string for default. Not used with sqlite3.
+        'OPTIONS': {
+            'timeout': 20,
+        },
     }
 }
 
@@ -123,6 +126,7 @@ INSTALLED_APPS = (
     'boa',  #:Samples for Python
     'rels', #:Samples for Relations
     'm2c',  #:Samples for M2Crypto
+    'profiles', #:Sample for Profile Management
 )
 
 # A sample logging configuration. The only tangible logging

@@ -29,11 +29,11 @@ class Color(models.Model):
         verbose_name_plural =u'色'
 
 
-for color in ['red','blue','black','yellow','silver','gold']:
-    try:
-        Color(name=color).save()
-    except :
-        pass
+#for color in ['red','blue','black','yellow','silver','gold']:
+#    try:
+#        Color(name=color).save()
+#    except :
+#        pass
 
 class FavoriteColor(models.Model):
     ''' 色の好み　'''
