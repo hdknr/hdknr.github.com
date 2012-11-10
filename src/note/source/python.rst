@@ -163,6 +163,27 @@ setterを定義しないとread-only
 - int(x)
 - http://www.python.jp/doc/2.5/lib/typesnumeric.html
 
+時間
+=====
+
+時間差(datetime.timedelta)
+-----------------------------------
+
+( :mod:`datetime.timedelta`)
+
+.. code-block:: python
+
+    >>> from datetime import datetime
+    >>> s1 = datetime.now()
+    >>> s2 = datetime.now()
+    >>> d = s2 -s1
+    >>> type(d)
+    <type 'datetime.timedelta'>
+    >>> d.seconds
+    4
+    >>> d.microseconds
+    524803
+
 乱数
 ====
 
