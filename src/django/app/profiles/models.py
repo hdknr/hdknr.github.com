@@ -4,16 +4,21 @@ from django.db.models import Q
 from django.contrib.auth.models import User
 from django.utils.timezone import now
 
+#from django.db.models.signals import post_save
+from django.db.models.signals import (pre_save, post_save, pre_delete, post_delete)
+
+import os
+
 class Name(models.Model):
     ''' 姓名 '''
 
-    family_name = models.CharField(u'姓',max_length=20)
+    family_name = models.CharField(u'姓',max_length=20,default='')
     ''' 姓 '''
-    first_name  = models.CharField(u'名',max_length=20)
+    first_name  = models.CharField(u'名',max_length=20,default='')
     ''' 名 '''
-    family_kana = models.CharField(u'カナ姓',max_length=20)
+    family_kana = models.CharField(u'カナ姓',max_length=20,default='')
     ''' 姓カナ '''
-    first_kana  = models.CharField(u'カナ名',max_length=20)
+    first_kana  = models.CharField(u'カナ名',max_length=20,default='')
     ''' 名カナ '''
     
     class Meta:
@@ -72,10 +77,73 @@ class AbstractProfile(models.Model):
         verbose_name_plural = u'個人情報'
         abstract =True
 
-class SimpleProfile(AbstractProfile,Name):
+class UserSignalMixIn:
+    ''' '''
+    @classmethod
+    def connect(cls, *signals):
+        """ User クラスがの操作のシグナル処理　"""
+        for signal in signals:        
+            sig_handler = {
+                pre_save: cls.on_pre_save,
+                post_save: cls.on_post_save,
+                pre_delete: cls.on_pre_delete,
+                post_delete: cls.on_post_delete,
+                }[signal]
+            signal.connect(sig_handler, sender=User)
+
+    @classmethod
+    def on_pre_save(cls,sender, **kwargs):
+        pass
+
+    @classmethod
+    def on_post_save(cls,sender, **kwargs):
+        user, created = kwargs["instance"], kwargs["created"]
+        if created:
+            cls.objects.create(user=user)
+
+    @classmethod
+    def on_pre_delete(cls,sender, **kwargs):
+        pass
+
+    @classmethod
+    def on_post_delete(cls,sender, **kwargs):
+        pass
+
+
+class SimpleProfile(AbstractProfile,Name,UserSignalMixIn):
     ''' 名前のみのプロファイル'''
         
     class Meta:
         verbose_name = u'個人情報(簡易)'
         verbose_name_plural = u'個人情報(簡易)'
+
+class PhotoProfile( AbstractProfile ):
+
+    def photo_filename(instance,filename):
+        """ アップロードファイルには拡張子が入っている事 
+            (view+formで確認)
+            - os.path.splittext() は ドット付きの拡張子を返す
+        """
+        return  "profiles/image.%d%s" % ( instance.id  , os.path.splitext(filename)[1] )
+
+    photo = models.ImageField("Photo", upload_to=photo_filename,
+                                null=True,default=None,blank=True) 
+    
+    class Meta:
+        verbose_name = u'個人情報(写真)'
+        verbose_name_plural = u'個人情報(写真)'
+
+### receiverデコレータを使う：保存後シグナルを受け取ってハンドラをディスパッチさせる 
+#from django.dispatch import receiver
+#
+#@receiver(post_save, sender=User)
+#def user_post_save(sender, **kwargs):
+#    user, created = kwargs["instance"], kwargs["created"]
+#    if created:
+#        SimpleProfile.objects.create(user=user)
+
+
+#: UserSignalMixIn を使う
+SimpleProfile.connect(post_save,)
+
 

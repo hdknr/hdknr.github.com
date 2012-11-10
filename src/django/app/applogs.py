@@ -73,7 +73,7 @@ def get_logger():
 
     # - logging api 
     import logging,os
-    return  logging.getLogger(os.environ.get('APP_LOGGER','dev'))
+    return  logging.getLogger(os.environ.get('APP_LOGGER','live'))
 
 def sample_request_handler(request):
     '''  サンプルリクエストハンドラ

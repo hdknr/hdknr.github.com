@@ -7,10 +7,23 @@ Replace this with more appropriate tests for your application.
 
 from django.test import TestCase
 
+from django.contrib.auth.models import User
+from models import  SimpleProfile
 
 class SimpleTest(TestCase):
-    def test_basic_addition(self):
+    def test_postcreated(self):
         """
-        Tests that 1 + 1 always equals 2.
         """
-        self.assertEqual(1 + 1, 2)
+
+        total = SimpleProfile.objects.count()
+
+        username="hoge"
+        params = {'email': 'hoge@hoge.com', 'password': 'hogewd', } 
+        u = User.objects.create_user( username, **params )
+        print u , "is created"
+        self.assertEquals( SimpleProfile.objects.count(),total + 1)
+        
+        self.assertEquals( u.email, SimpleProfile.objects.get(user__username = username).user.email )
+        u.delete()
+
+        self.assertEquals( SimpleProfile.objects.count(),total)
