@@ -1285,3 +1285,23 @@ MAC Scheme
         (TDB)
         
 
+Security
+====================
+
+.. glossary::
+
+
+    Ephemeral
+    Ephemeral Key 
+    短期鍵
+        - 比較的短命である公開鍵もしくはプライベート鍵。
+        - A cryptographic key is called ephemeral if it is generated for each execution of a key establishment process. 
+          ( `Ephermeral Key, Wikipedia  <http://en.wikipedia.org/wiki/Ephemeral_key>`_ )
+        - 反対 :term:`Static Key`
+
+    Static
+    Static Key
+        - A cryptographic key is called static if it is intended for use for a relatively long 
+          period of time and is typically intended for use in many instances of a cryptographic key establishment scheme
+          ( `Static Key, Wikipedia <http://en.wikipedia.org/wiki/Static_key>`_ )
+
