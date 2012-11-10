@@ -26,6 +26,7 @@ Start Django
     start_python
     start_views
     start_models
+    start_urls
 
 More Django
 ---------------------
