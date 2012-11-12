@@ -9,9 +9,10 @@ from models import PhotoProfile
 import os
 import uuid
 
-PREVIEW = os.path.join (settings.MEDIA_ROOT,'preview') 
+MEDIA= lambda f : os.path.join( settings.MEDIA_ROOT,f )
+PREVIEW = lambda f : "preview/" + f
 try:
-    os.makedirs( PREVIEW )
+    os.makedirs( MEDIA('preview') )
 except Exception,e:
     pass
 
@@ -26,8 +27,10 @@ class PhotoProfileForm(forms.ModelForm):
         try: 
             #:変更があったら以前のファイルを削除
             for field_name,field in self.fields.items():
-                if isinstance(field, forms.fields.FileField) and self.instance.photo and \
-                        self.cleaned_data.get( field_name + "_preview") !="": 
+                if isinstance(field, forms.fields.FileField) and getattr(self.instance,field_name) and \
+                    ( os.path.isfile( MEDIA(self.cleaned_data.get( field_name + "_preview") ) ) or
+                      self.cleaned_data.get( field_name + "_preview")   == "delete"
+                    ) : 
                     getattr(self.instance,field_name).delete()
 
             #:更新
@@ -36,8 +39,7 @@ class PhotoProfileForm(forms.ModelForm):
             #:プレビューファイルの処理
             for field_name,field in self.fields.items():
                 if isinstance(field, forms.fields.FileField) and self.cleaned_data[field_name + "_preview"] not in ['','delete']:
-                    preview_file = os.path.join( settings.MEDIA_ROOT, 
-                                self.cleaned_data[field_name + "_preview"] )
+                    preview_file = MEDIA( self.cleaned_data[field_name + "_preview"] )
                     #:コピーして保存
                     getattr(self.instance,field_name).save( preview_file,
                             File(open(preview_file) )
@@ -63,16 +65,18 @@ class PhotoProfileForm(forms.ModelForm):
                     #:アップロードがあったら 
                     file_data = getattr(self.instance,k,None ) 
                     if file_data != None and file_data.name :
-                        file_data.name= os.path.join('preview', 
-                                    uuid.uuid1().hex +  os.path.splitext(file_data.name )[1] 
-                                    )
+                        ext =os.path.splitext(file_data.name )[1]  
+                        file_data.name= self.cleaned_data.get('photo_preview' ) if self.cleaned_data.get('photo_preview' ) != "" \
+                                        else PREVIEW(uuid.uuid1().hex +  ext)
                         #: ファイルを一時保存
-                        open( os.path.join(settings.MEDIA_ROOT,file_data.name),"w").write( file_data.file.read() )
+                        open( MEDIA(file_data.name),"w").write( file_data.file.read() )
                     self.fields[k + "_preview"].widget = forms.HiddenInput(
                                                     attrs={'value':file_data.name,}) 
                     self.fields[k + "_preview"].initial=file_data.name
                 else:
                     #: ファイルの指定が無い場合
+                    if self.cleaned_data.get('photo_preview' ) != "":
+                        os.remove( MEDIA( self.cleaned_data.get('photo_preview' )) )
                     self.fields[k + "_preview"].widget = forms.HiddenInput( attrs={'value':'',}) 
                     self.fields[k + "_preview"].initial= ''
 
