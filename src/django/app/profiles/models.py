@@ -8,6 +8,7 @@ from django.utils.timezone import now
 from django.db.models.signals import (pre_save, post_save, pre_delete, post_delete)
 
 import os
+import uuid
 
 class Name(models.Model):
     ''' 姓名 '''
@@ -26,6 +27,14 @@ class Name(models.Model):
         verbose_name_plural = u'名前'
         abstract =True
 
+class Nickname(models.Model):
+    nickname = models.CharField(u'ニックネーム',max_length=50,)
+    ''' ニックネーム　''' 
+    class Meta:
+        verbose_name = u'ニックネーム'
+        verbose_name_plural = u'ニックネーム'
+        abstract =True
+    
 class Address(models.Model):
     ''' 住所 '''
 
@@ -117,16 +126,20 @@ class SimpleProfile(AbstractProfile,Name,UserSignalMixIn):
         verbose_name = u'個人情報(簡易)'
         verbose_name_plural = u'個人情報(簡易)'
 
-class PhotoProfile( AbstractProfile ):
+class PhotoProfile( AbstractProfile ,Nickname):
 
     def photo_filename(instance,filename):
         """ アップロードファイルには拡張子が入っている事 
             (view+formで確認)
             - os.path.splittext() は ドット付きの拡張子を返す
         """
-        return  "profiles/image.%d%s" % ( instance.id  , os.path.splitext(filename)[1] )
+        return  "profiles/image.%s%s" % ( 
+                        getattr(instance,'id',None) or uuid.uuid1().hex , 
+                        os.path.splitext(filename)[1] ,
+                )
 
-    photo = models.ImageField("Photo", upload_to=photo_filename,
+    photo = models.ImageField("Photo", 
+                                upload_to=photo_filename,
                                 null=True,default=None,blank=True) 
     
     class Meta:
