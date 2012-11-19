@@ -58,6 +58,7 @@ JOSE and JWT
 .. toctree::
     :maxdepth: 1
 
+    jose
     jwt
     jws
     jws_hok
@@ -80,6 +81,7 @@ Related
     lrdd
     revoke
 
+    nist-sp-800-59a
     nist-sp-800-63 
 
     poco
@@ -93,6 +95,9 @@ SAML/OASIS
 .. toctree::
     :maxdepth: 1 
 
+    saml
+    xacml
+    shibboleth
     SamlHokProfile
     SamlHokWebSsoProfile
     wss_saml_token_profile

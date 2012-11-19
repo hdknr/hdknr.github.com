@@ -2,7 +2,7 @@
 User-Managed Access (UMA) Core Protocol
 ======================================================
 
-Based on http://tools.ietf.org/id/draft-hardjono-oauth-umacore-03.txt
+Based on http://tools.ietf.org/html/draft-hardjono-oauth-umacore-05
 
 .. _uma_core.abstract:
 
@@ -135,26 +135,46 @@ Based on http://tools.ietf.org/id/draft-hardjono-oauth-umacore-03.txt
 
 .. include:: uma_core/3.3.rst
 
+.. _uma_core.3.3.1:
+
+.. include:: uma_core/3.3.1.rst
+
 .. _uma_core.3.4:
 
 .. include:: uma_core/3.4.rst
+
+.. _uma_core.3.4.1:
+
+.. include:: uma_core/3.4.1.rst
+
+.. _uma_core.3.4.2:
+
+.. include:: uma_core/3.4.2.rst
+
+.. _uma_core.3.4.3:
+
+.. include:: uma_core/3.4.3.rst
+
+.. _uma_core.3.4.4:
+
+.. include:: uma_core/3.4.4.rst
+
+.. _uma_core.3.4.5:
+
+.. include:: uma_core/3.4.5.rst
+
 
 .. _uma_core.3.5:
 
 .. include:: uma_core/3.5.rst
 
-.. _uma_core.3.6:
+.. _uma_core.3.5.1:
 
-.. include:: uma_core/3.6.rst
+.. include:: uma_core/3.5.1.rst
 
-.. _uma_core.3.6.1:
+.. _uma_core.3.5.1.1:
 
-.. include:: uma_core/3.6.1.rst
-
-.. _uma_core.3.6.1.1:
-
-.. include:: uma_core/3.6.1.1.rst
-
+.. include:: uma_core/3.5.1.1.rst
 
 .. _uma_core.4:
 
@@ -171,6 +191,14 @@ Based on http://tools.ietf.org/id/draft-hardjono-oauth-umacore-03.txt
 .. _uma_core.5:
 
 .. include:: uma_core/5.rst
+
+.. _uma_core.5.1:
+
+.. include:: uma_core/5.1.rst
+
+.. _uma_core.5.2:
+
+.. include:: uma_core/5.2.rst
 
 .. _uma_core.6:
 
@@ -200,10 +228,14 @@ Based on http://tools.ietf.org/id/draft-hardjono-oauth-umacore-03.txt
 
 .. include:: uma_core/12.rst
 
-.. _uma_core.12.1:
+.. _uma_core.13:
 
-.. include:: uma_core/12.1.rst
+.. include:: uma_core/13.rst
 
-.. _uma_core.12.2:
+.. _uma_core.13.1:
 
-.. include:: uma_core/12.2.rst
+.. include:: uma_core/13.1.rst
+
+.. _uma_core.13.2:
+
+.. include:: uma_core/13.2.rst

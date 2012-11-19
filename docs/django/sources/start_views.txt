@@ -26,6 +26,26 @@ Start Views
         )   
 
 
+ショートカット
+=================
+
+
+- :py:class:`django.shortcuts`
+
+.. code-block:: python
+
+    # -*- coding: utf-8 -*-
+    # myapp/views.py
+
+    from django.shortcuts import render_to_response
+
+    @login_required
+    def default(request):
+        ''' default page '''
+        return render_to_response( 'myapp/default.html',
+                            {} ,
+                        context_instance=template.RequestContext(request),)    
+
 Class Based Generic View
 ===============================
 
