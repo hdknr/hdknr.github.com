@@ -104,45 +104,47 @@ The OAuth 2.0 Authorization Framework
 
 .. include:: oauth/3.1.rst
 
-.. _oauth_3_1_1:
+.. _oauth.3.1.1:
 
-.. include:: oauth/3_1_1.rst
+.. include:: oauth/3.1.1.rst
 
-.. _oauth_3_1_2:
+.. _oauth.3.1.2:
 
-.. include:: oauth/3_1_2.rst
+.. include:: oauth/3.1.2.rst
 
-.. _oauth_3_1_2_1:
+.. _oauth.3.1.2.1:
 
-.. include:: oauth/3_1_2_1.rst
+.. include:: oauth/3.1.2.1.rst
 
-.. _oauth_3_1_2_2:
+.. _oauth.3.1.2.2:
 
-.. include:: oauth/3_1_2_2.rst
+.. include:: oauth/3.1.2.2.rst
 
-.. _oauth_3_1_2_3:
+.. _oauth.3.1.2.3:
 
-.. include:: oauth/3_1_2_3.rst
+.. include:: oauth/3.1.2.3.rst
 
-.. _oauth_3_1_2_4:
+.. _oauth.3.1.2.4:
 
-.. include:: oauth/3_1_2_4.rst
+.. include:: oauth/3.1.2.4.rst
 
-.. _oauth_3_1_2_5:
+.. _oauth.3.1.2.5:
 
-.. include:: oauth/3_1_2_5.rst
+.. include:: oauth/3.1.2.5.rst
 
-.. _oauth_3_2:
+.. _oauth.3.2:
 
-.. include:: oauth/3_2.rst
+.. include:: oauth/3.2.rst
 
-.. _oauth_3_2_1:
+.. _oauth.3.2.1:
 
-.. include:: oauth/3_2_1.rst
+.. include:: oauth/3.2.1.rst
 
-.. _oauth_3_3:
+.. _oauth.3.3:
 
-.. include:: oauth/3_3.rst
+.. include:: oauth/3.3.rst
+
+(----)
 
 .. _oauth_4:
 
