@@ -334,3 +334,11 @@ Based on `OpenID Connect Messages 1.0 - draft 13 <http://openid.bitbucket.org/op
 .. _messages_11_2:
 
 .. include:: messages/11_2.rst
+
+My Note
+==========
+
+.. note::
+    - Simplified version of Aggregated and Distributed Claim
+
+.. include:: messages/aggr_dist.rst
