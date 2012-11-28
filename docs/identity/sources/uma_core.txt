@@ -239,3 +239,8 @@ Based on http://tools.ietf.org/html/draft-hardjono-oauth-umacore-05
 .. _uma_core.13.2:
 
 .. include:: uma_core/13.2.rst
+
+Note
+======
+
+.. include:: uma_core/connect_resset.rst
