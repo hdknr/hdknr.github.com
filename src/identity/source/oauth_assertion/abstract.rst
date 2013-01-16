@@ -1,20 +1,21 @@
 Abstract
 ==============
 
-This specification provides **a general framework for the use of assertions** 
-as **client credentials** and/or **authorization grants** with :doc:`OAuth 2.0 <oauth>`.  
+This specification provides a framework for the use of assertions
+with OAuth 2.0 in the form of a new client authentication mechanism
+and a new authorization grant type.  
+Mechanisms are specified for
+transporting assertions during interactions with a token endpoint, as
+well as general processing rules.
 
-It includes a generic mechanism 
-for transporting assertions during interactions with a :term:`token endpoint`, 
-as wells as rules for the content and processing of those assertions.  
-The intent is to provide an enhanced security profile 
-by using derived values such as signatures or HMACs, 
-as well as facilitate the use of OAuth 2.0 
-in client-server integration scenarios where the end-user may not be present.
+The intent of this specification is to provide a common framework for
+OAuth 2.0 to interwork with other identity systems using assertions,
+and to provide alternative client authentication mechanisms.
 
-This specification only defines **abstract message flow** and **assertion content**.  
-Actual use requires implementation of a companion protocol binding specification.  
-Additional profile documents provide standard representations in formats such as :term:`SAML` and :term:`JWT`.
+Note that this specification only defines abstract message flows and
+processing rules.  In order to be implementable, companion
+specifications are necessary to provide the corresponding concrete
+instantiations.
 
 .. note::
 
@@ -28,3 +29,4 @@ Additional profile documents provide standard representations in formats such as
         - Handle - "artifact"
         - Assertion - "self-contained token"
 
+(draft 09)

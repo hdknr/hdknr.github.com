@@ -31,3 +31,8 @@ AWS
     # mkdir /home
     # mount -t ext3 /dev/sdb1 /home
 
+
+インスタンス
+=============
+
+- :ref:`debian.aws`

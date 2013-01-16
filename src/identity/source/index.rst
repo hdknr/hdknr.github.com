@@ -10,22 +10,38 @@ Digital Identity
 OAuth
 ----------
 
+RFC
+^^^^^
+
 .. toctree::
     :maxdepth: 1
 
     oauth
+    oauth_bearer
+    oauth_threat
+
+Draft
+---------
+
+.. toctree::
+    :maxdepth: 1
+
     oauth_assertion
     oauth_responses
-    oauth_threat
-    oauth_bearer
     oauth_jwt_bearer
     oauth_saml2_bearer
     oauth_mac
     oauth_reg
-    oauth_usecases
     oauth_revocation
+    oauth_introspect
+
+Resource
+-----------
+
+.. toctree::
+    :maxdepth: 1
+
     oauth_res
-    oauth_milestones
 
 OpenID/Connect
 ---------------
@@ -123,6 +139,8 @@ Others
     discussion
         
     signed_nonce
+
+    adtech
 
     technight_9
 

@@ -81,8 +81,36 @@ sshキー作成::
 - :doc:`jenkins` は入れた方がいいですね。
 
 
+.. _debian.git:
+
+AWSインスタンス
+----------------------------
+
+ロケールの設定
+^^^^^^^^^^^^^^^^^^^
+
+.. code-block:: bash
+
+    root@ip-10-132-8-118:~# locale-gen ja_JP
+    Generating locales (this might take a while)...
+      en_US.UTF-8... done
+      ja_JP.UTF-8... done
+    Generation complete.
+    
+    
+    root@ip-10-132-8-118:~# dpkg-reconfigure locales
+    Generating locales (this might take a while)...
+      en_US.UTF-8... done
+      ja_JP.UTF-8... done
+    Generation complete.
+
+
+
 その他
 =======
+
+- ユーザー : :doc:`user` 
+- シェル : :doc:`bash`
 
 証明書
 --------

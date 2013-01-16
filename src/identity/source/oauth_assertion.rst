@@ -1,15 +1,16 @@
 ========================================
-OAuth 2.0 Assertion Profile
+Assertion Framework for OAuth 2.0
 ========================================
 
-http://tools.ietf.org/html/draft-ietf-oauth-assertions-01
+.. contents:: Table of Contents
+    :local:
+   
+http://tools.ietf.org/html/draft-ietf-oauth-assertions-09
 
 .. _oauth_assertion.abstract:
 
 .. include:: oauth_assertion/abstract.rst
 
-.. contents:: Table of Contents
-   
 .. _oauth_assertion.1:
 
 .. include:: oauth_assertion/1.rst

@@ -2,9 +2,8 @@
 Auth 2.0 Threat Model and Security Considerations
 ======================================================
 
+- :rfc:`6819` ( http://tools.ietf.org/html/rfc6819 )
  
-`draft-ietf-oauth-v2-threatmodel-01 <http://tools.ietf.org/html/draft-ietf-oauth-v2-threatmodel-0>`_
-
 .. contents:: Table of Contents
 
 .. _ouath_threat.abstract:

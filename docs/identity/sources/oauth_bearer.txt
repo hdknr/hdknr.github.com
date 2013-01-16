@@ -1,11 +1,11 @@
 ================================================================================
-The OAuth 2.0 Authorization Protocol: Bearer Tokens
+The OAuth 2.0 Authorization Framework: Bearer Token Usage
 ================================================================================
 
 .. contents:: Table of Contents
+    :local:
 
-Based on http://tools.ietf.org/html/draft-ietf-oauth-v2-bearer-22
-(July 12, 2012 )
+(:rfc:`6750` : http://tools.ietf.org/html/rfc6750 )
 
 .. _oauth_bearer.abstract:
 
@@ -60,19 +60,6 @@ Based on http://tools.ietf.org/html/draft-ietf-oauth-v2-bearer-22
 
 .. include:: oauth_bearer/4.rst
 
-.. _oauth_bearer.4.1:
-
-.. include:: oauth_bearer/4.1.rst
-
-
-.. _oauth_bearer.4.2:
-
-.. include:: oauth_bearer/4.2.rst
-
-.. _oauth_bearer.4.3:
-
-.. include:: oauth_bearer/4.3.rst
-
 .. _oauth_bearer.5:
 
 .. include:: oauth_bearer/5.rst
@@ -81,18 +68,13 @@ Based on http://tools.ietf.org/html/draft-ietf-oauth-v2-bearer-22
 
 .. include:: oauth_bearer/5.1.rst
 
-.. _oauth_bearer.5.1.1:
-
-.. include:: oauth_bearer/5.1.1.rst
-
-
 .. _oauth_bearer.5.2:
 
 .. include:: oauth_bearer/5.2.rst
 
-.. _oauth_bearer.5.2.1:
+.. _oauth_bearer.5.3:
 
-.. include:: oauth_bearer/5.2.1.rst
+.. include:: oauth_bearer/5.3.rst
 
 .. _oauth_bearer.6:
 
@@ -102,7 +84,35 @@ Based on http://tools.ietf.org/html/draft-ietf-oauth-v2-bearer-22
 
 .. include:: oauth_bearer/6.1.rst
 
+.. _oauth_bearer.6.1.1:
+
+.. include:: oauth_bearer/6.1.1.rst
 
 .. _oauth_bearer.6.2:
 
 .. include:: oauth_bearer/6.2.rst
+
+.. _oauth_bearer.6.2.1:
+
+.. include:: oauth_bearer/6.2.1.rst
+
+.. _oauth_bearer.6.2.2:
+
+.. include:: oauth_bearer/6.2.2.rst
+
+.. _oauth_bearer.6.2.3:
+
+.. include:: oauth_bearer/6.2.3.rst
+
+
+.. _oauth_bearer.7:
+
+.. include:: oauth_bearer/7.rst
+
+.. _oauth_bearer.7.1:
+
+.. include:: oauth_bearer/7.1.rst
+
+.. _oauth_bearer.7.2:
+
+.. include:: oauth_bearer/7.2.rst

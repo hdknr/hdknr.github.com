@@ -95,6 +95,41 @@ smbfsによるマウント
 
     //server/server_data /mnt/smb/server cifs username=admin,password=password,codepage=cp932,iocharset=utf8,defaults 0 0
 
+.. _smb.smbclient:
+
+smbclient
+-------------
+
+インストール::
+
+    $  sudo aptitude install smbclient 
+
+共有(share)の一覧
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+wzyというコンピュータのシェア一覧::
+
+    $ smbclient -L wzy
+
+    Enter hdknr's password: 
+
+    Domain=[WORKGROUP] OS=[Unix] Server=[Samba 3.6.6]
+    
+            Sharename       Type      Comment
+            ---------       ----      -------
+            print$          Disk      Printer Drivers
+            IPC$            IPC       IPC Service (wzy server)
+            hdknr           Disk      Home Directories
+
+    Domain=[WORKGROUP] OS=[Unix] Server=[Samba 3.6.6]
+    
+            Server               Comment
+            ---------            -------
+            WZY                  wzy server
+    
+            Workgroup            Master
+            ---------            -------
+            WORKGROUP            WZY
 
 Samba
 ======

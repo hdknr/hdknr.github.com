@@ -2,12 +2,9 @@
 JSON Web Token(JWT)
 =====================
 
-`JSON Web Token (JWT) draft-jones-json-web-token-06 <http://self-issued.info/docs/draft-jones-json-web-token.html>`_ 
-(October 30, 2011 )
-
-.. todo::
-    Now draft is 08 ( March 12, 2012 ) 
-    ( http://self-issued.info/docs/draft-jones-json-web-token.html ) 
+ 
+- draft-ietf-oauth-json-web-token-05
+- http://tools.ietf.org/html/draft-ietf-oauth-json-web-token-05
 
 .. _jwt.abstract:
 
@@ -38,6 +35,38 @@ JSON Web Token(JWT)
 .. _jwt.4.1:
 
 .. include:: jwt/4.1.rst
+
+.. _jwt.4.1.1:
+
+.. include:: jwt/4.1.1.rst
+
+.. _jwt.4.1.2:
+
+.. include:: jwt/4.1.2.rst
+
+.. _jwt.4.1.3:
+
+.. include:: jwt/4.1.3.rst
+
+.. _jwt.4.1.4:
+
+.. include:: jwt/4.1.4.rst
+
+.. _jwt.4.1.5:
+
+.. include:: jwt/4.1.5.rst
+
+.. _jwt.4.1.6:
+
+.. include:: jwt/4.1.6.rst
+
+.. _jwt.4.1.7:
+
+.. include:: jwt/4.1.7.rst
+
+.. _jwt.4.1.8:
+
+.. include:: jwt/4.1.8.rst
 
 .. _jwt.4.2:
 

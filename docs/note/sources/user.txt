@@ -3,9 +3,12 @@ Unix User
 ==================
 
 .. contents:: Unix User
+    :local:
 
 groupadd & useradd
 ====================
+
+:doc:`debian` 
 
 ::
 

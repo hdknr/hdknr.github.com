@@ -15,10 +15,52 @@ map関数
     > [undefined,null,'hello'].map(function(i){ return typeof(i)})
     [ 'undefined', 'object', 'string' ]
 
+.. _javascript.node.js:
+
 node.js
 =========
 
+CLI
+====
 
+    - :ref:`javascript.node.js`
+    - Rhino (Java)
+    - SpiderMonkey (C)
+    - PhantomJS : https://github.com/ariya/phantomjs
+
+Tests
+=========
+
+- http://www.slideshare.net/KojiNakamura/jstdd
+
+.. glossary::
+
+    QUnit
+        - http://qunitjs.com/
+        - シンプル
+        - jQuery開発で使われている
+        - :ref:`javascript.node.js` で動かしたり出来る
+
+    Jasmine
+        - http://pivotal.github.com/jasmine/
+        - Rails
+        - Jasmine-node で :ref:`javascript.node.js` で動かせる
+
+    Mocha
+        - http://visionmedia.github.com/mocha/
+        - CLI
+
+    Vows
+        - https://github.com/cloudhead/vows
+        - CLI
+
+テストランナー
+------------------
+
+    - Selenium
+    - JsTestDriver
+    - BusterJS ( http://docs.busterjs.org/en/latest/ )
+    - Testacular
 
 
 Javascript Beautifier
@@ -28,7 +70,7 @@ Javascript Beautifier
 
 
 
-JavaScript:The Good Parts
+JavaScript : The Good Parts
 ==============================     
 
 Good Parts
