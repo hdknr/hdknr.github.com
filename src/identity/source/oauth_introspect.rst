@@ -6,7 +6,7 @@ OAuth Token Introspection
 
 - http://tools.ietf.org/html/draft-richer-oauth-introspection-01
 
-.. _oauth_introspect._abstract:
+.. _oauth_introspect.abstract:
 
 .. include:: oauth_introspect/abstract.rst
 
@@ -30,7 +30,7 @@ OAuth Token Introspection
 
 .. include:: oauth_introspect/2.3.rst
 
-.. _oauth_introspect_3:
+.. _oauth_introspect.3:
 
 .. include:: oauth_introspect/3.rst
 
@@ -39,11 +39,11 @@ OAuth Token Introspection
 .. include:: oauth_introspect/4.rst
 
 
-.. _oauth_introspect_5:
+.. _oauth_introspect.5:
 
 .. include:: oauth_introspect/5.rst
 
-.. _oauth_introspect_6:
+.. _oauth_introspect.6:
 
 .. include:: oauth_introspect/6.rst
 
