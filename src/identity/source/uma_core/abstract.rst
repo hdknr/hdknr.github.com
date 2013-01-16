@@ -1,11 +1,12 @@
 Abstract
 =================================
 
-This specification defines the User-Managed Access (UMA) core protocol.  
-This protocol provides a method for users to control access 
-to their protected resources, 
-residing on any number of host sites, 
-through an authorization manager that governs access decisions based on user policy.
+User-Managed Access (UMA) is a profile of OAuth 2.0.  
 
-(draft 05)
+UMA defines how :term:`resource owners` can control access to their :term:`protected resources` 
+made by :term:`clients` operated by arbitrary rquesting parties, 
+where the resources reside on any number of resource servers, 
+and where a centralized :term:`authorization server` governs access 
+based on :term:`resource owner policy`.
 
+(draft 06)

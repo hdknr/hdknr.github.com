@@ -1,13 +1,16 @@
 ======================================================
-User-Managed Access (UMA) Core Protocol
+User-Managed Access (UMA) Profile of OAuth 2.0
 ======================================================
 
-Based on http://tools.ietf.org/html/draft-hardjono-oauth-umacore-05
-
 .. _uma_core.abstract:
+    :local:
+
+- Based on http://tools.ietf.org/html/draft-hardjono-oauth-umacore-06
+
+.. note::
+    - draft 06からCore Protocol ではなくて Profile of OAuth 2.0 になりました
 
 .. include:: uma_core/abstract.rst
-
 
 .. seqdiag:: uma_core/uma_core.diag
 
