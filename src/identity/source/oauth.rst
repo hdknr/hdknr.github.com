@@ -263,9 +263,83 @@ The OAuth 2.0 Authorization Framework
 
 .. include:: oauth/9.rst
 
-.. _oauth_10:
+.. _oauth.10:
 
 .. include:: oauth/10.rst
+
+.. _oauth.10.1:
+
+.. include:: oauth/10.1.rst
+
+.. _oauth.10.2:
+
+.. include:: oauth/10.2.rst
+
+.. _oauth.10.3:
+
+.. include:: oauth/10.3.rst
+
+.. _oauth.10.4:
+
+.. include:: oauth/10.4.rst
+
+.. _oauth.10.5:
+
+.. include:: oauth/10.5.rst
+
+.. _oauth.10.6:
+
+.. include:: oauth/10.6.rst
+
+
+.. _oauth.10.7:
+
+.. include:: oauth/10.7.rst
+
+
+.. _oauth.10.8:
+
+.. include:: oauth/10.8.rst
+
+
+.. _oauth.10.9:
+
+.. include:: oauth/10.9.rst
+
+
+.. _oauth.10.10:
+
+.. include:: oauth/10.10.rst
+
+.. _oauth.10.11:
+
+.. include:: oauth/10.11.rst
+
+
+.. _oauth.10.12:
+
+.. include:: oauth/10.12.rst
+
+
+.. _oauth.10.13:
+
+.. include:: oauth/10.13.rst
+
+
+.. _oauth.10.14:
+
+.. include:: oauth/10.14.rst
+
+
+.. _oauth.10.15:
+
+.. include:: oauth/10.15.rst
+
+
+.. _oauth.10.16:
+
+.. include:: oauth/10.16.rst
+
 
 .. _oauth_11:
 
