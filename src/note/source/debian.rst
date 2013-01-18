@@ -71,6 +71,10 @@ sshキー作成::
 
     $ git clone git@github.com:hdknr/bin.git
 
+::
+
+    $ git clone https://github.com/hdknr/bin.git
+
 リードオンリー::
 
     $ git clone git://github.com/hdknr/bin.git

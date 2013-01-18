@@ -32,6 +32,7 @@ Misc
     jquery
     glossary
     software_design
+    dns
 
 Security:
 
