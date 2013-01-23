@@ -143,6 +143,13 @@ mod_macro
 インストール
 ----------------
 
+::
+
+    The current version for Apache 2.4 is 1.2.1. 
+    For Apache 2.2, use 1.1.11. 
+    For Apache 2.0, use 1.1.6. 
+    It won't work with Apache 1.3 for which you should use version 1.1.2. 
+
 - apache 2.2 には mod_macro-1.1.11 をインストールします。
 
 .. literalinclude:: _static/apache/mod_macro.install.txt

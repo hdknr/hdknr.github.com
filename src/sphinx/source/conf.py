@@ -305,8 +305,8 @@ os.environ['DJANGO_SETTINGS_MODULE'] = 'app.settings'
 # 
 exclude_patterns = [ 'source/log/*.rst' ]
 
-
 def setup(app):
     ''' Sphinx instance '''
-    print "Sphinx():",dir(app)
-    print "RowConfig", app.config._raw_config
+#    print "Sphinx():",dir(app)
+#    print "RowConfig", app.config._raw_config
+    pass

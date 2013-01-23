@@ -34,6 +34,14 @@ Misc
     software_design
     dns
 
+Mail
+
+.. toctree::
+    :maxdepth: 1
+
+    rfc3464
+    verp
+
 Security:
 
 .. toctree::

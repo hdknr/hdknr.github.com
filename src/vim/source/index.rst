@@ -15,6 +15,7 @@ Contents:
     replace 
     keys
     vundle
+    neobundle
 
 
 Indices and tables

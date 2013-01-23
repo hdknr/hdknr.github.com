@@ -13,6 +13,7 @@ Contents:
 
     conf
     rst
+    markup
     xref
     ext
     graphviz
