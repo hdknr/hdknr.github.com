@@ -35,6 +35,7 @@ Draft
     oauth_revocation
     oauth_introspect
     oauth_meta
+    oauth_res_reg
 
 Resource
 -----------
