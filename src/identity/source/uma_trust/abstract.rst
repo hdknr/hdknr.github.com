@@ -1,31 +1,25 @@
+:orphan:
+
 Abstract
 ==========
 
-This document explores the expectations and responsibilities 
-of various parties interoperating in the User-Managed Access (UMA) context, 
-with an overall goal of facilitating legal enforceability of any agreements 
-made between :term:`authorizing users` and :term:`requesting parties` 
-in the granting of access authorization.
+:doc:`User-Managed Access <uma_core>` (UMA) is a profile of OAuth 2.0.  
 
-Status
----------
+UMA defines how resource owners can control protected-resource access by clients
+operated by arbitrary requesting parties, where the resources reside
+on any number of resource servers, and where a centralized
+authorization server governs access based on resource owner policy.
 
-This document is a product of the `User-Managed Access Work Group`_. It is currently under active development. Its latest version can always be found here. See the Change History at the end of this document for its revision number.
+This document provides a **contractual framework** that defines the
+**minimum obligations** of parties that operate and use 
+UMA-conforming software programs and services.  
 
-.. _`User-Managed Access Work Group` : http://kantarainitiative.org/confluence/display/uma/Home
+The goal of this framework is to support **end-to-end legal enforceability** 
+of the terms and conditions of access sharing relationships 
+between authorizing and requesting sides that use UMA.  
 
-Editors
----------
-
-    Susan Morrow
-    Eve Maler
-
-Intellectual Property Notice
-------------------------------------
-
-The User-Managed Access Work Group operates under Kantara IPR Policy - 
-Option Patent & Copyright: 
-Reciprocal Royalty Free with Opt-Out to Reasonable And Non discriminatory (RAND) 
-and the publication of this document is governed by the policies outlined in this option.
+The audience for this document includes technologists, 
+legal professionals, and operators of UMA-conforming services.
 
 
+(draft 00 : http://tools.ietf.org/html/draft-maler-oauth-umatrust-00)

@@ -1,14 +1,17 @@
-=====================
-UMA Trust Model
-=====================
+====================================================================================
+Binding Obligations on User-Managed Access (UMA) Participants
+====================================================================================
 
-Based on http://kantarainitiative.org/confluence/display/uma/UMA+Trust+Model
+.. note::
+    - Internet Draft 化しました
+    - Based on http://tools.ietf.org/html/draft-maler-oauth-umatrust-00
+
+.. contents:: Table of Contents
+    :local:
 
 .. _uma_trust.abstract:
 
 .. include:: uma_trust/abstract.rst
-
-.. contents:: Table of Contents
 
 .. _uma_trust.2:
 
