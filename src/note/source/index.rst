@@ -15,6 +15,7 @@ Misc
     swd
     python
     python_csharp
+    csharp
     php
     pattern
     mysql
@@ -33,6 +34,7 @@ Misc
     glossary
     software_design
     dns
+    supervisord
 
 Mail
 
@@ -90,6 +92,7 @@ Linux Commands:
     sudo
     logging
     curl
+    upstart
 
     memo
 
@@ -114,6 +117,7 @@ Windows:
     moq
     jsonnet
     reflection
+    iis
     
 Indices and tables
 ==================

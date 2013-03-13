@@ -611,3 +611,29 @@ git log  (git-log) -   Show commit logs
 
     git-shortlog
         - http://schacon.github.com/git/git-shortlog.html
+
+credential
+===========
+
+- クレデンシャルの設定
+
+.. code-block:: bash
+
+    hdknr@ubt2:~$ git config --global credential.https://git.hdknr.com.username myname@hdknr.com
+    hdknr@ubt2:~$ git config --global credential.helper cache
+
+    hdknr@ubt2:~/repo$ git pull
+    Password for 'https://myname@hdknr@git.hdknr.com':  (パスワード入力)
+    Already up-to-date.
+
+    hdknr@ubt2:~/repo$ git pull
+    Already up-to-date.
+
+
+Github
+=======
+
+hub
+----
+
+- http://defunkt.io/hub/

@@ -9,6 +9,7 @@ Debian Linux
         http://www.debian.org/
 
 .. contents:: Debian
+    :local:
 
 Documents
 =============

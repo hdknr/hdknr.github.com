@@ -30,7 +30,7 @@ Disconnected
 
 .. image:: _static/todo/domains.jpg
 
-- コンポーネント化
+- スペックコンポーネント化
 
     - Authorization Workflow (OAuth2)
     - Identity Assertion / Session (ID Token)
@@ -43,6 +43,14 @@ Disconnected
     - Smart Application and Browser 
 
 
+Browser Login with Self-Issued OP (PCSIOP)
+============================================
+
+.. seqdiag:: todo.pcsiop.diag
+
 TODO
 =====
 .. todolist::
+
+
+

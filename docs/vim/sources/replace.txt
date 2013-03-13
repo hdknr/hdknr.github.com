@@ -2,9 +2,14 @@
 置換
 =======
 
+.. contents::
+    :local:
 
-Sphinx のクロスリファレンス
+Sphinx
 ============================
+
+term
+--------------------
 
 ソース ::
 
@@ -21,3 +26,11 @@ Sphinx のクロスリファレンス
 
     ":term:`Access Token`",
     ":term:`Refresh Token`",
+
+rfc
+----
+
+::
+
+    :%s/RFC \(.*\),/:rfc:\`\1`,/g
+

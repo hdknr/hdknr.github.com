@@ -57,6 +57,59 @@ virtualenv
 
     mkvirutalenv --system-site-packages planet
 
+.. _python.pythonz:
+
+pythonz
+---------
+
+- https://github.com/saghul/pythonz
+
+rootインストール
+^^^^^^^^^^^^^^^^^^^^^
+
+- /usr/local/pythonz にインストールされます
+
+    - インストール
+
+        .. code-block:: bash
+
+            root@wzy:~# curl -kL https://raw.github.com/saghul/pythonz/master/pythonz-install | bash
+
+    - シェルを抜けます
+    - 再度rootになってターゲートのPythonをインストール
+
+        .. code-block:: bash
+
+            root@wzy:~# pythonz install 2.7.3
+
+    - 設定
+
+        .. code-block:: bash
+
+            root@wzy:~# mkdir .bash_extra
+            root@wzy:~# echo 'export PATH=$PYTHONZ_ROOT/pythons/CPython-2.7.3/bin:$PATH' > .bash_extra/python-2.7.3.bash
+            root@wzy:~# source .bash_extra/python-2.7.3.bash 
+            root@wzy:~# which python
+            /usr/local/pythonz/pythons/CPython-2.7.3/bin/python
+
+    - eazy_install & pip
+
+        .. code-block:: bash
+
+            root@wzy:~# curl http://peak.telecommunity.com/dist/ez_setup.py | python
+            root@wzy:~# easy_install pip
+            root@wzy:~# pip install yolk
+
+            root@wzy:~# yolk -l
+
+            Python          - 2.7.3        - active development (/usr/local/pythonz/pythons/CPython-2.7.3/lib/python2.7/lib-dynload)
+            pip             - 1.3.1        - active 
+            setuptools      - 0.6c11       - active 
+            wsgiref         - 0.1.2        - active development (/usr/local/pythonz/pythons/CPython-2.7.3/lib/python2.7)
+            yolk            - 0.4.3        - active 
+
+
+
 Encoding
 ==========
 

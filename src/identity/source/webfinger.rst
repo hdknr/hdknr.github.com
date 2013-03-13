@@ -2,11 +2,11 @@
 WebFinger
 ===============
 
-.. contents:: WebFinger Draft 06
+.. contents:: WebFinger Internet Draft 08
+    :local:
 
-- June 18, 2012 , Draft 06
-- draft-jones-appsawg-webfinger-06.txt
-- http://tools.ietf.org/html/draft-jones-appsawg-webfinger-06
+- Internet Draft 08
+- http://tools.ietf.org/html/draft-ietf-appsawg-webfinger-08
 
 .. _webfinger.abstract:
 
@@ -100,35 +100,11 @@ WebFinger
 
 .. include:: webfinger/11.rst
 
-.. _webfinger.12:
+.. _webfinger.11.1:
 
-.. include:: webfinger/12.rst
+.. include:: webfinger/11.1.rst
 
-.. _webfinger.12.1:
+.. _webfinger.11.2:
 
-.. include:: webfinger/12.1.rst
-
-.. _webfinger.12.2:
-
-.. include:: webfinger/12.2.rst
-
-.. _webfinger.13:
-
-.. include:: webfinger/13.rst
-
-.. _webfinger.14:
-
-.. include:: webfinger/14.rst
-
-.. _webfinger.14.1:
-
-.. include:: webfinger/14.1.rst
-
-.. _webfinger.14.2:
-
-.. include:: webfinger/14.2.rst
-
-.. _webfinger.glossary:
-
-.. include:: webfinger/glossary.rst
+.. include:: webfinger/11.2.rst
 

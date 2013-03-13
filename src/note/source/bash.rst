@@ -8,13 +8,20 @@ bash
 Cookbook
 ===============
 
-- sourceされるスクリプトからexitするには？
+sourceされるスクリプトからexitするには？
+------------------------------------------
 
-    - 単純にexitするとシェルが終了してしまうよ
+- 単純にexitするとシェルが終了してしまうよ
 
-        .. code-block:: bash
+    .. code-block:: bash
 
-            return 2>&- || exit;
+        return 2>&- || exit;
+
+変数
+====
+
+.. literalinclude:: _static/bash/args.bash
+    :language: bash
 
 
 $(コマンド)
@@ -218,7 +225,6 @@ chsh (自分で変える)
 ::
 
     $ chsh -s /bin/bash
-
 
 
 Link

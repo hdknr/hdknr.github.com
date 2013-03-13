@@ -24,8 +24,22 @@ docs["oauth_res_reg.rst"]= [
     "11.1.rst",
     "11.2.rst",
 ]
+
+docs["oauth-lrdd"] = [
+    "abstract.rst",
+    "1.rst",
+    "2.rst",
+    "3.1.rst",
+    "3.2.rst",
+    "3.rst",
+    "4.rst",
+    "5.rst",
+    "6.rst",
+    "7.rst",
+]
 import os
-fname='oauth_res_reg.rst'
+#fname='oauth_res_reg.rst'
+fname='oauth-lrdd'
 
 dname,dext= os.path.splitext(fname)
 
