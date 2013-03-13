@@ -144,11 +144,10 @@ The OAuth 2.0 Authorization Framework
 
 .. include:: oauth/3.3.rst
 
-(----)
-
-.. _oauth_4:
+.. _oauth.4:
 
 .. include:: oauth/4.rst
+
 
 .. _oauth.4.1:
 
@@ -175,7 +174,7 @@ The OAuth 2.0 Authorization Framework
 .. include:: oauth/4_1_4.rst
 
 
-.. _oauth_4_2:
+.. _oauth.4.2:
 
 .. _oauth_4_2_1:
 
@@ -247,9 +246,9 @@ The OAuth 2.0 Authorization Framework
 
 .. include:: oauth/7.rst
 
-.. _oauth_7_1:
+.. _oauth.7.1:
 
-.. include:: oauth/7_1.rst
+.. include:: oauth/7.1.rst
 
 .. _oauth_8:
 
