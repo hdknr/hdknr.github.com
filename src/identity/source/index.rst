@@ -36,6 +36,7 @@ Draft
     oauth_introspect
     oauth_meta
     oauth_res_reg
+    oauth-lrdd
 
 Resource
 -----------
