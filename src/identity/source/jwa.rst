@@ -5,7 +5,8 @@ JSON Web Algorithms (JWA)
 .. contents:: Table of Contents
     :local:
 
-- `JWA Draft 06 <http://tools.ietf.org/html/draft-ietf-jose-json-web-algorithms-06>`_
+.. note::
+    - `JWA Draft 08 <http://tools.ietf.org/html/draft-ietf-jose-json-web-algorithms-08>`_
 
 .. _jwa.abstract:
 
