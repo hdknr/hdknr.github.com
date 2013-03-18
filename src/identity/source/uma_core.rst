@@ -114,15 +114,6 @@ User-Managed Access (UMA) Profile of OAuth 2.0
 
 .. include:: uma_core/3.4.3.rst
 
-.. _uma_core.3.4.4:
-
-.. include:: uma_core/3.4.4.rst
-
-.. _uma_core.3.4.5:
-
-.. include:: uma_core/3.4.5.rst
-
-
 .. _uma_core.3.5:
 
 .. include:: uma_core/3.5.rst
