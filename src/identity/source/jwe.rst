@@ -3,9 +3,10 @@ JSON Web Encryption (JWE)
 ============================
 
 .. contents:: Table of Contents
+    :local:
 
-Based on `JWE Draft 03 <http://tools.ietf.org/html/draft-ietf-jose-json-web-encryption-03>`_
-
+.. note::
+    - http://tools.ietf.org/html/draft-ietf-jose-json-web-encryption-08
 
 .. _jwe.abstract:
 
@@ -35,6 +36,14 @@ Based on `JWE Draft 03 <http://tools.ietf.org/html/draft-ietf-jose-json-web-encr
 .. _jwe.4.1:
 
 .. include:: jwe/4.1.rst
+
+.. _jwe.6:
+
+.. include:: jwe/6.rst
+
+.. _jwe.6.1:
+
+.. include:: jwe/6.1.rst
 
 .. _jwe.7:
 
