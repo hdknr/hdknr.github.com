@@ -242,13 +242,17 @@ The OAuth 2.0 Authorization Framework
 
 .. include:: oauth/6.rst
 
-.. _oauth_7:
+.. _oauth.7:
 
 .. include:: oauth/7.rst
 
 .. _oauth.7.1:
 
 .. include:: oauth/7.1.rst
+
+.. _oauth.7.2:
+
+.. include:: oauth/7.2.rst
 
 .. _oauth_8:
 
