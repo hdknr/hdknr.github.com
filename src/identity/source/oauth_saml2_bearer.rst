@@ -42,5 +42,16 @@ based on http://tools.ietf.org/html/draft-ietf-oauth-saml2-bearer-10
 
 .. include:: oauth_saml2_bearer/3.2.rst
 
+.. _oauth_saml2_bearer.7:
+
+.. include:: oauth_saml2_bearer/7.rst
+
+.. _oauth_saml2_bearer.7.1:
+
+.. include:: oauth_saml2_bearer/7.1.rst
+
+.. _oauth_saml2_bearer.7.2:
+
+.. include:: oauth_saml2_bearer/7.2.rst
 
 

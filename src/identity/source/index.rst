@@ -23,13 +23,23 @@ RFC
 Draft
 ---------
 
+Bearer
+^^^^^^^
+
+.. toctree::
+    :maxdepth: 1
+
+    oauth_jwt_bearer
+    oauth_saml2_bearer
+
+others
+^^^^^^^^^^
+
 .. toctree::
     :maxdepth: 1
 
     oauth_assertion
     oauth_responses
-    oauth_jwt_bearer
-    oauth_saml2_bearer
     oauth_mac
     oauth_reg
     oauth_revocation
@@ -87,6 +97,15 @@ JOSE and JWT
     jws_js
     jwe_js
 
+Discovery
+---------------
+
+.. toctree::
+    :maxdepth: 1
+
+    webfinger
+    swd
+
 Related
 ---------------
 
@@ -95,8 +114,6 @@ Related
 
     backplane 
 
-    webfinger
-    swd
     lrdd
     revoke
 
@@ -106,7 +123,6 @@ Related
     poco
 
     glossary
-    issues
 
 SAML/OASIS
 -----------
