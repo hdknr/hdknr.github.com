@@ -37,9 +37,14 @@ docs["oauth-lrdd"] = [
     "6.rst",
     "7.rst",
 ]
+docs['saml_bearer'] = [
+    "abstract.rst",
+    "1.rst",
+]
 import os
 #fname='oauth_res_reg.rst'
-fname='oauth-lrdd'
+#fname='oauth-lrdd'
+fname='saml_bearer'
 
 dname,dext= os.path.splitext(fname)
 
