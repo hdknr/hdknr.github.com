@@ -2,11 +2,11 @@
 WebFinger
 ===============
 
-.. contents:: WebFinger Internet Draft 08
+.. contents:: WebFinger Internet Draft 
     :local:
 
 - Internet Draft 08
-- http://tools.ietf.org/html/draft-ietf-appsawg-webfinger-08
+- http://tools.ietf.org/html/draft-ietf-appsawg-webfinger-12
 
 .. _webfinger.abstract:
 
@@ -23,6 +23,22 @@ WebFinger
 .. _webfinger.3:
 
 .. include:: webfinger/3.rst
+
+.. _webfinger.3.1:
+
+.. include:: webfinger/3.1.rst
+
+.. _webfinger.3.2:
+
+.. include:: webfinger/3.2.rst
+
+.. _webfinger.3.3:
+
+.. include:: webfinger/3.3.rst
+
+.. _webfinger.3.4:
+
+.. include:: webfinger/3.4.rst
 
 .. _webfinger.4:
 
@@ -44,25 +60,49 @@ WebFinger
 
 .. include:: webfinger/4.4.rst
 
+.. _webfinger.4.4.1:
+
+.. include:: webfinger/4.4.1.rst
+
+.. _webfinger.4.4.2:
+
+.. include:: webfinger/4.4.2.rst
+
+.. _webfinger.4.4.3:
+
+.. include:: webfinger/4.4.3.rst
+
+.. _webfinger.4.4.4:
+
+.. include:: webfinger/4.4.4.rst
+
+.. _webfinger.4.4.4.1:
+
+.. include:: webfinger/4.4.4.1.rst
+
+.. _webfinger.4.4.4.2:
+
+.. include:: webfinger/4.4.4.2.rst
+
+.. _webfinger.4.4.4.3:
+
+.. include:: webfinger/4.4.4.3.rst
+
+.. _webfinger.4.4.4.4:
+
+.. include:: webfinger/4.4.4.4.rst
+
+.. _webfinger.4.4.4.5:
+
+.. include:: webfinger/4.4.4.5.rst
+
+.. _webfinger.4.5:
+
+.. include:: webfinger/4.5.rst
+
 .. _webfinger.5:
 
 .. include:: webfinger/5.rst
-
-.. _webfinger.5.1:
-
-.. include:: webfinger/5.1.rst
-
-.. _webfinger.5.2:
-
-.. include:: webfinger/5.2.rst
-
-.. _webfinger.5.3:
-
-.. include:: webfinger/5.3.rst
-
-.. _webfinger.5.4:
-
-.. include:: webfinger/5.4.rst
 
 .. _webfinger.6:
 
@@ -71,18 +111,6 @@ WebFinger
 .. _webfinger.7:
 
 .. include:: webfinger/7.rst
-
-.. _webfinger.7.1:
-
-.. include:: webfinger/7.1.rst
-
-.. _webfinger.7.2:
-
-.. include:: webfinger/7.2.rst
-
-.. _webfinger.7.2:
-
-.. include:: webfinger/7.2.rst
 
 .. _webfinger.8:
    

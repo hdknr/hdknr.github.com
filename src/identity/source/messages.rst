@@ -40,9 +40,9 @@ Based on `OpenID Connect Messages 1.0 - draft 15 <http://openid.bitbucket.org/op
 
 .. include:: messages/2_1_1.rst
 
-.. _messages_2_1_1_1:
+.. _messages.2.1.1.1:
 
-.. include:: messages/2_1_1_1.rst
+.. include:: messages/2.1.1.1.rst
 
 .. _messages_2_1_1_1_1:
 
@@ -250,6 +250,10 @@ Based on `OpenID Connect Messages 1.0 - draft 15 <http://openid.bitbucket.org/op
 .. _messages_7:
 
 .. include:: messages/7.rst
+
+.. _messages_7.4:
+
+.. include:: messages/7.4.rst
 
 .. _messages_8:
 
