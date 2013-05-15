@@ -1,14 +1,16 @@
 Appendix B. "x5c" (X.509 Certificate Chain) Example
 ========================================================================
 
-The string below is an example of a certificate chain that could be
-used as the value of an "x5c" (X.509 Certificate Chain) header
-parameter, per :ref:`Section 4.1.6 <jws.4.1.6>`.
+The JSON array below is an example of a certificate chain that could
+be used as the value of an "x5c" (X.509 Certificate Chain) header parameter, 
+per :ref:`Section 4.1.6 <jws.4.1.6>`.  
+
+Note that since these strings contain base64 encoded (not base64url encoded) values, 
+they are allowed to contain white space and line breaks.
 
 ::
 
-   -----BEGIN CERTIFICATE-----
-   MIIE3jCCA8agAwIBAgICAwEwDQYJKoZIhvcNAQEFBQAwYzELMAkGA1UEBhMCVVM
+   ["MIIE3jCCA8agAwIBAgICAwEwDQYJKoZIhvcNAQEFBQAwYzELMAkGA1UEBhMCVVM
    xITAfBgNVBAoTGFRoZSBHbyBEYWRkeSBHcm91cCwgSW5jLjExMC8GA1UECxMoR2
    8gRGFkZHkgQ2xhc3MgMiBDZXJ0aWZpY2F0aW9uIEF1dGhvcml0eTAeFw0wNjExM
    TYwMTU0MzdaFw0yNjExMTYwMTU0MzdaMIHKMQswCQYDVQQGEwJVUzEQMA4GA1UE
@@ -34,10 +36,8 @@ parameter, per :ref:`Section 4.1.6 <jws.4.1.6>`.
    5CkKSkB2XIsKd83ASe8T+5o0yGPwLPk9Qnt0hCqU7S+8MxZC9Y7lhyVJEnfzuz9
    p0iRFEUOOjZv2kWzRaJBydTXRE4+uXR21aITVSzGh6O1mawGhId/dQb8vxRMDsx
    uxN89txJx9OjxUUAiKEngHUuHqDTMBqLdElrRhjZkAzVvb3du6/KFUJheqwNTrZ
-   EjYx8WnM25sgVjOuH0aBsXBTWVU+4=
-   -----END CERTIFICATE-----
-   -----BEGIN CERTIFICATE-----
-   MIIE+zCCBGSgAwIBAgICAQ0wDQYJKoZIhvcNAQEFBQAwgbsxJDAiBgNVBAcTG1Z
+   EjYx8WnM25sgVjOuH0aBsXBTWVU+4=",
+   "MIIE+zCCBGSgAwIBAgICAQ0wDQYJKoZIhvcNAQEFBQAwgbsxJDAiBgNVBAcTG1Z
    hbGlDZXJ0IFZhbGlkYXRpb24gTmV0d29yazEXMBUGA1UEChMOVmFsaUNlcnQsIE
    luYy4xNTAzBgNVBAsTLFZhbGlDZXJ0IENsYXNzIDIgUG9saWN5IFZhbGlkYXRpb
    24gQXV0aG9yaXR5MSEwHwYDVQQDExhodHRwOi8vd3d3LnZhbGljZXJ0LmNvbS8x
@@ -64,10 +64,8 @@ parameter, per :ref:`Section 4.1.6 <jws.4.1.6>`.
    BgkqhkiG9w0BAQUFAAOBgQC1QPmnHfbq/qQaQlpE9xXUhUaJwL6e4+PrxeNYiY+
    Sn1eocSxI0YGyeR+sBjUZsE4OWBsUs5iB0QQeyAfJg594RAoYC5jcdnplDQ1tgM
    QLARzLrUc+cb53S8wGd9D0VmsfSxOaFIqII6hR8INMqzW/Rn453HWkrugp++85j
-   09VZw==
-   -----END CERTIFICATE-----
-   -----BEGIN CERTIFICATE-----
-   MIIC5zCCAlACAQEwDQYJKoZIhvcNAQEFBQAwgbsxJDAiBgNVBAcTG1ZhbGlDZXJ
+   09VZw==",
+   "MIIC5zCCAlACAQEwDQYJKoZIhvcNAQEFBQAwgbsxJDAiBgNVBAcTG1ZhbGlDZXJ
    0IFZhbGlkYXRpb24gTmV0d29yazEXMBUGA1UEChMOVmFsaUNlcnQsIEluYy4xNT
    AzBgNVBAsTLFZhbGlDZXJ0IENsYXNzIDIgUG9saWN5IFZhbGlkYXRpb24gQXV0a
    G9yaXR5MSEwHwYDVQQDExhodHRwOi8vd3d3LnZhbGljZXJ0LmNvbS8xIDAeBgkq
@@ -82,5 +80,6 @@ parameter, per :ref:`Section 4.1.6 <jws.4.1.6>`.
    P7RfZHM047QSv4dk+NoS/zcnwbNDu+97bi5p9wIDAQABMA0GCSqGSIb3DQEBBQU
    AA4GBADt/UG9vUJSZSWI4OB9L+KXIPqeCgfYrx+jFzug6EILLGACOTb2oWH+heQ
    C1u+mNr0HZDzTuIYEZoDJJKPTEjlbVUjP9UNV+mWwD5MlM/Mtsq2azSiGM5bUMM
-   j4QssxsodyamEwCW/POuZ6lcg5Ktz885hZo+L7tdEy8W9ViH0Pd
-   -----END CERTIFICATE-----
+   j4QssxsodyamEwCW/POuZ6lcg5Ktz885hZo+L7tdEy8W9ViH0Pd"]
+
+( draft 10, http://tools.ietf.org/html/draft-ietf-jose-json-web-signature-10#appendix-B )
