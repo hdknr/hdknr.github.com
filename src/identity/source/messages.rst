@@ -106,9 +106,9 @@ Based on `OpenID Connect Messages 1.0 - draft 15 <http://openid.bitbucket.org/op
 
 .. include:: messages/2_3.rst
 
-.. _messages_2_3_1:
+.. _messages.2.3.1:
 
-.. include:: messages/2_3_1.rst
+.. include:: messages/2.3.1.rst
 
 .. _messages_2_3_2:
 
@@ -127,9 +127,9 @@ Based on `OpenID Connect Messages 1.0 - draft 15 <http://openid.bitbucket.org/op
 .. include:: messages/2_3_3.rst
 
 
-.. _messages_2_4:
+.. _messages.2.4:
 
-.. include:: messages/2_4.rst
+.. include:: messages/2.4.rst
 
 .. _messages_2_4_1:
 
@@ -170,6 +170,18 @@ Based on `OpenID Connect Messages 1.0 - draft 15 <http://openid.bitbucket.org/op
 .. _messages.2.7.2:
 
 .. include:: messages/2.7.2.rst
+
+.. _messages.2.9:
+    
+.. include:: messages/2.9.rst
+
+.. _messages.2.10:
+    
+.. include:: messages/2.10.rst
+
+.. _messages.2.10.1:
+    
+.. include:: messages/2.10.1.rst
 
 .. _messages_3:
 
