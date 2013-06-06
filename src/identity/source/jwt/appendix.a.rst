@@ -1,22 +1,42 @@
-Appendix A.  Relationship of JWTs to SAML Tokens
+Appendix A.  Example Encrypted JWT
 =========================================================
 
-SAML 2.0 [OASIS.saml‑core‑2.0‑os] provides a standard for creating tokens with much greater expressivity 
-and more security options than supported by JWTs. 
+This example encrypts the same claims as used in :ref:`Section 3.1 <jwt.3.1>` 
+to the recipient using :term:`RSAES-PKCS1-V1_5` and :term:`AES_128_CBC_HMAC_SHA_256`.
 
-However, the cost of this flexibility and expressiveness is both size and complexity. 
-In addition, 
-SAML's use of XML [W3C.CR‑xml11‑20021015] and XML DSIG [RFC3275] only contributes to the size of SAML tokens.
+The following example JWE Header 
+(with line breaks for display purposes only) declares that:
 
-JWTs are intended to provide a simple token format 
-that is small enough to fit into HTTP headers and query arguments in URIs. 
-It does this by supporting a much simpler token model than SAML and using the JSON [RFC4627] object encoding syntax. 
-It also supports securing tokens using Hash-based Message Authentication Codes (HMACs) 
-and digital signatures using a smaller (and less flexible) format than XML DSIG.
+   -  the Content Encryption Key is encrypted to the recipient using the
+      RSAES-PKCS1-V1_5 algorithm to produce the JWE Encrypted Key and
 
-Therefore, 
-while JWTs can do some of the things SAML tokens do, 
-JWTs are not intended as a full replacement for SAML tokens, 
-but rather as a compromise token format to be used when space is at a premium.
+   -  the Plaintext is encrypted using the AES_128_CBC_HMAC_SHA_256
+      algorithm to produce the Ciphertext.
 
-(v.06)
+.. code-block:: javascript
+
+     {"alg":"RSA1_5","enc":"A128CBC-HS256"}
+
+Other than using the octets of the UTF-8 representation of 
+the JSON Claims Set from :term:`Section 3.1 <jwt.3.1>` as the plaintext value, 
+the computation of this JWT is identical to the computation of 
+the JWE in Appendix A.2 of [JWE], including the keys used.
+
+The final result in this example (with line breaks for display
+purposes only) is:
+
+::
+
+     eyJhbGciOiJSU0ExXzUiLCJlbmMiOiJBMTI4Q0JDLUhTMjU2In0.
+     QR1Owv2ug2WyPBnbQrRARTeEk9kDO2w8qDcjiHnSJflSdv1iNqhWXaKH4MqAkQtM
+     oNfABIPJaZm0HaA415sv3aeuBWnD8J-Ui7Ah6cWafs3ZwwFKDFUUsWHSK-IPKxLG
+     TkND09XyjORj_CHAgOPJ-Sd8ONQRnJvWn_hXV1BNMHzUjPyYwEsRhDhzjAD26ima
+     sOTsgruobpYGoQcXUwFDn7moXPRfDE8-NoQX7N7ZYMmpUDkR-Cx9obNGwJQ3nM52
+     YCitxoQVPzjbl7WBuB7AohdBoZOdZ24WlN1lVIeh8v1K4krB8xgKvRU8kgFrEn_a
+     1rZgN5TiysnmzTROF869lQ.
+     AxY8DCtDaGlsbGljb3RoZQ.
+     MKOle7UQrG6nSxTLX6Mqwt0orbHvAKeWnDYvpIAeZ72deHxz3roJDXQyhxx0wKaM
+     HDjUEOKIwrtkHthpqEanSBNYHZgmNOV7sln1Eu9g3J8.
+     fiK51VwhsxJ-siBMR-YFiA
+
+( http://tools.ietf.org/html/draft-ietf-oauth-json-web-token-08#appendix-A  )

@@ -65,6 +65,7 @@ OpenID/Connect
     openid_connect
 
     basic
+    implicit
     standard
     messages
     reg
@@ -96,6 +97,7 @@ JOSE and JWT
     jwa
     jws_js
     jwe_js
+    jose_usecase
 
 Discovery
 ---------------

@@ -4,7 +4,7 @@ JSON Web Token(JWT)
 
  
 - draft-ietf-oauth-json-web-token-05
-- http://tools.ietf.org/html/draft-ietf-oauth-json-web-token-05
+- http://tools.ietf.org/html/draft-ietf-oauth-json-web-token-08
 
 .. _jwt.abstract:
 
