@@ -6,7 +6,7 @@ JSON Web Algorithms (JWA)
     :local:
 
 .. note::
-    - `JWA Draft 08 <http://tools.ietf.org/html/draft-ietf-jose-json-web-algorithms-08>`_
+    - Draft 11 http://tools.ietf.org/html/draft-ietf-jose-json-web-algorithms-11
 
 .. _jwa.abstract:
 
@@ -152,7 +152,6 @@ JSON Web Algorithms (JWA)
 
 .. include:: jwa/5.2.3.rst
 
-
 .. _jwa.5.3:
 
 .. include:: jwa/5.3.rst
@@ -161,10 +160,60 @@ JSON Web Algorithms (JWA)
 
 .. include:: jwa/5.3.1.rst
 
+.. _jwa.5.3.1.1:
+
+.. include:: jwa/5.3.1.1.rst
+
+.. _jwa.5.3.1.2:
+
+.. include:: jwa/5.3.1.2.rst
+
 
 .. _jwa.5.3.2:
 
 .. include:: jwa/5.3.2.rst
+
+.. _jwa.5.3.2.1:
+
+.. include:: jwa/5.3.2.1.rst
+
+.. _jwa.5.3.2.2:
+
+.. include:: jwa/5.3.2.2.rst
+
+.. _jwa.5.3.2.3:
+
+.. include:: jwa/5.3.2.3.rst
+
+.. _jwa.5.3.2.4:
+
+.. include:: jwa/5.3.2.4.rst
+
+.. _jwa.5.3.2.5:
+
+.. include:: jwa/5.3.2.5.rst
+
+
+.. _jwa.5.3.2.6:
+
+.. include:: jwa/5.3.2.6.rst
+
+.. _jwa.5.3.2.7:
+
+.. include:: jwa/5.3.2.7.rst
+
+.. _jwa.5.3.2.7.1:
+
+.. include:: jwa/5.3.2.7.1.rst
+
+
+.. _jwa.5.3.2.7.2:
+
+.. include:: jwa/5.3.2.7.2.rst
+
+.. _jwa.5.3.2.7.3:
+
+.. include:: jwa/5.3.2.7.3.rst
 
 
 .. _jwa.6:
