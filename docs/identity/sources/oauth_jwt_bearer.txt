@@ -2,7 +2,8 @@
 JSON Web Token (JWT) Bearer Token Profiles for OAuth 2.0
 =============================================================================
 
-Based on http://self-issued.info/docs/draft-jones-oauth-jwt-bearer-02.txt (Draft 02)
+
+- http://tools.ietf.org/html/draft-ietf-oauth-jwt-bearer-04
 
 .. _oauth_jwt_bearer.abstract:
 

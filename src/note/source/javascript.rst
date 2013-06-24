@@ -17,6 +17,11 @@ map関数
 
 .. _javascript.node.js:
 
+正規表現
+==========
+
+- 他言語の互換性が欲しいならば、 XRegExp ( https://github.com/slevithan/xregexp )
+
 node.js
 =========
 
