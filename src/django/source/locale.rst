@@ -76,11 +76,6 @@ Locales:
     django.conf.locale.zh_CN
     django.conf.locale.zh_TW
 
-Links
-------
-  
-.. yummy_list:: django
-
 Indices and tables
 ==================
 

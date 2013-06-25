@@ -291,7 +291,7 @@ intersphinx_mapping = {'python':('http://docs.python.org/2.7/', None) }
 ##########
 # Local settings.... by HDKNR
 extensions.append('sphinxtogithub')  #:GITHUB
-extensions.append('yummy.spx')  #: yummy
+#extensions.append('yummy.spx')  #: yummy
 html_theme = 'mybasic'
 html_theme_path = ['../../../themes',]
 #

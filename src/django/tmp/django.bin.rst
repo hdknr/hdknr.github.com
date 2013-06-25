@@ -32,6 +32,19 @@ django.bin.daily_cleanup
 .. automodule:: django.bin.daily_cleanup
     :members:
 
+.. _django.bin.django-2to3:
+
+django.bin.django-2to3
+======================
+
+
+- `source <https://github.com/django/django/tree/master/django/bin/django-2to3.py>`_ 
+
+.. include:: cheat/django.bin.django-2to3.rst
+
+.. automodule:: django.bin.django-2to3
+    :members:
+
 .. _django.bin.django-admin:
 
 django.bin.django-admin

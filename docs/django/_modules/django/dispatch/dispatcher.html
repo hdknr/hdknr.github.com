@@ -1,0 +1,340 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>django.dispatch.dispatcher &mdash; Django Cheat 1 documentation</title>
+    
+    <link rel="stylesheet" href="../../../_static/haiku.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../../../static/print.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../',
+        VERSION:     '1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <script type="text/javascript" src="../../../static/theme_extras.js"></script>
+    <link rel="top" title="Django Cheat 1 documentation" href="../../../index.html" />
+    <link rel="up" title="Module code" href="../../index.html" /> 
+  </head>
+  <body>
+      <div class="header"><h1 class="heading"><a href="../../../index.html">
+          <span>Django Cheat 1 documentation</span></a></h1>
+        <h2 class="heading"><span>django.dispatch.dispatcher</span></h2>
+      </div>
+      <div class="topnav">
+      
+        <p>
+        <a href="/">Home</a>:
+        <a class="uplink" href="../../../index.html">Contents</a>
+        </p>
+
+      </div>
+      <div class="content">
+        
+        
+  <h1>Source code for django.dispatch.dispatcher</h1><div class="highlight"><pre>
+<span class="kn">import</span> <span class="nn">weakref</span>
+<span class="kn">import</span> <span class="nn">threading</span>
+
+<span class="kn">from</span> <span class="nn">django.dispatch</span> <span class="kn">import</span> <span class="n">saferef</span>
+<span class="kn">from</span> <span class="nn">django.utils.six.moves</span> <span class="kn">import</span> <span class="nb">xrange</span>
+
+<span class="n">WEAKREF_TYPES</span> <span class="o">=</span> <span class="p">(</span><span class="n">weakref</span><span class="o">.</span><span class="n">ReferenceType</span><span class="p">,</span> <span class="n">saferef</span><span class="o">.</span><span class="n">BoundMethodWeakref</span><span class="p">)</span>
+
+<span class="k">def</span> <span class="nf">_make_id</span><span class="p">(</span><span class="n">target</span><span class="p">):</span>
+    <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">target</span><span class="p">,</span> <span class="s">&#39;__func__&#39;</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">(</span><span class="nb">id</span><span class="p">(</span><span class="n">target</span><span class="o">.</span><span class="n">__self__</span><span class="p">),</span> <span class="nb">id</span><span class="p">(</span><span class="n">target</span><span class="o">.</span><span class="n">__func__</span><span class="p">))</span>
+    <span class="k">return</span> <span class="nb">id</span><span class="p">(</span><span class="n">target</span><span class="p">)</span>
+
+<div class="viewcode-block" id="Signal"><a class="viewcode-back" href="../../../django.dispatch.html#django.dispatch.dispatcher.Signal">[docs]</a><span class="k">class</span> <span class="nc">Signal</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Base class for all signals</span>
+
+<span class="sd">    Internal attributes:</span>
+
+<span class="sd">        receivers</span>
+<span class="sd">            { receriverkey (id) : weakref(receiver) }</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">providing_args</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Create a new signal.</span>
+
+<span class="sd">        providing_args</span>
+<span class="sd">            A list of the arguments this signal can pass along in a send() call.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">receivers</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">if</span> <span class="n">providing_args</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="n">providing_args</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">providing_args</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">providing_args</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">lock</span> <span class="o">=</span> <span class="n">threading</span><span class="o">.</span><span class="n">Lock</span><span class="p">()</span>
+
+<div class="viewcode-block" id="Signal.connect"><a class="viewcode-back" href="../../../django.dispatch.html#django.dispatch.dispatcher.Signal.connect">[docs]</a>    <span class="k">def</span> <span class="nf">connect</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">receiver</span><span class="p">,</span> <span class="n">sender</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">weak</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">dispatch_uid</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Connect receiver to sender for signal.</span>
+
+<span class="sd">        Arguments:</span>
+
+<span class="sd">            receiver</span>
+<span class="sd">                A function or an instance method which is to receive signals.</span>
+<span class="sd">                Receivers must be hashable objects.</span>
+
+<span class="sd">                If weak is True, then receiver must be weak-referencable (more</span>
+<span class="sd">                precisely saferef.safeRef() must be able to create a reference</span>
+<span class="sd">                to the receiver).</span>
+
+<span class="sd">                Receivers must be able to accept keyword arguments.</span>
+
+<span class="sd">                If receivers have a dispatch_uid attribute, the receiver will</span>
+<span class="sd">                not be added if another receiver already exists with that</span>
+<span class="sd">                dispatch_uid.</span>
+
+<span class="sd">            sender</span>
+<span class="sd">                The sender to which the receiver should respond. Must either be</span>
+<span class="sd">                of type Signal, or None to receive events from any sender.</span>
+
+<span class="sd">            weak</span>
+<span class="sd">                Whether to use weak references to the receiver. By default, the</span>
+<span class="sd">                module will attempt to use weak references to the receiver</span>
+<span class="sd">                objects. If this parameter is false, then strong references will</span>
+<span class="sd">                be used.</span>
+
+<span class="sd">            dispatch_uid</span>
+<span class="sd">                An identifier used to uniquely identify a particular instance of</span>
+<span class="sd">                a receiver. This will usually be a string, though it may be</span>
+<span class="sd">                anything hashable.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="kn">from</span> <span class="nn">django.conf</span> <span class="kn">import</span> <span class="n">settings</span>
+
+        <span class="c"># If DEBUG is on, check that we got a good receiver</span>
+        <span class="k">if</span> <span class="n">settings</span><span class="o">.</span><span class="n">DEBUG</span><span class="p">:</span>
+            <span class="kn">import</span> <span class="nn">inspect</span>
+            <span class="k">assert</span> <span class="nb">callable</span><span class="p">(</span><span class="n">receiver</span><span class="p">),</span> <span class="s">&quot;Signal receivers must be callable.&quot;</span>
+
+            <span class="c"># Check for **kwargs</span>
+            <span class="c"># Not all callables are inspectable with getargspec, so we&#39;ll</span>
+            <span class="c"># try a couple different ways but in the end fall back on assuming</span>
+            <span class="c"># it is -- we don&#39;t want to prevent registration of valid but weird</span>
+            <span class="c"># callables.</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">argspec</span> <span class="o">=</span> <span class="n">inspect</span><span class="o">.</span><span class="n">getargspec</span><span class="p">(</span><span class="n">receiver</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">TypeError</span><span class="p">:</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="n">argspec</span> <span class="o">=</span> <span class="n">inspect</span><span class="o">.</span><span class="n">getargspec</span><span class="p">(</span><span class="n">receiver</span><span class="o">.</span><span class="n">__call__</span><span class="p">)</span>
+                <span class="k">except</span> <span class="p">(</span><span class="ne">TypeError</span><span class="p">,</span> <span class="ne">AttributeError</span><span class="p">):</span>
+                    <span class="n">argspec</span> <span class="o">=</span> <span class="bp">None</span>
+            <span class="k">if</span> <span class="n">argspec</span><span class="p">:</span>
+                <span class="k">assert</span> <span class="n">argspec</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">,</span> \
+                    <span class="s">&quot;Signal receivers must accept keyword arguments (**kwargs).&quot;</span>
+
+        <span class="k">if</span> <span class="n">dispatch_uid</span><span class="p">:</span>
+            <span class="n">lookup_key</span> <span class="o">=</span> <span class="p">(</span><span class="n">dispatch_uid</span><span class="p">,</span> <span class="n">_make_id</span><span class="p">(</span><span class="n">sender</span><span class="p">))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">lookup_key</span> <span class="o">=</span> <span class="p">(</span><span class="n">_make_id</span><span class="p">(</span><span class="n">receiver</span><span class="p">),</span> <span class="n">_make_id</span><span class="p">(</span><span class="n">sender</span><span class="p">))</span>
+
+        <span class="k">if</span> <span class="n">weak</span><span class="p">:</span>
+            <span class="n">receiver</span> <span class="o">=</span> <span class="n">saferef</span><span class="o">.</span><span class="n">safeRef</span><span class="p">(</span><span class="n">receiver</span><span class="p">,</span> <span class="n">onDelete</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_remove_receiver</span><span class="p">)</span>
+
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">lock</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">r_key</span><span class="p">,</span> <span class="n">_</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">receivers</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">r_key</span> <span class="o">==</span> <span class="n">lookup_key</span><span class="p">:</span>
+                    <span class="k">break</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">receivers</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">lookup_key</span><span class="p">,</span> <span class="n">receiver</span><span class="p">))</span>
+</div>
+<div class="viewcode-block" id="Signal.disconnect"><a class="viewcode-back" href="../../../django.dispatch.html#django.dispatch.dispatcher.Signal.disconnect">[docs]</a>    <span class="k">def</span> <span class="nf">disconnect</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">receiver</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">sender</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">weak</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">dispatch_uid</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Disconnect receiver from sender for signal.</span>
+
+<span class="sd">        If weak references are used, disconnect need not be called. The receiver</span>
+<span class="sd">        will be remove from dispatch automatically.</span>
+
+<span class="sd">        Arguments:</span>
+
+<span class="sd">            receiver</span>
+<span class="sd">                The registered receiver to disconnect. May be none if</span>
+<span class="sd">                dispatch_uid is specified.</span>
+
+<span class="sd">            sender</span>
+<span class="sd">                The registered sender to disconnect</span>
+
+<span class="sd">            weak</span>
+<span class="sd">                The weakref state to disconnect</span>
+
+<span class="sd">            dispatch_uid</span>
+<span class="sd">                the unique identifier of the receiver to disconnect</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">dispatch_uid</span><span class="p">:</span>
+            <span class="n">lookup_key</span> <span class="o">=</span> <span class="p">(</span><span class="n">dispatch_uid</span><span class="p">,</span> <span class="n">_make_id</span><span class="p">(</span><span class="n">sender</span><span class="p">))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">lookup_key</span> <span class="o">=</span> <span class="p">(</span><span class="n">_make_id</span><span class="p">(</span><span class="n">receiver</span><span class="p">),</span> <span class="n">_make_id</span><span class="p">(</span><span class="n">sender</span><span class="p">))</span>
+
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">lock</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">index</span> <span class="ow">in</span> <span class="nb">xrange</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">receivers</span><span class="p">)):</span>
+                <span class="p">(</span><span class="n">r_key</span><span class="p">,</span> <span class="n">_</span><span class="p">)</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">receivers</span><span class="p">[</span><span class="n">index</span><span class="p">]</span>
+                <span class="k">if</span> <span class="n">r_key</span> <span class="o">==</span> <span class="n">lookup_key</span><span class="p">:</span>
+                    <span class="k">del</span> <span class="bp">self</span><span class="o">.</span><span class="n">receivers</span><span class="p">[</span><span class="n">index</span><span class="p">]</span>
+                    <span class="k">break</span>
+</div>
+    <span class="k">def</span> <span class="nf">has_listeners</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sender</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="k">return</span> <span class="nb">bool</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_live_receivers</span><span class="p">(</span><span class="n">_make_id</span><span class="p">(</span><span class="n">sender</span><span class="p">)))</span>
+
+<div class="viewcode-block" id="Signal.send"><a class="viewcode-back" href="../../../django.dispatch.html#django.dispatch.dispatcher.Signal.send">[docs]</a>    <span class="k">def</span> <span class="nf">send</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sender</span><span class="p">,</span> <span class="o">**</span><span class="n">named</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Send signal from sender to all connected receivers.</span>
+
+<span class="sd">        If any receiver raises an error, the error propagates back through send,</span>
+<span class="sd">        terminating the dispatch loop, so it is quite possible to not have all</span>
+<span class="sd">        receivers called if a raises an error.</span>
+
+<span class="sd">        Arguments:</span>
+
+<span class="sd">            sender</span>
+<span class="sd">                The sender of the signal Either a specific object or None.</span>
+
+<span class="sd">            named</span>
+<span class="sd">                Named arguments which will be passed to receivers.</span>
+
+<span class="sd">        Returns a list of tuple pairs [(receiver, response), ... ].</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">responses</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">receivers</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">responses</span>
+
+        <span class="k">for</span> <span class="n">receiver</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_live_receivers</span><span class="p">(</span><span class="n">_make_id</span><span class="p">(</span><span class="n">sender</span><span class="p">)):</span>
+            <span class="n">response</span> <span class="o">=</span> <span class="n">receiver</span><span class="p">(</span><span class="n">signal</span><span class="o">=</span><span class="bp">self</span><span class="p">,</span> <span class="n">sender</span><span class="o">=</span><span class="n">sender</span><span class="p">,</span> <span class="o">**</span><span class="n">named</span><span class="p">)</span>
+            <span class="n">responses</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">receiver</span><span class="p">,</span> <span class="n">response</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">responses</span>
+</div>
+<div class="viewcode-block" id="Signal.send_robust"><a class="viewcode-back" href="../../../django.dispatch.html#django.dispatch.dispatcher.Signal.send_robust">[docs]</a>    <span class="k">def</span> <span class="nf">send_robust</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sender</span><span class="p">,</span> <span class="o">**</span><span class="n">named</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Send signal from sender to all connected receivers catching errors.</span>
+
+<span class="sd">        Arguments:</span>
+
+<span class="sd">            sender</span>
+<span class="sd">                The sender of the signal. Can be any python object (normally one</span>
+<span class="sd">                registered with a connect if you actually want something to</span>
+<span class="sd">                occur).</span>
+
+<span class="sd">            named</span>
+<span class="sd">                Named arguments which will be passed to receivers. These</span>
+<span class="sd">                arguments must be a subset of the argument names defined in</span>
+<span class="sd">                providing_args.</span>
+
+<span class="sd">        Return a list of tuple pairs [(receiver, response), ... ]. May raise</span>
+<span class="sd">        DispatcherKeyError.</span>
+
+<span class="sd">        If any receiver raises an error (specifically any subclass of</span>
+<span class="sd">        Exception), the error instance is returned as the result for that</span>
+<span class="sd">        receiver.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">responses</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">receivers</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">responses</span>
+
+        <span class="c"># Call each receiver with whatever arguments it can accept.</span>
+        <span class="c"># Return a list of tuple pairs [(receiver, response), ... ].</span>
+        <span class="k">for</span> <span class="n">receiver</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_live_receivers</span><span class="p">(</span><span class="n">_make_id</span><span class="p">(</span><span class="n">sender</span><span class="p">)):</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">response</span> <span class="o">=</span> <span class="n">receiver</span><span class="p">(</span><span class="n">signal</span><span class="o">=</span><span class="bp">self</span><span class="p">,</span> <span class="n">sender</span><span class="o">=</span><span class="n">sender</span><span class="p">,</span> <span class="o">**</span><span class="n">named</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+                <span class="n">responses</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">receiver</span><span class="p">,</span> <span class="n">err</span><span class="p">))</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">responses</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">receiver</span><span class="p">,</span> <span class="n">response</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">responses</span>
+</div>
+    <span class="k">def</span> <span class="nf">_live_receivers</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">senderkey</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Filter sequence of receivers to get resolved, live receivers.</span>
+
+<span class="sd">        This checks for weak references and resolves them, then returning only</span>
+<span class="sd">        live receivers.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">none_senderkey</span> <span class="o">=</span> <span class="n">_make_id</span><span class="p">(</span><span class="bp">None</span><span class="p">)</span>
+        <span class="n">receivers</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="k">for</span> <span class="p">(</span><span class="n">receiverkey</span><span class="p">,</span> <span class="n">r_senderkey</span><span class="p">),</span> <span class="n">receiver</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">receivers</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">r_senderkey</span> <span class="o">==</span> <span class="n">none_senderkey</span> <span class="ow">or</span> <span class="n">r_senderkey</span> <span class="o">==</span> <span class="n">senderkey</span><span class="p">:</span>
+                <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">receiver</span><span class="p">,</span> <span class="n">WEAKREF_TYPES</span><span class="p">):</span>
+                    <span class="c"># Dereference the weak reference.</span>
+                    <span class="n">receiver</span> <span class="o">=</span> <span class="n">receiver</span><span class="p">()</span>
+                    <span class="k">if</span> <span class="n">receiver</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+                        <span class="n">receivers</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">receiver</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">receivers</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">receiver</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">receivers</span>
+
+    <span class="k">def</span> <span class="nf">_remove_receiver</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">receiver</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Remove dead receivers from connections.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">lock</span><span class="p">:</span>
+            <span class="n">to_remove</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">connected_receiver</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">receivers</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">connected_receiver</span> <span class="o">==</span> <span class="n">receiver</span><span class="p">:</span>
+                    <span class="n">to_remove</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">to_remove</span><span class="p">:</span>
+                <span class="n">last_idx</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">receivers</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span>
+                <span class="c"># enumerate in reverse order so that indexes are valid even</span>
+                <span class="c"># after we delete some items</span>
+                <span class="k">for</span> <span class="n">idx</span><span class="p">,</span> <span class="p">(</span><span class="n">r_key</span><span class="p">,</span> <span class="n">_</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="nb">reversed</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">receivers</span><span class="p">)):</span>
+                    <span class="k">if</span> <span class="n">r_key</span> <span class="o">==</span> <span class="n">key</span><span class="p">:</span>
+                        <span class="k">del</span> <span class="bp">self</span><span class="o">.</span><span class="n">receivers</span><span class="p">[</span><span class="n">last_idx</span><span class="o">-</span><span class="n">idx</span><span class="p">]</span>
+
+</div>
+<div class="viewcode-block" id="receiver"><a class="viewcode-back" href="../../../django.dispatch.html#django.dispatch.dispatcher.receiver">[docs]</a><span class="k">def</span> <span class="nf">receiver</span><span class="p">(</span><span class="n">signal</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    A decorator for connecting receivers to signals. Used by passing in the</span>
+<span class="sd">    signal (or list of signals) and keyword arguments to connect::</span>
+
+<span class="sd">        @receiver(post_save, sender=MyModel)</span>
+<span class="sd">        def signal_receiver(sender, **kwargs):</span>
+<span class="sd">            ...</span>
+
+<span class="sd">        @receiver([post_save, post_delete], sender=MyModel)</span>
+<span class="sd">        def signals_receiver(sender, **kwargs):</span>
+<span class="sd">            ...</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">_decorator</span><span class="p">(</span><span class="n">func</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">signal</span><span class="p">,</span> <span class="p">(</span><span class="nb">list</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">)):</span>
+            <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">signal</span><span class="p">:</span>
+                <span class="n">s</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">func</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">signal</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">func</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">func</span>
+    <span class="k">return</span> <span class="n">_decorator</span></div>
+</pre></div>
+
+      </div>
+      <div class="bottomnav">
+      
+        <p>
+        <a href="/">Home</a>:
+        <a class="uplink" href="../../../index.html">Contents</a>
+        </p>
+
+      </div>
+
+    <div class="footer">
+        &copy; Copyright 2012, HDKNR.COM.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2b1.
+    </div>
+  </body>
+</html>

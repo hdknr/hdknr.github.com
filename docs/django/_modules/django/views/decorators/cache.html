@@ -1,0 +1,159 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>django.views.decorators.cache &mdash; Django Cheat 1 documentation</title>
+    
+    <link rel="stylesheet" href="../../../../_static/haiku.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../static/print.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../../',
+        VERSION:     '1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../../_static/doctools.js"></script>
+    <script type="text/javascript" src="../../../../static/theme_extras.js"></script>
+    <link rel="top" title="Django Cheat 1 documentation" href="../../../../index.html" />
+    <link rel="up" title="Module code" href="../../../index.html" /> 
+  </head>
+  <body>
+      <div class="header"><h1 class="heading"><a href="../../../../index.html">
+          <span>Django Cheat 1 documentation</span></a></h1>
+        <h2 class="heading"><span>django.views.decorators.cache</span></h2>
+      </div>
+      <div class="topnav">
+      
+        <p>
+        <a href="/">Home</a>:
+        <a class="uplink" href="../../../../index.html">Contents</a>
+        </p>
+
+      </div>
+      <div class="content">
+        
+        
+  <h1>Source code for django.views.decorators.cache</h1><div class="highlight"><pre>
+<span class="kn">from</span> <span class="nn">functools</span> <span class="kn">import</span> <span class="n">wraps</span>
+<span class="kn">from</span> <span class="nn">django.utils.decorators</span> <span class="kn">import</span> <span class="n">decorator_from_middleware_with_args</span><span class="p">,</span> <span class="n">available_attrs</span>
+<span class="kn">from</span> <span class="nn">django.utils.cache</span> <span class="kn">import</span> <span class="n">patch_cache_control</span><span class="p">,</span> <span class="n">add_never_cache_headers</span>
+<span class="kn">from</span> <span class="nn">django.middleware.cache</span> <span class="kn">import</span> <span class="n">CacheMiddleware</span>
+
+
+<div class="viewcode-block" id="cache_page"><a class="viewcode-back" href="../../../../django.views.decorators.html#django.views.decorators.cache.cache_page">[docs]</a><span class="k">def</span> <span class="nf">cache_page</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Decorator for views that tries getting the page from the cache and</span>
+<span class="sd">    populates the cache if the page isn&#39;t in the cache yet.</span>
+
+<span class="sd">    The cache is keyed by the URL and some data from the headers.</span>
+<span class="sd">    Additionally there is the key prefix that is used to distinguish different</span>
+<span class="sd">    cache areas in a multi-site setup. You could use the</span>
+<span class="sd">    sites.get_current_site().domain, for example, as that is unique across a Django</span>
+<span class="sd">    project.</span>
+
+<span class="sd">    Additionally, all headers from the response&#39;s Vary header will be taken</span>
+<span class="sd">    into account on caching -- just like the middleware does.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c"># We need backwards compatibility with code which spells it this way:</span>
+    <span class="c">#   def my_view(): pass</span>
+    <span class="c">#   my_view = cache_page(my_view, 123)</span>
+    <span class="c"># and this way:</span>
+    <span class="c">#   my_view = cache_page(123)(my_view)</span>
+    <span class="c"># and this:</span>
+    <span class="c">#   my_view = cache_page(my_view, 123, key_prefix=&quot;foo&quot;)</span>
+    <span class="c"># and this:</span>
+    <span class="c">#   my_view = cache_page(123, key_prefix=&quot;foo&quot;)(my_view)</span>
+    <span class="c"># and possibly this way (?):</span>
+    <span class="c">#   my_view = cache_page(123, my_view)</span>
+    <span class="c"># and also this way:</span>
+    <span class="c">#   my_view = cache_page(my_view)</span>
+    <span class="c"># and also this way:</span>
+    <span class="c">#   my_view = cache_page()(my_view)</span>
+
+    <span class="c"># We also add some asserts to give better error messages in case people are</span>
+    <span class="c"># using other ways to call cache_page that no longer work.</span>
+    <span class="n">cache_alias</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s">&#39;cache&#39;</span><span class="p">,</span> <span class="bp">None</span><span class="p">)</span>
+    <span class="n">key_prefix</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s">&#39;key_prefix&#39;</span><span class="p">,</span> <span class="bp">None</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="ow">not</span> <span class="n">kwargs</span><span class="p">,</span> <span class="s">&quot;The only keyword arguments are cache and key_prefix&quot;</span>
+    <span class="k">def</span> <span class="nf">warn</span><span class="p">():</span>
+        <span class="kn">import</span> <span class="nn">warnings</span>
+        <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s">&#39;The cache_page decorator must be called like: &#39;</span>
+                      <span class="s">&#39;cache_page(timeout, [cache=cache name], [key_prefix=key prefix]). &#39;</span>
+                      <span class="s">&#39;All other ways are deprecated.&#39;</span><span class="p">,</span>
+                      <span class="ne">DeprecationWarning</span><span class="p">,</span>
+                      <span class="n">stacklevel</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">args</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">args</span><span class="p">)</span> <span class="o">==</span> <span class="mi">2</span><span class="p">,</span> <span class="s">&quot;cache_page accepts at most 2 arguments&quot;</span>
+        <span class="n">warn</span><span class="p">()</span>
+        <span class="k">if</span> <span class="nb">callable</span><span class="p">(</span><span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">]):</span>
+            <span class="k">return</span> <span class="n">decorator_from_middleware_with_args</span><span class="p">(</span><span class="n">CacheMiddleware</span><span class="p">)(</span><span class="n">cache_timeout</span><span class="o">=</span><span class="n">args</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">cache_alias</span><span class="o">=</span><span class="n">cache_alias</span><span class="p">,</span> <span class="n">key_prefix</span><span class="o">=</span><span class="n">key_prefix</span><span class="p">)(</span><span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="k">elif</span> <span class="nb">callable</span><span class="p">(</span><span class="n">args</span><span class="p">[</span><span class="mi">1</span><span class="p">]):</span>
+            <span class="k">return</span> <span class="n">decorator_from_middleware_with_args</span><span class="p">(</span><span class="n">CacheMiddleware</span><span class="p">)(</span><span class="n">cache_timeout</span><span class="o">=</span><span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">cache_alias</span><span class="o">=</span><span class="n">cache_alias</span><span class="p">,</span> <span class="n">key_prefix</span><span class="o">=</span><span class="n">key_prefix</span><span class="p">)(</span><span class="n">args</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">assert</span> <span class="bp">False</span><span class="p">,</span> <span class="s">&quot;cache_page must be passed a view function if called with two arguments&quot;</span>
+    <span class="k">elif</span> <span class="nb">len</span><span class="p">(</span><span class="n">args</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="k">if</span> <span class="nb">callable</span><span class="p">(</span><span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">]):</span>
+            <span class="n">warn</span><span class="p">()</span>
+            <span class="k">return</span> <span class="n">decorator_from_middleware_with_args</span><span class="p">(</span><span class="n">CacheMiddleware</span><span class="p">)(</span><span class="n">cache_alias</span><span class="o">=</span><span class="n">cache_alias</span><span class="p">,</span> <span class="n">key_prefix</span><span class="o">=</span><span class="n">key_prefix</span><span class="p">)(</span><span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c"># The One True Way</span>
+            <span class="k">return</span> <span class="n">decorator_from_middleware_with_args</span><span class="p">(</span><span class="n">CacheMiddleware</span><span class="p">)(</span><span class="n">cache_timeout</span><span class="o">=</span><span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">cache_alias</span><span class="o">=</span><span class="n">cache_alias</span><span class="p">,</span> <span class="n">key_prefix</span><span class="o">=</span><span class="n">key_prefix</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">warn</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">decorator_from_middleware_with_args</span><span class="p">(</span><span class="n">CacheMiddleware</span><span class="p">)(</span><span class="n">cache_alias</span><span class="o">=</span><span class="n">cache_alias</span><span class="p">,</span> <span class="n">key_prefix</span><span class="o">=</span><span class="n">key_prefix</span><span class="p">)</span>
+
+</div>
+<span class="k">def</span> <span class="nf">cache_control</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">_cache_controller</span><span class="p">(</span><span class="n">viewfunc</span><span class="p">):</span>
+        <span class="nd">@wraps</span><span class="p">(</span><span class="n">viewfunc</span><span class="p">,</span> <span class="n">assigned</span><span class="o">=</span><span class="n">available_attrs</span><span class="p">(</span><span class="n">viewfunc</span><span class="p">))</span>
+        <span class="k">def</span> <span class="nf">_cache_controlled</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kw</span><span class="p">):</span>
+            <span class="n">response</span> <span class="o">=</span> <span class="n">viewfunc</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kw</span><span class="p">)</span>
+            <span class="n">patch_cache_control</span><span class="p">(</span><span class="n">response</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">response</span>
+        <span class="k">return</span> <span class="n">_cache_controlled</span>
+    <span class="k">return</span> <span class="n">_cache_controller</span>
+
+
+<div class="viewcode-block" id="never_cache"><a class="viewcode-back" href="../../../../django.views.decorators.html#django.views.decorators.cache.never_cache">[docs]</a><span class="k">def</span> <span class="nf">never_cache</span><span class="p">(</span><span class="n">view_func</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Decorator that adds headers to a response so that it will</span>
+<span class="sd">    never be cached.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="nd">@wraps</span><span class="p">(</span><span class="n">view_func</span><span class="p">,</span> <span class="n">assigned</span><span class="o">=</span><span class="n">available_attrs</span><span class="p">(</span><span class="n">view_func</span><span class="p">))</span>
+    <span class="k">def</span> <span class="nf">_wrapped_view_func</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="n">response</span> <span class="o">=</span> <span class="n">view_func</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="n">add_never_cache_headers</span><span class="p">(</span><span class="n">response</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">response</span>
+    <span class="k">return</span> <span class="n">_wrapped_view_func</span></div>
+</pre></div>
+
+      </div>
+      <div class="bottomnav">
+      
+        <p>
+        <a href="/">Home</a>:
+        <a class="uplink" href="../../../../index.html">Contents</a>
+        </p>
+
+      </div>
+
+    <div class="footer">
+        &copy; Copyright 2012, HDKNR.COM.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2b1.
+    </div>
+  </body>
+</html>

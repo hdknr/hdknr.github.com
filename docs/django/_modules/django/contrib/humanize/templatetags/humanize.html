@@ -1,0 +1,296 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>django.contrib.humanize.templatetags.humanize &mdash; Django Cheat 1 documentation</title>
+    
+    <link rel="stylesheet" href="../../../../../_static/haiku.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../../static/print.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../../../',
+        VERSION:     '1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../../../_static/doctools.js"></script>
+    <script type="text/javascript" src="../../../../../static/theme_extras.js"></script>
+    <link rel="top" title="Django Cheat 1 documentation" href="../../../../../index.html" />
+    <link rel="up" title="Module code" href="../../../../index.html" /> 
+  </head>
+  <body>
+      <div class="header"><h1 class="heading"><a href="../../../../../index.html">
+          <span>Django Cheat 1 documentation</span></a></h1>
+        <h2 class="heading"><span>django.contrib.humanize.templatetags.humanize</span></h2>
+      </div>
+      <div class="topnav">
+      
+        <p>
+        <a href="/">Home</a>:
+        <a class="uplink" href="../../../../../index.html">Contents</a>
+        </p>
+
+      </div>
+      <div class="content">
+        
+        
+  <h1>Source code for django.contrib.humanize.templatetags.humanize</h1><div class="highlight"><pre>
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">unicode_literals</span>
+<span class="kn">import</span> <span class="nn">re</span>
+<span class="kn">from</span> <span class="nn">datetime</span> <span class="kn">import</span> <span class="n">date</span><span class="p">,</span> <span class="n">datetime</span>
+
+<span class="kn">from</span> <span class="nn">django</span> <span class="kn">import</span> <span class="n">template</span>
+<span class="kn">from</span> <span class="nn">django.conf</span> <span class="kn">import</span> <span class="n">settings</span>
+<span class="kn">from</span> <span class="nn">django.template</span> <span class="kn">import</span> <span class="n">defaultfilters</span>
+<span class="kn">from</span> <span class="nn">django.utils.encoding</span> <span class="kn">import</span> <span class="n">force_text</span>
+<span class="kn">from</span> <span class="nn">django.utils.formats</span> <span class="kn">import</span> <span class="n">number_format</span>
+<span class="kn">from</span> <span class="nn">django.utils.translation</span> <span class="kn">import</span> <span class="n">pgettext</span><span class="p">,</span> <span class="n">ungettext</span><span class="p">,</span> <span class="n">ugettext</span> <span class="k">as</span> <span class="n">_</span>
+<span class="kn">from</span> <span class="nn">django.utils.timezone</span> <span class="kn">import</span> <span class="n">is_aware</span><span class="p">,</span> <span class="n">utc</span>
+
+<span class="n">register</span> <span class="o">=</span> <span class="n">template</span><span class="o">.</span><span class="n">Library</span><span class="p">()</span>
+
+<span class="nd">@register.filter</span><span class="p">(</span><span class="n">is_safe</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+<div class="viewcode-block" id="ordinal"><a class="viewcode-back" href="../../../../../django.contrib.humanize.templatetags.html#django.contrib.humanize.templatetags.humanize.ordinal">[docs]</a><span class="k">def</span> <span class="nf">ordinal</span><span class="p">(</span><span class="n">value</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Converts an integer to its ordinal as a string. 1 is &#39;1st&#39;, 2 is &#39;2nd&#39;,</span>
+<span class="sd">    3 is &#39;3rd&#39;, etc. Works for any integer.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">value</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+    <span class="k">except</span> <span class="p">(</span><span class="ne">TypeError</span><span class="p">,</span> <span class="ne">ValueError</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">value</span>
+    <span class="n">suffixes</span> <span class="o">=</span> <span class="p">(</span><span class="n">_</span><span class="p">(</span><span class="s">&#39;th&#39;</span><span class="p">),</span> <span class="n">_</span><span class="p">(</span><span class="s">&#39;st&#39;</span><span class="p">),</span> <span class="n">_</span><span class="p">(</span><span class="s">&#39;nd&#39;</span><span class="p">),</span> <span class="n">_</span><span class="p">(</span><span class="s">&#39;rd&#39;</span><span class="p">),</span> <span class="n">_</span><span class="p">(</span><span class="s">&#39;th&#39;</span><span class="p">),</span> <span class="n">_</span><span class="p">(</span><span class="s">&#39;th&#39;</span><span class="p">),</span> <span class="n">_</span><span class="p">(</span><span class="s">&#39;th&#39;</span><span class="p">),</span> <span class="n">_</span><span class="p">(</span><span class="s">&#39;th&#39;</span><span class="p">),</span> <span class="n">_</span><span class="p">(</span><span class="s">&#39;th&#39;</span><span class="p">),</span> <span class="n">_</span><span class="p">(</span><span class="s">&#39;th&#39;</span><span class="p">))</span>
+    <span class="k">if</span> <span class="n">value</span> <span class="o">%</span> <span class="mi">100</span> <span class="ow">in</span> <span class="p">(</span><span class="mi">11</span><span class="p">,</span> <span class="mi">12</span><span class="p">,</span> <span class="mi">13</span><span class="p">):</span> <span class="c"># special case</span>
+        <span class="k">return</span> <span class="s">&quot;</span><span class="si">%d%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">suffixes</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+    <span class="k">return</span> <span class="s">&quot;</span><span class="si">%d%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">suffixes</span><span class="p">[</span><span class="n">value</span> <span class="o">%</span> <span class="mi">10</span><span class="p">])</span>
+</div>
+<span class="nd">@register.filter</span><span class="p">(</span><span class="n">is_safe</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+<div class="viewcode-block" id="intcomma"><a class="viewcode-back" href="../../../../../django.contrib.humanize.templatetags.html#django.contrib.humanize.templatetags.humanize.intcomma">[docs]</a><span class="k">def</span> <span class="nf">intcomma</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">use_l10n</span><span class="o">=</span><span class="bp">True</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Converts an integer to a string containing commas every three digits.</span>
+<span class="sd">    For example, 3000 becomes &#39;3,000&#39; and 45000 becomes &#39;45,000&#39;.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">settings</span><span class="o">.</span><span class="n">USE_L10N</span> <span class="ow">and</span> <span class="n">use_l10n</span><span class="p">:</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">float</span><span class="p">):</span>
+                <span class="n">value</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+        <span class="k">except</span> <span class="p">(</span><span class="ne">TypeError</span><span class="p">,</span> <span class="ne">ValueError</span><span class="p">):</span>
+            <span class="k">return</span> <span class="n">intcomma</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="bp">False</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">number_format</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">force_grouping</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+    <span class="n">orig</span> <span class="o">=</span> <span class="n">force_text</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+    <span class="n">new</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="s">&quot;^(-?\d+)(\d{3})&quot;</span><span class="p">,</span> <span class="s">&#39;\g&lt;1&gt;,\g&lt;2&gt;&#39;</span><span class="p">,</span> <span class="n">orig</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">orig</span> <span class="o">==</span> <span class="n">new</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">new</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">intcomma</span><span class="p">(</span><span class="n">new</span><span class="p">,</span> <span class="n">use_l10n</span><span class="p">)</span>
+
+<span class="c"># A tuple of standard large number to their converters</span></div>
+<span class="n">intword_converters</span> <span class="o">=</span> <span class="p">(</span>
+    <span class="p">(</span><span class="mi">6</span><span class="p">,</span> <span class="k">lambda</span> <span class="n">number</span><span class="p">:</span> <span class="p">(</span>
+        <span class="n">ungettext</span><span class="p">(</span><span class="s">&#39;</span><span class="si">%(value).1f</span><span class="s"> million&#39;</span><span class="p">,</span> <span class="s">&#39;</span><span class="si">%(value).1f</span><span class="s"> million&#39;</span><span class="p">,</span> <span class="n">number</span><span class="p">),</span>
+        <span class="n">ungettext</span><span class="p">(</span><span class="s">&#39;</span><span class="si">%(value)s</span><span class="s"> million&#39;</span><span class="p">,</span> <span class="s">&#39;</span><span class="si">%(value)s</span><span class="s"> million&#39;</span><span class="p">,</span> <span class="n">number</span><span class="p">),</span>
+    <span class="p">)),</span>
+    <span class="p">(</span><span class="mi">9</span><span class="p">,</span> <span class="k">lambda</span> <span class="n">number</span><span class="p">:</span> <span class="p">(</span>
+        <span class="n">ungettext</span><span class="p">(</span><span class="s">&#39;</span><span class="si">%(value).1f</span><span class="s"> billion&#39;</span><span class="p">,</span> <span class="s">&#39;</span><span class="si">%(value).1f</span><span class="s"> billion&#39;</span><span class="p">,</span> <span class="n">number</span><span class="p">),</span>
+        <span class="n">ungettext</span><span class="p">(</span><span class="s">&#39;</span><span class="si">%(value)s</span><span class="s"> billion&#39;</span><span class="p">,</span> <span class="s">&#39;</span><span class="si">%(value)s</span><span class="s"> billion&#39;</span><span class="p">,</span> <span class="n">number</span><span class="p">),</span>
+    <span class="p">)),</span>
+    <span class="p">(</span><span class="mi">12</span><span class="p">,</span> <span class="k">lambda</span> <span class="n">number</span><span class="p">:</span> <span class="p">(</span>
+        <span class="n">ungettext</span><span class="p">(</span><span class="s">&#39;</span><span class="si">%(value).1f</span><span class="s"> trillion&#39;</span><span class="p">,</span> <span class="s">&#39;</span><span class="si">%(value).1f</span><span class="s"> trillion&#39;</span><span class="p">,</span> <span class="n">number</span><span class="p">),</span>
+        <span class="n">ungettext</span><span class="p">(</span><span class="s">&#39;</span><span class="si">%(value)s</span><span class="s"> trillion&#39;</span><span class="p">,</span> <span class="s">&#39;</span><span class="si">%(value)s</span><span class="s"> trillion&#39;</span><span class="p">,</span> <span class="n">number</span><span class="p">),</span>
+    <span class="p">)),</span>
+    <span class="p">(</span><span class="mi">15</span><span class="p">,</span> <span class="k">lambda</span> <span class="n">number</span><span class="p">:</span> <span class="p">(</span>
+        <span class="n">ungettext</span><span class="p">(</span><span class="s">&#39;</span><span class="si">%(value).1f</span><span class="s"> quadrillion&#39;</span><span class="p">,</span> <span class="s">&#39;</span><span class="si">%(value).1f</span><span class="s"> quadrillion&#39;</span><span class="p">,</span> <span class="n">number</span><span class="p">),</span>
+        <span class="n">ungettext</span><span class="p">(</span><span class="s">&#39;</span><span class="si">%(value)s</span><span class="s"> quadrillion&#39;</span><span class="p">,</span> <span class="s">&#39;</span><span class="si">%(value)s</span><span class="s"> quadrillion&#39;</span><span class="p">,</span> <span class="n">number</span><span class="p">),</span>
+    <span class="p">)),</span>
+    <span class="p">(</span><span class="mi">18</span><span class="p">,</span> <span class="k">lambda</span> <span class="n">number</span><span class="p">:</span> <span class="p">(</span>
+        <span class="n">ungettext</span><span class="p">(</span><span class="s">&#39;</span><span class="si">%(value).1f</span><span class="s"> quintillion&#39;</span><span class="p">,</span> <span class="s">&#39;</span><span class="si">%(value).1f</span><span class="s"> quintillion&#39;</span><span class="p">,</span> <span class="n">number</span><span class="p">),</span>
+        <span class="n">ungettext</span><span class="p">(</span><span class="s">&#39;</span><span class="si">%(value)s</span><span class="s"> quintillion&#39;</span><span class="p">,</span> <span class="s">&#39;</span><span class="si">%(value)s</span><span class="s"> quintillion&#39;</span><span class="p">,</span> <span class="n">number</span><span class="p">),</span>
+    <span class="p">)),</span>
+    <span class="p">(</span><span class="mi">21</span><span class="p">,</span> <span class="k">lambda</span> <span class="n">number</span><span class="p">:</span> <span class="p">(</span>
+        <span class="n">ungettext</span><span class="p">(</span><span class="s">&#39;</span><span class="si">%(value).1f</span><span class="s"> sextillion&#39;</span><span class="p">,</span> <span class="s">&#39;</span><span class="si">%(value).1f</span><span class="s"> sextillion&#39;</span><span class="p">,</span> <span class="n">number</span><span class="p">),</span>
+        <span class="n">ungettext</span><span class="p">(</span><span class="s">&#39;</span><span class="si">%(value)s</span><span class="s"> sextillion&#39;</span><span class="p">,</span> <span class="s">&#39;</span><span class="si">%(value)s</span><span class="s"> sextillion&#39;</span><span class="p">,</span> <span class="n">number</span><span class="p">),</span>
+    <span class="p">)),</span>
+    <span class="p">(</span><span class="mi">24</span><span class="p">,</span> <span class="k">lambda</span> <span class="n">number</span><span class="p">:</span> <span class="p">(</span>
+        <span class="n">ungettext</span><span class="p">(</span><span class="s">&#39;</span><span class="si">%(value).1f</span><span class="s"> septillion&#39;</span><span class="p">,</span> <span class="s">&#39;</span><span class="si">%(value).1f</span><span class="s"> septillion&#39;</span><span class="p">,</span> <span class="n">number</span><span class="p">),</span>
+        <span class="n">ungettext</span><span class="p">(</span><span class="s">&#39;</span><span class="si">%(value)s</span><span class="s"> septillion&#39;</span><span class="p">,</span> <span class="s">&#39;</span><span class="si">%(value)s</span><span class="s"> septillion&#39;</span><span class="p">,</span> <span class="n">number</span><span class="p">),</span>
+    <span class="p">)),</span>
+    <span class="p">(</span><span class="mi">27</span><span class="p">,</span> <span class="k">lambda</span> <span class="n">number</span><span class="p">:</span> <span class="p">(</span>
+        <span class="n">ungettext</span><span class="p">(</span><span class="s">&#39;</span><span class="si">%(value).1f</span><span class="s"> octillion&#39;</span><span class="p">,</span> <span class="s">&#39;</span><span class="si">%(value).1f</span><span class="s"> octillion&#39;</span><span class="p">,</span> <span class="n">number</span><span class="p">),</span>
+        <span class="n">ungettext</span><span class="p">(</span><span class="s">&#39;</span><span class="si">%(value)s</span><span class="s"> octillion&#39;</span><span class="p">,</span> <span class="s">&#39;</span><span class="si">%(value)s</span><span class="s"> octillion&#39;</span><span class="p">,</span> <span class="n">number</span><span class="p">),</span>
+    <span class="p">)),</span>
+    <span class="p">(</span><span class="mi">30</span><span class="p">,</span> <span class="k">lambda</span> <span class="n">number</span><span class="p">:</span> <span class="p">(</span>
+        <span class="n">ungettext</span><span class="p">(</span><span class="s">&#39;</span><span class="si">%(value).1f</span><span class="s"> nonillion&#39;</span><span class="p">,</span> <span class="s">&#39;</span><span class="si">%(value).1f</span><span class="s"> nonillion&#39;</span><span class="p">,</span> <span class="n">number</span><span class="p">),</span>
+        <span class="n">ungettext</span><span class="p">(</span><span class="s">&#39;</span><span class="si">%(value)s</span><span class="s"> nonillion&#39;</span><span class="p">,</span> <span class="s">&#39;</span><span class="si">%(value)s</span><span class="s"> nonillion&#39;</span><span class="p">,</span> <span class="n">number</span><span class="p">),</span>
+    <span class="p">)),</span>
+    <span class="p">(</span><span class="mi">33</span><span class="p">,</span> <span class="k">lambda</span> <span class="n">number</span><span class="p">:</span> <span class="p">(</span>
+        <span class="n">ungettext</span><span class="p">(</span><span class="s">&#39;</span><span class="si">%(value).1f</span><span class="s"> decillion&#39;</span><span class="p">,</span> <span class="s">&#39;</span><span class="si">%(value).1f</span><span class="s"> decillion&#39;</span><span class="p">,</span> <span class="n">number</span><span class="p">),</span>
+        <span class="n">ungettext</span><span class="p">(</span><span class="s">&#39;</span><span class="si">%(value)s</span><span class="s"> decillion&#39;</span><span class="p">,</span> <span class="s">&#39;</span><span class="si">%(value)s</span><span class="s"> decillion&#39;</span><span class="p">,</span> <span class="n">number</span><span class="p">),</span>
+    <span class="p">)),</span>
+    <span class="p">(</span><span class="mi">100</span><span class="p">,</span> <span class="k">lambda</span> <span class="n">number</span><span class="p">:</span> <span class="p">(</span>
+        <span class="n">ungettext</span><span class="p">(</span><span class="s">&#39;</span><span class="si">%(value).1f</span><span class="s"> googol&#39;</span><span class="p">,</span> <span class="s">&#39;</span><span class="si">%(value).1f</span><span class="s"> googol&#39;</span><span class="p">,</span> <span class="n">number</span><span class="p">),</span>
+        <span class="n">ungettext</span><span class="p">(</span><span class="s">&#39;</span><span class="si">%(value)s</span><span class="s"> googol&#39;</span><span class="p">,</span> <span class="s">&#39;</span><span class="si">%(value)s</span><span class="s"> googol&#39;</span><span class="p">,</span> <span class="n">number</span><span class="p">),</span>
+    <span class="p">)),</span>
+<span class="p">)</span>
+
+<span class="nd">@register.filter</span><span class="p">(</span><span class="n">is_safe</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span>
+<div class="viewcode-block" id="intword"><a class="viewcode-back" href="../../../../../django.contrib.humanize.templatetags.html#django.contrib.humanize.templatetags.humanize.intword">[docs]</a><span class="k">def</span> <span class="nf">intword</span><span class="p">(</span><span class="n">value</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Converts a large integer to a friendly text representation. Works best</span>
+<span class="sd">    for numbers over 1 million. For example, 1000000 becomes &#39;1.0 million&#39;,</span>
+<span class="sd">    1200000 becomes &#39;1.2 million&#39; and &#39;1200000000&#39; becomes &#39;1.2 billion&#39;.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">value</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+    <span class="k">except</span> <span class="p">(</span><span class="ne">TypeError</span><span class="p">,</span> <span class="ne">ValueError</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">value</span>
+
+    <span class="k">if</span> <span class="n">value</span> <span class="o">&lt;</span> <span class="mi">1000000</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">value</span>
+
+    <span class="k">def</span> <span class="nf">_check_for_i18n</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">float_formatted</span><span class="p">,</span> <span class="n">string_formatted</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Use the i18n enabled defaultfilters.floatformat if possible</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">settings</span><span class="o">.</span><span class="n">USE_L10N</span><span class="p">:</span>
+            <span class="n">value</span> <span class="o">=</span> <span class="n">defaultfilters</span><span class="o">.</span><span class="n">floatformat</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+            <span class="n">template</span> <span class="o">=</span> <span class="n">string_formatted</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">template</span> <span class="o">=</span> <span class="n">float_formatted</span>
+        <span class="k">return</span> <span class="n">template</span> <span class="o">%</span> <span class="p">{</span><span class="s">&#39;value&#39;</span><span class="p">:</span> <span class="n">value</span><span class="p">}</span>
+
+    <span class="k">for</span> <span class="n">exponent</span><span class="p">,</span> <span class="n">converters</span> <span class="ow">in</span> <span class="n">intword_converters</span><span class="p">:</span>
+        <span class="n">large_number</span> <span class="o">=</span> <span class="mi">10</span> <span class="o">**</span> <span class="n">exponent</span>
+        <span class="k">if</span> <span class="n">value</span> <span class="o">&lt;</span> <span class="n">large_number</span> <span class="o">*</span> <span class="mi">1000</span><span class="p">:</span>
+            <span class="n">new_value</span> <span class="o">=</span> <span class="n">value</span> <span class="o">/</span> <span class="nb">float</span><span class="p">(</span><span class="n">large_number</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">_check_for_i18n</span><span class="p">(</span><span class="n">new_value</span><span class="p">,</span> <span class="o">*</span><span class="n">converters</span><span class="p">(</span><span class="n">new_value</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">value</span>
+</div>
+<span class="nd">@register.filter</span><span class="p">(</span><span class="n">is_safe</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+<div class="viewcode-block" id="apnumber"><a class="viewcode-back" href="../../../../../django.contrib.humanize.templatetags.html#django.contrib.humanize.templatetags.humanize.apnumber">[docs]</a><span class="k">def</span> <span class="nf">apnumber</span><span class="p">(</span><span class="n">value</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    For numbers 1-9, returns the number spelled out. Otherwise, returns the</span>
+<span class="sd">    number. This follows Associated Press style.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">value</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+    <span class="k">except</span> <span class="p">(</span><span class="ne">TypeError</span><span class="p">,</span> <span class="ne">ValueError</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">value</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="mi">0</span> <span class="o">&lt;</span> <span class="n">value</span> <span class="o">&lt;</span> <span class="mi">10</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">value</span>
+    <span class="k">return</span> <span class="p">(</span><span class="n">_</span><span class="p">(</span><span class="s">&#39;one&#39;</span><span class="p">),</span> <span class="n">_</span><span class="p">(</span><span class="s">&#39;two&#39;</span><span class="p">),</span> <span class="n">_</span><span class="p">(</span><span class="s">&#39;three&#39;</span><span class="p">),</span> <span class="n">_</span><span class="p">(</span><span class="s">&#39;four&#39;</span><span class="p">),</span> <span class="n">_</span><span class="p">(</span><span class="s">&#39;five&#39;</span><span class="p">),</span> <span class="n">_</span><span class="p">(</span><span class="s">&#39;six&#39;</span><span class="p">),</span> <span class="n">_</span><span class="p">(</span><span class="s">&#39;seven&#39;</span><span class="p">),</span> <span class="n">_</span><span class="p">(</span><span class="s">&#39;eight&#39;</span><span class="p">),</span> <span class="n">_</span><span class="p">(</span><span class="s">&#39;nine&#39;</span><span class="p">))[</span><span class="n">value</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+
+<span class="c"># Perform the comparison in the default time zone when USE_TZ = True</span>
+<span class="c"># (unless a specific time zone has been applied with the |timezone filter).</span></div>
+<span class="nd">@register.filter</span><span class="p">(</span><span class="n">expects_localtime</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+<div class="viewcode-block" id="naturalday"><a class="viewcode-back" href="../../../../../django.contrib.humanize.templatetags.html#django.contrib.humanize.templatetags.humanize.naturalday">[docs]</a><span class="k">def</span> <span class="nf">naturalday</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">arg</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    For date values that are tomorrow, today or yesterday compared to</span>
+<span class="sd">    present day returns representing string. Otherwise, returns a string</span>
+<span class="sd">    formatted according to settings.DATE_FORMAT.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">tzinfo</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="s">&#39;tzinfo&#39;</span><span class="p">,</span> <span class="bp">None</span><span class="p">)</span>
+        <span class="n">value</span> <span class="o">=</span> <span class="n">date</span><span class="p">(</span><span class="n">value</span><span class="o">.</span><span class="n">year</span><span class="p">,</span> <span class="n">value</span><span class="o">.</span><span class="n">month</span><span class="p">,</span> <span class="n">value</span><span class="o">.</span><span class="n">day</span><span class="p">)</span>
+    <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>
+        <span class="c"># Passed value wasn&#39;t a date object</span>
+        <span class="k">return</span> <span class="n">value</span>
+    <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+        <span class="c"># Date arguments out of range</span>
+        <span class="k">return</span> <span class="n">value</span>
+    <span class="n">today</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">(</span><span class="n">tzinfo</span><span class="p">)</span><span class="o">.</span><span class="n">date</span><span class="p">()</span>
+    <span class="n">delta</span> <span class="o">=</span> <span class="n">value</span> <span class="o">-</span> <span class="n">today</span>
+    <span class="k">if</span> <span class="n">delta</span><span class="o">.</span><span class="n">days</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">_</span><span class="p">(</span><span class="s">&#39;today&#39;</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">delta</span><span class="o">.</span><span class="n">days</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">_</span><span class="p">(</span><span class="s">&#39;tomorrow&#39;</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">delta</span><span class="o">.</span><span class="n">days</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">_</span><span class="p">(</span><span class="s">&#39;yesterday&#39;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">defaultfilters</span><span class="o">.</span><span class="n">date</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">arg</span><span class="p">)</span>
+
+<span class="c"># This filter doesn&#39;t require expects_localtime=True because it deals properly</span>
+<span class="c"># with both naive and aware datetimes. Therefore avoid the cost of conversion.</span></div>
+<span class="nd">@register.filter</span>
+<div class="viewcode-block" id="naturaltime"><a class="viewcode-back" href="../../../../../django.contrib.humanize.templatetags.html#django.contrib.humanize.templatetags.humanize.naturaltime">[docs]</a><span class="k">def</span> <span class="nf">naturaltime</span><span class="p">(</span><span class="n">value</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    For date and time values shows how many seconds, minutes or hours ago</span>
+<span class="sd">    compared to current timestamp returns representing string.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">date</span><span class="p">):</span> <span class="c"># datetime is a subclass of date</span>
+        <span class="k">return</span> <span class="n">value</span>
+
+    <span class="n">now</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">(</span><span class="n">utc</span> <span class="k">if</span> <span class="n">is_aware</span><span class="p">(</span><span class="n">value</span><span class="p">)</span> <span class="k">else</span> <span class="bp">None</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">value</span> <span class="o">&lt;</span> <span class="n">now</span><span class="p">:</span>
+        <span class="n">delta</span> <span class="o">=</span> <span class="n">now</span> <span class="o">-</span> <span class="n">value</span>
+        <span class="k">if</span> <span class="n">delta</span><span class="o">.</span><span class="n">days</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">pgettext</span><span class="p">(</span>
+                <span class="s">&#39;naturaltime&#39;</span><span class="p">,</span> <span class="s">&#39;</span><span class="si">%(delta)s</span><span class="s"> ago&#39;</span>
+            <span class="p">)</span> <span class="o">%</span> <span class="p">{</span><span class="s">&#39;delta&#39;</span><span class="p">:</span> <span class="n">defaultfilters</span><span class="o">.</span><span class="n">timesince</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">now</span><span class="p">)}</span>
+        <span class="k">elif</span> <span class="n">delta</span><span class="o">.</span><span class="n">seconds</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">_</span><span class="p">(</span><span class="s">&#39;now&#39;</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">delta</span><span class="o">.</span><span class="n">seconds</span> <span class="o">&lt;</span> <span class="mi">60</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">ungettext</span><span class="p">(</span>
+                <span class="s">&#39;a second ago&#39;</span><span class="p">,</span> <span class="s">&#39;</span><span class="si">%(count)s</span><span class="s"> seconds ago&#39;</span><span class="p">,</span> <span class="n">delta</span><span class="o">.</span><span class="n">seconds</span>
+            <span class="p">)</span> <span class="o">%</span> <span class="p">{</span><span class="s">&#39;count&#39;</span><span class="p">:</span> <span class="n">delta</span><span class="o">.</span><span class="n">seconds</span><span class="p">}</span>
+        <span class="k">elif</span> <span class="n">delta</span><span class="o">.</span><span class="n">seconds</span> <span class="o">//</span> <span class="mi">60</span> <span class="o">&lt;</span> <span class="mi">60</span><span class="p">:</span>
+            <span class="n">count</span> <span class="o">=</span> <span class="n">delta</span><span class="o">.</span><span class="n">seconds</span> <span class="o">//</span> <span class="mi">60</span>
+            <span class="k">return</span> <span class="n">ungettext</span><span class="p">(</span>
+                <span class="s">&#39;a minute ago&#39;</span><span class="p">,</span> <span class="s">&#39;</span><span class="si">%(count)s</span><span class="s"> minutes ago&#39;</span><span class="p">,</span> <span class="n">count</span>
+            <span class="p">)</span> <span class="o">%</span> <span class="p">{</span><span class="s">&#39;count&#39;</span><span class="p">:</span> <span class="n">count</span><span class="p">}</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">count</span> <span class="o">=</span> <span class="n">delta</span><span class="o">.</span><span class="n">seconds</span> <span class="o">//</span> <span class="mi">60</span> <span class="o">//</span> <span class="mi">60</span>
+            <span class="k">return</span> <span class="n">ungettext</span><span class="p">(</span>
+                <span class="s">&#39;an hour ago&#39;</span><span class="p">,</span> <span class="s">&#39;</span><span class="si">%(count)s</span><span class="s"> hours ago&#39;</span><span class="p">,</span> <span class="n">count</span>
+            <span class="p">)</span> <span class="o">%</span> <span class="p">{</span><span class="s">&#39;count&#39;</span><span class="p">:</span> <span class="n">count</span><span class="p">}</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">delta</span> <span class="o">=</span> <span class="n">value</span> <span class="o">-</span> <span class="n">now</span>
+        <span class="k">if</span> <span class="n">delta</span><span class="o">.</span><span class="n">days</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">pgettext</span><span class="p">(</span>
+                <span class="s">&#39;naturaltime&#39;</span><span class="p">,</span> <span class="s">&#39;</span><span class="si">%(delta)s</span><span class="s"> from now&#39;</span>
+            <span class="p">)</span> <span class="o">%</span> <span class="p">{</span><span class="s">&#39;delta&#39;</span><span class="p">:</span> <span class="n">defaultfilters</span><span class="o">.</span><span class="n">timeuntil</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">now</span><span class="p">)}</span>
+        <span class="k">elif</span> <span class="n">delta</span><span class="o">.</span><span class="n">seconds</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">_</span><span class="p">(</span><span class="s">&#39;now&#39;</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">delta</span><span class="o">.</span><span class="n">seconds</span> <span class="o">&lt;</span> <span class="mi">60</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">ungettext</span><span class="p">(</span>
+                <span class="s">&#39;a second from now&#39;</span><span class="p">,</span> <span class="s">&#39;</span><span class="si">%(count)s</span><span class="s"> seconds from now&#39;</span><span class="p">,</span> <span class="n">delta</span><span class="o">.</span><span class="n">seconds</span>
+            <span class="p">)</span> <span class="o">%</span> <span class="p">{</span><span class="s">&#39;count&#39;</span><span class="p">:</span> <span class="n">delta</span><span class="o">.</span><span class="n">seconds</span><span class="p">}</span>
+        <span class="k">elif</span> <span class="n">delta</span><span class="o">.</span><span class="n">seconds</span> <span class="o">//</span> <span class="mi">60</span> <span class="o">&lt;</span> <span class="mi">60</span><span class="p">:</span>
+            <span class="n">count</span> <span class="o">=</span> <span class="n">delta</span><span class="o">.</span><span class="n">seconds</span> <span class="o">//</span> <span class="mi">60</span>
+            <span class="k">return</span> <span class="n">ungettext</span><span class="p">(</span>
+                <span class="s">&#39;a minute from now&#39;</span><span class="p">,</span> <span class="s">&#39;</span><span class="si">%(count)s</span><span class="s"> minutes from now&#39;</span><span class="p">,</span> <span class="n">count</span>
+            <span class="p">)</span> <span class="o">%</span> <span class="p">{</span><span class="s">&#39;count&#39;</span><span class="p">:</span> <span class="n">count</span><span class="p">}</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">count</span> <span class="o">=</span> <span class="n">delta</span><span class="o">.</span><span class="n">seconds</span> <span class="o">//</span> <span class="mi">60</span> <span class="o">//</span> <span class="mi">60</span>
+            <span class="k">return</span> <span class="n">ungettext</span><span class="p">(</span>
+                <span class="s">&#39;an hour from now&#39;</span><span class="p">,</span> <span class="s">&#39;</span><span class="si">%(count)s</span><span class="s"> hours from now&#39;</span><span class="p">,</span> <span class="n">count</span>
+            <span class="p">)</span> <span class="o">%</span> <span class="p">{</span><span class="s">&#39;count&#39;</span><span class="p">:</span> <span class="n">count</span><span class="p">}</span></div>
+</pre></div>
+
+      </div>
+      <div class="bottomnav">
+      
+        <p>
+        <a href="/">Home</a>:
+        <a class="uplink" href="../../../../../index.html">Contents</a>
+        </p>
+
+      </div>
+
+    <div class="footer">
+        &copy; Copyright 2012, HDKNR.COM.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2b1.
+    </div>
+  </body>
+</html>

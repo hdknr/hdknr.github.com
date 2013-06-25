@@ -1,0 +1,217 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>django.utils.translation &mdash; Django Cheat 1 documentation</title>
+    
+    <link rel="stylesheet" href="../../../_static/haiku.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../../../static/print.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../',
+        VERSION:     '1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <script type="text/javascript" src="../../../static/theme_extras.js"></script>
+    <link rel="top" title="Django Cheat 1 documentation" href="../../../index.html" />
+    <link rel="up" title="Module code" href="../../index.html" /> 
+  </head>
+  <body>
+      <div class="header"><h1 class="heading"><a href="../../../index.html">
+          <span>Django Cheat 1 documentation</span></a></h1>
+        <h2 class="heading"><span>django.utils.translation</span></h2>
+      </div>
+      <div class="topnav">
+      
+        <p>
+        <a href="/">Home</a>:
+        <a class="uplink" href="../../../index.html">Contents</a>
+        </p>
+
+      </div>
+      <div class="content">
+        
+        
+  <h1>Source code for django.utils.translation</h1><div class="highlight"><pre>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Internationalization support.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">unicode_literals</span>
+
+<span class="kn">from</span> <span class="nn">django.utils.encoding</span> <span class="kn">import</span> <span class="n">force_text</span>
+<span class="kn">from</span> <span class="nn">django.utils.functional</span> <span class="kn">import</span> <span class="n">lazy</span>
+<span class="kn">from</span> <span class="nn">django.utils</span> <span class="kn">import</span> <span class="n">six</span>
+
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="s">&#39;activate&#39;</span><span class="p">,</span> <span class="s">&#39;deactivate&#39;</span><span class="p">,</span> <span class="s">&#39;override&#39;</span><span class="p">,</span> <span class="s">&#39;deactivate_all&#39;</span><span class="p">,</span>
+    <span class="s">&#39;get_language&#39;</span><span class="p">,</span>  <span class="s">&#39;get_language_from_request&#39;</span><span class="p">,</span>
+    <span class="s">&#39;get_language_info&#39;</span><span class="p">,</span> <span class="s">&#39;get_language_bidi&#39;</span><span class="p">,</span>
+    <span class="s">&#39;check_for_language&#39;</span><span class="p">,</span> <span class="s">&#39;to_locale&#39;</span><span class="p">,</span> <span class="s">&#39;templatize&#39;</span><span class="p">,</span> <span class="s">&#39;string_concat&#39;</span><span class="p">,</span>
+    <span class="s">&#39;gettext&#39;</span><span class="p">,</span> <span class="s">&#39;gettext_lazy&#39;</span><span class="p">,</span> <span class="s">&#39;gettext_noop&#39;</span><span class="p">,</span>
+    <span class="s">&#39;ugettext&#39;</span><span class="p">,</span> <span class="s">&#39;ugettext_lazy&#39;</span><span class="p">,</span> <span class="s">&#39;ugettext_noop&#39;</span><span class="p">,</span>
+    <span class="s">&#39;ngettext&#39;</span><span class="p">,</span> <span class="s">&#39;ngettext_lazy&#39;</span><span class="p">,</span>
+    <span class="s">&#39;ungettext&#39;</span><span class="p">,</span> <span class="s">&#39;ungettext_lazy&#39;</span><span class="p">,</span>
+    <span class="s">&#39;pgettext&#39;</span><span class="p">,</span> <span class="s">&#39;pgettext_lazy&#39;</span><span class="p">,</span>
+    <span class="s">&#39;npgettext&#39;</span><span class="p">,</span> <span class="s">&#39;npgettext_lazy&#39;</span><span class="p">,</span>
+<span class="p">]</span>
+
+<span class="c"># Here be dragons, so a short explanation of the logic won&#39;t hurt:</span>
+<span class="c"># We are trying to solve two problems: (1) access settings, in particular</span>
+<span class="c"># settings.USE_I18N, as late as possible, so that modules can be imported</span>
+<span class="c"># without having to first configure Django, and (2) if some other code creates</span>
+<span class="c"># a reference to one of these functions, don&#39;t break that reference when we</span>
+<span class="c"># replace the functions with their real counterparts (once we do access the</span>
+<span class="c"># settings).</span>
+
+<span class="k">class</span> <span class="nc">Trans</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    The purpose of this class is to store the actual translation function upon</span>
+<span class="sd">    receiving the first call to that function. After this is done, changes to</span>
+<span class="sd">    USE_I18N will have no effect to which function is served upon request. If</span>
+<span class="sd">    your tests rely on changing USE_I18N, you can delete all the functions</span>
+<span class="sd">    from _trans.__dict__.</span>
+
+<span class="sd">    Note that storing the function with setattr will have a noticeable</span>
+<span class="sd">    performance effect, as access to the function goes the normal path,</span>
+<span class="sd">    instead of using __getattr__.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__getattr__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">real_name</span><span class="p">):</span>
+        <span class="kn">from</span> <span class="nn">django.conf</span> <span class="kn">import</span> <span class="n">settings</span>
+        <span class="k">if</span> <span class="n">settings</span><span class="o">.</span><span class="n">USE_I18N</span><span class="p">:</span>
+            <span class="kn">from</span> <span class="nn">django.utils.translation</span> <span class="kn">import</span> <span class="n">trans_real</span> <span class="k">as</span> <span class="n">trans</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="kn">from</span> <span class="nn">django.utils.translation</span> <span class="kn">import</span> <span class="n">trans_null</span> <span class="k">as</span> <span class="n">trans</span>
+        <span class="nb">setattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">real_name</span><span class="p">,</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">trans</span><span class="p">,</span> <span class="n">real_name</span><span class="p">))</span>
+        <span class="k">return</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">trans</span><span class="p">,</span> <span class="n">real_name</span><span class="p">)</span>
+
+<span class="n">_trans</span> <span class="o">=</span> <span class="n">Trans</span><span class="p">()</span>
+
+<span class="c"># The Trans class is no more needed, so remove it from the namespace.</span>
+<span class="k">del</span> <span class="n">Trans</span>
+
+<span class="k">def</span> <span class="nf">gettext_noop</span><span class="p">(</span><span class="n">message</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">_trans</span><span class="o">.</span><span class="n">gettext_noop</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
+
+<span class="n">ugettext_noop</span> <span class="o">=</span> <span class="n">gettext_noop</span>
+
+<span class="k">def</span> <span class="nf">gettext</span><span class="p">(</span><span class="n">message</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">_trans</span><span class="o">.</span><span class="n">gettext</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
+
+<span class="k">def</span> <span class="nf">ngettext</span><span class="p">(</span><span class="n">singular</span><span class="p">,</span> <span class="n">plural</span><span class="p">,</span> <span class="n">number</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">_trans</span><span class="o">.</span><span class="n">ngettext</span><span class="p">(</span><span class="n">singular</span><span class="p">,</span> <span class="n">plural</span><span class="p">,</span> <span class="n">number</span><span class="p">)</span>
+
+<span class="k">def</span> <span class="nf">ugettext</span><span class="p">(</span><span class="n">message</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">_trans</span><span class="o">.</span><span class="n">ugettext</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
+
+<span class="k">def</span> <span class="nf">ungettext</span><span class="p">(</span><span class="n">singular</span><span class="p">,</span> <span class="n">plural</span><span class="p">,</span> <span class="n">number</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">_trans</span><span class="o">.</span><span class="n">ungettext</span><span class="p">(</span><span class="n">singular</span><span class="p">,</span> <span class="n">plural</span><span class="p">,</span> <span class="n">number</span><span class="p">)</span>
+
+<span class="k">def</span> <span class="nf">pgettext</span><span class="p">(</span><span class="n">context</span><span class="p">,</span> <span class="n">message</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">_trans</span><span class="o">.</span><span class="n">pgettext</span><span class="p">(</span><span class="n">context</span><span class="p">,</span> <span class="n">message</span><span class="p">)</span>
+
+<span class="k">def</span> <span class="nf">npgettext</span><span class="p">(</span><span class="n">context</span><span class="p">,</span> <span class="n">singular</span><span class="p">,</span> <span class="n">plural</span><span class="p">,</span> <span class="n">number</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">_trans</span><span class="o">.</span><span class="n">npgettext</span><span class="p">(</span><span class="n">context</span><span class="p">,</span> <span class="n">singular</span><span class="p">,</span> <span class="n">plural</span><span class="p">,</span> <span class="n">number</span><span class="p">)</span>
+
+<span class="n">gettext_lazy</span> <span class="o">=</span> <span class="n">lazy</span><span class="p">(</span><span class="n">gettext</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span>
+<span class="n">ngettext_lazy</span> <span class="o">=</span> <span class="n">lazy</span><span class="p">(</span><span class="n">ngettext</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span>
+<span class="n">ugettext_lazy</span> <span class="o">=</span> <span class="n">lazy</span><span class="p">(</span><span class="n">ugettext</span><span class="p">,</span> <span class="n">six</span><span class="o">.</span><span class="n">text_type</span><span class="p">)</span>
+<span class="n">ungettext_lazy</span> <span class="o">=</span> <span class="n">lazy</span><span class="p">(</span><span class="n">ungettext</span><span class="p">,</span> <span class="n">six</span><span class="o">.</span><span class="n">text_type</span><span class="p">)</span>
+<span class="n">pgettext_lazy</span> <span class="o">=</span> <span class="n">lazy</span><span class="p">(</span><span class="n">pgettext</span><span class="p">,</span> <span class="n">six</span><span class="o">.</span><span class="n">text_type</span><span class="p">)</span>
+<span class="n">npgettext_lazy</span> <span class="o">=</span> <span class="n">lazy</span><span class="p">(</span><span class="n">npgettext</span><span class="p">,</span> <span class="n">six</span><span class="o">.</span><span class="n">text_type</span><span class="p">)</span>
+
+<span class="k">def</span> <span class="nf">activate</span><span class="p">(</span><span class="n">language</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">_trans</span><span class="o">.</span><span class="n">activate</span><span class="p">(</span><span class="n">language</span><span class="p">)</span>
+
+<span class="k">def</span> <span class="nf">deactivate</span><span class="p">():</span>
+    <span class="k">return</span> <span class="n">_trans</span><span class="o">.</span><span class="n">deactivate</span><span class="p">()</span>
+
+<span class="k">class</span> <span class="nc">override</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">language</span><span class="p">,</span> <span class="n">deactivate</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">language</span> <span class="o">=</span> <span class="n">language</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">deactivate</span> <span class="o">=</span> <span class="n">deactivate</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">old_language</span> <span class="o">=</span> <span class="n">get_language</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">__enter__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">language</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="n">activate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">language</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">deactivate_all</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">__exit__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">exc_type</span><span class="p">,</span> <span class="n">exc_value</span><span class="p">,</span> <span class="n">traceback</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">deactivate</span><span class="p">:</span>
+            <span class="n">deactivate</span><span class="p">()</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">activate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">old_language</span><span class="p">)</span>
+
+<span class="k">def</span> <span class="nf">get_language</span><span class="p">():</span>
+    <span class="k">return</span> <span class="n">_trans</span><span class="o">.</span><span class="n">get_language</span><span class="p">()</span>
+
+<span class="k">def</span> <span class="nf">get_language_bidi</span><span class="p">():</span>
+    <span class="k">return</span> <span class="n">_trans</span><span class="o">.</span><span class="n">get_language_bidi</span><span class="p">()</span>
+
+<span class="k">def</span> <span class="nf">check_for_language</span><span class="p">(</span><span class="n">lang_code</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">_trans</span><span class="o">.</span><span class="n">check_for_language</span><span class="p">(</span><span class="n">lang_code</span><span class="p">)</span>
+
+<span class="k">def</span> <span class="nf">to_locale</span><span class="p">(</span><span class="n">language</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">_trans</span><span class="o">.</span><span class="n">to_locale</span><span class="p">(</span><span class="n">language</span><span class="p">)</span>
+
+<span class="k">def</span> <span class="nf">get_language_from_request</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="n">check_path</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">_trans</span><span class="o">.</span><span class="n">get_language_from_request</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="n">check_path</span><span class="p">)</span>
+
+<span class="k">def</span> <span class="nf">get_language_from_path</span><span class="p">(</span><span class="n">path</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">_trans</span><span class="o">.</span><span class="n">get_language_from_path</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+
+<span class="k">def</span> <span class="nf">templatize</span><span class="p">(</span><span class="n">src</span><span class="p">,</span> <span class="n">origin</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">_trans</span><span class="o">.</span><span class="n">templatize</span><span class="p">(</span><span class="n">src</span><span class="p">,</span> <span class="n">origin</span><span class="p">)</span>
+
+<span class="k">def</span> <span class="nf">deactivate_all</span><span class="p">():</span>
+    <span class="k">return</span> <span class="n">_trans</span><span class="o">.</span><span class="n">deactivate_all</span><span class="p">()</span>
+
+<span class="k">def</span> <span class="nf">_string_concat</span><span class="p">(</span><span class="o">*</span><span class="n">strings</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Lazy variant of string concatenation, needed for translations that are</span>
+<span class="sd">    constructed from multiple parts.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="s">&#39;&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="n">force_text</span><span class="p">(</span><span class="n">s</span><span class="p">)</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">strings</span><span class="p">])</span>
+<span class="n">string_concat</span> <span class="o">=</span> <span class="n">lazy</span><span class="p">(</span><span class="n">_string_concat</span><span class="p">,</span> <span class="n">six</span><span class="o">.</span><span class="n">text_type</span><span class="p">)</span>
+
+<span class="k">def</span> <span class="nf">get_language_info</span><span class="p">(</span><span class="n">lang_code</span><span class="p">):</span>
+    <span class="kn">from</span> <span class="nn">django.conf.locale</span> <span class="kn">import</span> <span class="n">LANG_INFO</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">LANG_INFO</span><span class="p">[</span><span class="n">lang_code</span><span class="p">]</span>
+    <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">KeyError</span><span class="p">(</span><span class="s">&quot;Unknown language code </span><span class="si">%r</span><span class="s">.&quot;</span> <span class="o">%</span> <span class="n">lang_code</span><span class="p">)</span>
+</pre></div>
+
+      </div>
+      <div class="bottomnav">
+      
+        <p>
+        <a href="/">Home</a>:
+        <a class="uplink" href="../../../index.html">Contents</a>
+        </p>
+
+      </div>
+
+    <div class="footer">
+        &copy; Copyright 2012, HDKNR.COM.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2b1.
+    </div>
+  </body>
+</html>

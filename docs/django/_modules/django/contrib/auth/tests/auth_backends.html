@@ -1,0 +1,436 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>django.contrib.auth.tests.auth_backends &mdash; Django Cheat 1 documentation</title>
+    
+    <link rel="stylesheet" href="../../../../../_static/haiku.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../../static/print.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../../../',
+        VERSION:     '1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../../../_static/doctools.js"></script>
+    <script type="text/javascript" src="../../../../../static/theme_extras.js"></script>
+    <link rel="top" title="Django Cheat 1 documentation" href="../../../../../index.html" />
+    <link rel="up" title="django.contrib.auth" href="../../auth.html" /> 
+  </head>
+  <body>
+      <div class="header"><h1 class="heading"><a href="../../../../../index.html">
+          <span>Django Cheat 1 documentation</span></a></h1>
+        <h2 class="heading"><span>django.contrib.auth.tests.auth_backends</span></h2>
+      </div>
+      <div class="topnav">
+      
+        <p>
+        <a href="/">Home</a>:
+        <a class="uplink" href="../../../../../index.html">Contents</a>
+        </p>
+
+      </div>
+      <div class="content">
+        
+        
+  <h1>Source code for django.contrib.auth.tests.auth_backends</h1><div class="highlight"><pre>
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">unicode_literals</span>
+<span class="kn">from</span> <span class="nn">datetime</span> <span class="kn">import</span> <span class="n">date</span>
+
+<span class="kn">from</span> <span class="nn">django.conf</span> <span class="kn">import</span> <span class="n">settings</span>
+<span class="kn">from</span> <span class="nn">django.contrib.auth.models</span> <span class="kn">import</span> <span class="n">User</span><span class="p">,</span> <span class="n">Group</span><span class="p">,</span> <span class="n">Permission</span><span class="p">,</span> <span class="n">AnonymousUser</span>
+<span class="kn">from</span> <span class="nn">django.contrib.auth.tests.utils</span> <span class="kn">import</span> <span class="n">skipIfCustomUser</span>
+<span class="kn">from</span> <span class="nn">django.contrib.auth.tests.custom_user</span> <span class="kn">import</span> <span class="n">ExtensionUser</span><span class="p">,</span> <span class="n">CustomPermissionsUser</span><span class="p">,</span> <span class="n">CustomUser</span>
+<span class="kn">from</span> <span class="nn">django.contrib.contenttypes.models</span> <span class="kn">import</span> <span class="n">ContentType</span>
+<span class="kn">from</span> <span class="nn">django.core.exceptions</span> <span class="kn">import</span> <span class="n">ImproperlyConfigured</span>
+<span class="kn">from</span> <span class="nn">django.contrib.auth</span> <span class="kn">import</span> <span class="n">authenticate</span>
+<span class="kn">from</span> <span class="nn">django.test</span> <span class="kn">import</span> <span class="n">TestCase</span>
+<span class="kn">from</span> <span class="nn">django.test.utils</span> <span class="kn">import</span> <span class="n">override_settings</span>
+
+
+<div class="viewcode-block" id="BaseModelBackendTest"><a class="viewcode-back" href="../../../../../django.contrib.auth.tests.html#django.contrib.auth.tests.auth_backends.BaseModelBackendTest">[docs]</a><span class="k">class</span> <span class="nc">BaseModelBackendTest</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    A base class for tests that need to validate the ModelBackend</span>
+<span class="sd">    with different User models. Subclasses should define a class</span>
+<span class="sd">    level UserModel attribute, and a create_users() method to</span>
+<span class="sd">    construct two users for test purposes.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">backend</span> <span class="o">=</span> <span class="s">&#39;django.contrib.auth.backends.ModelBackend&#39;</span>
+
+    <span class="k">def</span> <span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">curr_auth</span> <span class="o">=</span> <span class="n">settings</span><span class="o">.</span><span class="n">AUTHENTICATION_BACKENDS</span>
+        <span class="n">settings</span><span class="o">.</span><span class="n">AUTHENTICATION_BACKENDS</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">backend</span><span class="p">,)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">create_users</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">tearDown</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">settings</span><span class="o">.</span><span class="n">AUTHENTICATION_BACKENDS</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">curr_auth</span>
+        <span class="c"># The custom_perms test messes with ContentTypes, which will</span>
+        <span class="c"># be cached; flush the cache to ensure there are no side effects</span>
+        <span class="c"># Refs #14975, #14925</span>
+        <span class="n">ContentType</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">clear_cache</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">test_has_perm</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">user</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">UserModel</span><span class="o">.</span><span class="n">_default_manager</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">pk</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">user</span><span class="o">.</span><span class="n">pk</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">user</span><span class="o">.</span><span class="n">has_perm</span><span class="p">(</span><span class="s">&#39;auth.test&#39;</span><span class="p">),</span> <span class="bp">False</span><span class="p">)</span>
+        <span class="n">user</span><span class="o">.</span><span class="n">is_staff</span> <span class="o">=</span> <span class="bp">True</span>
+        <span class="n">user</span><span class="o">.</span><span class="n">save</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">user</span><span class="o">.</span><span class="n">has_perm</span><span class="p">(</span><span class="s">&#39;auth.test&#39;</span><span class="p">),</span> <span class="bp">False</span><span class="p">)</span>
+        <span class="n">user</span><span class="o">.</span><span class="n">is_superuser</span> <span class="o">=</span> <span class="bp">True</span>
+        <span class="n">user</span><span class="o">.</span><span class="n">save</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">user</span><span class="o">.</span><span class="n">has_perm</span><span class="p">(</span><span class="s">&#39;auth.test&#39;</span><span class="p">),</span> <span class="bp">True</span><span class="p">)</span>
+        <span class="n">user</span><span class="o">.</span><span class="n">is_staff</span> <span class="o">=</span> <span class="bp">False</span>
+        <span class="n">user</span><span class="o">.</span><span class="n">is_superuser</span> <span class="o">=</span> <span class="bp">False</span>
+        <span class="n">user</span><span class="o">.</span><span class="n">save</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">user</span><span class="o">.</span><span class="n">has_perm</span><span class="p">(</span><span class="s">&#39;auth.test&#39;</span><span class="p">),</span> <span class="bp">False</span><span class="p">)</span>
+        <span class="n">user</span><span class="o">.</span><span class="n">is_staff</span> <span class="o">=</span> <span class="bp">True</span>
+        <span class="n">user</span><span class="o">.</span><span class="n">is_superuser</span> <span class="o">=</span> <span class="bp">True</span>
+        <span class="n">user</span><span class="o">.</span><span class="n">is_active</span> <span class="o">=</span> <span class="bp">False</span>
+        <span class="n">user</span><span class="o">.</span><span class="n">save</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">user</span><span class="o">.</span><span class="n">has_perm</span><span class="p">(</span><span class="s">&#39;auth.test&#39;</span><span class="p">),</span> <span class="bp">False</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">test_custom_perms</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">user</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">UserModel</span><span class="o">.</span><span class="n">_default_manager</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">pk</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">user</span><span class="o">.</span><span class="n">pk</span><span class="p">)</span>
+        <span class="n">content_type</span> <span class="o">=</span> <span class="n">ContentType</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">get_for_model</span><span class="p">(</span><span class="n">Group</span><span class="p">)</span>
+        <span class="n">perm</span> <span class="o">=</span> <span class="n">Permission</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s">&#39;test&#39;</span><span class="p">,</span> <span class="n">content_type</span><span class="o">=</span><span class="n">content_type</span><span class="p">,</span> <span class="n">codename</span><span class="o">=</span><span class="s">&#39;test&#39;</span><span class="p">)</span>
+        <span class="n">user</span><span class="o">.</span><span class="n">user_permissions</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">perm</span><span class="p">)</span>
+        <span class="n">user</span><span class="o">.</span><span class="n">save</span><span class="p">()</span>
+
+        <span class="c"># reloading user to purge the _perm_cache</span>
+        <span class="n">user</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">UserModel</span><span class="o">.</span><span class="n">_default_manager</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">pk</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">user</span><span class="o">.</span><span class="n">pk</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">user</span><span class="o">.</span><span class="n">get_all_permissions</span><span class="p">()</span> <span class="o">==</span> <span class="nb">set</span><span class="p">([</span><span class="s">&#39;auth.test&#39;</span><span class="p">]),</span> <span class="bp">True</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">user</span><span class="o">.</span><span class="n">get_group_permissions</span><span class="p">(),</span> <span class="nb">set</span><span class="p">([]))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">user</span><span class="o">.</span><span class="n">has_module_perms</span><span class="p">(</span><span class="s">&#39;Group&#39;</span><span class="p">),</span> <span class="bp">False</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">user</span><span class="o">.</span><span class="n">has_module_perms</span><span class="p">(</span><span class="s">&#39;auth&#39;</span><span class="p">),</span> <span class="bp">True</span><span class="p">)</span>
+        <span class="n">perm</span> <span class="o">=</span> <span class="n">Permission</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s">&#39;test2&#39;</span><span class="p">,</span> <span class="n">content_type</span><span class="o">=</span><span class="n">content_type</span><span class="p">,</span> <span class="n">codename</span><span class="o">=</span><span class="s">&#39;test2&#39;</span><span class="p">)</span>
+        <span class="n">user</span><span class="o">.</span><span class="n">user_permissions</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">perm</span><span class="p">)</span>
+        <span class="n">user</span><span class="o">.</span><span class="n">save</span><span class="p">()</span>
+        <span class="n">perm</span> <span class="o">=</span> <span class="n">Permission</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s">&#39;test3&#39;</span><span class="p">,</span> <span class="n">content_type</span><span class="o">=</span><span class="n">content_type</span><span class="p">,</span> <span class="n">codename</span><span class="o">=</span><span class="s">&#39;test3&#39;</span><span class="p">)</span>
+        <span class="n">user</span><span class="o">.</span><span class="n">user_permissions</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">perm</span><span class="p">)</span>
+        <span class="n">user</span><span class="o">.</span><span class="n">save</span><span class="p">()</span>
+        <span class="n">user</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">UserModel</span><span class="o">.</span><span class="n">_default_manager</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">pk</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">user</span><span class="o">.</span><span class="n">pk</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">user</span><span class="o">.</span><span class="n">get_all_permissions</span><span class="p">(),</span> <span class="nb">set</span><span class="p">([</span><span class="s">&#39;auth.test2&#39;</span><span class="p">,</span> <span class="s">&#39;auth.test&#39;</span><span class="p">,</span> <span class="s">&#39;auth.test3&#39;</span><span class="p">]))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">user</span><span class="o">.</span><span class="n">has_perm</span><span class="p">(</span><span class="s">&#39;test&#39;</span><span class="p">),</span> <span class="bp">False</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">user</span><span class="o">.</span><span class="n">has_perm</span><span class="p">(</span><span class="s">&#39;auth.test&#39;</span><span class="p">),</span> <span class="bp">True</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">user</span><span class="o">.</span><span class="n">has_perms</span><span class="p">([</span><span class="s">&#39;auth.test2&#39;</span><span class="p">,</span> <span class="s">&#39;auth.test3&#39;</span><span class="p">]),</span> <span class="bp">True</span><span class="p">)</span>
+        <span class="n">perm</span> <span class="o">=</span> <span class="n">Permission</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s">&#39;test_group&#39;</span><span class="p">,</span> <span class="n">content_type</span><span class="o">=</span><span class="n">content_type</span><span class="p">,</span> <span class="n">codename</span><span class="o">=</span><span class="s">&#39;test_group&#39;</span><span class="p">)</span>
+        <span class="n">group</span> <span class="o">=</span> <span class="n">Group</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s">&#39;test_group&#39;</span><span class="p">)</span>
+        <span class="n">group</span><span class="o">.</span><span class="n">permissions</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">perm</span><span class="p">)</span>
+        <span class="n">group</span><span class="o">.</span><span class="n">save</span><span class="p">()</span>
+        <span class="n">user</span><span class="o">.</span><span class="n">groups</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">group</span><span class="p">)</span>
+        <span class="n">user</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">UserModel</span><span class="o">.</span><span class="n">_default_manager</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">pk</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">user</span><span class="o">.</span><span class="n">pk</span><span class="p">)</span>
+        <span class="n">exp</span> <span class="o">=</span> <span class="nb">set</span><span class="p">([</span><span class="s">&#39;auth.test2&#39;</span><span class="p">,</span> <span class="s">&#39;auth.test&#39;</span><span class="p">,</span> <span class="s">&#39;auth.test3&#39;</span><span class="p">,</span> <span class="s">&#39;auth.test_group&#39;</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">user</span><span class="o">.</span><span class="n">get_all_permissions</span><span class="p">(),</span> <span class="n">exp</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">user</span><span class="o">.</span><span class="n">get_group_permissions</span><span class="p">(),</span> <span class="nb">set</span><span class="p">([</span><span class="s">&#39;auth.test_group&#39;</span><span class="p">]))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">user</span><span class="o">.</span><span class="n">has_perms</span><span class="p">([</span><span class="s">&#39;auth.test3&#39;</span><span class="p">,</span> <span class="s">&#39;auth.test_group&#39;</span><span class="p">]),</span> <span class="bp">True</span><span class="p">)</span>
+
+        <span class="n">user</span> <span class="o">=</span> <span class="n">AnonymousUser</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">user</span><span class="o">.</span><span class="n">has_perm</span><span class="p">(</span><span class="s">&#39;test&#39;</span><span class="p">),</span> <span class="bp">False</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">user</span><span class="o">.</span><span class="n">has_perms</span><span class="p">([</span><span class="s">&#39;auth.test2&#39;</span><span class="p">,</span> <span class="s">&#39;auth.test3&#39;</span><span class="p">]),</span> <span class="bp">False</span><span class="p">)</span>
+
+<div class="viewcode-block" id="BaseModelBackendTest.test_has_no_object_perm"><a class="viewcode-back" href="../../../../../django.contrib.auth.tests.html#django.contrib.auth.tests.auth_backends.BaseModelBackendTest.test_has_no_object_perm">[docs]</a>    <span class="k">def</span> <span class="nf">test_has_no_object_perm</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Regressiontest for #12462&quot;&quot;&quot;</span>
+        <span class="n">user</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">UserModel</span><span class="o">.</span><span class="n">_default_manager</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">pk</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">user</span><span class="o">.</span><span class="n">pk</span><span class="p">)</span>
+        <span class="n">content_type</span> <span class="o">=</span> <span class="n">ContentType</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">get_for_model</span><span class="p">(</span><span class="n">Group</span><span class="p">)</span>
+        <span class="n">perm</span> <span class="o">=</span> <span class="n">Permission</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s">&#39;test&#39;</span><span class="p">,</span> <span class="n">content_type</span><span class="o">=</span><span class="n">content_type</span><span class="p">,</span> <span class="n">codename</span><span class="o">=</span><span class="s">&#39;test&#39;</span><span class="p">)</span>
+        <span class="n">user</span><span class="o">.</span><span class="n">user_permissions</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">perm</span><span class="p">)</span>
+        <span class="n">user</span><span class="o">.</span><span class="n">save</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">user</span><span class="o">.</span><span class="n">has_perm</span><span class="p">(</span><span class="s">&#39;auth.test&#39;</span><span class="p">,</span> <span class="s">&#39;object&#39;</span><span class="p">),</span> <span class="bp">False</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">user</span><span class="o">.</span><span class="n">get_all_permissions</span><span class="p">(</span><span class="s">&#39;object&#39;</span><span class="p">),</span> <span class="nb">set</span><span class="p">([]))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">user</span><span class="o">.</span><span class="n">has_perm</span><span class="p">(</span><span class="s">&#39;auth.test&#39;</span><span class="p">),</span> <span class="bp">True</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">user</span><span class="o">.</span><span class="n">get_all_permissions</span><span class="p">(),</span> <span class="nb">set</span><span class="p">([</span><span class="s">&#39;auth.test&#39;</span><span class="p">]))</span>
+</div>
+<div class="viewcode-block" id="BaseModelBackendTest.test_get_all_superuser_permissions"><a class="viewcode-back" href="../../../../../django.contrib.auth.tests.html#django.contrib.auth.tests.auth_backends.BaseModelBackendTest.test_get_all_superuser_permissions">[docs]</a>    <span class="k">def</span> <span class="nf">test_get_all_superuser_permissions</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="s">&quot;A superuser has all permissions. Refs #14795&quot;</span>
+        <span class="n">user</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">UserModel</span><span class="o">.</span><span class="n">_default_manager</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">pk</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">superuser</span><span class="o">.</span><span class="n">pk</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">user</span><span class="o">.</span><span class="n">get_all_permissions</span><span class="p">()),</span> <span class="nb">len</span><span class="p">(</span><span class="n">Permission</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">all</span><span class="p">()))</span>
+
+</div></div>
+<span class="nd">@skipIfCustomUser</span>
+<div class="viewcode-block" id="ModelBackendTest"><a class="viewcode-back" href="../../../../../django.contrib.auth.tests.html#django.contrib.auth.tests.auth_backends.ModelBackendTest">[docs]</a><span class="k">class</span> <span class="nc">ModelBackendTest</span><span class="p">(</span><span class="n">BaseModelBackendTest</span><span class="p">,</span> <span class="n">TestCase</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Tests for the ModelBackend using the default User model.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">UserModel</span> <span class="o">=</span> <span class="n">User</span>
+
+    <span class="k">def</span> <span class="nf">create_users</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">user</span> <span class="o">=</span> <span class="n">User</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">create_user</span><span class="p">(</span>
+            <span class="n">username</span><span class="o">=</span><span class="s">&#39;test&#39;</span><span class="p">,</span>
+            <span class="n">email</span><span class="o">=</span><span class="s">&#39;test@example.com&#39;</span><span class="p">,</span>
+            <span class="n">password</span><span class="o">=</span><span class="s">&#39;test&#39;</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">superuser</span> <span class="o">=</span> <span class="n">User</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">create_superuser</span><span class="p">(</span>
+            <span class="n">username</span><span class="o">=</span><span class="s">&#39;test2&#39;</span><span class="p">,</span>
+            <span class="n">email</span><span class="o">=</span><span class="s">&#39;test2@example.com&#39;</span><span class="p">,</span>
+            <span class="n">password</span><span class="o">=</span><span class="s">&#39;test&#39;</span><span class="p">,</span>
+        <span class="p">)</span>
+
+</div>
+<span class="nd">@override_settings</span><span class="p">(</span><span class="n">AUTH_USER_MODEL</span><span class="o">=</span><span class="s">&#39;auth.ExtensionUser&#39;</span><span class="p">)</span>
+<div class="viewcode-block" id="ExtensionUserModelBackendTest"><a class="viewcode-back" href="../../../../../django.contrib.auth.tests.html#django.contrib.auth.tests.auth_backends.ExtensionUserModelBackendTest">[docs]</a><span class="k">class</span> <span class="nc">ExtensionUserModelBackendTest</span><span class="p">(</span><span class="n">BaseModelBackendTest</span><span class="p">,</span> <span class="n">TestCase</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Tests for the ModelBackend using the custom ExtensionUser model.</span>
+
+<span class="sd">    This isn&#39;t a perfect test, because both the User and ExtensionUser are</span>
+<span class="sd">    synchronized to the database, which wouldn&#39;t ordinary happen in</span>
+<span class="sd">    production. As a result, it doesn&#39;t catch errors caused by the non-</span>
+<span class="sd">    existence of the User table.</span>
+
+<span class="sd">    The specific problem is queries on .filter(groups__user) et al, which</span>
+<span class="sd">    makes an implicit assumption that the user model is called &#39;User&#39;. In</span>
+<span class="sd">    production, the auth.User table won&#39;t exist, so the requested join</span>
+<span class="sd">    won&#39;t exist either; in testing, the auth.User *does* exist, and</span>
+<span class="sd">    so does the join. However, the join table won&#39;t contain any useful</span>
+<span class="sd">    data; for testing, we check that the data we expect actually does exist.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">UserModel</span> <span class="o">=</span> <span class="n">ExtensionUser</span>
+
+    <span class="k">def</span> <span class="nf">create_users</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">user</span> <span class="o">=</span> <span class="n">ExtensionUser</span><span class="o">.</span><span class="n">_default_manager</span><span class="o">.</span><span class="n">create_user</span><span class="p">(</span>
+            <span class="n">username</span><span class="o">=</span><span class="s">&#39;test&#39;</span><span class="p">,</span>
+            <span class="n">email</span><span class="o">=</span><span class="s">&#39;test@example.com&#39;</span><span class="p">,</span>
+            <span class="n">password</span><span class="o">=</span><span class="s">&#39;test&#39;</span><span class="p">,</span>
+            <span class="n">date_of_birth</span><span class="o">=</span><span class="n">date</span><span class="p">(</span><span class="mi">2006</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">25</span><span class="p">)</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">superuser</span> <span class="o">=</span> <span class="n">ExtensionUser</span><span class="o">.</span><span class="n">_default_manager</span><span class="o">.</span><span class="n">create_superuser</span><span class="p">(</span>
+            <span class="n">username</span><span class="o">=</span><span class="s">&#39;test2&#39;</span><span class="p">,</span>
+            <span class="n">email</span><span class="o">=</span><span class="s">&#39;test2@example.com&#39;</span><span class="p">,</span>
+            <span class="n">password</span><span class="o">=</span><span class="s">&#39;test&#39;</span><span class="p">,</span>
+            <span class="n">date_of_birth</span><span class="o">=</span><span class="n">date</span><span class="p">(</span><span class="mi">1976</span><span class="p">,</span> <span class="mi">11</span><span class="p">,</span> <span class="mi">8</span><span class="p">)</span>
+        <span class="p">)</span>
+
+</div>
+<span class="nd">@override_settings</span><span class="p">(</span><span class="n">AUTH_USER_MODEL</span><span class="o">=</span><span class="s">&#39;auth.CustomPermissionsUser&#39;</span><span class="p">)</span>
+<div class="viewcode-block" id="CustomPermissionsUserModelBackendTest"><a class="viewcode-back" href="../../../../../django.contrib.auth.tests.html#django.contrib.auth.tests.auth_backends.CustomPermissionsUserModelBackendTest">[docs]</a><span class="k">class</span> <span class="nc">CustomPermissionsUserModelBackendTest</span><span class="p">(</span><span class="n">BaseModelBackendTest</span><span class="p">,</span> <span class="n">TestCase</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Tests for the ModelBackend using the CustomPermissionsUser model.</span>
+
+<span class="sd">    As with the ExtensionUser test, this isn&#39;t a perfect test, because both</span>
+<span class="sd">    the User and CustomPermissionsUser are synchronized to the database,</span>
+<span class="sd">    which wouldn&#39;t ordinary happen in production.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">UserModel</span> <span class="o">=</span> <span class="n">CustomPermissionsUser</span>
+
+    <span class="k">def</span> <span class="nf">create_users</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">user</span> <span class="o">=</span> <span class="n">CustomPermissionsUser</span><span class="o">.</span><span class="n">_default_manager</span><span class="o">.</span><span class="n">create_user</span><span class="p">(</span>
+            <span class="n">email</span><span class="o">=</span><span class="s">&#39;test@example.com&#39;</span><span class="p">,</span>
+            <span class="n">password</span><span class="o">=</span><span class="s">&#39;test&#39;</span><span class="p">,</span>
+            <span class="n">date_of_birth</span><span class="o">=</span><span class="n">date</span><span class="p">(</span><span class="mi">2006</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">25</span><span class="p">)</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">superuser</span> <span class="o">=</span> <span class="n">CustomPermissionsUser</span><span class="o">.</span><span class="n">_default_manager</span><span class="o">.</span><span class="n">create_superuser</span><span class="p">(</span>
+            <span class="n">email</span><span class="o">=</span><span class="s">&#39;test2@example.com&#39;</span><span class="p">,</span>
+            <span class="n">password</span><span class="o">=</span><span class="s">&#39;test&#39;</span><span class="p">,</span>
+            <span class="n">date_of_birth</span><span class="o">=</span><span class="n">date</span><span class="p">(</span><span class="mi">1976</span><span class="p">,</span> <span class="mi">11</span><span class="p">,</span> <span class="mi">8</span><span class="p">)</span>
+        <span class="p">)</span>
+
+</div>
+<span class="nd">@override_settings</span><span class="p">(</span><span class="n">AUTH_USER_MODEL</span><span class="o">=</span><span class="s">&#39;auth.CustomUser&#39;</span><span class="p">)</span>
+<div class="viewcode-block" id="CustomUserModelBackendAuthenticateTest"><a class="viewcode-back" href="../../../../../django.contrib.auth.tests.html#django.contrib.auth.tests.auth_backends.CustomUserModelBackendAuthenticateTest">[docs]</a><span class="k">class</span> <span class="nc">CustomUserModelBackendAuthenticateTest</span><span class="p">(</span><span class="n">TestCase</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Tests that the model backend can accept a credentials kwarg labeled with</span>
+<span class="sd">    custom user model&#39;s USERNAME_FIELD.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">test_authenticate</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">test_user</span> <span class="o">=</span> <span class="n">CustomUser</span><span class="o">.</span><span class="n">_default_manager</span><span class="o">.</span><span class="n">create_user</span><span class="p">(</span>
+            <span class="n">email</span><span class="o">=</span><span class="s">&#39;test@example.com&#39;</span><span class="p">,</span>
+            <span class="n">password</span><span class="o">=</span><span class="s">&#39;test&#39;</span><span class="p">,</span>
+            <span class="n">date_of_birth</span><span class="o">=</span><span class="n">date</span><span class="p">(</span><span class="mi">2006</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">25</span><span class="p">)</span>
+        <span class="p">)</span>
+        <span class="n">authenticated_user</span> <span class="o">=</span> <span class="n">authenticate</span><span class="p">(</span><span class="n">email</span><span class="o">=</span><span class="s">&#39;test@example.com&#39;</span><span class="p">,</span> <span class="n">password</span><span class="o">=</span><span class="s">&#39;test&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">test_user</span><span class="p">,</span> <span class="n">authenticated_user</span><span class="p">)</span>
+
+
+</div>
+<span class="k">class</span> <span class="nc">TestObj</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="k">pass</span>
+
+
+<span class="k">class</span> <span class="nc">SimpleRowlevelBackend</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">has_perm</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">user</span><span class="p">,</span> <span class="n">perm</span><span class="p">,</span> <span class="n">obj</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">obj</span><span class="p">:</span>
+            <span class="k">return</span>  <span class="c"># We only support row level perms</span>
+
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">TestObj</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">user</span><span class="o">.</span><span class="n">username</span> <span class="o">==</span> <span class="s">&#39;test2&#39;</span><span class="p">:</span>
+                <span class="k">return</span> <span class="bp">True</span>
+            <span class="k">elif</span> <span class="n">user</span><span class="o">.</span><span class="n">is_anonymous</span><span class="p">()</span> <span class="ow">and</span> <span class="n">perm</span> <span class="o">==</span> <span class="s">&#39;anon&#39;</span><span class="p">:</span>
+                <span class="k">return</span> <span class="bp">True</span>
+            <span class="k">elif</span> <span class="ow">not</span> <span class="n">user</span><span class="o">.</span><span class="n">is_active</span> <span class="ow">and</span> <span class="n">perm</span> <span class="o">==</span> <span class="s">&#39;inactive&#39;</span><span class="p">:</span>
+                <span class="k">return</span> <span class="bp">True</span>
+        <span class="k">return</span> <span class="bp">False</span>
+
+    <span class="k">def</span> <span class="nf">has_module_perms</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">user</span><span class="p">,</span> <span class="n">app_label</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">user</span><span class="o">.</span><span class="n">is_anonymous</span><span class="p">()</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">user</span><span class="o">.</span><span class="n">is_active</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">False</span>
+        <span class="k">return</span> <span class="n">app_label</span> <span class="o">==</span> <span class="s">&quot;app1&quot;</span>
+
+    <span class="k">def</span> <span class="nf">get_all_permissions</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">user</span><span class="p">,</span> <span class="n">obj</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">obj</span><span class="p">:</span>
+            <span class="k">return</span> <span class="p">[]</span>  <span class="c"># We only support row level perms</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">TestObj</span><span class="p">):</span>
+            <span class="k">return</span> <span class="p">[</span><span class="s">&#39;none&#39;</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="n">user</span><span class="o">.</span><span class="n">is_anonymous</span><span class="p">():</span>
+            <span class="k">return</span> <span class="p">[</span><span class="s">&#39;anon&#39;</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">user</span><span class="o">.</span><span class="n">username</span> <span class="o">==</span> <span class="s">&#39;test2&#39;</span><span class="p">:</span>
+            <span class="k">return</span> <span class="p">[</span><span class="s">&#39;simple&#39;</span><span class="p">,</span> <span class="s">&#39;advanced&#39;</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="p">[</span><span class="s">&#39;simple&#39;</span><span class="p">]</span>
+
+    <span class="k">def</span> <span class="nf">get_group_permissions</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">user</span><span class="p">,</span> <span class="n">obj</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">obj</span><span class="p">:</span>
+            <span class="k">return</span>  <span class="c"># We only support row level perms</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">TestObj</span><span class="p">):</span>
+            <span class="k">return</span> <span class="p">[</span><span class="s">&#39;none&#39;</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="s">&#39;test_group&#39;</span> <span class="ow">in</span> <span class="p">[</span><span class="n">group</span><span class="o">.</span><span class="n">name</span> <span class="k">for</span> <span class="n">group</span> <span class="ow">in</span> <span class="n">user</span><span class="o">.</span><span class="n">groups</span><span class="o">.</span><span class="n">all</span><span class="p">()]:</span>
+            <span class="k">return</span> <span class="p">[</span><span class="s">&#39;group_perm&#39;</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="p">[</span><span class="s">&#39;none&#39;</span><span class="p">]</span>
+
+
+<span class="nd">@skipIfCustomUser</span>
+<div class="viewcode-block" id="RowlevelBackendTest"><a class="viewcode-back" href="../../../../../django.contrib.auth.tests.html#django.contrib.auth.tests.auth_backends.RowlevelBackendTest">[docs]</a><span class="k">class</span> <span class="nc">RowlevelBackendTest</span><span class="p">(</span><span class="n">TestCase</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Tests for auth backend that supports object level permissions</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">backend</span> <span class="o">=</span> <span class="s">&#39;django.contrib.auth.tests.auth_backends.SimpleRowlevelBackend&#39;</span>
+
+    <span class="k">def</span> <span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">curr_auth</span> <span class="o">=</span> <span class="n">settings</span><span class="o">.</span><span class="n">AUTHENTICATION_BACKENDS</span>
+        <span class="n">settings</span><span class="o">.</span><span class="n">AUTHENTICATION_BACKENDS</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">curr_auth</span><span class="p">)</span> <span class="o">+</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">backend</span><span class="p">,)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">user1</span> <span class="o">=</span> <span class="n">User</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">create_user</span><span class="p">(</span><span class="s">&#39;test&#39;</span><span class="p">,</span> <span class="s">&#39;test@example.com&#39;</span><span class="p">,</span> <span class="s">&#39;test&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">user2</span> <span class="o">=</span> <span class="n">User</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">create_user</span><span class="p">(</span><span class="s">&#39;test2&#39;</span><span class="p">,</span> <span class="s">&#39;test2@example.com&#39;</span><span class="p">,</span> <span class="s">&#39;test&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">user3</span> <span class="o">=</span> <span class="n">User</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">create_user</span><span class="p">(</span><span class="s">&#39;test3&#39;</span><span class="p">,</span> <span class="s">&#39;test3@example.com&#39;</span><span class="p">,</span> <span class="s">&#39;test&#39;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">tearDown</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">settings</span><span class="o">.</span><span class="n">AUTHENTICATION_BACKENDS</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">curr_auth</span>
+        <span class="c"># The get_group_permissions test messes with ContentTypes, which will</span>
+        <span class="c"># be cached; flush the cache to ensure there are no side effects</span>
+        <span class="c"># Refs #14975, #14925</span>
+        <span class="n">ContentType</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">clear_cache</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">test_has_perm</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">user1</span><span class="o">.</span><span class="n">has_perm</span><span class="p">(</span><span class="s">&#39;perm&#39;</span><span class="p">,</span> <span class="n">TestObj</span><span class="p">()),</span> <span class="bp">False</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">user2</span><span class="o">.</span><span class="n">has_perm</span><span class="p">(</span><span class="s">&#39;perm&#39;</span><span class="p">,</span> <span class="n">TestObj</span><span class="p">()),</span> <span class="bp">True</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">user2</span><span class="o">.</span><span class="n">has_perm</span><span class="p">(</span><span class="s">&#39;perm&#39;</span><span class="p">),</span> <span class="bp">False</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">user2</span><span class="o">.</span><span class="n">has_perms</span><span class="p">([</span><span class="s">&#39;simple&#39;</span><span class="p">,</span> <span class="s">&#39;advanced&#39;</span><span class="p">],</span> <span class="n">TestObj</span><span class="p">()),</span> <span class="bp">True</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">user3</span><span class="o">.</span><span class="n">has_perm</span><span class="p">(</span><span class="s">&#39;perm&#39;</span><span class="p">,</span> <span class="n">TestObj</span><span class="p">()),</span> <span class="bp">False</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">user3</span><span class="o">.</span><span class="n">has_perm</span><span class="p">(</span><span class="s">&#39;anon&#39;</span><span class="p">,</span> <span class="n">TestObj</span><span class="p">()),</span> <span class="bp">False</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">user3</span><span class="o">.</span><span class="n">has_perms</span><span class="p">([</span><span class="s">&#39;simple&#39;</span><span class="p">,</span> <span class="s">&#39;advanced&#39;</span><span class="p">],</span> <span class="n">TestObj</span><span class="p">()),</span> <span class="bp">False</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">test_get_all_permissions</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">user1</span><span class="o">.</span><span class="n">get_all_permissions</span><span class="p">(</span><span class="n">TestObj</span><span class="p">()),</span> <span class="nb">set</span><span class="p">([</span><span class="s">&#39;simple&#39;</span><span class="p">]))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">user2</span><span class="o">.</span><span class="n">get_all_permissions</span><span class="p">(</span><span class="n">TestObj</span><span class="p">()),</span> <span class="nb">set</span><span class="p">([</span><span class="s">&#39;simple&#39;</span><span class="p">,</span> <span class="s">&#39;advanced&#39;</span><span class="p">]))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">user2</span><span class="o">.</span><span class="n">get_all_permissions</span><span class="p">(),</span> <span class="nb">set</span><span class="p">([]))</span>
+
+    <span class="k">def</span> <span class="nf">test_get_group_permissions</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">group</span> <span class="o">=</span> <span class="n">Group</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s">&#39;test_group&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">user3</span><span class="o">.</span><span class="n">groups</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">group</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">user3</span><span class="o">.</span><span class="n">get_group_permissions</span><span class="p">(</span><span class="n">TestObj</span><span class="p">()),</span> <span class="nb">set</span><span class="p">([</span><span class="s">&#39;group_perm&#39;</span><span class="p">]))</span>
+
+</div>
+<div class="viewcode-block" id="AnonymousUserBackendTest"><a class="viewcode-back" href="../../../../../django.contrib.auth.tests.html#django.contrib.auth.tests.auth_backends.AnonymousUserBackendTest">[docs]</a><span class="k">class</span> <span class="nc">AnonymousUserBackendTest</span><span class="p">(</span><span class="n">TestCase</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Tests for AnonymousUser delegating to backend.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">backend</span> <span class="o">=</span> <span class="s">&#39;django.contrib.auth.tests.auth_backends.SimpleRowlevelBackend&#39;</span>
+
+    <span class="k">def</span> <span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">curr_auth</span> <span class="o">=</span> <span class="n">settings</span><span class="o">.</span><span class="n">AUTHENTICATION_BACKENDS</span>
+        <span class="n">settings</span><span class="o">.</span><span class="n">AUTHENTICATION_BACKENDS</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">backend</span><span class="p">,)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">user1</span> <span class="o">=</span> <span class="n">AnonymousUser</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">tearDown</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">settings</span><span class="o">.</span><span class="n">AUTHENTICATION_BACKENDS</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">curr_auth</span>
+
+    <span class="k">def</span> <span class="nf">test_has_perm</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">user1</span><span class="o">.</span><span class="n">has_perm</span><span class="p">(</span><span class="s">&#39;perm&#39;</span><span class="p">,</span> <span class="n">TestObj</span><span class="p">()),</span> <span class="bp">False</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">user1</span><span class="o">.</span><span class="n">has_perm</span><span class="p">(</span><span class="s">&#39;anon&#39;</span><span class="p">,</span> <span class="n">TestObj</span><span class="p">()),</span> <span class="bp">True</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">test_has_perms</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">user1</span><span class="o">.</span><span class="n">has_perms</span><span class="p">([</span><span class="s">&#39;anon&#39;</span><span class="p">],</span> <span class="n">TestObj</span><span class="p">()),</span> <span class="bp">True</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">user1</span><span class="o">.</span><span class="n">has_perms</span><span class="p">([</span><span class="s">&#39;anon&#39;</span><span class="p">,</span> <span class="s">&#39;perm&#39;</span><span class="p">],</span> <span class="n">TestObj</span><span class="p">()),</span> <span class="bp">False</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">test_has_module_perms</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">user1</span><span class="o">.</span><span class="n">has_module_perms</span><span class="p">(</span><span class="s">&quot;app1&quot;</span><span class="p">),</span> <span class="bp">True</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">user1</span><span class="o">.</span><span class="n">has_module_perms</span><span class="p">(</span><span class="s">&quot;app2&quot;</span><span class="p">),</span> <span class="bp">False</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">test_get_all_permissions</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">user1</span><span class="o">.</span><span class="n">get_all_permissions</span><span class="p">(</span><span class="n">TestObj</span><span class="p">()),</span> <span class="nb">set</span><span class="p">([</span><span class="s">&#39;anon&#39;</span><span class="p">]))</span>
+
+</div>
+<span class="nd">@skipIfCustomUser</span>
+<span class="nd">@override_settings</span><span class="p">(</span><span class="n">AUTHENTICATION_BACKENDS</span><span class="o">=</span><span class="p">[])</span>
+<div class="viewcode-block" id="NoBackendsTest"><a class="viewcode-back" href="../../../../../django.contrib.auth.tests.html#django.contrib.auth.tests.auth_backends.NoBackendsTest">[docs]</a><span class="k">class</span> <span class="nc">NoBackendsTest</span><span class="p">(</span><span class="n">TestCase</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Tests that an appropriate error is raised if no auth backends are provided.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">user</span> <span class="o">=</span> <span class="n">User</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">create_user</span><span class="p">(</span><span class="s">&#39;test&#39;</span><span class="p">,</span> <span class="s">&#39;test@example.com&#39;</span><span class="p">,</span> <span class="s">&#39;test&#39;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">test_raises_exception</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="n">ImproperlyConfigured</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">user</span><span class="o">.</span><span class="n">has_perm</span><span class="p">,</span> <span class="p">(</span><span class="s">&#39;perm&#39;</span><span class="p">,</span> <span class="n">TestObj</span><span class="p">(),))</span>
+
+</div>
+<span class="nd">@skipIfCustomUser</span>
+<div class="viewcode-block" id="InActiveUserBackendTest"><a class="viewcode-back" href="../../../../../django.contrib.auth.tests.html#django.contrib.auth.tests.auth_backends.InActiveUserBackendTest">[docs]</a><span class="k">class</span> <span class="nc">InActiveUserBackendTest</span><span class="p">(</span><span class="n">TestCase</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Tests for a inactive user</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">backend</span> <span class="o">=</span> <span class="s">&#39;django.contrib.auth.tests.auth_backends.SimpleRowlevelBackend&#39;</span>
+
+    <span class="k">def</span> <span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">curr_auth</span> <span class="o">=</span> <span class="n">settings</span><span class="o">.</span><span class="n">AUTHENTICATION_BACKENDS</span>
+        <span class="n">settings</span><span class="o">.</span><span class="n">AUTHENTICATION_BACKENDS</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">backend</span><span class="p">,)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">user1</span> <span class="o">=</span> <span class="n">User</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">create_user</span><span class="p">(</span><span class="s">&#39;test&#39;</span><span class="p">,</span> <span class="s">&#39;test@example.com&#39;</span><span class="p">,</span> <span class="s">&#39;test&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">user1</span><span class="o">.</span><span class="n">is_active</span> <span class="o">=</span> <span class="bp">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">user1</span><span class="o">.</span><span class="n">save</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">tearDown</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">settings</span><span class="o">.</span><span class="n">AUTHENTICATION_BACKENDS</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">curr_auth</span>
+
+    <span class="k">def</span> <span class="nf">test_has_perm</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">user1</span><span class="o">.</span><span class="n">has_perm</span><span class="p">(</span><span class="s">&#39;perm&#39;</span><span class="p">,</span> <span class="n">TestObj</span><span class="p">()),</span> <span class="bp">False</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">user1</span><span class="o">.</span><span class="n">has_perm</span><span class="p">(</span><span class="s">&#39;inactive&#39;</span><span class="p">,</span> <span class="n">TestObj</span><span class="p">()),</span> <span class="bp">True</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">test_has_module_perms</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">user1</span><span class="o">.</span><span class="n">has_module_perms</span><span class="p">(</span><span class="s">&quot;app1&quot;</span><span class="p">),</span> <span class="bp">False</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">user1</span><span class="o">.</span><span class="n">has_module_perms</span><span class="p">(</span><span class="s">&quot;app2&quot;</span><span class="p">),</span> <span class="bp">False</span><span class="p">)</span></div>
+</pre></div>
+
+      </div>
+      <div class="bottomnav">
+      
+        <p>
+        <a href="/">Home</a>:
+        <a class="uplink" href="../../../../../index.html">Contents</a>
+        </p>
+
+      </div>
+
+    <div class="footer">
+        &copy; Copyright 2012, HDKNR.COM.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2b1.
+    </div>
+  </body>
+</html>

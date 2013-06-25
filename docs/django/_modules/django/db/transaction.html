@@ -1,0 +1,371 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>django.db.transaction &mdash; Django Cheat 1 documentation</title>
+    
+    <link rel="stylesheet" href="../../../_static/haiku.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../../../static/print.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../',
+        VERSION:     '1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <script type="text/javascript" src="../../../static/theme_extras.js"></script>
+    <link rel="top" title="Django Cheat 1 documentation" href="../../../index.html" />
+    <link rel="up" title="Module code" href="../../index.html" /> 
+  </head>
+  <body>
+      <div class="header"><h1 class="heading"><a href="../../../index.html">
+          <span>Django Cheat 1 documentation</span></a></h1>
+        <h2 class="heading"><span>django.db.transaction</span></h2>
+      </div>
+      <div class="topnav">
+      
+        <p>
+        <a href="/">Home</a>:
+        <a class="uplink" href="../../../index.html">Contents</a>
+        </p>
+
+      </div>
+      <div class="content">
+        
+        
+  <h1>Source code for django.db.transaction</h1><div class="highlight"><pre>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">This module implements a transaction manager that can be used to define</span>
+<span class="sd">transaction handling in a request or view function. It is used by transaction</span>
+<span class="sd">control middleware and decorators.</span>
+
+<span class="sd">The transaction manager can be in managed or in auto state. Auto state means the</span>
+<span class="sd">system is using a commit-on-save strategy (actually it&#39;s more like</span>
+<span class="sd">commit-on-change). As soon as the .save() or .delete() (or related) methods are</span>
+<span class="sd">called, a commit is made.</span>
+
+<span class="sd">Managed transactions don&#39;t do those commits, but will need some kind of manual</span>
+<span class="sd">or implicit commits or rollbacks.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span> <span class="nn">functools</span> <span class="kn">import</span> <span class="n">wraps</span>
+
+<span class="kn">from</span> <span class="nn">django.db</span> <span class="kn">import</span> <span class="n">connections</span><span class="p">,</span> <span class="n">DEFAULT_DB_ALIAS</span>
+
+
+<div class="viewcode-block" id="TransactionManagementError"><a class="viewcode-back" href="../../../django.db.html#django.db.transaction.TransactionManagementError">[docs]</a><span class="k">class</span> <span class="nc">TransactionManagementError</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    This exception is thrown when something bad happens with transaction</span>
+<span class="sd">    management.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">pass</span>
+</div>
+<div class="viewcode-block" id="abort"><a class="viewcode-back" href="../../../django.db.html#django.db.transaction.abort">[docs]</a><span class="k">def</span> <span class="nf">abort</span><span class="p">(</span><span class="n">using</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Roll back any ongoing transactions and clean the transaction management</span>
+<span class="sd">    state of the connection.</span>
+
+<span class="sd">    This method is to be used only in cases where using balanced</span>
+<span class="sd">    leave_transaction_management() calls isn&#39;t possible. For example after a</span>
+<span class="sd">    request has finished, the transaction state isn&#39;t known, yet the connection</span>
+<span class="sd">    must be cleaned up for the next request.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">using</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+        <span class="n">using</span> <span class="o">=</span> <span class="n">DEFAULT_DB_ALIAS</span>
+    <span class="n">connection</span> <span class="o">=</span> <span class="n">connections</span><span class="p">[</span><span class="n">using</span><span class="p">]</span>
+    <span class="n">connection</span><span class="o">.</span><span class="n">abort</span><span class="p">()</span>
+</div>
+<div class="viewcode-block" id="enter_transaction_management"><a class="viewcode-back" href="../../../django.db.html#django.db.transaction.enter_transaction_management">[docs]</a><span class="k">def</span> <span class="nf">enter_transaction_management</span><span class="p">(</span><span class="n">managed</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">using</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Enters transaction management for a running thread. It must be balanced with</span>
+<span class="sd">    the appropriate leave_transaction_management call, since the actual state is</span>
+<span class="sd">    managed as a stack.</span>
+
+<span class="sd">    The state and dirty flag are carried over from the surrounding block or</span>
+<span class="sd">    from the settings, if there is no surrounding block (dirty is always false</span>
+<span class="sd">    when no current block is running).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">using</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+        <span class="n">using</span> <span class="o">=</span> <span class="n">DEFAULT_DB_ALIAS</span>
+    <span class="n">connection</span> <span class="o">=</span> <span class="n">connections</span><span class="p">[</span><span class="n">using</span><span class="p">]</span>
+    <span class="n">connection</span><span class="o">.</span><span class="n">enter_transaction_management</span><span class="p">(</span><span class="n">managed</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="leave_transaction_management"><a class="viewcode-back" href="../../../django.db.html#django.db.transaction.leave_transaction_management">[docs]</a><span class="k">def</span> <span class="nf">leave_transaction_management</span><span class="p">(</span><span class="n">using</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Leaves transaction management for a running thread. A dirty flag is carried</span>
+<span class="sd">    over to the surrounding block, as a commit will commit all changes, even</span>
+<span class="sd">    those from outside. (Commits are on connection level.)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">using</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+        <span class="n">using</span> <span class="o">=</span> <span class="n">DEFAULT_DB_ALIAS</span>
+    <span class="n">connection</span> <span class="o">=</span> <span class="n">connections</span><span class="p">[</span><span class="n">using</span><span class="p">]</span>
+    <span class="n">connection</span><span class="o">.</span><span class="n">leave_transaction_management</span><span class="p">()</span>
+</div>
+<div class="viewcode-block" id="is_dirty"><a class="viewcode-back" href="../../../django.db.html#django.db.transaction.is_dirty">[docs]</a><span class="k">def</span> <span class="nf">is_dirty</span><span class="p">(</span><span class="n">using</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Returns True if the current transaction requires a commit for changes to</span>
+<span class="sd">    happen.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">using</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+        <span class="n">using</span> <span class="o">=</span> <span class="n">DEFAULT_DB_ALIAS</span>
+    <span class="n">connection</span> <span class="o">=</span> <span class="n">connections</span><span class="p">[</span><span class="n">using</span><span class="p">]</span>
+    <span class="k">return</span> <span class="n">connection</span><span class="o">.</span><span class="n">is_dirty</span><span class="p">()</span>
+</div>
+<div class="viewcode-block" id="set_dirty"><a class="viewcode-back" href="../../../django.db.html#django.db.transaction.set_dirty">[docs]</a><span class="k">def</span> <span class="nf">set_dirty</span><span class="p">(</span><span class="n">using</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Sets a dirty flag for the current thread and code streak. This can be used</span>
+<span class="sd">    to decide in a managed block of code to decide whether there are open</span>
+<span class="sd">    changes waiting for commit.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">using</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+        <span class="n">using</span> <span class="o">=</span> <span class="n">DEFAULT_DB_ALIAS</span>
+    <span class="n">connection</span> <span class="o">=</span> <span class="n">connections</span><span class="p">[</span><span class="n">using</span><span class="p">]</span>
+    <span class="n">connection</span><span class="o">.</span><span class="n">set_dirty</span><span class="p">()</span>
+</div>
+<div class="viewcode-block" id="set_clean"><a class="viewcode-back" href="../../../django.db.html#django.db.transaction.set_clean">[docs]</a><span class="k">def</span> <span class="nf">set_clean</span><span class="p">(</span><span class="n">using</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Resets a dirty flag for the current thread and code streak. This can be used</span>
+<span class="sd">    to decide in a managed block of code to decide whether a commit or rollback</span>
+<span class="sd">    should happen.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">using</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+        <span class="n">using</span> <span class="o">=</span> <span class="n">DEFAULT_DB_ALIAS</span>
+    <span class="n">connection</span> <span class="o">=</span> <span class="n">connections</span><span class="p">[</span><span class="n">using</span><span class="p">]</span>
+    <span class="n">connection</span><span class="o">.</span><span class="n">set_clean</span><span class="p">()</span>
+</div>
+<span class="k">def</span> <span class="nf">clean_savepoints</span><span class="p">(</span><span class="n">using</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">using</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+        <span class="n">using</span> <span class="o">=</span> <span class="n">DEFAULT_DB_ALIAS</span>
+    <span class="n">connection</span> <span class="o">=</span> <span class="n">connections</span><span class="p">[</span><span class="n">using</span><span class="p">]</span>
+    <span class="n">connection</span><span class="o">.</span><span class="n">clean_savepoints</span><span class="p">()</span>
+
+<div class="viewcode-block" id="is_managed"><a class="viewcode-back" href="../../../django.db.html#django.db.transaction.is_managed">[docs]</a><span class="k">def</span> <span class="nf">is_managed</span><span class="p">(</span><span class="n">using</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Checks whether the transaction manager is in manual or in auto state.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">using</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+        <span class="n">using</span> <span class="o">=</span> <span class="n">DEFAULT_DB_ALIAS</span>
+    <span class="n">connection</span> <span class="o">=</span> <span class="n">connections</span><span class="p">[</span><span class="n">using</span><span class="p">]</span>
+    <span class="k">return</span> <span class="n">connection</span><span class="o">.</span><span class="n">is_managed</span><span class="p">()</span>
+</div>
+<div class="viewcode-block" id="managed"><a class="viewcode-back" href="../../../django.db.html#django.db.transaction.managed">[docs]</a><span class="k">def</span> <span class="nf">managed</span><span class="p">(</span><span class="n">flag</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">using</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Puts the transaction manager into a manual state: managed transactions have</span>
+<span class="sd">    to be committed explicitly by the user. If you switch off transaction</span>
+<span class="sd">    management and there is a pending commit/rollback, the data will be</span>
+<span class="sd">    commited.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">using</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+        <span class="n">using</span> <span class="o">=</span> <span class="n">DEFAULT_DB_ALIAS</span>
+    <span class="n">connection</span> <span class="o">=</span> <span class="n">connections</span><span class="p">[</span><span class="n">using</span><span class="p">]</span>
+    <span class="n">connection</span><span class="o">.</span><span class="n">managed</span><span class="p">(</span><span class="n">flag</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="commit_unless_managed"><a class="viewcode-back" href="../../../django.db.html#django.db.transaction.commit_unless_managed">[docs]</a><span class="k">def</span> <span class="nf">commit_unless_managed</span><span class="p">(</span><span class="n">using</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Commits changes if the system is not in managed transaction mode.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">using</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+        <span class="n">using</span> <span class="o">=</span> <span class="n">DEFAULT_DB_ALIAS</span>
+    <span class="n">connection</span> <span class="o">=</span> <span class="n">connections</span><span class="p">[</span><span class="n">using</span><span class="p">]</span>
+    <span class="n">connection</span><span class="o">.</span><span class="n">commit_unless_managed</span><span class="p">()</span>
+</div>
+<div class="viewcode-block" id="rollback_unless_managed"><a class="viewcode-back" href="../../../django.db.html#django.db.transaction.rollback_unless_managed">[docs]</a><span class="k">def</span> <span class="nf">rollback_unless_managed</span><span class="p">(</span><span class="n">using</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Rolls back changes if the system is not in managed transaction mode.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">using</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+        <span class="n">using</span> <span class="o">=</span> <span class="n">DEFAULT_DB_ALIAS</span>
+    <span class="n">connection</span> <span class="o">=</span> <span class="n">connections</span><span class="p">[</span><span class="n">using</span><span class="p">]</span>
+    <span class="n">connection</span><span class="o">.</span><span class="n">rollback_unless_managed</span><span class="p">()</span>
+</div>
+<div class="viewcode-block" id="commit"><a class="viewcode-back" href="../../../django.db.html#django.db.transaction.commit">[docs]</a><span class="k">def</span> <span class="nf">commit</span><span class="p">(</span><span class="n">using</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Does the commit itself and resets the dirty flag.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">using</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+        <span class="n">using</span> <span class="o">=</span> <span class="n">DEFAULT_DB_ALIAS</span>
+    <span class="n">connection</span> <span class="o">=</span> <span class="n">connections</span><span class="p">[</span><span class="n">using</span><span class="p">]</span>
+    <span class="n">connection</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
+</div>
+<div class="viewcode-block" id="rollback"><a class="viewcode-back" href="../../../django.db.html#django.db.transaction.rollback">[docs]</a><span class="k">def</span> <span class="nf">rollback</span><span class="p">(</span><span class="n">using</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    This function does the rollback itself and resets the dirty flag.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">using</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+        <span class="n">using</span> <span class="o">=</span> <span class="n">DEFAULT_DB_ALIAS</span>
+    <span class="n">connection</span> <span class="o">=</span> <span class="n">connections</span><span class="p">[</span><span class="n">using</span><span class="p">]</span>
+    <span class="n">connection</span><span class="o">.</span><span class="n">rollback</span><span class="p">()</span>
+</div>
+<div class="viewcode-block" id="savepoint"><a class="viewcode-back" href="../../../django.db.html#django.db.transaction.savepoint">[docs]</a><span class="k">def</span> <span class="nf">savepoint</span><span class="p">(</span><span class="n">using</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Creates a savepoint (if supported and required by the backend) inside the</span>
+<span class="sd">    current transaction. Returns an identifier for the savepoint that will be</span>
+<span class="sd">    used for the subsequent rollback or commit.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">using</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+        <span class="n">using</span> <span class="o">=</span> <span class="n">DEFAULT_DB_ALIAS</span>
+    <span class="n">connection</span> <span class="o">=</span> <span class="n">connections</span><span class="p">[</span><span class="n">using</span><span class="p">]</span>
+    <span class="k">return</span> <span class="n">connection</span><span class="o">.</span><span class="n">savepoint</span><span class="p">()</span>
+</div>
+<div class="viewcode-block" id="savepoint_rollback"><a class="viewcode-back" href="../../../django.db.html#django.db.transaction.savepoint_rollback">[docs]</a><span class="k">def</span> <span class="nf">savepoint_rollback</span><span class="p">(</span><span class="n">sid</span><span class="p">,</span> <span class="n">using</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Rolls back the most recent savepoint (if one exists). Does nothing if</span>
+<span class="sd">    savepoints are not supported.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">using</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+        <span class="n">using</span> <span class="o">=</span> <span class="n">DEFAULT_DB_ALIAS</span>
+    <span class="n">connection</span> <span class="o">=</span> <span class="n">connections</span><span class="p">[</span><span class="n">using</span><span class="p">]</span>
+    <span class="n">connection</span><span class="o">.</span><span class="n">savepoint_rollback</span><span class="p">(</span><span class="n">sid</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="savepoint_commit"><a class="viewcode-back" href="../../../django.db.html#django.db.transaction.savepoint_commit">[docs]</a><span class="k">def</span> <span class="nf">savepoint_commit</span><span class="p">(</span><span class="n">sid</span><span class="p">,</span> <span class="n">using</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Commits the most recent savepoint (if one exists). Does nothing if</span>
+<span class="sd">    savepoints are not supported.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">using</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+        <span class="n">using</span> <span class="o">=</span> <span class="n">DEFAULT_DB_ALIAS</span>
+    <span class="n">connection</span> <span class="o">=</span> <span class="n">connections</span><span class="p">[</span><span class="n">using</span><span class="p">]</span>
+    <span class="n">connection</span><span class="o">.</span><span class="n">savepoint_commit</span><span class="p">(</span><span class="n">sid</span><span class="p">)</span>
+
+<span class="c">##############</span>
+<span class="c"># DECORATORS #</span>
+<span class="c">##############</span>
+</div>
+<div class="viewcode-block" id="Transaction"><a class="viewcode-back" href="../../../django.db.html#django.db.transaction.Transaction">[docs]</a><span class="k">class</span> <span class="nc">Transaction</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Acts as either a decorator, or a context manager.  If it&#39;s a decorator it</span>
+<span class="sd">    takes a function and returns a wrapped function.  If it&#39;s a contextmanager</span>
+<span class="sd">    it&#39;s used with the ``with`` statement.  In either event entering/exiting</span>
+<span class="sd">    are called before and after, respectively, the function/block is executed.</span>
+
+<span class="sd">    autocommit, commit_on_success, and commit_manually contain the</span>
+<span class="sd">    implementations of entering and exiting.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">entering</span><span class="p">,</span> <span class="n">exiting</span><span class="p">,</span> <span class="n">using</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">entering</span> <span class="o">=</span> <span class="n">entering</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">exiting</span> <span class="o">=</span> <span class="n">exiting</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">using</span> <span class="o">=</span> <span class="n">using</span>
+
+    <span class="k">def</span> <span class="nf">__enter__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">entering</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">using</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__exit__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">exc_type</span><span class="p">,</span> <span class="n">exc_value</span><span class="p">,</span> <span class="n">traceback</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">exiting</span><span class="p">(</span><span class="n">exc_value</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">using</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">func</span><span class="p">):</span>
+        <span class="nd">@wraps</span><span class="p">(</span><span class="n">func</span><span class="p">)</span>
+        <span class="k">def</span> <span class="nf">inner</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+            <span class="k">with</span> <span class="bp">self</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">func</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">inner</span>
+</div>
+<span class="k">def</span> <span class="nf">_transaction_func</span><span class="p">(</span><span class="n">entering</span><span class="p">,</span> <span class="n">exiting</span><span class="p">,</span> <span class="n">using</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Takes 3 things, an entering function (what to do to start this block of</span>
+<span class="sd">    transaction management), an exiting function (what to do to end it, on both</span>
+<span class="sd">    success and failure, and using which can be: None, indiciating using is</span>
+<span class="sd">    DEFAULT_DB_ALIAS, a callable, indicating that using is DEFAULT_DB_ALIAS and</span>
+<span class="sd">    to return the function already wrapped.</span>
+
+<span class="sd">    Returns either a Transaction objects, which is both a decorator and a</span>
+<span class="sd">    context manager, or a wrapped function, if using is a callable.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c"># Note that although the first argument is *called* `using`, it</span>
+    <span class="c"># may actually be a function; @autocommit and @autocommit(&#39;foo&#39;)</span>
+    <span class="c"># are both allowed forms.</span>
+    <span class="k">if</span> <span class="n">using</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+        <span class="n">using</span> <span class="o">=</span> <span class="n">DEFAULT_DB_ALIAS</span>
+    <span class="k">if</span> <span class="nb">callable</span><span class="p">(</span><span class="n">using</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">Transaction</span><span class="p">(</span><span class="n">entering</span><span class="p">,</span> <span class="n">exiting</span><span class="p">,</span> <span class="n">DEFAULT_DB_ALIAS</span><span class="p">)(</span><span class="n">using</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">Transaction</span><span class="p">(</span><span class="n">entering</span><span class="p">,</span> <span class="n">exiting</span><span class="p">,</span> <span class="n">using</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="autocommit"><a class="viewcode-back" href="../../../django.db.html#django.db.transaction.autocommit">[docs]</a><span class="k">def</span> <span class="nf">autocommit</span><span class="p">(</span><span class="n">using</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Decorator that activates commit on save. This is Django&#39;s default behavior;</span>
+<span class="sd">    this decorator is useful if you globally activated transaction management in</span>
+<span class="sd">    your settings file and want the default behavior in some view functions.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">entering</span><span class="p">(</span><span class="n">using</span><span class="p">):</span>
+        <span class="n">enter_transaction_management</span><span class="p">(</span><span class="n">managed</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">using</span><span class="o">=</span><span class="n">using</span><span class="p">)</span>
+        <span class="n">managed</span><span class="p">(</span><span class="bp">False</span><span class="p">,</span> <span class="n">using</span><span class="o">=</span><span class="n">using</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">exiting</span><span class="p">(</span><span class="n">exc_value</span><span class="p">,</span> <span class="n">using</span><span class="p">):</span>
+        <span class="n">leave_transaction_management</span><span class="p">(</span><span class="n">using</span><span class="o">=</span><span class="n">using</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">_transaction_func</span><span class="p">(</span><span class="n">entering</span><span class="p">,</span> <span class="n">exiting</span><span class="p">,</span> <span class="n">using</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="commit_on_success"><a class="viewcode-back" href="../../../django.db.html#django.db.transaction.commit_on_success">[docs]</a><span class="k">def</span> <span class="nf">commit_on_success</span><span class="p">(</span><span class="n">using</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    This decorator activates commit on response. This way, if the view function</span>
+<span class="sd">    runs successfully, a commit is made; if the viewfunc produces an exception,</span>
+<span class="sd">    a rollback is made. This is one of the most common ways to do transaction</span>
+<span class="sd">    control in Web apps.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">entering</span><span class="p">(</span><span class="n">using</span><span class="p">):</span>
+        <span class="n">enter_transaction_management</span><span class="p">(</span><span class="n">using</span><span class="o">=</span><span class="n">using</span><span class="p">)</span>
+        <span class="n">managed</span><span class="p">(</span><span class="bp">True</span><span class="p">,</span> <span class="n">using</span><span class="o">=</span><span class="n">using</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">exiting</span><span class="p">(</span><span class="n">exc_value</span><span class="p">,</span> <span class="n">using</span><span class="p">):</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">exc_value</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">is_dirty</span><span class="p">(</span><span class="n">using</span><span class="o">=</span><span class="n">using</span><span class="p">):</span>
+                    <span class="n">rollback</span><span class="p">(</span><span class="n">using</span><span class="o">=</span><span class="n">using</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">is_dirty</span><span class="p">(</span><span class="n">using</span><span class="o">=</span><span class="n">using</span><span class="p">):</span>
+                    <span class="k">try</span><span class="p">:</span>
+                        <span class="n">commit</span><span class="p">(</span><span class="n">using</span><span class="o">=</span><span class="n">using</span><span class="p">)</span>
+                    <span class="k">except</span><span class="p">:</span>
+                        <span class="n">rollback</span><span class="p">(</span><span class="n">using</span><span class="o">=</span><span class="n">using</span><span class="p">)</span>
+                        <span class="k">raise</span>
+        <span class="k">finally</span><span class="p">:</span>
+            <span class="n">leave_transaction_management</span><span class="p">(</span><span class="n">using</span><span class="o">=</span><span class="n">using</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">_transaction_func</span><span class="p">(</span><span class="n">entering</span><span class="p">,</span> <span class="n">exiting</span><span class="p">,</span> <span class="n">using</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="commit_manually"><a class="viewcode-back" href="../../../django.db.html#django.db.transaction.commit_manually">[docs]</a><span class="k">def</span> <span class="nf">commit_manually</span><span class="p">(</span><span class="n">using</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Decorator that activates manual transaction control. It just disables</span>
+<span class="sd">    automatic transaction control and doesn&#39;t do any commit/rollback of its</span>
+<span class="sd">    own -- it&#39;s up to the user to call the commit and rollback functions</span>
+<span class="sd">    themselves.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">entering</span><span class="p">(</span><span class="n">using</span><span class="p">):</span>
+        <span class="n">enter_transaction_management</span><span class="p">(</span><span class="n">using</span><span class="o">=</span><span class="n">using</span><span class="p">)</span>
+        <span class="n">managed</span><span class="p">(</span><span class="bp">True</span><span class="p">,</span> <span class="n">using</span><span class="o">=</span><span class="n">using</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">exiting</span><span class="p">(</span><span class="n">exc_value</span><span class="p">,</span> <span class="n">using</span><span class="p">):</span>
+        <span class="n">leave_transaction_management</span><span class="p">(</span><span class="n">using</span><span class="o">=</span><span class="n">using</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">_transaction_func</span><span class="p">(</span><span class="n">entering</span><span class="p">,</span> <span class="n">exiting</span><span class="p">,</span> <span class="n">using</span><span class="p">)</span></div>
+</pre></div>
+
+      </div>
+      <div class="bottomnav">
+      
+        <p>
+        <a href="/">Home</a>:
+        <a class="uplink" href="../../../index.html">Contents</a>
+        </p>
+
+      </div>
+
+    <div class="footer">
+        &copy; Copyright 2012, HDKNR.COM.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2b1.
+    </div>
+  </body>
+</html>

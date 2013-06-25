@@ -1,0 +1,311 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>django.utils.encoding &mdash; Django Cheat 1 documentation</title>
+    
+    <link rel="stylesheet" href="../../../_static/haiku.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../../../static/print.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../',
+        VERSION:     '1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <script type="text/javascript" src="../../../static/theme_extras.js"></script>
+    <link rel="top" title="Django Cheat 1 documentation" href="../../../index.html" />
+    <link rel="up" title="Module code" href="../../index.html" /> 
+  </head>
+  <body>
+      <div class="header"><h1 class="heading"><a href="../../../index.html">
+          <span>Django Cheat 1 documentation</span></a></h1>
+        <h2 class="heading"><span>django.utils.encoding</span></h2>
+      </div>
+      <div class="topnav">
+      
+        <p>
+        <a href="/">Home</a>:
+        <a class="uplink" href="../../../index.html">Contents</a>
+        </p>
+
+      </div>
+      <div class="content">
+        
+        
+  <h1>Source code for django.utils.encoding</h1><div class="highlight"><pre>
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">unicode_literals</span>
+
+<span class="kn">import</span> <span class="nn">codecs</span>
+<span class="kn">import</span> <span class="nn">datetime</span>
+<span class="kn">from</span> <span class="nn">decimal</span> <span class="kn">import</span> <span class="n">Decimal</span>
+<span class="kn">import</span> <span class="nn">locale</span>
+<span class="k">try</span><span class="p">:</span>
+    <span class="kn">from</span> <span class="nn">urllib.parse</span> <span class="kn">import</span> <span class="n">quote</span>
+<span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>     <span class="c"># Python 2</span>
+    <span class="kn">from</span> <span class="nn">urllib</span> <span class="kn">import</span> <span class="n">quote</span>
+<span class="kn">import</span> <span class="nn">warnings</span>
+
+<span class="kn">from</span> <span class="nn">django.utils.functional</span> <span class="kn">import</span> <span class="n">Promise</span>
+<span class="kn">from</span> <span class="nn">django.utils</span> <span class="kn">import</span> <span class="n">six</span>
+
+<span class="k">class</span> <span class="nc">DjangoUnicodeDecodeError</span><span class="p">(</span><span class="ne">UnicodeDecodeError</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">obj</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">obj</span> <span class="o">=</span> <span class="n">obj</span>
+        <span class="ne">UnicodeDecodeError</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">original</span> <span class="o">=</span> <span class="ne">UnicodeDecodeError</span><span class="o">.</span><span class="n">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+        <span class="k">return</span> <span class="s">&#39;</span><span class="si">%s</span><span class="s">. You passed in </span><span class="si">%r</span><span class="s"> (</span><span class="si">%s</span><span class="s">)&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">original</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">obj</span><span class="p">,</span>
+                <span class="nb">type</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">obj</span><span class="p">))</span>
+
+<div class="viewcode-block" id="StrAndUnicode"><a class="viewcode-back" href="../../../django.utils.html#django.utils.encoding.StrAndUnicode">[docs]</a><span class="k">class</span> <span class="nc">StrAndUnicode</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    A class that derives __str__ from __unicode__.</span>
+
+<span class="sd">    On Python 2, __str__ returns the output of __unicode__ encoded as a UTF-8</span>
+<span class="sd">    bytestring. On Python 3, __str__ returns the output of __unicode__.</span>
+
+<span class="sd">    Useful as a mix-in. If you support Python 2 and 3 with a single code base,</span>
+<span class="sd">    you can inherit this mix-in and just define __unicode__.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s">&quot;StrAndUnicode is deprecated. Define a __str__ method &quot;</span>
+                      <span class="s">&quot;and apply the @python_2_unicode_compatible decorator &quot;</span>
+                      <span class="s">&quot;instead.&quot;</span><span class="p">,</span> <span class="ne">PendingDeprecationWarning</span><span class="p">,</span> <span class="n">stacklevel</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">StrAndUnicode</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">six</span><span class="o">.</span><span class="n">PY3</span><span class="p">:</span>
+        <span class="k">def</span> <span class="nf">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">__unicode__</span><span class="p">()</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">def</span> <span class="nf">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">__unicode__</span><span class="p">()</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s">&#39;utf-8&#39;</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="python_2_unicode_compatible"><a class="viewcode-back" href="../../../django.utils.html#django.utils.encoding.python_2_unicode_compatible">[docs]</a><span class="k">def</span> <span class="nf">python_2_unicode_compatible</span><span class="p">(</span><span class="n">klass</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    A decorator that defines __unicode__ and __str__ methods under Python 2.</span>
+<span class="sd">    Under Python 3 it does nothing.</span>
+
+<span class="sd">    To support Python 2 and 3 with a single code base, define a __str__ method</span>
+<span class="sd">    returning text and apply this decorator to the class.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">six</span><span class="o">.</span><span class="n">PY3</span><span class="p">:</span>
+        <span class="n">klass</span><span class="o">.</span><span class="n">__unicode__</span> <span class="o">=</span> <span class="n">klass</span><span class="o">.</span><span class="n">__str__</span>
+        <span class="n">klass</span><span class="o">.</span><span class="n">__str__</span> <span class="o">=</span> <span class="k">lambda</span> <span class="bp">self</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">__unicode__</span><span class="p">()</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s">&#39;utf-8&#39;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">klass</span>
+</div>
+<div class="viewcode-block" id="smart_text"><a class="viewcode-back" href="../../../django.utils.html#django.utils.encoding.smart_text">[docs]</a><span class="k">def</span> <span class="nf">smart_text</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="s">&#39;utf-8&#39;</span><span class="p">,</span> <span class="n">strings_only</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">errors</span><span class="o">=</span><span class="s">&#39;strict&#39;</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Returns a text object representing &#39;s&#39; -- unicode on Python 2 and str on</span>
+<span class="sd">    Python 3. Treats bytestrings using the &#39;encoding&#39; codec.</span>
+
+<span class="sd">    If strings_only is True, don&#39;t convert (some) non-string-like objects.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">Promise</span><span class="p">):</span>
+        <span class="c"># The input is the result of a gettext_lazy() call.</span>
+        <span class="k">return</span> <span class="n">s</span>
+    <span class="k">return</span> <span class="n">force_text</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">encoding</span><span class="p">,</span> <span class="n">strings_only</span><span class="p">,</span> <span class="n">errors</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="is_protected_type"><a class="viewcode-back" href="../../../django.utils.html#django.utils.encoding.is_protected_type">[docs]</a><span class="k">def</span> <span class="nf">is_protected_type</span><span class="p">(</span><span class="n">obj</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Determine if the object instance is of a protected type.</span>
+
+<span class="sd">    Objects of protected types are preserved as-is when passed to</span>
+<span class="sd">    force_text(strings_only=True).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">six</span><span class="o">.</span><span class="n">integer_types</span> <span class="o">+</span> <span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="bp">None</span><span class="p">),</span> <span class="nb">float</span><span class="p">,</span> <span class="n">Decimal</span><span class="p">,</span>
+        <span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="p">,</span> <span class="n">datetime</span><span class="o">.</span><span class="n">date</span><span class="p">,</span> <span class="n">datetime</span><span class="o">.</span><span class="n">time</span><span class="p">))</span>
+</div>
+<div class="viewcode-block" id="force_text"><a class="viewcode-back" href="../../../django.utils.html#django.utils.encoding.force_text">[docs]</a><span class="k">def</span> <span class="nf">force_text</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="s">&#39;utf-8&#39;</span><span class="p">,</span> <span class="n">strings_only</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">errors</span><span class="o">=</span><span class="s">&#39;strict&#39;</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Similar to smart_text, except that lazy instances are resolved to</span>
+<span class="sd">    strings, rather than kept as lazy objects.</span>
+
+<span class="sd">    If strings_only is True, don&#39;t convert (some) non-string-like objects.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c"># Handle the common case first, saves 30-40% when s is an instance of</span>
+    <span class="c"># six.text_type. This function gets called often in that setting.</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">six</span><span class="o">.</span><span class="n">text_type</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">s</span>
+    <span class="k">if</span> <span class="n">strings_only</span> <span class="ow">and</span> <span class="n">is_protected_type</span><span class="p">(</span><span class="n">s</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">s</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">six</span><span class="o">.</span><span class="n">string_types</span><span class="p">):</span>
+            <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="s">&#39;__unicode__&#39;</span><span class="p">):</span>
+                <span class="n">s</span> <span class="o">=</span> <span class="n">s</span><span class="o">.</span><span class="n">__unicode__</span><span class="p">()</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">six</span><span class="o">.</span><span class="n">PY3</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="nb">bytes</span><span class="p">):</span>
+                        <span class="n">s</span> <span class="o">=</span> <span class="n">six</span><span class="o">.</span><span class="n">text_type</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">encoding</span><span class="p">,</span> <span class="n">errors</span><span class="p">)</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="n">s</span> <span class="o">=</span> <span class="n">six</span><span class="o">.</span><span class="n">text_type</span><span class="p">(</span><span class="n">s</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">s</span> <span class="o">=</span> <span class="n">six</span><span class="o">.</span><span class="n">text_type</span><span class="p">(</span><span class="nb">bytes</span><span class="p">(</span><span class="n">s</span><span class="p">),</span> <span class="n">encoding</span><span class="p">,</span> <span class="n">errors</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c"># Note: We use .decode() here, instead of six.text_type(s, encoding,</span>
+            <span class="c"># errors), so that if s is a SafeBytes, it ends up being a</span>
+            <span class="c"># SafeText at the end.</span>
+            <span class="n">s</span> <span class="o">=</span> <span class="n">s</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="n">encoding</span><span class="p">,</span> <span class="n">errors</span><span class="p">)</span>
+    <span class="k">except</span> <span class="ne">UnicodeDecodeError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="ne">Exception</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="n">DjangoUnicodeDecodeError</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="o">*</span><span class="n">e</span><span class="o">.</span><span class="n">args</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c"># If we get to here, the caller has passed in an Exception</span>
+            <span class="c"># subclass populated with non-ASCII bytestring data without a</span>
+            <span class="c"># working unicode method. Try to handle this without raising a</span>
+            <span class="c"># further exception by individually forcing the exception args</span>
+            <span class="c"># to unicode.</span>
+            <span class="n">s</span> <span class="o">=</span> <span class="s">&#39; &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="n">force_text</span><span class="p">(</span><span class="n">arg</span><span class="p">,</span> <span class="n">encoding</span><span class="p">,</span> <span class="n">strings_only</span><span class="p">,</span>
+                    <span class="n">errors</span><span class="p">)</span> <span class="k">for</span> <span class="n">arg</span> <span class="ow">in</span> <span class="n">s</span><span class="p">])</span>
+    <span class="k">return</span> <span class="n">s</span>
+</div>
+<div class="viewcode-block" id="smart_bytes"><a class="viewcode-back" href="../../../django.utils.html#django.utils.encoding.smart_bytes">[docs]</a><span class="k">def</span> <span class="nf">smart_bytes</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="s">&#39;utf-8&#39;</span><span class="p">,</span> <span class="n">strings_only</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">errors</span><span class="o">=</span><span class="s">&#39;strict&#39;</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Returns a bytestring version of &#39;s&#39;, encoded as specified in &#39;encoding&#39;.</span>
+
+<span class="sd">    If strings_only is True, don&#39;t convert (some) non-string-like objects.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">Promise</span><span class="p">):</span>
+        <span class="c"># The input is the result of a gettext_lazy() call.</span>
+        <span class="k">return</span> <span class="n">s</span>
+    <span class="k">return</span> <span class="n">force_bytes</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">encoding</span><span class="p">,</span> <span class="n">strings_only</span><span class="p">,</span> <span class="n">errors</span><span class="p">)</span>
+
+</div>
+<div class="viewcode-block" id="force_bytes"><a class="viewcode-back" href="../../../django.utils.html#django.utils.encoding.force_bytes">[docs]</a><span class="k">def</span> <span class="nf">force_bytes</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="s">&#39;utf-8&#39;</span><span class="p">,</span> <span class="n">strings_only</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">errors</span><span class="o">=</span><span class="s">&#39;strict&#39;</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Similar to smart_bytes, except that lazy instances are resolved to</span>
+<span class="sd">    strings, rather than kept as lazy objects.</span>
+
+<span class="sd">    If strings_only is True, don&#39;t convert (some) non-string-like objects.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="nb">bytes</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">encoding</span> <span class="o">==</span> <span class="s">&#39;utf-8&#39;</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">s</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">s</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s">&#39;utf-8&#39;</span><span class="p">,</span> <span class="n">errors</span><span class="p">)</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="n">encoding</span><span class="p">,</span> <span class="n">errors</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">strings_only</span> <span class="ow">and</span> <span class="p">(</span><span class="n">s</span> <span class="ow">is</span> <span class="bp">None</span> <span class="ow">or</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="nb">int</span><span class="p">)):</span>
+        <span class="k">return</span> <span class="n">s</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">Promise</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">six</span><span class="o">.</span><span class="n">text_type</span><span class="p">(</span><span class="n">s</span><span class="p">)</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="n">encoding</span><span class="p">,</span> <span class="n">errors</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">six</span><span class="o">.</span><span class="n">string_types</span><span class="p">):</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">six</span><span class="o">.</span><span class="n">PY3</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">six</span><span class="o">.</span><span class="n">text_type</span><span class="p">(</span><span class="n">s</span><span class="p">)</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="n">encoding</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">return</span> <span class="nb">bytes</span><span class="p">(</span><span class="n">s</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">UnicodeEncodeError</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="ne">Exception</span><span class="p">):</span>
+                <span class="c"># An Exception subclass containing non-ASCII data that doesn&#39;t</span>
+                <span class="c"># know how to print itself properly. We shouldn&#39;t raise a</span>
+                <span class="c"># further exception.</span>
+                <span class="k">return</span> <span class="n">b</span><span class="s">&#39; &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="n">force_bytes</span><span class="p">(</span><span class="n">arg</span><span class="p">,</span> <span class="n">encoding</span><span class="p">,</span> <span class="n">strings_only</span><span class="p">,</span>
+                        <span class="n">errors</span><span class="p">)</span> <span class="k">for</span> <span class="n">arg</span> <span class="ow">in</span> <span class="n">s</span><span class="p">])</span>
+            <span class="k">return</span> <span class="n">six</span><span class="o">.</span><span class="n">text_type</span><span class="p">(</span><span class="n">s</span><span class="p">)</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="n">encoding</span><span class="p">,</span> <span class="n">errors</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">s</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="n">encoding</span><span class="p">,</span> <span class="n">errors</span><span class="p">)</span>
+</div>
+<span class="k">if</span> <span class="n">six</span><span class="o">.</span><span class="n">PY3</span><span class="p">:</span>
+    <span class="n">smart_str</span> <span class="o">=</span> <span class="n">smart_text</span>
+    <span class="n">force_str</span> <span class="o">=</span> <span class="n">force_text</span>
+<span class="k">else</span><span class="p">:</span>
+    <span class="n">smart_str</span> <span class="o">=</span> <span class="n">smart_bytes</span>
+    <span class="n">force_str</span> <span class="o">=</span> <span class="n">force_bytes</span>
+    <span class="c"># backwards compatibility for Python 2</span>
+    <span class="n">smart_unicode</span> <span class="o">=</span> <span class="n">smart_text</span>
+    <span class="n">force_unicode</span> <span class="o">=</span> <span class="n">force_text</span>
+
+<span class="n">smart_str</span><span class="o">.</span><span class="n">__doc__</span> <span class="o">=</span> <span class="s">&quot;&quot;&quot;</span><span class="se">\</span>
+<span class="s">Apply smart_text in Python 3 and smart_bytes in Python 2.</span>
+
+<span class="s">This is suitable for writing to sys.stdout (for instance).</span>
+<span class="s">&quot;&quot;&quot;</span>
+
+<span class="n">force_str</span><span class="o">.</span><span class="n">__doc__</span> <span class="o">=</span> <span class="s">&quot;&quot;&quot;</span><span class="se">\</span>
+<span class="s">Apply force_text in Python 3 and force_bytes in Python 2.</span>
+<span class="s">&quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="iri_to_uri"><a class="viewcode-back" href="../../../django.utils.html#django.utils.encoding.iri_to_uri">[docs]</a><span class="k">def</span> <span class="nf">iri_to_uri</span><span class="p">(</span><span class="n">iri</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Convert an Internationalized Resource Identifier (IRI) portion to a URI</span>
+<span class="sd">    portion that is suitable for inclusion in a URL.</span>
+
+<span class="sd">    This is the algorithm from section 3.1 of RFC 3987.  However, since we are</span>
+<span class="sd">    assuming input is either UTF-8 or unicode already, we can simplify things a</span>
+<span class="sd">    little from the full method.</span>
+
+<span class="sd">    Returns an ASCII string containing the encoded result.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c"># The list of safe characters here is constructed from the &quot;reserved&quot; and</span>
+    <span class="c"># &quot;unreserved&quot; characters specified in sections 2.2 and 2.3 of RFC 3986:</span>
+    <span class="c">#     reserved    = gen-delims / sub-delims</span>
+    <span class="c">#     gen-delims  = &quot;:&quot; / &quot;/&quot; / &quot;?&quot; / &quot;#&quot; / &quot;[&quot; / &quot;]&quot; / &quot;@&quot;</span>
+    <span class="c">#     sub-delims  = &quot;!&quot; / &quot;$&quot; / &quot;&amp;&quot; / &quot;&#39;&quot; / &quot;(&quot; / &quot;)&quot;</span>
+    <span class="c">#                   / &quot;*&quot; / &quot;+&quot; / &quot;,&quot; / &quot;;&quot; / &quot;=&quot;</span>
+    <span class="c">#     unreserved  = ALPHA / DIGIT / &quot;-&quot; / &quot;.&quot; / &quot;_&quot; / &quot;~&quot;</span>
+    <span class="c"># Of the unreserved characters, urllib.quote already considers all but</span>
+    <span class="c"># the ~ safe.</span>
+    <span class="c"># The % character is also added to the list of safe characters here, as the</span>
+    <span class="c"># end of section 3.1 of RFC 3987 specifically mentions that % must not be</span>
+    <span class="c"># converted.</span>
+    <span class="k">if</span> <span class="n">iri</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">iri</span>
+    <span class="k">return</span> <span class="n">quote</span><span class="p">(</span><span class="n">force_bytes</span><span class="p">(</span><span class="n">iri</span><span class="p">),</span> <span class="n">safe</span><span class="o">=</span><span class="n">b</span><span class="s">&quot;/#%[]=:;$&amp;()+,!?*@&#39;~&quot;</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="filepath_to_uri"><a class="viewcode-back" href="../../../django.utils.html#django.utils.encoding.filepath_to_uri">[docs]</a><span class="k">def</span> <span class="nf">filepath_to_uri</span><span class="p">(</span><span class="n">path</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Convert a file system path to a URI portion that is suitable for</span>
+<span class="sd">    inclusion in a URL.</span>
+
+<span class="sd">    We are assuming input is either UTF-8 or unicode already.</span>
+
+<span class="sd">    This method will encode certain chars that would normally be recognized as</span>
+<span class="sd">    special chars for URIs.  Note that this method does not encode the &#39;</span>
+<span class="sd">    character, as it is a valid character within URIs.  See</span>
+<span class="sd">    encodeURIComponent() JavaScript function for more details.</span>
+
+<span class="sd">    Returns an ASCII string containing the encoded result.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">path</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">path</span>
+    <span class="c"># I know about `os.sep` and `os.altsep` but I want to leave</span>
+    <span class="c"># some flexibility for hardcoding separators.</span>
+    <span class="k">return</span> <span class="n">quote</span><span class="p">(</span><span class="n">force_bytes</span><span class="p">(</span><span class="n">path</span><span class="p">)</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="n">b</span><span class="s">&quot;</span><span class="se">\\</span><span class="s">&quot;</span><span class="p">,</span> <span class="n">b</span><span class="s">&quot;/&quot;</span><span class="p">),</span> <span class="n">safe</span><span class="o">=</span><span class="n">b</span><span class="s">&quot;/~!*()&#39;&quot;</span><span class="p">)</span>
+
+<span class="c"># The encoding of the default system locale but falls back to the</span>
+<span class="c"># given fallback encoding if the encoding is unsupported by python or could</span>
+<span class="c"># not be determined.  See tickets #10335 and #5846</span></div>
+<span class="k">try</span><span class="p">:</span>
+    <span class="n">DEFAULT_LOCALE_ENCODING</span> <span class="o">=</span> <span class="n">locale</span><span class="o">.</span><span class="n">getdefaultlocale</span><span class="p">()[</span><span class="mi">1</span><span class="p">]</span> <span class="ow">or</span> <span class="s">&#39;ascii&#39;</span>
+    <span class="n">codecs</span><span class="o">.</span><span class="n">lookup</span><span class="p">(</span><span class="n">DEFAULT_LOCALE_ENCODING</span><span class="p">)</span>
+<span class="k">except</span><span class="p">:</span>
+    <span class="n">DEFAULT_LOCALE_ENCODING</span> <span class="o">=</span> <span class="s">&#39;ascii&#39;</span>
+</pre></div>
+
+      </div>
+      <div class="bottomnav">
+      
+        <p>
+        <a href="/">Home</a>:
+        <a class="uplink" href="../../../index.html">Contents</a>
+        </p>
+
+      </div>
+
+    <div class="footer">
+        &copy; Copyright 2012, HDKNR.COM.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2b1.
+    </div>
+  </body>
+</html>

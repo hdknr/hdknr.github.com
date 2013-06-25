@@ -1,0 +1,440 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>django.core.mail.message &mdash; Django Cheat 1 documentation</title>
+    
+    <link rel="stylesheet" href="../../../../_static/haiku.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../static/print.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../../',
+        VERSION:     '1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../../_static/doctools.js"></script>
+    <script type="text/javascript" src="../../../../static/theme_extras.js"></script>
+    <link rel="top" title="Django Cheat 1 documentation" href="../../../../index.html" />
+    <link rel="up" title="django.core.mail" href="../mail.html" /> 
+  </head>
+  <body>
+      <div class="header"><h1 class="heading"><a href="../../../../index.html">
+          <span>Django Cheat 1 documentation</span></a></h1>
+        <h2 class="heading"><span>django.core.mail.message</span></h2>
+      </div>
+      <div class="topnav">
+      
+        <p>
+        <a href="/">Home</a>:
+        <a class="uplink" href="../../../../index.html">Contents</a>
+        </p>
+
+      </div>
+      <div class="content">
+        
+        
+  <h1>Source code for django.core.mail.message</h1><div class="highlight"><pre>
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">unicode_literals</span>
+
+<span class="kn">import</span> <span class="nn">mimetypes</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">random</span>
+<span class="kn">import</span> <span class="nn">sys</span>
+<span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">from</span> <span class="nn">email</span> <span class="kn">import</span> <span class="n">charset</span> <span class="k">as</span> <span class="n">Charset</span><span class="p">,</span> <span class="n">encoders</span> <span class="k">as</span> <span class="n">Encoders</span>
+<span class="kn">from</span> <span class="nn">email.generator</span> <span class="kn">import</span> <span class="n">Generator</span>
+<span class="kn">from</span> <span class="nn">email.mime.text</span> <span class="kn">import</span> <span class="n">MIMEText</span>
+<span class="kn">from</span> <span class="nn">email.mime.multipart</span> <span class="kn">import</span> <span class="n">MIMEMultipart</span>
+<span class="kn">from</span> <span class="nn">email.mime.base</span> <span class="kn">import</span> <span class="n">MIMEBase</span>
+<span class="kn">from</span> <span class="nn">email.header</span> <span class="kn">import</span> <span class="n">Header</span>
+<span class="kn">from</span> <span class="nn">email.utils</span> <span class="kn">import</span> <span class="n">formatdate</span><span class="p">,</span> <span class="n">getaddresses</span><span class="p">,</span> <span class="n">formataddr</span><span class="p">,</span> <span class="n">parseaddr</span>
+
+<span class="kn">from</span> <span class="nn">django.conf</span> <span class="kn">import</span> <span class="n">settings</span>
+<span class="kn">from</span> <span class="nn">django.core.mail.utils</span> <span class="kn">import</span> <span class="n">DNS_NAME</span>
+<span class="kn">from</span> <span class="nn">django.utils.encoding</span> <span class="kn">import</span> <span class="n">force_text</span>
+<span class="kn">from</span> <span class="nn">django.utils</span> <span class="kn">import</span> <span class="n">six</span>
+
+
+<span class="c"># Don&#39;t BASE64-encode UTF-8 messages so that we avoid unwanted attention from</span>
+<span class="c"># some spam filters.</span>
+<span class="n">Charset</span><span class="o">.</span><span class="n">add_charset</span><span class="p">(</span><span class="s">&#39;utf-8&#39;</span><span class="p">,</span> <span class="n">Charset</span><span class="o">.</span><span class="n">SHORTEST</span><span class="p">,</span> <span class="bp">None</span><span class="p">,</span> <span class="s">&#39;utf-8&#39;</span><span class="p">)</span>
+
+<span class="c"># Default MIME type to use on attachments (if it is not explicitly given</span>
+<span class="c"># and cannot be guessed).</span>
+<span class="n">DEFAULT_ATTACHMENT_MIME_TYPE</span> <span class="o">=</span> <span class="s">&#39;application/octet-stream&#39;</span>
+
+
+<span class="k">class</span> <span class="nc">BadHeaderError</span><span class="p">(</span><span class="ne">ValueError</span><span class="p">):</span>
+    <span class="k">pass</span>
+
+
+<span class="c"># Copied from Python standard library, with the following modifications:</span>
+<span class="c"># * Used cached hostname for performance.</span>
+<span class="c"># * Added try/except to support lack of getpid() in Jython (#5496).</span>
+<div class="viewcode-block" id="make_msgid"><a class="viewcode-back" href="../../../../django.core.mail.html#django.core.mail.message.make_msgid">[docs]</a><span class="k">def</span> <span class="nf">make_msgid</span><span class="p">(</span><span class="n">idstring</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Returns a string suitable for RFC 2822 compliant Message-ID, e.g:</span>
+
+<span class="sd">    &lt;20020201195627.33539.96671@nightshade.la.mastaler.com&gt;</span>
+
+<span class="sd">    Optional idstring if given is a string used to strengthen the</span>
+<span class="sd">    uniqueness of the message id.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">timeval</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+    <span class="n">utcdate</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s">&#39;%Y%m</span><span class="si">%d</span><span class="s">%H%M%S&#39;</span><span class="p">,</span> <span class="n">time</span><span class="o">.</span><span class="n">gmtime</span><span class="p">(</span><span class="n">timeval</span><span class="p">))</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">pid</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">getpid</span><span class="p">()</span>
+    <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>
+        <span class="c"># No getpid() in Jython, for example.</span>
+        <span class="n">pid</span> <span class="o">=</span> <span class="mi">1</span>
+    <span class="n">randint</span> <span class="o">=</span> <span class="n">random</span><span class="o">.</span><span class="n">randrange</span><span class="p">(</span><span class="mi">100000</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">idstring</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+        <span class="n">idstring</span> <span class="o">=</span> <span class="s">&#39;&#39;</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">idstring</span> <span class="o">=</span> <span class="s">&#39;.&#39;</span> <span class="o">+</span> <span class="n">idstring</span>
+    <span class="n">idhost</span> <span class="o">=</span> <span class="n">DNS_NAME</span>
+    <span class="n">msgid</span> <span class="o">=</span> <span class="s">&#39;&lt;</span><span class="si">%s</span><span class="s">.</span><span class="si">%s</span><span class="s">.</span><span class="si">%s%s</span><span class="s">@</span><span class="si">%s</span><span class="s">&gt;&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">utcdate</span><span class="p">,</span> <span class="n">pid</span><span class="p">,</span> <span class="n">randint</span><span class="p">,</span> <span class="n">idstring</span><span class="p">,</span> <span class="n">idhost</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">msgid</span>
+
+
+<span class="c"># Header names that contain structured address data (RFC #5322)</span></div>
+<span class="n">ADDRESS_HEADERS</span> <span class="o">=</span> <span class="nb">set</span><span class="p">([</span>
+    <span class="s">&#39;from&#39;</span><span class="p">,</span>
+    <span class="s">&#39;sender&#39;</span><span class="p">,</span>
+    <span class="s">&#39;reply-to&#39;</span><span class="p">,</span>
+    <span class="s">&#39;to&#39;</span><span class="p">,</span>
+    <span class="s">&#39;cc&#39;</span><span class="p">,</span>
+    <span class="s">&#39;bcc&#39;</span><span class="p">,</span>
+    <span class="s">&#39;resent-from&#39;</span><span class="p">,</span>
+    <span class="s">&#39;resent-sender&#39;</span><span class="p">,</span>
+    <span class="s">&#39;resent-to&#39;</span><span class="p">,</span>
+    <span class="s">&#39;resent-cc&#39;</span><span class="p">,</span>
+    <span class="s">&#39;resent-bcc&#39;</span><span class="p">,</span>
+<span class="p">])</span>
+
+
+<div class="viewcode-block" id="forbid_multi_line_headers"><a class="viewcode-back" href="../../../../django.core.mail.html#django.core.mail.message.forbid_multi_line_headers">[docs]</a><span class="k">def</span> <span class="nf">forbid_multi_line_headers</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">val</span><span class="p">,</span> <span class="n">encoding</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Forbids multi-line headers, to prevent header injection.&quot;&quot;&quot;</span>
+    <span class="n">encoding</span> <span class="o">=</span> <span class="n">encoding</span> <span class="ow">or</span> <span class="n">settings</span><span class="o">.</span><span class="n">DEFAULT_CHARSET</span>
+    <span class="n">val</span> <span class="o">=</span> <span class="n">force_text</span><span class="p">(</span><span class="n">val</span><span class="p">)</span>
+    <span class="k">if</span> <span class="s">&#39;</span><span class="se">\n</span><span class="s">&#39;</span> <span class="ow">in</span> <span class="n">val</span> <span class="ow">or</span> <span class="s">&#39;</span><span class="se">\r</span><span class="s">&#39;</span> <span class="ow">in</span> <span class="n">val</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">BadHeaderError</span><span class="p">(</span><span class="s">&quot;Header values can&#39;t contain newlines (got </span><span class="si">%r</span><span class="s"> for header </span><span class="si">%r</span><span class="s">)&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">val</span><span class="p">,</span> <span class="n">name</span><span class="p">))</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">val</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s">&#39;ascii&#39;</span><span class="p">)</span>
+    <span class="k">except</span> <span class="ne">UnicodeEncodeError</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">name</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">in</span> <span class="n">ADDRESS_HEADERS</span><span class="p">:</span>
+            <span class="n">val</span> <span class="o">=</span> <span class="s">&#39;, &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">sanitize_address</span><span class="p">(</span><span class="n">addr</span><span class="p">,</span> <span class="n">encoding</span><span class="p">)</span>
+                <span class="k">for</span> <span class="n">addr</span> <span class="ow">in</span> <span class="n">getaddresses</span><span class="p">((</span><span class="n">val</span><span class="p">,)))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">val</span> <span class="o">=</span> <span class="n">Header</span><span class="p">(</span><span class="n">val</span><span class="p">,</span> <span class="n">encoding</span><span class="p">)</span><span class="o">.</span><span class="n">encode</span><span class="p">()</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">name</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s">&#39;subject&#39;</span><span class="p">:</span>
+            <span class="n">val</span> <span class="o">=</span> <span class="n">Header</span><span class="p">(</span><span class="n">val</span><span class="p">)</span><span class="o">.</span><span class="n">encode</span><span class="p">()</span>
+    <span class="k">return</span> <span class="nb">str</span><span class="p">(</span><span class="n">name</span><span class="p">),</span> <span class="n">val</span>
+
+</div>
+<span class="k">def</span> <span class="nf">sanitize_address</span><span class="p">(</span><span class="n">addr</span><span class="p">,</span> <span class="n">encoding</span><span class="p">):</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">addr</span><span class="p">,</span> <span class="n">six</span><span class="o">.</span><span class="n">string_types</span><span class="p">):</span>
+        <span class="n">addr</span> <span class="o">=</span> <span class="n">parseaddr</span><span class="p">(</span><span class="n">force_text</span><span class="p">(</span><span class="n">addr</span><span class="p">))</span>
+    <span class="n">nm</span><span class="p">,</span> <span class="n">addr</span> <span class="o">=</span> <span class="n">addr</span>
+    <span class="c"># This try-except clause is needed on Python 3 &lt; 3.2.4</span>
+    <span class="c"># http://bugs.python.org/issue14291</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">nm</span> <span class="o">=</span> <span class="n">Header</span><span class="p">(</span><span class="n">nm</span><span class="p">,</span> <span class="n">encoding</span><span class="p">)</span><span class="o">.</span><span class="n">encode</span><span class="p">()</span>
+    <span class="k">except</span> <span class="ne">UnicodeEncodeError</span><span class="p">:</span>
+        <span class="n">nm</span> <span class="o">=</span> <span class="n">Header</span><span class="p">(</span><span class="n">nm</span><span class="p">,</span> <span class="s">&#39;utf-8&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">encode</span><span class="p">()</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">addr</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s">&#39;ascii&#39;</span><span class="p">)</span>
+    <span class="k">except</span> <span class="ne">UnicodeEncodeError</span><span class="p">:</span>  <span class="c"># IDN</span>
+        <span class="k">if</span> <span class="s">&#39;@&#39;</span> <span class="ow">in</span> <span class="n">addr</span><span class="p">:</span>
+            <span class="n">localpart</span><span class="p">,</span> <span class="n">domain</span> <span class="o">=</span> <span class="n">addr</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&#39;@&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+            <span class="n">localpart</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">Header</span><span class="p">(</span><span class="n">localpart</span><span class="p">,</span> <span class="n">encoding</span><span class="p">))</span>
+            <span class="n">domain</span> <span class="o">=</span> <span class="n">domain</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s">&#39;idna&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s">&#39;ascii&#39;</span><span class="p">)</span>
+            <span class="n">addr</span> <span class="o">=</span> <span class="s">&#39;@&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="n">localpart</span><span class="p">,</span> <span class="n">domain</span><span class="p">])</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">addr</span> <span class="o">=</span> <span class="n">Header</span><span class="p">(</span><span class="n">addr</span><span class="p">,</span> <span class="n">encoding</span><span class="p">)</span><span class="o">.</span><span class="n">encode</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">formataddr</span><span class="p">((</span><span class="n">nm</span><span class="p">,</span> <span class="n">addr</span><span class="p">))</span>
+
+
+<span class="k">class</span> <span class="nc">SafeMIMEText</span><span class="p">(</span><span class="n">MIMEText</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">text</span><span class="p">,</span> <span class="n">subtype</span><span class="p">,</span> <span class="n">charset</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">encoding</span> <span class="o">=</span> <span class="n">charset</span>
+        <span class="n">MIMEText</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">text</span><span class="p">,</span> <span class="n">subtype</span><span class="p">,</span> <span class="n">charset</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__setitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">val</span><span class="p">):</span>
+        <span class="n">name</span><span class="p">,</span> <span class="n">val</span> <span class="o">=</span> <span class="n">forbid_multi_line_headers</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">val</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">encoding</span><span class="p">)</span>
+        <span class="n">MIMEText</span><span class="o">.</span><span class="n">__setitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">val</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">as_string</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">unixfrom</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Return the entire formatted message as a string.</span>
+<span class="sd">        Optional `unixfrom&#39; when True, means include the Unix From_ envelope</span>
+<span class="sd">        header.</span>
+
+<span class="sd">        This overrides the default as_string() implementation to not mangle</span>
+<span class="sd">        lines that begin with &#39;From &#39;. See bug #13433 for details.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">fp</span> <span class="o">=</span> <span class="n">six</span><span class="o">.</span><span class="n">StringIO</span><span class="p">()</span>
+        <span class="n">g</span> <span class="o">=</span> <span class="n">Generator</span><span class="p">(</span><span class="n">fp</span><span class="p">,</span> <span class="n">mangle_from_</span> <span class="o">=</span> <span class="bp">False</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">sys</span><span class="o">.</span><span class="n">version_info</span> <span class="o">&lt;</span> <span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">6</span><span class="p">,</span> <span class="mi">6</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_payload</span><span class="p">,</span> <span class="n">six</span><span class="o">.</span><span class="n">text_type</span><span class="p">):</span>
+            <span class="c"># Workaround for http://bugs.python.org/issue1368247</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_payload</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_payload</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_charset</span><span class="o">.</span><span class="n">output_charset</span><span class="p">)</span>
+        <span class="n">g</span><span class="o">.</span><span class="n">flatten</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">unixfrom</span><span class="o">=</span><span class="n">unixfrom</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">fp</span><span class="o">.</span><span class="n">getvalue</span><span class="p">()</span>
+
+
+<span class="k">class</span> <span class="nc">SafeMIMEMultipart</span><span class="p">(</span><span class="n">MIMEMultipart</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">_subtype</span><span class="o">=</span><span class="s">&#39;mixed&#39;</span><span class="p">,</span> <span class="n">boundary</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">_subparts</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="o">**</span><span class="n">_params</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">encoding</span> <span class="o">=</span> <span class="n">encoding</span>
+        <span class="n">MIMEMultipart</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">_subtype</span><span class="p">,</span> <span class="n">boundary</span><span class="p">,</span> <span class="n">_subparts</span><span class="p">,</span> <span class="o">**</span><span class="n">_params</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__setitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">val</span><span class="p">):</span>
+        <span class="n">name</span><span class="p">,</span> <span class="n">val</span> <span class="o">=</span> <span class="n">forbid_multi_line_headers</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">val</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">encoding</span><span class="p">)</span>
+        <span class="n">MIMEMultipart</span><span class="o">.</span><span class="n">__setitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">val</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">as_string</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">unixfrom</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Return the entire formatted message as a string.</span>
+<span class="sd">        Optional `unixfrom&#39; when True, means include the Unix From_ envelope</span>
+<span class="sd">        header.</span>
+
+<span class="sd">        This overrides the default as_string() implementation to not mangle</span>
+<span class="sd">        lines that begin with &#39;From &#39;. See bug #13433 for details.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">fp</span> <span class="o">=</span> <span class="n">six</span><span class="o">.</span><span class="n">StringIO</span><span class="p">()</span>
+        <span class="n">g</span> <span class="o">=</span> <span class="n">Generator</span><span class="p">(</span><span class="n">fp</span><span class="p">,</span> <span class="n">mangle_from_</span> <span class="o">=</span> <span class="bp">False</span><span class="p">)</span>
+        <span class="n">g</span><span class="o">.</span><span class="n">flatten</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">unixfrom</span><span class="o">=</span><span class="n">unixfrom</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">fp</span><span class="o">.</span><span class="n">getvalue</span><span class="p">()</span>
+
+
+<div class="viewcode-block" id="EmailMessage"><a class="viewcode-back" href="../../../../django.core.mail.html#django.core.mail.message.EmailMessage">[docs]</a><span class="k">class</span> <span class="nc">EmailMessage</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    A container for email information.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">content_subtype</span> <span class="o">=</span> <span class="s">&#39;plain&#39;</span>
+    <span class="n">mixed_subtype</span> <span class="o">=</span> <span class="s">&#39;mixed&#39;</span>
+    <span class="n">encoding</span> <span class="o">=</span> <span class="bp">None</span>     <span class="c"># None =&gt; use settings default</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">subject</span><span class="o">=</span><span class="s">&#39;&#39;</span><span class="p">,</span> <span class="n">body</span><span class="o">=</span><span class="s">&#39;&#39;</span><span class="p">,</span> <span class="n">from_email</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">to</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">bcc</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+                 <span class="n">connection</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">attachments</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">headers</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">cc</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Initialize a single email message (which can be sent to multiple</span>
+<span class="sd">        recipients).</span>
+
+<span class="sd">        All strings used to create the message can be unicode strings</span>
+<span class="sd">        (or UTF-8 bytestrings). The SafeMIMEText class will handle any</span>
+<span class="sd">        necessary encoding conversions.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">to</span><span class="p">:</span>
+            <span class="k">assert</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">to</span><span class="p">,</span> <span class="n">six</span><span class="o">.</span><span class="n">string_types</span><span class="p">),</span> <span class="s">&#39;&quot;to&quot; argument must be a list or tuple&#39;</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">to</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">to</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">to</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">if</span> <span class="n">cc</span><span class="p">:</span>
+            <span class="k">assert</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">cc</span><span class="p">,</span> <span class="n">six</span><span class="o">.</span><span class="n">string_types</span><span class="p">),</span> <span class="s">&#39;&quot;cc&quot; argument must be a list or tuple&#39;</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">cc</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">cc</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">cc</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">if</span> <span class="n">bcc</span><span class="p">:</span>
+            <span class="k">assert</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">bcc</span><span class="p">,</span> <span class="n">six</span><span class="o">.</span><span class="n">string_types</span><span class="p">),</span> <span class="s">&#39;&quot;bcc&quot; argument must be a list or tuple&#39;</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">bcc</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">bcc</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">bcc</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">from_email</span> <span class="o">=</span> <span class="n">from_email</span> <span class="ow">or</span> <span class="n">settings</span><span class="o">.</span><span class="n">DEFAULT_FROM_EMAIL</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">subject</span> <span class="o">=</span> <span class="n">subject</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">body</span> <span class="o">=</span> <span class="n">body</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">attachments</span> <span class="o">=</span> <span class="n">attachments</span> <span class="ow">or</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">extra_headers</span> <span class="o">=</span> <span class="n">headers</span> <span class="ow">or</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">connection</span> <span class="o">=</span> <span class="n">connection</span>
+
+    <span class="k">def</span> <span class="nf">get_connection</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fail_silently</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+        <span class="kn">from</span> <span class="nn">django.core.mail</span> <span class="kn">import</span> <span class="n">get_connection</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">connection</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">connection</span> <span class="o">=</span> <span class="n">get_connection</span><span class="p">(</span><span class="n">fail_silently</span><span class="o">=</span><span class="n">fail_silently</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">connection</span>
+
+    <span class="k">def</span> <span class="nf">message</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">encoding</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">encoding</span> <span class="ow">or</span> <span class="n">settings</span><span class="o">.</span><span class="n">DEFAULT_CHARSET</span>
+        <span class="n">msg</span> <span class="o">=</span> <span class="n">SafeMIMEText</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">body</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">content_subtype</span><span class="p">,</span> <span class="n">encoding</span><span class="p">)</span>
+        <span class="n">msg</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_create_message</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+        <span class="n">msg</span><span class="p">[</span><span class="s">&#39;Subject&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">subject</span>
+        <span class="n">msg</span><span class="p">[</span><span class="s">&#39;From&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">extra_headers</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;From&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">from_email</span><span class="p">)</span>
+        <span class="n">msg</span><span class="p">[</span><span class="s">&#39;To&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">extra_headers</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;To&#39;</span><span class="p">,</span> <span class="s">&#39;, &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">to</span><span class="p">))</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">cc</span><span class="p">:</span>
+            <span class="n">msg</span><span class="p">[</span><span class="s">&#39;Cc&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s">&#39;, &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cc</span><span class="p">)</span>
+
+        <span class="c"># Email header names are case-insensitive (RFC 2045), so we have to</span>
+        <span class="c"># accommodate that when doing comparisons.</span>
+        <span class="n">header_names</span> <span class="o">=</span> <span class="p">[</span><span class="n">key</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">extra_headers</span><span class="p">]</span>
+        <span class="k">if</span> <span class="s">&#39;date&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">header_names</span><span class="p">:</span>
+            <span class="n">msg</span><span class="p">[</span><span class="s">&#39;Date&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">formatdate</span><span class="p">()</span>
+        <span class="k">if</span> <span class="s">&#39;message-id&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">header_names</span><span class="p">:</span>
+            <span class="n">msg</span><span class="p">[</span><span class="s">&#39;Message-ID&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">make_msgid</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">extra_headers</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="k">if</span> <span class="n">name</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">in</span> <span class="p">(</span><span class="s">&#39;from&#39;</span><span class="p">,</span> <span class="s">&#39;to&#39;</span><span class="p">):</span>  <span class="c"># From and To are already handled</span>
+                <span class="k">continue</span>
+            <span class="n">msg</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span>
+        <span class="k">return</span> <span class="n">msg</span>
+
+<div class="viewcode-block" id="EmailMessage.recipients"><a class="viewcode-back" href="../../../../django.core.mail.html#django.core.mail.message.EmailMessage.recipients">[docs]</a>    <span class="k">def</span> <span class="nf">recipients</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns a list of all recipients of the email (includes direct</span>
+<span class="sd">        addressees as well as Cc and Bcc entries).</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">to</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">cc</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">bcc</span>
+</div>
+<div class="viewcode-block" id="EmailMessage.send"><a class="viewcode-back" href="../../../../django.core.mail.html#django.core.mail.message.EmailMessage.send">[docs]</a>    <span class="k">def</span> <span class="nf">send</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fail_silently</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Sends the email message.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">recipients</span><span class="p">():</span>
+            <span class="c"># Don&#39;t bother creating the network connection if there&#39;s nobody to</span>
+            <span class="c"># send to.</span>
+            <span class="k">return</span> <span class="mi">0</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_connection</span><span class="p">(</span><span class="n">fail_silently</span><span class="p">)</span><span class="o">.</span><span class="n">send_messages</span><span class="p">([</span><span class="bp">self</span><span class="p">])</span>
+</div>
+<div class="viewcode-block" id="EmailMessage.attach"><a class="viewcode-back" href="../../../../django.core.mail.html#django.core.mail.message.EmailMessage.attach">[docs]</a>    <span class="k">def</span> <span class="nf">attach</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">filename</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">content</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">mimetype</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Attaches a file with the given filename and content. The filename can</span>
+<span class="sd">        be omitted and the mimetype is guessed, if not provided.</span>
+
+<span class="sd">        If the first parameter is a MIMEBase subclass it is inserted directly</span>
+<span class="sd">        into the resulting message attachments.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="n">MIMEBase</span><span class="p">):</span>
+            <span class="k">assert</span> <span class="n">content</span> <span class="o">==</span> <span class="n">mimetype</span> <span class="o">==</span> <span class="bp">None</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">attachments</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">assert</span> <span class="n">content</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">attachments</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">filename</span><span class="p">,</span> <span class="n">content</span><span class="p">,</span> <span class="n">mimetype</span><span class="p">))</span>
+</div>
+<div class="viewcode-block" id="EmailMessage.attach_file"><a class="viewcode-back" href="../../../../django.core.mail.html#django.core.mail.message.EmailMessage.attach_file">[docs]</a>    <span class="k">def</span> <span class="nf">attach_file</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">,</span> <span class="n">mimetype</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Attaches a file from the filesystem.&quot;&quot;&quot;</span>
+        <span class="n">filename</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="s">&#39;rb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+            <span class="n">content</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">attach</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="n">content</span><span class="p">,</span> <span class="n">mimetype</span><span class="p">)</span>
+</div>
+    <span class="k">def</span> <span class="nf">_create_message</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">msg</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_create_attachments</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_create_attachments</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">msg</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">attachments</span><span class="p">:</span>
+            <span class="n">encoding</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">encoding</span> <span class="ow">or</span> <span class="n">settings</span><span class="o">.</span><span class="n">DEFAULT_CHARSET</span>
+            <span class="n">body_msg</span> <span class="o">=</span> <span class="n">msg</span>
+            <span class="n">msg</span> <span class="o">=</span> <span class="n">SafeMIMEMultipart</span><span class="p">(</span><span class="n">_subtype</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">mixed_subtype</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="n">encoding</span><span class="p">)</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">body</span><span class="p">:</span>
+                <span class="n">msg</span><span class="o">.</span><span class="n">attach</span><span class="p">(</span><span class="n">body_msg</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">attachment</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">attachments</span><span class="p">:</span>
+                <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">attachment</span><span class="p">,</span> <span class="n">MIMEBase</span><span class="p">):</span>
+                    <span class="n">msg</span><span class="o">.</span><span class="n">attach</span><span class="p">(</span><span class="n">attachment</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">msg</span><span class="o">.</span><span class="n">attach</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_create_attachment</span><span class="p">(</span><span class="o">*</span><span class="n">attachment</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">msg</span>
+
+    <span class="k">def</span> <span class="nf">_create_mime_attachment</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">content</span><span class="p">,</span> <span class="n">mimetype</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Converts the content, mimetype pair into a MIME attachment object.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">basetype</span><span class="p">,</span> <span class="n">subtype</span> <span class="o">=</span> <span class="n">mimetype</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&#39;/&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">basetype</span> <span class="o">==</span> <span class="s">&#39;text&#39;</span><span class="p">:</span>
+            <span class="n">encoding</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">encoding</span> <span class="ow">or</span> <span class="n">settings</span><span class="o">.</span><span class="n">DEFAULT_CHARSET</span>
+            <span class="n">attachment</span> <span class="o">=</span> <span class="n">SafeMIMEText</span><span class="p">(</span><span class="n">content</span><span class="p">,</span> <span class="n">subtype</span><span class="p">,</span> <span class="n">encoding</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c"># Encode non-text attachments with base64.</span>
+            <span class="n">attachment</span> <span class="o">=</span> <span class="n">MIMEBase</span><span class="p">(</span><span class="n">basetype</span><span class="p">,</span> <span class="n">subtype</span><span class="p">)</span>
+            <span class="n">attachment</span><span class="o">.</span><span class="n">set_payload</span><span class="p">(</span><span class="n">content</span><span class="p">)</span>
+            <span class="n">Encoders</span><span class="o">.</span><span class="n">encode_base64</span><span class="p">(</span><span class="n">attachment</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">attachment</span>
+
+    <span class="k">def</span> <span class="nf">_create_attachment</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">filename</span><span class="p">,</span> <span class="n">content</span><span class="p">,</span> <span class="n">mimetype</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Converts the filename, content, mimetype triple into a MIME attachment</span>
+<span class="sd">        object.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">mimetype</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="n">mimetype</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">mimetypes</span><span class="o">.</span><span class="n">guess_type</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">mimetype</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+                <span class="n">mimetype</span> <span class="o">=</span> <span class="n">DEFAULT_ATTACHMENT_MIME_TYPE</span>
+        <span class="n">attachment</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_create_mime_attachment</span><span class="p">(</span><span class="n">content</span><span class="p">,</span> <span class="n">mimetype</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">filename</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">filename</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s">&#39;ascii&#39;</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">UnicodeEncodeError</span><span class="p">:</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">six</span><span class="o">.</span><span class="n">PY3</span><span class="p">:</span>
+                    <span class="n">filename</span> <span class="o">=</span> <span class="n">filename</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s">&#39;utf-8&#39;</span><span class="p">)</span>
+                <span class="n">filename</span> <span class="o">=</span> <span class="p">(</span><span class="s">&#39;utf-8&#39;</span><span class="p">,</span> <span class="s">&#39;&#39;</span><span class="p">,</span> <span class="n">filename</span><span class="p">)</span>
+            <span class="n">attachment</span><span class="o">.</span><span class="n">add_header</span><span class="p">(</span><span class="s">&#39;Content-Disposition&#39;</span><span class="p">,</span> <span class="s">&#39;attachment&#39;</span><span class="p">,</span>
+                                  <span class="n">filename</span><span class="o">=</span><span class="n">filename</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">attachment</span>
+
+</div>
+<div class="viewcode-block" id="EmailMultiAlternatives"><a class="viewcode-back" href="../../../../django.core.mail.html#django.core.mail.message.EmailMultiAlternatives">[docs]</a><span class="k">class</span> <span class="nc">EmailMultiAlternatives</span><span class="p">(</span><span class="n">EmailMessage</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    A version of EmailMessage that makes it easy to send multipart/alternative</span>
+<span class="sd">    messages. For example, including text and HTML versions of the text is</span>
+<span class="sd">    made easier.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">alternative_subtype</span> <span class="o">=</span> <span class="s">&#39;alternative&#39;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">subject</span><span class="o">=</span><span class="s">&#39;&#39;</span><span class="p">,</span> <span class="n">body</span><span class="o">=</span><span class="s">&#39;&#39;</span><span class="p">,</span> <span class="n">from_email</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">to</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">bcc</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+            <span class="n">connection</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">attachments</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">headers</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">alternatives</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+            <span class="n">cc</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Initialize a single email message (which can be sent to multiple</span>
+<span class="sd">        recipients).</span>
+
+<span class="sd">        All strings used to create the message can be unicode strings (or UTF-8</span>
+<span class="sd">        bytestrings). The SafeMIMEText class will handle any necessary encoding</span>
+<span class="sd">        conversions.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">EmailMultiAlternatives</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="n">subject</span><span class="p">,</span> <span class="n">body</span><span class="p">,</span> <span class="n">from_email</span><span class="p">,</span> <span class="n">to</span><span class="p">,</span> <span class="n">bcc</span><span class="p">,</span> <span class="n">connection</span><span class="p">,</span> <span class="n">attachments</span><span class="p">,</span> <span class="n">headers</span><span class="p">,</span> <span class="n">cc</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">alternatives</span> <span class="o">=</span> <span class="n">alternatives</span> <span class="ow">or</span> <span class="p">[]</span>
+
+<div class="viewcode-block" id="EmailMultiAlternatives.attach_alternative"><a class="viewcode-back" href="../../../../django.core.mail.html#django.core.mail.message.EmailMultiAlternatives.attach_alternative">[docs]</a>    <span class="k">def</span> <span class="nf">attach_alternative</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">content</span><span class="p">,</span> <span class="n">mimetype</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Attach an alternative content representation.&quot;&quot;&quot;</span>
+        <span class="k">assert</span> <span class="n">content</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span>
+        <span class="k">assert</span> <span class="n">mimetype</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">alternatives</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">content</span><span class="p">,</span> <span class="n">mimetype</span><span class="p">))</span>
+</div>
+    <span class="k">def</span> <span class="nf">_create_message</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">msg</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_create_attachments</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_create_alternatives</span><span class="p">(</span><span class="n">msg</span><span class="p">))</span>
+
+    <span class="k">def</span> <span class="nf">_create_alternatives</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">msg</span><span class="p">):</span>
+        <span class="n">encoding</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">encoding</span> <span class="ow">or</span> <span class="n">settings</span><span class="o">.</span><span class="n">DEFAULT_CHARSET</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">alternatives</span><span class="p">:</span>
+            <span class="n">body_msg</span> <span class="o">=</span> <span class="n">msg</span>
+            <span class="n">msg</span> <span class="o">=</span> <span class="n">SafeMIMEMultipart</span><span class="p">(</span><span class="n">_subtype</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">alternative_subtype</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="n">encoding</span><span class="p">)</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">body</span><span class="p">:</span>
+                <span class="n">msg</span><span class="o">.</span><span class="n">attach</span><span class="p">(</span><span class="n">body_msg</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">alternative</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">alternatives</span><span class="p">:</span>
+                <span class="n">msg</span><span class="o">.</span><span class="n">attach</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_create_mime_attachment</span><span class="p">(</span><span class="o">*</span><span class="n">alternative</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">msg</span></div>
+</pre></div>
+
+      </div>
+      <div class="bottomnav">
+      
+        <p>
+        <a href="/">Home</a>:
+        <a class="uplink" href="../../../../index.html">Contents</a>
+        </p>
+
+      </div>
+
+    <div class="footer">
+        &copy; Copyright 2012, HDKNR.COM.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2b1.
+    </div>
+  </body>
+</html>

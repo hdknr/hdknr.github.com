@@ -1,3 +1,7 @@
+
+.. toctree::
+    :maxdepth: 2
+
     django
     django.bin
     django.bin.profiling
@@ -13,6 +17,7 @@
     django.conf.locale.cy
     django.conf.locale.da
     django.conf.locale.de
+    django.conf.locale.de_CH
     django.conf.locale.el
     django.conf.locale.en
     django.conf.locale.en_GB
@@ -153,6 +158,7 @@
     django.contrib.localflavor.fr
     django.contrib.localflavor.gb
     django.contrib.localflavor.generic
+    django.contrib.localflavor.hk
     django.contrib.localflavor.hr
     django.contrib.localflavor.id
     django.contrib.localflavor.ie
@@ -188,6 +194,8 @@
     django.contrib.redirects
     django.contrib.sessions
     django.contrib.sessions.backends
+    django.contrib.sessions.management
+    django.contrib.sessions.management.commands
     django.contrib.sitemaps
     django.contrib.sitemaps.management
     django.contrib.sitemaps.management.commands
@@ -233,7 +241,7 @@
     django.templatetags
     django.test
     django.utils
-    django.utils.simplejson
+    django.utils.2to3_fixes
     django.utils.translation
     django.utils.unittest
     django.views

@@ -1,0 +1,228 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>django.contrib.localflavor.se.forms &mdash; Django Cheat 1 documentation</title>
+    
+    <link rel="stylesheet" href="../../../../../_static/haiku.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../../static/print.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../../../',
+        VERSION:     '1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../../../_static/doctools.js"></script>
+    <script type="text/javascript" src="../../../../../static/theme_extras.js"></script>
+    <link rel="top" title="Django Cheat 1 documentation" href="../../../../../index.html" />
+    <link rel="up" title="Module code" href="../../../../index.html" /> 
+  </head>
+  <body>
+      <div class="header"><h1 class="heading"><a href="../../../../../index.html">
+          <span>Django Cheat 1 documentation</span></a></h1>
+        <h2 class="heading"><span>django.contrib.localflavor.se.forms</span></h2>
+      </div>
+      <div class="topnav">
+      
+        <p>
+        <a href="/">Home</a>:
+        <a class="uplink" href="../../../../../index.html">Contents</a>
+        </p>
+
+      </div>
+      <div class="content">
+        
+        
+  <h1>Source code for django.contrib.localflavor.se.forms</h1><div class="highlight"><pre>
+<span class="c"># -*- coding: utf-8 -*-</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Swedish specific Form helpers</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">absolute_import</span><span class="p">,</span> <span class="n">unicode_literals</span>
+
+<span class="kn">import</span> <span class="nn">re</span>
+
+<span class="kn">from</span> <span class="nn">django</span> <span class="kn">import</span> <span class="n">forms</span>
+<span class="kn">from</span> <span class="nn">django.utils.translation</span> <span class="kn">import</span> <span class="n">ugettext_lazy</span> <span class="k">as</span> <span class="n">_</span>
+<span class="kn">from</span> <span class="nn">django.core.validators</span> <span class="kn">import</span> <span class="n">EMPTY_VALUES</span>
+<span class="kn">from</span> <span class="nn">django.contrib.localflavor.se.se_counties</span> <span class="kn">import</span> <span class="n">COUNTY_CHOICES</span>
+<span class="kn">from</span> <span class="nn">django.contrib.localflavor.se.utils</span> <span class="kn">import</span> <span class="p">(</span><span class="n">id_number_checksum</span><span class="p">,</span>
+    <span class="n">validate_id_birthday</span><span class="p">,</span> <span class="n">format_personal_id_number</span><span class="p">,</span> <span class="n">valid_organisation</span><span class="p">,</span>
+    <span class="n">format_organisation_number</span><span class="p">)</span>
+
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">(</span><span class="s">&#39;SECountySelect&#39;</span><span class="p">,</span> <span class="s">&#39;SEOrganisationNumberField&#39;</span><span class="p">,</span>
+    <span class="s">&#39;SEPersonalIdentityNumberField&#39;</span><span class="p">,</span> <span class="s">&#39;SEPostalCodeField&#39;</span><span class="p">)</span>
+
+<span class="n">SWEDISH_ID_NUMBER</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="s">r&#39;^(?P&lt;century&gt;\d{2})?(?P&lt;year&gt;\d{2})(?P&lt;month&gt;\d{2})(?P&lt;day&gt;\d{2})(?P&lt;sign&gt;[\-+])?(?P&lt;serial&gt;\d{3})(?P&lt;checksum&gt;\d)$&#39;</span><span class="p">)</span>
+<span class="n">SE_POSTAL_CODE</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="s">r&#39;^[1-9]\d{2} ?\d{2}$&#39;</span><span class="p">)</span>
+
+<div class="viewcode-block" id="SECountySelect"><a class="viewcode-back" href="../../../../../django.contrib.localflavor.se.html#django.contrib.localflavor.se.forms.SECountySelect">[docs]</a><span class="k">class</span> <span class="nc">SECountySelect</span><span class="p">(</span><span class="n">forms</span><span class="o">.</span><span class="n">Select</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    A Select form widget that uses a list of the Swedish counties (län) as its</span>
+<span class="sd">    choices.</span>
+
+<span class="sd">    The cleaned value is the official county code -- see</span>
+<span class="sd">    http://en.wikipedia.org/wiki/Counties_of_Sweden for a list.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">attrs</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">SECountySelect</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="n">attrs</span><span class="o">=</span><span class="n">attrs</span><span class="p">,</span>
+                                             <span class="n">choices</span><span class="o">=</span><span class="n">COUNTY_CHOICES</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="SEOrganisationNumberField"><a class="viewcode-back" href="../../../../../django.contrib.localflavor.se.html#django.contrib.localflavor.se.forms.SEOrganisationNumberField">[docs]</a><span class="k">class</span> <span class="nc">SEOrganisationNumberField</span><span class="p">(</span><span class="n">forms</span><span class="o">.</span><span class="n">CharField</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    A form field that validates input as a Swedish organisation number</span>
+<span class="sd">    (organisationsnummer).</span>
+
+<span class="sd">    It accepts the same input as SEPersonalIdentityField (for sole</span>
+<span class="sd">    proprietorships (enskild firma). However, co-ordination numbers are not</span>
+<span class="sd">    accepted.</span>
+
+<span class="sd">    It also accepts ordinary Swedish organisation numbers with the format</span>
+<span class="sd">    NNNNNNNNNN.</span>
+
+<span class="sd">    The return value will be YYYYMMDDXXXX for sole proprietors, and NNNNNNNNNN</span>
+<span class="sd">    for other organisations.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">default_error_messages</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s">&#39;invalid&#39;</span><span class="p">:</span> <span class="n">_</span><span class="p">(</span><span class="s">&#39;Enter a valid Swedish organisation number.&#39;</span><span class="p">),</span>
+    <span class="p">}</span>
+
+    <span class="k">def</span> <span class="nf">clean</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="n">value</span> <span class="o">=</span> <span class="nb">super</span><span class="p">(</span><span class="n">SEOrganisationNumberField</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">clean</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">EMPTY_VALUES</span><span class="p">:</span>
+            <span class="k">return</span> <span class="s">&#39;&#39;</span>
+
+        <span class="n">match</span> <span class="o">=</span> <span class="n">SWEDISH_ID_NUMBER</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">match</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">forms</span><span class="o">.</span><span class="n">ValidationError</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">error_messages</span><span class="p">[</span><span class="s">&#39;invalid&#39;</span><span class="p">])</span>
+
+        <span class="n">gd</span> <span class="o">=</span> <span class="n">match</span><span class="o">.</span><span class="n">groupdict</span><span class="p">()</span>
+
+        <span class="c"># Compare the calculated value with the checksum</span>
+        <span class="k">if</span> <span class="n">id_number_checksum</span><span class="p">(</span><span class="n">gd</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">int</span><span class="p">(</span><span class="n">gd</span><span class="p">[</span><span class="s">&#39;checksum&#39;</span><span class="p">]):</span>
+            <span class="k">raise</span> <span class="n">forms</span><span class="o">.</span><span class="n">ValidationError</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">error_messages</span><span class="p">[</span><span class="s">&#39;invalid&#39;</span><span class="p">])</span>
+
+        <span class="c"># First: check if this is a real organisation_number</span>
+        <span class="k">if</span> <span class="n">valid_organisation</span><span class="p">(</span><span class="n">gd</span><span class="p">):</span>
+            <span class="k">return</span> <span class="n">format_organisation_number</span><span class="p">(</span><span class="n">gd</span><span class="p">)</span>
+
+        <span class="c"># Is this a single properitor (enskild firma)?</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">birth_day</span> <span class="o">=</span> <span class="n">validate_id_birthday</span><span class="p">(</span><span class="n">gd</span><span class="p">,</span> <span class="bp">False</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">format_personal_id_number</span><span class="p">(</span><span class="n">birth_day</span><span class="p">,</span> <span class="n">gd</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">forms</span><span class="o">.</span><span class="n">ValidationError</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">error_messages</span><span class="p">[</span><span class="s">&#39;invalid&#39;</span><span class="p">])</span>
+
+</div>
+<div class="viewcode-block" id="SEPersonalIdentityNumberField"><a class="viewcode-back" href="../../../../../django.contrib.localflavor.se.html#django.contrib.localflavor.se.forms.SEPersonalIdentityNumberField">[docs]</a><span class="k">class</span> <span class="nc">SEPersonalIdentityNumberField</span><span class="p">(</span><span class="n">forms</span><span class="o">.</span><span class="n">CharField</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    A form field that validates input as a Swedish personal identity number</span>
+<span class="sd">    (personnummer).</span>
+
+<span class="sd">    The correct formats are YYYYMMDD-XXXX, YYYYMMDDXXXX, YYMMDD-XXXX,</span>
+<span class="sd">    YYMMDDXXXX and YYMMDD+XXXX.</span>
+
+<span class="sd">    A + indicates that the person is older than 100 years, which will be taken</span>
+<span class="sd">    into consideration when the date is validated.</span>
+
+<span class="sd">    The checksum will be calculated and checked. The birth date is checked to</span>
+<span class="sd">    be a valid date.</span>
+
+<span class="sd">    By default, co-ordination numbers (samordningsnummer) will be accepted. To</span>
+<span class="sd">    only allow real personal identity numbers, pass the keyword argument</span>
+<span class="sd">    coordination_number=False to the constructor.</span>
+
+<span class="sd">    The cleaned value will always have the format YYYYMMDDXXXX.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">coordination_number</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">coordination_number</span> <span class="o">=</span> <span class="n">coordination_number</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">SEPersonalIdentityNumberField</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+    <span class="n">default_error_messages</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s">&#39;invalid&#39;</span><span class="p">:</span> <span class="n">_</span><span class="p">(</span><span class="s">&#39;Enter a valid Swedish personal identity number.&#39;</span><span class="p">),</span>
+        <span class="s">&#39;coordination_number&#39;</span><span class="p">:</span> <span class="n">_</span><span class="p">(</span><span class="s">&#39;Co-ordination numbers are not allowed.&#39;</span><span class="p">),</span>
+    <span class="p">}</span>
+
+    <span class="k">def</span> <span class="nf">clean</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="n">value</span> <span class="o">=</span> <span class="nb">super</span><span class="p">(</span><span class="n">SEPersonalIdentityNumberField</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">clean</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">EMPTY_VALUES</span><span class="p">:</span>
+            <span class="k">return</span> <span class="s">&#39;&#39;</span>
+
+        <span class="n">match</span> <span class="o">=</span> <span class="n">SWEDISH_ID_NUMBER</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">match</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">forms</span><span class="o">.</span><span class="n">ValidationError</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">error_messages</span><span class="p">[</span><span class="s">&#39;invalid&#39;</span><span class="p">])</span>
+
+        <span class="n">gd</span> <span class="o">=</span> <span class="n">match</span><span class="o">.</span><span class="n">groupdict</span><span class="p">()</span>
+
+        <span class="c"># compare the calculated value with the checksum</span>
+        <span class="k">if</span> <span class="n">id_number_checksum</span><span class="p">(</span><span class="n">gd</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">int</span><span class="p">(</span><span class="n">gd</span><span class="p">[</span><span class="s">&#39;checksum&#39;</span><span class="p">]):</span>
+            <span class="k">raise</span> <span class="n">forms</span><span class="o">.</span><span class="n">ValidationError</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">error_messages</span><span class="p">[</span><span class="s">&#39;invalid&#39;</span><span class="p">])</span>
+
+        <span class="c"># check for valid birthday</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">birth_day</span> <span class="o">=</span> <span class="n">validate_id_birthday</span><span class="p">(</span><span class="n">gd</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">forms</span><span class="o">.</span><span class="n">ValidationError</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">error_messages</span><span class="p">[</span><span class="s">&#39;invalid&#39;</span><span class="p">])</span>
+
+        <span class="c"># make sure that co-ordination numbers do not pass if not allowed</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">coordination_number</span> <span class="ow">and</span> <span class="nb">int</span><span class="p">(</span><span class="n">gd</span><span class="p">[</span><span class="s">&#39;day&#39;</span><span class="p">])</span> <span class="o">&gt;</span> <span class="mi">60</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">forms</span><span class="o">.</span><span class="n">ValidationError</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">error_messages</span><span class="p">[</span><span class="s">&#39;coordination_number&#39;</span><span class="p">])</span>
+
+        <span class="k">return</span> <span class="n">format_personal_id_number</span><span class="p">(</span><span class="n">birth_day</span><span class="p">,</span> <span class="n">gd</span><span class="p">)</span>
+
+</div>
+<div class="viewcode-block" id="SEPostalCodeField"><a class="viewcode-back" href="../../../../../django.contrib.localflavor.se.html#django.contrib.localflavor.se.forms.SEPostalCodeField">[docs]</a><span class="k">class</span> <span class="nc">SEPostalCodeField</span><span class="p">(</span><span class="n">forms</span><span class="o">.</span><span class="n">RegexField</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    A form field that validates input as a Swedish postal code (postnummer).</span>
+<span class="sd">    Valid codes consist of five digits (XXXXX). The number can optionally be</span>
+<span class="sd">    formatted with a space after the third digit (XXX XX).</span>
+
+<span class="sd">    The cleaned value will never contain the space.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">default_error_messages</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s">&#39;invalid&#39;</span><span class="p">:</span> <span class="n">_</span><span class="p">(</span><span class="s">&#39;Enter a Swedish postal code in the format XXXXX.&#39;</span><span class="p">),</span>
+    <span class="p">}</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">SEPostalCodeField</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="n">SE_POSTAL_CODE</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">clean</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="k">return</span> <span class="nb">super</span><span class="p">(</span><span class="n">SEPostalCodeField</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">clean</span><span class="p">(</span><span class="n">value</span><span class="p">)</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s">&#39; &#39;</span><span class="p">,</span> <span class="s">&#39;&#39;</span><span class="p">)</span></div>
+</pre></div>
+
+      </div>
+      <div class="bottomnav">
+      
+        <p>
+        <a href="/">Home</a>:
+        <a class="uplink" href="../../../../../index.html">Contents</a>
+        </p>
+
+      </div>
+
+    <div class="footer">
+        &copy; Copyright 2012, HDKNR.COM.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2b1.
+    </div>
+  </body>
+</html>

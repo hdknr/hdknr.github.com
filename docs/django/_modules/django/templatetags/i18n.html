@@ -1,0 +1,546 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>django.templatetags.i18n &mdash; Django Cheat 1 documentation</title>
+    
+    <link rel="stylesheet" href="../../../_static/haiku.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../../../static/print.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../',
+        VERSION:     '1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <script type="text/javascript" src="../../../static/theme_extras.js"></script>
+    <link rel="top" title="Django Cheat 1 documentation" href="../../../index.html" />
+    <link rel="up" title="Module code" href="../../index.html" /> 
+  </head>
+  <body>
+      <div class="header"><h1 class="heading"><a href="../../../index.html">
+          <span>Django Cheat 1 documentation</span></a></h1>
+        <h2 class="heading"><span>django.templatetags.i18n</span></h2>
+      </div>
+      <div class="topnav">
+      
+        <p>
+        <a href="/">Home</a>:
+        <a class="uplink" href="../../../index.html">Contents</a>
+        </p>
+
+      </div>
+      <div class="content">
+        
+        
+  <h1>Source code for django.templatetags.i18n</h1><div class="highlight"><pre>
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">unicode_literals</span>
+<span class="kn">import</span> <span class="nn">re</span>
+
+<span class="kn">from</span> <span class="nn">django.template</span> <span class="kn">import</span> <span class="p">(</span><span class="n">Node</span><span class="p">,</span> <span class="n">Variable</span><span class="p">,</span> <span class="n">TemplateSyntaxError</span><span class="p">,</span>
+    <span class="n">TokenParser</span><span class="p">,</span> <span class="n">Library</span><span class="p">,</span> <span class="n">TOKEN_TEXT</span><span class="p">,</span> <span class="n">TOKEN_VAR</span><span class="p">)</span>
+<span class="kn">from</span> <span class="nn">django.template.base</span> <span class="kn">import</span> <span class="n">_render_value_in_context</span>
+<span class="kn">from</span> <span class="nn">django.template.defaulttags</span> <span class="kn">import</span> <span class="n">token_kwargs</span>
+<span class="kn">from</span> <span class="nn">django.utils</span> <span class="kn">import</span> <span class="n">six</span>
+<span class="kn">from</span> <span class="nn">django.utils</span> <span class="kn">import</span> <span class="n">translation</span>
+
+
+<span class="n">register</span> <span class="o">=</span> <span class="n">Library</span><span class="p">()</span>
+
+
+<span class="k">class</span> <span class="nc">GetAvailableLanguagesNode</span><span class="p">(</span><span class="n">Node</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">variable</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">variable</span> <span class="o">=</span> <span class="n">variable</span>
+
+    <span class="k">def</span> <span class="nf">render</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">context</span><span class="p">):</span>
+        <span class="kn">from</span> <span class="nn">django.conf</span> <span class="kn">import</span> <span class="n">settings</span>
+        <span class="n">context</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">variable</span><span class="p">]</span> <span class="o">=</span> <span class="p">[(</span><span class="n">k</span><span class="p">,</span> <span class="n">translation</span><span class="o">.</span><span class="n">ugettext</span><span class="p">(</span><span class="n">v</span><span class="p">))</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">settings</span><span class="o">.</span><span class="n">LANGUAGES</span><span class="p">]</span>
+        <span class="k">return</span> <span class="s">&#39;&#39;</span>
+
+
+<span class="k">class</span> <span class="nc">GetLanguageInfoNode</span><span class="p">(</span><span class="n">Node</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">lang_code</span><span class="p">,</span> <span class="n">variable</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">lang_code</span> <span class="o">=</span> <span class="n">Variable</span><span class="p">(</span><span class="n">lang_code</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">variable</span> <span class="o">=</span> <span class="n">variable</span>
+
+    <span class="k">def</span> <span class="nf">render</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">context</span><span class="p">):</span>
+        <span class="n">lang_code</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">lang_code</span><span class="o">.</span><span class="n">resolve</span><span class="p">(</span><span class="n">context</span><span class="p">)</span>
+        <span class="n">context</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">variable</span><span class="p">]</span> <span class="o">=</span> <span class="n">translation</span><span class="o">.</span><span class="n">get_language_info</span><span class="p">(</span><span class="n">lang_code</span><span class="p">)</span>
+        <span class="k">return</span> <span class="s">&#39;&#39;</span>
+
+
+<span class="k">class</span> <span class="nc">GetLanguageInfoListNode</span><span class="p">(</span><span class="n">Node</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">languages</span><span class="p">,</span> <span class="n">variable</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">languages</span> <span class="o">=</span> <span class="n">Variable</span><span class="p">(</span><span class="n">languages</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">variable</span> <span class="o">=</span> <span class="n">variable</span>
+
+    <span class="k">def</span> <span class="nf">get_language_info</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">language</span><span class="p">):</span>
+        <span class="c"># ``language`` is either a language code string or a sequence</span>
+        <span class="c"># with the language code as its first item</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">language</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">translation</span><span class="o">.</span><span class="n">get_language_info</span><span class="p">(</span><span class="n">language</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">translation</span><span class="o">.</span><span class="n">get_language_info</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">language</span><span class="p">))</span>
+
+    <span class="k">def</span> <span class="nf">render</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">context</span><span class="p">):</span>
+        <span class="n">langs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">languages</span><span class="o">.</span><span class="n">resolve</span><span class="p">(</span><span class="n">context</span><span class="p">)</span>
+        <span class="n">context</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">variable</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">get_language_info</span><span class="p">(</span><span class="n">lang</span><span class="p">)</span> <span class="k">for</span> <span class="n">lang</span> <span class="ow">in</span> <span class="n">langs</span><span class="p">]</span>
+        <span class="k">return</span> <span class="s">&#39;&#39;</span>
+
+
+<span class="k">class</span> <span class="nc">GetCurrentLanguageNode</span><span class="p">(</span><span class="n">Node</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">variable</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">variable</span> <span class="o">=</span> <span class="n">variable</span>
+
+    <span class="k">def</span> <span class="nf">render</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">context</span><span class="p">):</span>
+        <span class="n">context</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">variable</span><span class="p">]</span> <span class="o">=</span> <span class="n">translation</span><span class="o">.</span><span class="n">get_language</span><span class="p">()</span>
+        <span class="k">return</span> <span class="s">&#39;&#39;</span>
+
+
+<span class="k">class</span> <span class="nc">GetCurrentLanguageBidiNode</span><span class="p">(</span><span class="n">Node</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">variable</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">variable</span> <span class="o">=</span> <span class="n">variable</span>
+
+    <span class="k">def</span> <span class="nf">render</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">context</span><span class="p">):</span>
+        <span class="n">context</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">variable</span><span class="p">]</span> <span class="o">=</span> <span class="n">translation</span><span class="o">.</span><span class="n">get_language_bidi</span><span class="p">()</span>
+        <span class="k">return</span> <span class="s">&#39;&#39;</span>
+
+
+<span class="k">class</span> <span class="nc">TranslateNode</span><span class="p">(</span><span class="n">Node</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">filter_expression</span><span class="p">,</span> <span class="n">noop</span><span class="p">,</span> <span class="n">asvar</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+                 <span class="n">message_context</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">noop</span> <span class="o">=</span> <span class="n">noop</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">asvar</span> <span class="o">=</span> <span class="n">asvar</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">message_context</span> <span class="o">=</span> <span class="n">message_context</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">filter_expression</span> <span class="o">=</span> <span class="n">filter_expression</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">filter_expression</span><span class="o">.</span><span class="n">var</span><span class="p">,</span> <span class="n">six</span><span class="o">.</span><span class="n">string_types</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">filter_expression</span><span class="o">.</span><span class="n">var</span> <span class="o">=</span> <span class="n">Variable</span><span class="p">(</span><span class="s">&quot;&#39;</span><span class="si">%s</span><span class="s">&#39;&quot;</span> <span class="o">%</span>
+                                                  <span class="bp">self</span><span class="o">.</span><span class="n">filter_expression</span><span class="o">.</span><span class="n">var</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">render</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">context</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">filter_expression</span><span class="o">.</span><span class="n">var</span><span class="o">.</span><span class="n">translate</span> <span class="o">=</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">noop</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">message_context</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">filter_expression</span><span class="o">.</span><span class="n">var</span><span class="o">.</span><span class="n">message_context</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">message_context</span><span class="o">.</span><span class="n">resolve</span><span class="p">(</span><span class="n">context</span><span class="p">))</span>
+        <span class="n">output</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">filter_expression</span><span class="o">.</span><span class="n">resolve</span><span class="p">(</span><span class="n">context</span><span class="p">)</span>
+        <span class="n">value</span> <span class="o">=</span> <span class="n">_render_value_in_context</span><span class="p">(</span><span class="n">output</span><span class="p">,</span> <span class="n">context</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">asvar</span><span class="p">:</span>
+            <span class="n">context</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">asvar</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span>
+            <span class="k">return</span> <span class="s">&#39;&#39;</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">value</span>
+
+
+<span class="k">class</span> <span class="nc">BlockTranslateNode</span><span class="p">(</span><span class="n">Node</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">extra_context</span><span class="p">,</span> <span class="n">singular</span><span class="p">,</span> <span class="n">plural</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">countervar</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+            <span class="n">counter</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">message_context</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">extra_context</span> <span class="o">=</span> <span class="n">extra_context</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">singular</span> <span class="o">=</span> <span class="n">singular</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">plural</span> <span class="o">=</span> <span class="n">plural</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">countervar</span> <span class="o">=</span> <span class="n">countervar</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">counter</span> <span class="o">=</span> <span class="n">counter</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">message_context</span> <span class="o">=</span> <span class="n">message_context</span>
+
+    <span class="k">def</span> <span class="nf">render_token_list</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tokens</span><span class="p">):</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="nb">vars</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">token</span> <span class="ow">in</span> <span class="n">tokens</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">token</span><span class="o">.</span><span class="n">token_type</span> <span class="o">==</span> <span class="n">TOKEN_TEXT</span><span class="p">:</span>
+                <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">token</span><span class="o">.</span><span class="n">contents</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s">&#39;%&#39;</span><span class="p">,</span> <span class="s">&#39;</span><span class="si">%%</span><span class="s">&#39;</span><span class="p">))</span>
+            <span class="k">elif</span> <span class="n">token</span><span class="o">.</span><span class="n">token_type</span> <span class="o">==</span> <span class="n">TOKEN_VAR</span><span class="p">:</span>
+                <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s">&#39;</span><span class="si">%%</span><span class="s">(</span><span class="si">%s</span><span class="s">)s&#39;</span> <span class="o">%</span> <span class="n">token</span><span class="o">.</span><span class="n">contents</span><span class="p">)</span>
+                <span class="nb">vars</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">token</span><span class="o">.</span><span class="n">contents</span><span class="p">)</span>
+        <span class="k">return</span> <span class="s">&#39;&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">result</span><span class="p">),</span> <span class="nb">vars</span>
+
+    <span class="k">def</span> <span class="nf">render</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">context</span><span class="p">,</span> <span class="n">nested</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">message_context</span><span class="p">:</span>
+            <span class="n">message_context</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">message_context</span><span class="o">.</span><span class="n">resolve</span><span class="p">(</span><span class="n">context</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">message_context</span> <span class="o">=</span> <span class="bp">None</span>
+        <span class="n">tmp_context</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">var</span><span class="p">,</span> <span class="n">val</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">extra_context</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">tmp_context</span><span class="p">[</span><span class="n">var</span><span class="p">]</span> <span class="o">=</span> <span class="n">val</span><span class="o">.</span><span class="n">resolve</span><span class="p">(</span><span class="n">context</span><span class="p">)</span>
+        <span class="c"># Update() works like a push(), so corresponding context.pop() is at</span>
+        <span class="c"># the end of function</span>
+        <span class="n">context</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">tmp_context</span><span class="p">)</span>
+        <span class="n">singular</span><span class="p">,</span> <span class="nb">vars</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">render_token_list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">singular</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">plural</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">countervar</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">counter</span><span class="p">:</span>
+            <span class="n">count</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">counter</span><span class="o">.</span><span class="n">resolve</span><span class="p">(</span><span class="n">context</span><span class="p">)</span>
+            <span class="n">context</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">countervar</span><span class="p">]</span> <span class="o">=</span> <span class="n">count</span>
+            <span class="n">plural</span><span class="p">,</span> <span class="n">plural_vars</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">render_token_list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">plural</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">message_context</span><span class="p">:</span>
+                <span class="n">result</span> <span class="o">=</span> <span class="n">translation</span><span class="o">.</span><span class="n">npgettext</span><span class="p">(</span><span class="n">message_context</span><span class="p">,</span> <span class="n">singular</span><span class="p">,</span>
+                                               <span class="n">plural</span><span class="p">,</span> <span class="n">count</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">result</span> <span class="o">=</span> <span class="n">translation</span><span class="o">.</span><span class="n">ungettext</span><span class="p">(</span><span class="n">singular</span><span class="p">,</span> <span class="n">plural</span><span class="p">,</span> <span class="n">count</span><span class="p">)</span>
+            <span class="nb">vars</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">plural_vars</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">message_context</span><span class="p">:</span>
+                <span class="n">result</span> <span class="o">=</span> <span class="n">translation</span><span class="o">.</span><span class="n">pgettext</span><span class="p">(</span><span class="n">message_context</span><span class="p">,</span> <span class="n">singular</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">result</span> <span class="o">=</span> <span class="n">translation</span><span class="o">.</span><span class="n">ugettext</span><span class="p">(</span><span class="n">singular</span><span class="p">)</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">([(</span><span class="n">v</span><span class="p">,</span> <span class="n">_render_value_in_context</span><span class="p">(</span><span class="n">context</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="s">&#39;&#39;</span><span class="p">),</span> <span class="n">context</span><span class="p">))</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="nb">vars</span><span class="p">])</span>
+        <span class="n">context</span><span class="o">.</span><span class="n">pop</span><span class="p">()</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">result</span> <span class="o">=</span> <span class="n">result</span> <span class="o">%</span> <span class="n">data</span>
+        <span class="k">except</span> <span class="p">(</span><span class="ne">KeyError</span><span class="p">,</span> <span class="ne">ValueError</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">nested</span><span class="p">:</span>
+                <span class="c"># Either string is malformed, or it&#39;s a bug</span>
+                <span class="k">raise</span> <span class="n">TemplateSyntaxError</span><span class="p">(</span><span class="s">&quot;&#39;blocktrans&#39; is unable to format &quot;</span>
+                    <span class="s">&quot;string returned by gettext: </span><span class="si">%r</span><span class="s"> using </span><span class="si">%r</span><span class="s">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">result</span><span class="p">,</span> <span class="n">data</span><span class="p">))</span>
+            <span class="k">with</span> <span class="n">translation</span><span class="o">.</span><span class="n">override</span><span class="p">(</span><span class="bp">None</span><span class="p">):</span>
+                <span class="n">result</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">render</span><span class="p">(</span><span class="n">context</span><span class="p">,</span> <span class="n">nested</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">result</span>
+
+
+<span class="k">class</span> <span class="nc">LanguageNode</span><span class="p">(</span><span class="n">Node</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">nodelist</span><span class="p">,</span> <span class="n">language</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">nodelist</span> <span class="o">=</span> <span class="n">nodelist</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">language</span> <span class="o">=</span> <span class="n">language</span>
+
+    <span class="k">def</span> <span class="nf">render</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">context</span><span class="p">):</span>
+        <span class="k">with</span> <span class="n">translation</span><span class="o">.</span><span class="n">override</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">language</span><span class="o">.</span><span class="n">resolve</span><span class="p">(</span><span class="n">context</span><span class="p">)):</span>
+            <span class="n">output</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">nodelist</span><span class="o">.</span><span class="n">render</span><span class="p">(</span><span class="n">context</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">output</span>
+
+
+<span class="nd">@register.tag</span><span class="p">(</span><span class="s">&quot;get_available_languages&quot;</span><span class="p">)</span>
+<div class="viewcode-block" id="do_get_available_languages"><a class="viewcode-back" href="../../../django.templatetags.html#django.templatetags.i18n.do_get_available_languages">[docs]</a><span class="k">def</span> <span class="nf">do_get_available_languages</span><span class="p">(</span><span class="n">parser</span><span class="p">,</span> <span class="n">token</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    This will store a list of available languages</span>
+<span class="sd">    in the context.</span>
+
+<span class="sd">    Usage::</span>
+
+<span class="sd">        {% get_available_languages as languages %}</span>
+<span class="sd">        {% for language in languages %}</span>
+<span class="sd">        ...</span>
+<span class="sd">        {% endfor %}</span>
+
+<span class="sd">    This will just pull the LANGUAGES setting from</span>
+<span class="sd">    your setting file (or the default settings) and</span>
+<span class="sd">    put it into the named variable.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">args</span> <span class="o">=</span> <span class="n">token</span><span class="o">.</span><span class="n">contents</span><span class="o">.</span><span class="n">split</span><span class="p">()</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">args</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">3</span> <span class="ow">or</span> <span class="n">args</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">!=</span> <span class="s">&#39;as&#39;</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">TemplateSyntaxError</span><span class="p">(</span><span class="s">&quot;&#39;get_available_languages&#39; requires &#39;as variable&#39; (got </span><span class="si">%r</span><span class="s">)&quot;</span> <span class="o">%</span> <span class="n">args</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">GetAvailableLanguagesNode</span><span class="p">(</span><span class="n">args</span><span class="p">[</span><span class="mi">2</span><span class="p">])</span>
+</div>
+<span class="nd">@register.tag</span><span class="p">(</span><span class="s">&quot;get_language_info&quot;</span><span class="p">)</span>
+<div class="viewcode-block" id="do_get_language_info"><a class="viewcode-back" href="../../../django.templatetags.html#django.templatetags.i18n.do_get_language_info">[docs]</a><span class="k">def</span> <span class="nf">do_get_language_info</span><span class="p">(</span><span class="n">parser</span><span class="p">,</span> <span class="n">token</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    This will store the language information dictionary for the given language</span>
+<span class="sd">    code in a context variable.</span>
+
+<span class="sd">    Usage::</span>
+
+<span class="sd">        {% get_language_info for LANGUAGE_CODE as l %}</span>
+<span class="sd">        {{ l.code }}</span>
+<span class="sd">        {{ l.name }}</span>
+<span class="sd">        {{ l.name_local }}</span>
+<span class="sd">        {{ l.bidi|yesno:&quot;bi-directional,uni-directional&quot; }}</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">args</span> <span class="o">=</span> <span class="n">token</span><span class="o">.</span><span class="n">contents</span><span class="o">.</span><span class="n">split</span><span class="p">()</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">args</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">5</span> <span class="ow">or</span> <span class="n">args</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">!=</span> <span class="s">&#39;for&#39;</span> <span class="ow">or</span> <span class="n">args</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span> <span class="o">!=</span> <span class="s">&#39;as&#39;</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">TemplateSyntaxError</span><span class="p">(</span><span class="s">&quot;&#39;</span><span class="si">%s</span><span class="s">&#39; requires &#39;for string as variable&#39; (got </span><span class="si">%r</span><span class="s">)&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">args</span><span class="p">[</span><span class="mi">1</span><span class="p">:]))</span>
+    <span class="k">return</span> <span class="n">GetLanguageInfoNode</span><span class="p">(</span><span class="n">args</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span> <span class="n">args</span><span class="p">[</span><span class="mi">4</span><span class="p">])</span>
+</div>
+<span class="nd">@register.tag</span><span class="p">(</span><span class="s">&quot;get_language_info_list&quot;</span><span class="p">)</span>
+<div class="viewcode-block" id="do_get_language_info_list"><a class="viewcode-back" href="../../../django.templatetags.html#django.templatetags.i18n.do_get_language_info_list">[docs]</a><span class="k">def</span> <span class="nf">do_get_language_info_list</span><span class="p">(</span><span class="n">parser</span><span class="p">,</span> <span class="n">token</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    This will store a list of language information dictionaries for the given</span>
+<span class="sd">    language codes in a context variable. The language codes can be specified</span>
+<span class="sd">    either as a list of strings or a settings.LANGUAGES style tuple (or any</span>
+<span class="sd">    sequence of sequences whose first items are language codes).</span>
+
+<span class="sd">    Usage::</span>
+
+<span class="sd">        {% get_language_info_list for LANGUAGES as langs %}</span>
+<span class="sd">        {% for l in langs %}</span>
+<span class="sd">          {{ l.code }}</span>
+<span class="sd">          {{ l.name }}</span>
+<span class="sd">          {{ l.name_local }}</span>
+<span class="sd">          {{ l.bidi|yesno:&quot;bi-directional,uni-directional&quot; }}</span>
+<span class="sd">        {% endfor %}</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">args</span> <span class="o">=</span> <span class="n">token</span><span class="o">.</span><span class="n">contents</span><span class="o">.</span><span class="n">split</span><span class="p">()</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">args</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">5</span> <span class="ow">or</span> <span class="n">args</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">!=</span> <span class="s">&#39;for&#39;</span> <span class="ow">or</span> <span class="n">args</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span> <span class="o">!=</span> <span class="s">&#39;as&#39;</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">TemplateSyntaxError</span><span class="p">(</span><span class="s">&quot;&#39;</span><span class="si">%s</span><span class="s">&#39; requires &#39;for sequence as variable&#39; (got </span><span class="si">%r</span><span class="s">)&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">args</span><span class="p">[</span><span class="mi">1</span><span class="p">:]))</span>
+    <span class="k">return</span> <span class="n">GetLanguageInfoListNode</span><span class="p">(</span><span class="n">args</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span> <span class="n">args</span><span class="p">[</span><span class="mi">4</span><span class="p">])</span>
+</div>
+<span class="nd">@register.filter</span>
+<span class="k">def</span> <span class="nf">language_name</span><span class="p">(</span><span class="n">lang_code</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">translation</span><span class="o">.</span><span class="n">get_language_info</span><span class="p">(</span><span class="n">lang_code</span><span class="p">)[</span><span class="s">&#39;name&#39;</span><span class="p">]</span>
+
+<span class="nd">@register.filter</span>
+<span class="k">def</span> <span class="nf">language_name_local</span><span class="p">(</span><span class="n">lang_code</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">translation</span><span class="o">.</span><span class="n">get_language_info</span><span class="p">(</span><span class="n">lang_code</span><span class="p">)[</span><span class="s">&#39;name_local&#39;</span><span class="p">]</span>
+
+<span class="nd">@register.filter</span>
+<span class="k">def</span> <span class="nf">language_bidi</span><span class="p">(</span><span class="n">lang_code</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">translation</span><span class="o">.</span><span class="n">get_language_info</span><span class="p">(</span><span class="n">lang_code</span><span class="p">)[</span><span class="s">&#39;bidi&#39;</span><span class="p">]</span>
+
+<span class="nd">@register.tag</span><span class="p">(</span><span class="s">&quot;get_current_language&quot;</span><span class="p">)</span>
+<div class="viewcode-block" id="do_get_current_language"><a class="viewcode-back" href="../../../django.templatetags.html#django.templatetags.i18n.do_get_current_language">[docs]</a><span class="k">def</span> <span class="nf">do_get_current_language</span><span class="p">(</span><span class="n">parser</span><span class="p">,</span> <span class="n">token</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    This will store the current language in the context.</span>
+
+<span class="sd">    Usage::</span>
+
+<span class="sd">        {% get_current_language as language %}</span>
+
+<span class="sd">    This will fetch the currently active language and</span>
+<span class="sd">    put it&#39;s value into the ``language`` context</span>
+<span class="sd">    variable.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">args</span> <span class="o">=</span> <span class="n">token</span><span class="o">.</span><span class="n">contents</span><span class="o">.</span><span class="n">split</span><span class="p">()</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">args</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">3</span> <span class="ow">or</span> <span class="n">args</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">!=</span> <span class="s">&#39;as&#39;</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">TemplateSyntaxError</span><span class="p">(</span><span class="s">&quot;&#39;get_current_language&#39; requires &#39;as variable&#39; (got </span><span class="si">%r</span><span class="s">)&quot;</span> <span class="o">%</span> <span class="n">args</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">GetCurrentLanguageNode</span><span class="p">(</span><span class="n">args</span><span class="p">[</span><span class="mi">2</span><span class="p">])</span>
+</div>
+<span class="nd">@register.tag</span><span class="p">(</span><span class="s">&quot;get_current_language_bidi&quot;</span><span class="p">)</span>
+<div class="viewcode-block" id="do_get_current_language_bidi"><a class="viewcode-back" href="../../../django.templatetags.html#django.templatetags.i18n.do_get_current_language_bidi">[docs]</a><span class="k">def</span> <span class="nf">do_get_current_language_bidi</span><span class="p">(</span><span class="n">parser</span><span class="p">,</span> <span class="n">token</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    This will store the current language layout in the context.</span>
+
+<span class="sd">    Usage::</span>
+
+<span class="sd">        {% get_current_language_bidi as bidi %}</span>
+
+<span class="sd">    This will fetch the currently active language&#39;s layout and</span>
+<span class="sd">    put it&#39;s value into the ``bidi`` context variable.</span>
+<span class="sd">    True indicates right-to-left layout, otherwise left-to-right</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">args</span> <span class="o">=</span> <span class="n">token</span><span class="o">.</span><span class="n">contents</span><span class="o">.</span><span class="n">split</span><span class="p">()</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">args</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">3</span> <span class="ow">or</span> <span class="n">args</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">!=</span> <span class="s">&#39;as&#39;</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">TemplateSyntaxError</span><span class="p">(</span><span class="s">&quot;&#39;get_current_language_bidi&#39; requires &#39;as variable&#39; (got </span><span class="si">%r</span><span class="s">)&quot;</span> <span class="o">%</span> <span class="n">args</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">GetCurrentLanguageBidiNode</span><span class="p">(</span><span class="n">args</span><span class="p">[</span><span class="mi">2</span><span class="p">])</span>
+</div>
+<span class="nd">@register.tag</span><span class="p">(</span><span class="s">&quot;trans&quot;</span><span class="p">)</span>
+<div class="viewcode-block" id="do_translate"><a class="viewcode-back" href="../../../django.templatetags.html#django.templatetags.i18n.do_translate">[docs]</a><span class="k">def</span> <span class="nf">do_translate</span><span class="p">(</span><span class="n">parser</span><span class="p">,</span> <span class="n">token</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    This will mark a string for translation and will</span>
+<span class="sd">    translate the string for the current language.</span>
+
+<span class="sd">    Usage::</span>
+
+<span class="sd">        {% trans &quot;this is a test&quot; %}</span>
+
+<span class="sd">    This will mark the string for translation so it will</span>
+<span class="sd">    be pulled out by mark-messages.py into the .po files</span>
+<span class="sd">    and will run the string through the translation engine.</span>
+
+<span class="sd">    There is a second form::</span>
+
+<span class="sd">        {% trans &quot;this is a test&quot; noop %}</span>
+
+<span class="sd">    This will only mark for translation, but will return</span>
+<span class="sd">    the string unchanged. Use it when you need to store</span>
+<span class="sd">    values into forms that should be translated later on.</span>
+
+<span class="sd">    You can use variables instead of constant strings</span>
+<span class="sd">    to translate stuff you marked somewhere else::</span>
+
+<span class="sd">        {% trans variable %}</span>
+
+<span class="sd">    This will just try to translate the contents of</span>
+<span class="sd">    the variable ``variable``. Make sure that the string</span>
+<span class="sd">    in there is something that is in the .po file.</span>
+
+<span class="sd">    It is possible to store the translated string into a variable::</span>
+
+<span class="sd">        {% trans &quot;this is a test&quot; as var %}</span>
+<span class="sd">        {{ var }}</span>
+
+<span class="sd">    Contextual translations are also supported::</span>
+
+<span class="sd">        {% trans &quot;this is a test&quot; context &quot;greeting&quot; %}</span>
+
+<span class="sd">    This is equivalent to calling pgettext instead of (u)gettext.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">class</span> <span class="nc">TranslateParser</span><span class="p">(</span><span class="n">TokenParser</span><span class="p">):</span>
+        <span class="k">def</span> <span class="nf">top</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+            <span class="n">value</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">value</span><span class="p">()</span>
+
+            <span class="c"># Backwards Compatiblity fix:</span>
+            <span class="c"># FilterExpression does not support single-quoted strings,</span>
+            <span class="c"># so we make a cheap localized fix in order to maintain</span>
+            <span class="c"># backwards compatibility with existing uses of ``trans``</span>
+            <span class="c"># where single quote use is supported.</span>
+            <span class="k">if</span> <span class="n">value</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="s">&quot;&#39;&quot;</span><span class="p">:</span>
+                <span class="n">m</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="s">&quot;^&#39;([^&#39;]+)&#39;(\|.*$)&quot;</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">m</span><span class="p">:</span>
+                    <span class="n">value</span> <span class="o">=</span> <span class="s">&#39;&quot;</span><span class="si">%s</span><span class="s">&quot;</span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">m</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s">&#39;&quot;&#39;</span><span class="p">,</span><span class="s">&#39;</span><span class="se">\\</span><span class="s">&quot;&#39;</span><span class="p">),</span> <span class="n">m</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">2</span><span class="p">))</span>
+                <span class="k">elif</span> <span class="n">value</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="s">&quot;&#39;&quot;</span><span class="p">:</span>
+                    <span class="n">value</span> <span class="o">=</span> <span class="s">&#39;&quot;</span><span class="si">%s</span><span class="s">&quot;&#39;</span> <span class="o">%</span> <span class="n">value</span><span class="p">[</span><span class="mi">1</span><span class="p">:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s">&#39;&quot;&#39;</span><span class="p">,</span><span class="s">&#39;</span><span class="se">\\</span><span class="s">&quot;&#39;</span><span class="p">)</span>
+
+            <span class="n">noop</span> <span class="o">=</span> <span class="bp">False</span>
+            <span class="n">asvar</span> <span class="o">=</span> <span class="bp">None</span>
+            <span class="n">message_context</span> <span class="o">=</span> <span class="bp">None</span>
+
+            <span class="k">while</span> <span class="bp">self</span><span class="o">.</span><span class="n">more</span><span class="p">():</span>
+                <span class="n">tag</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tag</span><span class="p">()</span>
+                <span class="k">if</span> <span class="n">tag</span> <span class="o">==</span> <span class="s">&#39;noop&#39;</span><span class="p">:</span>
+                    <span class="n">noop</span> <span class="o">=</span> <span class="bp">True</span>
+                <span class="k">elif</span> <span class="n">tag</span> <span class="o">==</span> <span class="s">&#39;context&#39;</span><span class="p">:</span>
+                    <span class="n">message_context</span> <span class="o">=</span> <span class="n">parser</span><span class="o">.</span><span class="n">compile_filter</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">value</span><span class="p">())</span>
+                <span class="k">elif</span> <span class="n">tag</span> <span class="o">==</span> <span class="s">&#39;as&#39;</span><span class="p">:</span>
+                    <span class="n">asvar</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tag</span><span class="p">()</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="n">TemplateSyntaxError</span><span class="p">(</span>
+                        <span class="s">&quot;Only options for &#39;trans&#39; are &#39;noop&#39;, &quot;</span> \
+                        <span class="s">&quot;&#39;context </span><span class="se">\&quot;</span><span class="s">xxx</span><span class="se">\&quot;</span><span class="s">&#39;, and &#39;as VAR&#39;.&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">value</span><span class="p">,</span> <span class="n">noop</span><span class="p">,</span> <span class="n">asvar</span><span class="p">,</span> <span class="n">message_context</span>
+    <span class="n">value</span><span class="p">,</span> <span class="n">noop</span><span class="p">,</span> <span class="n">asvar</span><span class="p">,</span> <span class="n">message_context</span> <span class="o">=</span> <span class="n">TranslateParser</span><span class="p">(</span><span class="n">token</span><span class="o">.</span><span class="n">contents</span><span class="p">)</span><span class="o">.</span><span class="n">top</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">TranslateNode</span><span class="p">(</span><span class="n">parser</span><span class="o">.</span><span class="n">compile_filter</span><span class="p">(</span><span class="n">value</span><span class="p">),</span> <span class="n">noop</span><span class="p">,</span> <span class="n">asvar</span><span class="p">,</span>
+                         <span class="n">message_context</span><span class="p">)</span>
+</div>
+<span class="nd">@register.tag</span><span class="p">(</span><span class="s">&quot;blocktrans&quot;</span><span class="p">)</span>
+<div class="viewcode-block" id="do_block_translate"><a class="viewcode-back" href="../../../django.templatetags.html#django.templatetags.i18n.do_block_translate">[docs]</a><span class="k">def</span> <span class="nf">do_block_translate</span><span class="p">(</span><span class="n">parser</span><span class="p">,</span> <span class="n">token</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    This will translate a block of text with parameters.</span>
+
+<span class="sd">    Usage::</span>
+
+<span class="sd">        {% blocktrans with bar=foo|filter boo=baz|filter %}</span>
+<span class="sd">        This is {{ bar }} and {{ boo }}.</span>
+<span class="sd">        {% endblocktrans %}</span>
+
+<span class="sd">    Additionally, this supports pluralization::</span>
+
+<span class="sd">        {% blocktrans count count=var|length %}</span>
+<span class="sd">        There is {{ count }} object.</span>
+<span class="sd">        {% plural %}</span>
+<span class="sd">        There are {{ count }} objects.</span>
+<span class="sd">        {% endblocktrans %}</span>
+
+<span class="sd">    This is much like ngettext, only in template syntax.</span>
+
+<span class="sd">    The &quot;var as value&quot; legacy format is still supported::</span>
+
+<span class="sd">        {% blocktrans with foo|filter as bar and baz|filter as boo %}</span>
+<span class="sd">        {% blocktrans count var|length as count %}</span>
+
+<span class="sd">    Contextual translations are supported::</span>
+
+<span class="sd">        {% blocktrans with bar=foo|filter context &quot;greeting&quot; %}</span>
+<span class="sd">            This is {{ bar }}.</span>
+<span class="sd">        {% endblocktrans %}</span>
+
+<span class="sd">    This is equivalent to calling pgettext/npgettext instead of</span>
+<span class="sd">    (u)gettext/(u)ngettext.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">bits</span> <span class="o">=</span> <span class="n">token</span><span class="o">.</span><span class="n">split_contents</span><span class="p">()</span>
+
+    <span class="n">options</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="n">remaining_bits</span> <span class="o">=</span> <span class="n">bits</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span>
+    <span class="k">while</span> <span class="n">remaining_bits</span><span class="p">:</span>
+        <span class="n">option</span> <span class="o">=</span> <span class="n">remaining_bits</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">option</span> <span class="ow">in</span> <span class="n">options</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">TemplateSyntaxError</span><span class="p">(</span><span class="s">&#39;The </span><span class="si">%r</span><span class="s"> option was specified more &#39;</span>
+                                      <span class="s">&#39;than once.&#39;</span> <span class="o">%</span> <span class="n">option</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">option</span> <span class="o">==</span> <span class="s">&#39;with&#39;</span><span class="p">:</span>
+            <span class="n">value</span> <span class="o">=</span> <span class="n">token_kwargs</span><span class="p">(</span><span class="n">remaining_bits</span><span class="p">,</span> <span class="n">parser</span><span class="p">,</span> <span class="n">support_legacy</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">value</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">TemplateSyntaxError</span><span class="p">(</span><span class="s">&#39;&quot;with&quot; in </span><span class="si">%r</span><span class="s"> tag needs at least &#39;</span>
+                                          <span class="s">&#39;one keyword argument.&#39;</span> <span class="o">%</span> <span class="n">bits</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="k">elif</span> <span class="n">option</span> <span class="o">==</span> <span class="s">&#39;count&#39;</span><span class="p">:</span>
+            <span class="n">value</span> <span class="o">=</span> <span class="n">token_kwargs</span><span class="p">(</span><span class="n">remaining_bits</span><span class="p">,</span> <span class="n">parser</span><span class="p">,</span> <span class="n">support_legacy</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">value</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">TemplateSyntaxError</span><span class="p">(</span><span class="s">&#39;&quot;count&quot; in </span><span class="si">%r</span><span class="s"> tag expected exactly &#39;</span>
+                                          <span class="s">&#39;one keyword argument.&#39;</span> <span class="o">%</span> <span class="n">bits</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="k">elif</span> <span class="n">option</span> <span class="o">==</span> <span class="s">&quot;context&quot;</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">value</span> <span class="o">=</span> <span class="n">remaining_bits</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+                <span class="n">value</span> <span class="o">=</span> <span class="n">parser</span><span class="o">.</span><span class="n">compile_filter</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">TemplateSyntaxError</span><span class="p">(</span><span class="s">&#39;&quot;context&quot; in </span><span class="si">%r</span><span class="s"> tag expected &#39;</span>
+                                          <span class="s">&#39;exactly one argument.&#39;</span> <span class="o">%</span> <span class="n">bits</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">TemplateSyntaxError</span><span class="p">(</span><span class="s">&#39;Unknown argument for </span><span class="si">%r</span><span class="s"> tag: </span><span class="si">%r</span><span class="s">.&#39;</span> <span class="o">%</span>
+                                      <span class="p">(</span><span class="n">bits</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">option</span><span class="p">))</span>
+        <span class="n">options</span><span class="p">[</span><span class="n">option</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span>
+
+    <span class="k">if</span> <span class="s">&#39;count&#39;</span> <span class="ow">in</span> <span class="n">options</span><span class="p">:</span>
+        <span class="n">countervar</span><span class="p">,</span> <span class="n">counter</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">six</span><span class="o">.</span><span class="n">iteritems</span><span class="p">(</span><span class="n">options</span><span class="p">[</span><span class="s">&#39;count&#39;</span><span class="p">]))[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">countervar</span><span class="p">,</span> <span class="n">counter</span> <span class="o">=</span> <span class="bp">None</span><span class="p">,</span> <span class="bp">None</span>
+    <span class="k">if</span> <span class="s">&#39;context&#39;</span> <span class="ow">in</span> <span class="n">options</span><span class="p">:</span>
+        <span class="n">message_context</span> <span class="o">=</span> <span class="n">options</span><span class="p">[</span><span class="s">&#39;context&#39;</span><span class="p">]</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">message_context</span> <span class="o">=</span> <span class="bp">None</span>
+    <span class="n">extra_context</span> <span class="o">=</span> <span class="n">options</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;with&#39;</span><span class="p">,</span> <span class="p">{})</span>
+
+    <span class="n">singular</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">plural</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">while</span> <span class="n">parser</span><span class="o">.</span><span class="n">tokens</span><span class="p">:</span>
+        <span class="n">token</span> <span class="o">=</span> <span class="n">parser</span><span class="o">.</span><span class="n">next_token</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">token</span><span class="o">.</span><span class="n">token_type</span> <span class="ow">in</span> <span class="p">(</span><span class="n">TOKEN_VAR</span><span class="p">,</span> <span class="n">TOKEN_TEXT</span><span class="p">):</span>
+            <span class="n">singular</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">token</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">break</span>
+    <span class="k">if</span> <span class="n">countervar</span> <span class="ow">and</span> <span class="n">counter</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">token</span><span class="o">.</span><span class="n">contents</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span> <span class="o">!=</span> <span class="s">&#39;plural&#39;</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">TemplateSyntaxError</span><span class="p">(</span><span class="s">&quot;&#39;blocktrans&#39; doesn&#39;t allow other block tags inside it&quot;</span><span class="p">)</span>
+        <span class="k">while</span> <span class="n">parser</span><span class="o">.</span><span class="n">tokens</span><span class="p">:</span>
+            <span class="n">token</span> <span class="o">=</span> <span class="n">parser</span><span class="o">.</span><span class="n">next_token</span><span class="p">()</span>
+            <span class="k">if</span> <span class="n">token</span><span class="o">.</span><span class="n">token_type</span> <span class="ow">in</span> <span class="p">(</span><span class="n">TOKEN_VAR</span><span class="p">,</span> <span class="n">TOKEN_TEXT</span><span class="p">):</span>
+                <span class="n">plural</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">token</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">break</span>
+    <span class="k">if</span> <span class="n">token</span><span class="o">.</span><span class="n">contents</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span> <span class="o">!=</span> <span class="s">&#39;endblocktrans&#39;</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">TemplateSyntaxError</span><span class="p">(</span><span class="s">&quot;&#39;blocktrans&#39; doesn&#39;t allow other block tags (seen </span><span class="si">%r</span><span class="s">) inside it&quot;</span> <span class="o">%</span> <span class="n">token</span><span class="o">.</span><span class="n">contents</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">BlockTranslateNode</span><span class="p">(</span><span class="n">extra_context</span><span class="p">,</span> <span class="n">singular</span><span class="p">,</span> <span class="n">plural</span><span class="p">,</span> <span class="n">countervar</span><span class="p">,</span>
+            <span class="n">counter</span><span class="p">,</span> <span class="n">message_context</span><span class="p">)</span>
+</div>
+<span class="nd">@register.tag</span>
+<div class="viewcode-block" id="language"><a class="viewcode-back" href="../../../django.templatetags.html#django.templatetags.i18n.language">[docs]</a><span class="k">def</span> <span class="nf">language</span><span class="p">(</span><span class="n">parser</span><span class="p">,</span> <span class="n">token</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    This will enable the given language just for this block.</span>
+
+<span class="sd">    Usage::</span>
+
+<span class="sd">        {% language &quot;de&quot; %}</span>
+<span class="sd">            This is {{ bar }} and {{ boo }}.</span>
+<span class="sd">        {% endlanguage %}</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">bits</span> <span class="o">=</span> <span class="n">token</span><span class="o">.</span><span class="n">split_contents</span><span class="p">()</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">bits</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">2</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">TemplateSyntaxError</span><span class="p">(</span><span class="s">&quot;&#39;</span><span class="si">%s</span><span class="s">&#39; takes one argument (language)&quot;</span> <span class="o">%</span> <span class="n">bits</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+    <span class="n">language</span> <span class="o">=</span> <span class="n">parser</span><span class="o">.</span><span class="n">compile_filter</span><span class="p">(</span><span class="n">bits</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+    <span class="n">nodelist</span> <span class="o">=</span> <span class="n">parser</span><span class="o">.</span><span class="n">parse</span><span class="p">((</span><span class="s">&#39;endlanguage&#39;</span><span class="p">,))</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">delete_first_token</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">LanguageNode</span><span class="p">(</span><span class="n">nodelist</span><span class="p">,</span> <span class="n">language</span><span class="p">)</span></div>
+</pre></div>
+
+      </div>
+      <div class="bottomnav">
+      
+        <p>
+        <a href="/">Home</a>:
+        <a class="uplink" href="../../../index.html">Contents</a>
+        </p>
+
+      </div>
+
+    <div class="footer">
+        &copy; Copyright 2012, HDKNR.COM.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2b1.
+    </div>
+  </body>
+</html>

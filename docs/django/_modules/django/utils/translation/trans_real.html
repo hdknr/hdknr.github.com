@@ -1,0 +1,679 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>django.utils.translation.trans_real &mdash; Django Cheat 1 documentation</title>
+    
+    <link rel="stylesheet" href="../../../../_static/haiku.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../static/print.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../../',
+        VERSION:     '1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../../_static/doctools.js"></script>
+    <script type="text/javascript" src="../../../../static/theme_extras.js"></script>
+    <link rel="top" title="Django Cheat 1 documentation" href="../../../../index.html" />
+    <link rel="up" title="django.utils.translation" href="../translation.html" /> 
+  </head>
+  <body>
+      <div class="header"><h1 class="heading"><a href="../../../../index.html">
+          <span>Django Cheat 1 documentation</span></a></h1>
+        <h2 class="heading"><span>django.utils.translation.trans_real</span></h2>
+      </div>
+      <div class="topnav">
+      
+        <p>
+        <a href="/">Home</a>:
+        <a class="uplink" href="../../../../index.html">Contents</a>
+        </p>
+
+      </div>
+      <div class="content">
+        
+        
+  <h1>Source code for django.utils.translation.trans_real</h1><div class="highlight"><pre>
+<span class="sd">&quot;&quot;&quot;Translation helper functions.&quot;&quot;&quot;</span>
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">unicode_literals</span>
+
+<span class="kn">import</span> <span class="nn">locale</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">re</span>
+<span class="kn">import</span> <span class="nn">sys</span>
+<span class="kn">import</span> <span class="nn">gettext</span> <span class="kn">as</span> <span class="nn">gettext_module</span>
+<span class="kn">from</span> <span class="nn">threading</span> <span class="kn">import</span> <span class="n">local</span>
+
+<span class="kn">from</span> <span class="nn">django.utils.importlib</span> <span class="kn">import</span> <span class="n">import_module</span>
+<span class="kn">from</span> <span class="nn">django.utils.encoding</span> <span class="kn">import</span> <span class="n">force_str</span><span class="p">,</span> <span class="n">force_text</span>
+<span class="kn">from</span> <span class="nn">django.utils._os</span> <span class="kn">import</span> <span class="n">upath</span>
+<span class="kn">from</span> <span class="nn">django.utils.safestring</span> <span class="kn">import</span> <span class="n">mark_safe</span><span class="p">,</span> <span class="n">SafeData</span>
+<span class="kn">from</span> <span class="nn">django.utils</span> <span class="kn">import</span> <span class="n">six</span>
+<span class="kn">from</span> <span class="nn">django.utils.six</span> <span class="kn">import</span> <span class="n">StringIO</span>
+
+
+<span class="c"># Translations are cached in a dictionary for every language+app tuple.</span>
+<span class="c"># The active translations are stored by threadid to make them thread local.</span>
+<span class="n">_translations</span> <span class="o">=</span> <span class="p">{}</span>
+<span class="n">_active</span> <span class="o">=</span> <span class="n">local</span><span class="p">()</span>
+
+<span class="c"># The default translation is based on the settings file.</span>
+<span class="n">_default</span> <span class="o">=</span> <span class="bp">None</span>
+
+<span class="c"># This is a cache for normalized accept-header languages to prevent multiple</span>
+<span class="c"># file lookups when checking the same locale on repeated requests.</span>
+<span class="n">_accepted</span> <span class="o">=</span> <span class="p">{}</span>
+
+<span class="c"># magic gettext number to separate context from message</span>
+<span class="n">CONTEXT_SEPARATOR</span> <span class="o">=</span> <span class="s">&quot;</span><span class="se">\x04</span><span class="s">&quot;</span>
+
+<span class="c"># Format of Accept-Language header values. From RFC 2616, section 14.4 and 3.9</span>
+<span class="c"># and RFC 3066, section 2.1</span>
+<span class="n">accept_language_re</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="s">r&#39;&#39;&#39;</span>
+<span class="s">        ([A-Za-z]{1,8}(?:-[A-Za-z0-9]{1,8})*|\*)      # &quot;en&quot;, &quot;en-au&quot;, &quot;x-y-z&quot;, &quot;es-419&quot;, &quot;*&quot;</span>
+<span class="s">        (?:\s*;\s*q=(0(?:\.\d{,3})?|1(?:.0{,3})?))?   # Optional &quot;q=1.00&quot;, &quot;q=0.8&quot;</span>
+<span class="s">        (?:\s*,\s*|$)                                 # Multiple accepts per header.</span>
+<span class="s">        &#39;&#39;&#39;</span><span class="p">,</span> <span class="n">re</span><span class="o">.</span><span class="n">VERBOSE</span><span class="p">)</span>
+
+<span class="n">language_code_prefix_re</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="s">r&#39;^/([\w-]+)(/|$)&#39;</span><span class="p">)</span>
+
+<div class="viewcode-block" id="to_locale"><a class="viewcode-back" href="../../../../django.utils.translation.html#django.utils.translation.trans_real.to_locale">[docs]</a><span class="k">def</span> <span class="nf">to_locale</span><span class="p">(</span><span class="n">language</span><span class="p">,</span> <span class="n">to_lower</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Turns a language name (en-us) into a locale name (en_US). If &#39;to_lower&#39; is</span>
+<span class="sd">    True, the last component is lower-cased (en_us).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">p</span> <span class="o">=</span> <span class="n">language</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s">&#39;-&#39;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">p</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">to_lower</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">language</span><span class="p">[:</span><span class="n">p</span><span class="p">]</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span><span class="o">+</span><span class="s">&#39;_&#39;</span><span class="o">+</span><span class="n">language</span><span class="p">[</span><span class="n">p</span><span class="o">+</span><span class="mi">1</span><span class="p">:]</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c"># Get correct locale for sr-latn</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">language</span><span class="p">[</span><span class="n">p</span><span class="o">+</span><span class="mi">1</span><span class="p">:])</span> <span class="o">&gt;</span> <span class="mi">2</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">language</span><span class="p">[:</span><span class="n">p</span><span class="p">]</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span><span class="o">+</span><span class="s">&#39;_&#39;</span><span class="o">+</span><span class="n">language</span><span class="p">[</span><span class="n">p</span><span class="o">+</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">upper</span><span class="p">()</span><span class="o">+</span><span class="n">language</span><span class="p">[</span><span class="n">p</span><span class="o">+</span><span class="mi">2</span><span class="p">:]</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
+            <span class="k">return</span> <span class="n">language</span><span class="p">[:</span><span class="n">p</span><span class="p">]</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span><span class="o">+</span><span class="s">&#39;_&#39;</span><span class="o">+</span><span class="n">language</span><span class="p">[</span><span class="n">p</span><span class="o">+</span><span class="mi">1</span><span class="p">:]</span><span class="o">.</span><span class="n">upper</span><span class="p">()</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">language</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
+</div>
+<div class="viewcode-block" id="to_language"><a class="viewcode-back" href="../../../../django.utils.translation.html#django.utils.translation.trans_real.to_language">[docs]</a><span class="k">def</span> <span class="nf">to_language</span><span class="p">(</span><span class="n">locale</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Turns a locale name (en_US) into a language name (en-us).&quot;&quot;&quot;</span>
+    <span class="n">p</span> <span class="o">=</span> <span class="n">locale</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s">&#39;_&#39;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">p</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">locale</span><span class="p">[:</span><span class="n">p</span><span class="p">]</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span><span class="o">+</span><span class="s">&#39;-&#39;</span><span class="o">+</span><span class="n">locale</span><span class="p">[</span><span class="n">p</span><span class="o">+</span><span class="mi">1</span><span class="p">:]</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">locale</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
+</div>
+<div class="viewcode-block" id="DjangoTranslation"><a class="viewcode-back" href="../../../../django.utils.translation.html#django.utils.translation.trans_real.DjangoTranslation">[docs]</a><span class="k">class</span> <span class="nc">DjangoTranslation</span><span class="p">(</span><span class="n">gettext_module</span><span class="o">.</span><span class="n">GNUTranslations</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    This class sets up the GNUTranslations context with regard to output</span>
+<span class="sd">    charset.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kw</span><span class="p">):</span>
+        <span class="n">gettext_module</span><span class="o">.</span><span class="n">GNUTranslations</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kw</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">set_output_charset</span><span class="p">(</span><span class="s">&#39;utf-8&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">django_output_charset</span> <span class="o">=</span> <span class="s">&#39;utf-8&#39;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__language</span> <span class="o">=</span> <span class="s">&#39;??&#39;</span>
+
+    <span class="k">def</span> <span class="nf">merge</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_catalog</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">other</span><span class="o">.</span><span class="n">_catalog</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">set_language</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">language</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__language</span> <span class="o">=</span> <span class="n">language</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__to_language</span> <span class="o">=</span> <span class="n">to_language</span><span class="p">(</span><span class="n">language</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">language</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">__language</span>
+
+    <span class="k">def</span> <span class="nf">to_language</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">__to_language</span>
+
+    <span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="s">&quot;&lt;DjangoTranslation lang:</span><span class="si">%s</span><span class="s">&gt;&quot;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">__language</span>
+</div>
+<div class="viewcode-block" id="translation"><a class="viewcode-back" href="../../../../django.utils.translation.html#django.utils.translation.trans_real.translation">[docs]</a><span class="k">def</span> <span class="nf">translation</span><span class="p">(</span><span class="n">language</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Returns a translation object.</span>
+
+<span class="sd">    This translation object will be constructed out of multiple GNUTranslations</span>
+<span class="sd">    objects by merging their catalogs. It will construct a object for the</span>
+<span class="sd">    requested language and add a fallback to the default language, if it&#39;s</span>
+<span class="sd">    different from the requested language.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">global</span> <span class="n">_translations</span>
+
+    <span class="n">t</span> <span class="o">=</span> <span class="n">_translations</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">language</span><span class="p">,</span> <span class="bp">None</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">t</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">t</span>
+
+    <span class="kn">from</span> <span class="nn">django.conf</span> <span class="kn">import</span> <span class="n">settings</span>
+
+    <span class="n">globalpath</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">upath</span><span class="p">(</span><span class="n">sys</span><span class="o">.</span><span class="n">modules</span><span class="p">[</span><span class="n">settings</span><span class="o">.</span><span class="n">__module__</span><span class="p">]</span><span class="o">.</span><span class="n">__file__</span><span class="p">)),</span> <span class="s">&#39;locale&#39;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_fetch</span><span class="p">(</span><span class="n">lang</span><span class="p">,</span> <span class="n">fallback</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+
+        <span class="k">global</span> <span class="n">_translations</span>
+
+        <span class="n">res</span> <span class="o">=</span> <span class="n">_translations</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">lang</span><span class="p">,</span> <span class="bp">None</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">res</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">res</span>
+
+        <span class="n">loc</span> <span class="o">=</span> <span class="n">to_locale</span><span class="p">(</span><span class="n">lang</span><span class="p">)</span>
+
+        <span class="k">def</span> <span class="nf">_translation</span><span class="p">(</span><span class="n">path</span><span class="p">):</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">t</span> <span class="o">=</span> <span class="n">gettext_module</span><span class="o">.</span><span class="n">translation</span><span class="p">(</span><span class="s">&#39;django&#39;</span><span class="p">,</span> <span class="n">path</span><span class="p">,</span> <span class="p">[</span><span class="n">loc</span><span class="p">],</span> <span class="n">DjangoTranslation</span><span class="p">)</span>
+                <span class="n">t</span><span class="o">.</span><span class="n">set_language</span><span class="p">(</span><span class="n">lang</span><span class="p">)</span>
+                <span class="k">return</span> <span class="n">t</span>
+            <span class="k">except</span> <span class="ne">IOError</span><span class="p">:</span>
+                <span class="k">return</span> <span class="bp">None</span>
+
+        <span class="n">res</span> <span class="o">=</span> <span class="n">_translation</span><span class="p">(</span><span class="n">globalpath</span><span class="p">)</span>
+
+        <span class="c"># We want to ensure that, for example,  &quot;en-gb&quot; and &quot;en-us&quot; don&#39;t share</span>
+        <span class="c"># the same translation object (thus, merging en-us with a local update</span>
+        <span class="c"># doesn&#39;t affect en-gb), even though they will both use the core &quot;en&quot;</span>
+        <span class="c"># translation. So we have to subvert Python&#39;s internal gettext caching.</span>
+        <span class="n">base_lang</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&#39;-&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">base_lang</span><span class="p">(</span><span class="n">lang</span><span class="p">)</span> <span class="ow">in</span> <span class="p">[</span><span class="n">base_lang</span><span class="p">(</span><span class="n">trans</span><span class="p">)</span> <span class="k">for</span> <span class="n">trans</span> <span class="ow">in</span> <span class="n">_translations</span><span class="p">]:</span>
+            <span class="n">res</span><span class="o">.</span><span class="n">_info</span> <span class="o">=</span> <span class="n">res</span><span class="o">.</span><span class="n">_info</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+            <span class="n">res</span><span class="o">.</span><span class="n">_catalog</span> <span class="o">=</span> <span class="n">res</span><span class="o">.</span><span class="n">_catalog</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+
+        <span class="k">def</span> <span class="nf">_merge</span><span class="p">(</span><span class="n">path</span><span class="p">):</span>
+            <span class="n">t</span> <span class="o">=</span> <span class="n">_translation</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">t</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">res</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+                    <span class="k">return</span> <span class="n">t</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">res</span><span class="o">.</span><span class="n">merge</span><span class="p">(</span><span class="n">t</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">res</span>
+
+        <span class="k">for</span> <span class="n">appname</span> <span class="ow">in</span> <span class="nb">reversed</span><span class="p">(</span><span class="n">settings</span><span class="o">.</span><span class="n">INSTALLED_APPS</span><span class="p">):</span>
+            <span class="n">app</span> <span class="o">=</span> <span class="n">import_module</span><span class="p">(</span><span class="n">appname</span><span class="p">)</span>
+            <span class="n">apppath</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">upath</span><span class="p">(</span><span class="n">app</span><span class="o">.</span><span class="n">__file__</span><span class="p">)),</span> <span class="s">&#39;locale&#39;</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isdir</span><span class="p">(</span><span class="n">apppath</span><span class="p">):</span>
+                <span class="n">res</span> <span class="o">=</span> <span class="n">_merge</span><span class="p">(</span><span class="n">apppath</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">localepath</span> <span class="ow">in</span> <span class="nb">reversed</span><span class="p">(</span><span class="n">settings</span><span class="o">.</span><span class="n">LOCALE_PATHS</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isdir</span><span class="p">(</span><span class="n">localepath</span><span class="p">):</span>
+                <span class="n">res</span> <span class="o">=</span> <span class="n">_merge</span><span class="p">(</span><span class="n">localepath</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">res</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">fallback</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+                <span class="n">res</span> <span class="o">=</span> <span class="n">fallback</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">gettext_module</span><span class="o">.</span><span class="n">NullTranslations</span><span class="p">()</span>
+        <span class="n">_translations</span><span class="p">[</span><span class="n">lang</span><span class="p">]</span> <span class="o">=</span> <span class="n">res</span>
+        <span class="k">return</span> <span class="n">res</span>
+
+    <span class="n">default_translation</span> <span class="o">=</span> <span class="n">_fetch</span><span class="p">(</span><span class="n">settings</span><span class="o">.</span><span class="n">LANGUAGE_CODE</span><span class="p">)</span>
+    <span class="n">current_translation</span> <span class="o">=</span> <span class="n">_fetch</span><span class="p">(</span><span class="n">language</span><span class="p">,</span> <span class="n">fallback</span><span class="o">=</span><span class="n">default_translation</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">current_translation</span>
+</div>
+<div class="viewcode-block" id="activate"><a class="viewcode-back" href="../../../../django.utils.translation.html#django.utils.translation.trans_real.activate">[docs]</a><span class="k">def</span> <span class="nf">activate</span><span class="p">(</span><span class="n">language</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Fetches the translation object for a given tuple of application name and</span>
+<span class="sd">    language and installs it as the current translation object for the current</span>
+<span class="sd">    thread.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">_active</span><span class="o">.</span><span class="n">value</span> <span class="o">=</span> <span class="n">translation</span><span class="p">(</span><span class="n">language</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="deactivate"><a class="viewcode-back" href="../../../../django.utils.translation.html#django.utils.translation.trans_real.deactivate">[docs]</a><span class="k">def</span> <span class="nf">deactivate</span><span class="p">():</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Deinstalls the currently active translation object so that further _ calls</span>
+<span class="sd">    will resolve against the default translation object, again.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">_active</span><span class="p">,</span> <span class="s">&quot;value&quot;</span><span class="p">):</span>
+        <span class="k">del</span> <span class="n">_active</span><span class="o">.</span><span class="n">value</span>
+</div>
+<div class="viewcode-block" id="deactivate_all"><a class="viewcode-back" href="../../../../django.utils.translation.html#django.utils.translation.trans_real.deactivate_all">[docs]</a><span class="k">def</span> <span class="nf">deactivate_all</span><span class="p">():</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Makes the active translation object a NullTranslations() instance. This is</span>
+<span class="sd">    useful when we want delayed translations to appear as the original string</span>
+<span class="sd">    for some reason.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">_active</span><span class="o">.</span><span class="n">value</span> <span class="o">=</span> <span class="n">gettext_module</span><span class="o">.</span><span class="n">NullTranslations</span><span class="p">()</span>
+</div>
+<div class="viewcode-block" id="get_language"><a class="viewcode-back" href="../../../../django.utils.translation.html#django.utils.translation.trans_real.get_language">[docs]</a><span class="k">def</span> <span class="nf">get_language</span><span class="p">():</span>
+    <span class="sd">&quot;&quot;&quot;Returns the currently selected language.&quot;&quot;&quot;</span>
+    <span class="n">t</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">_active</span><span class="p">,</span> <span class="s">&quot;value&quot;</span><span class="p">,</span> <span class="bp">None</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">t</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">t</span><span class="o">.</span><span class="n">to_language</span><span class="p">()</span>
+        <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>
+            <span class="k">pass</span>
+    <span class="c"># If we don&#39;t have a real translation object, assume it&#39;s the default language.</span>
+    <span class="kn">from</span> <span class="nn">django.conf</span> <span class="kn">import</span> <span class="n">settings</span>
+    <span class="k">return</span> <span class="n">settings</span><span class="o">.</span><span class="n">LANGUAGE_CODE</span>
+</div>
+<div class="viewcode-block" id="get_language_bidi"><a class="viewcode-back" href="../../../../django.utils.translation.html#django.utils.translation.trans_real.get_language_bidi">[docs]</a><span class="k">def</span> <span class="nf">get_language_bidi</span><span class="p">():</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Returns selected language&#39;s BiDi layout.</span>
+
+<span class="sd">    * False = left-to-right layout</span>
+<span class="sd">    * True = right-to-left layout</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="kn">from</span> <span class="nn">django.conf</span> <span class="kn">import</span> <span class="n">settings</span>
+
+    <span class="n">base_lang</span> <span class="o">=</span> <span class="n">get_language</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&#39;-&#39;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="k">return</span> <span class="n">base_lang</span> <span class="ow">in</span> <span class="n">settings</span><span class="o">.</span><span class="n">LANGUAGES_BIDI</span>
+</div>
+<div class="viewcode-block" id="catalog"><a class="viewcode-back" href="../../../../django.utils.translation.html#django.utils.translation.trans_real.catalog">[docs]</a><span class="k">def</span> <span class="nf">catalog</span><span class="p">():</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Returns the current active catalog for further processing.</span>
+<span class="sd">    This can be used if you need to modify the catalog or want to access the</span>
+<span class="sd">    whole message catalog instead of just translating one string.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">global</span> <span class="n">_default</span>
+
+    <span class="n">t</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">_active</span><span class="p">,</span> <span class="s">&quot;value&quot;</span><span class="p">,</span> <span class="bp">None</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">t</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">t</span>
+    <span class="k">if</span> <span class="n">_default</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+        <span class="kn">from</span> <span class="nn">django.conf</span> <span class="kn">import</span> <span class="n">settings</span>
+        <span class="n">_default</span> <span class="o">=</span> <span class="n">translation</span><span class="p">(</span><span class="n">settings</span><span class="o">.</span><span class="n">LANGUAGE_CODE</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">_default</span>
+</div>
+<div class="viewcode-block" id="do_translate"><a class="viewcode-back" href="../../../../django.utils.translation.html#django.utils.translation.trans_real.do_translate">[docs]</a><span class="k">def</span> <span class="nf">do_translate</span><span class="p">(</span><span class="n">message</span><span class="p">,</span> <span class="n">translation_function</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Translates &#39;message&#39; using the given &#39;translation_function&#39; name -- which</span>
+<span class="sd">    will be either gettext or ugettext. It uses the current thread to find the</span>
+<span class="sd">    translation object to use. If no current translation is activated, the</span>
+<span class="sd">    message will be run through the default translation object.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">global</span> <span class="n">_default</span>
+
+    <span class="c"># str() is allowing a bytestring message to remain bytestring on Python 2</span>
+    <span class="n">eol_message</span> <span class="o">=</span> <span class="n">message</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="s">&#39;</span><span class="se">\r\n</span><span class="s">&#39;</span><span class="p">),</span> <span class="nb">str</span><span class="p">(</span><span class="s">&#39;</span><span class="se">\n</span><span class="s">&#39;</span><span class="p">))</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="s">&#39;</span><span class="se">\r</span><span class="s">&#39;</span><span class="p">),</span> <span class="nb">str</span><span class="p">(</span><span class="s">&#39;</span><span class="se">\n</span><span class="s">&#39;</span><span class="p">))</span>
+    <span class="n">t</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">_active</span><span class="p">,</span> <span class="s">&quot;value&quot;</span><span class="p">,</span> <span class="bp">None</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">t</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="n">translation_function</span><span class="p">)(</span><span class="n">eol_message</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">_default</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="kn">from</span> <span class="nn">django.conf</span> <span class="kn">import</span> <span class="n">settings</span>
+            <span class="n">_default</span> <span class="o">=</span> <span class="n">translation</span><span class="p">(</span><span class="n">settings</span><span class="o">.</span><span class="n">LANGUAGE_CODE</span><span class="p">)</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">_default</span><span class="p">,</span> <span class="n">translation_function</span><span class="p">)(</span><span class="n">eol_message</span><span class="p">)</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">message</span><span class="p">,</span> <span class="n">SafeData</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">mark_safe</span><span class="p">(</span><span class="n">result</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">result</span>
+</div>
+<div class="viewcode-block" id="gettext"><a class="viewcode-back" href="../../../../django.utils.translation.html#django.utils.translation.trans_real.gettext">[docs]</a><span class="k">def</span> <span class="nf">gettext</span><span class="p">(</span><span class="n">message</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Returns a string of the translation of the message.</span>
+
+<span class="sd">    Returns a string on Python 3 and an UTF-8-encoded bytestring on Python 2.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">do_translate</span><span class="p">(</span><span class="n">message</span><span class="p">,</span> <span class="s">&#39;gettext&#39;</span><span class="p">)</span>
+</div>
+<span class="k">if</span> <span class="n">six</span><span class="o">.</span><span class="n">PY3</span><span class="p">:</span>
+    <span class="n">ugettext</span> <span class="o">=</span> <span class="n">gettext</span>
+<span class="k">else</span><span class="p">:</span>
+    <span class="k">def</span> <span class="nf">ugettext</span><span class="p">(</span><span class="n">message</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">do_translate</span><span class="p">(</span><span class="n">message</span><span class="p">,</span> <span class="s">&#39;ugettext&#39;</span><span class="p">)</span>
+
+<span class="k">def</span> <span class="nf">pgettext</span><span class="p">(</span><span class="n">context</span><span class="p">,</span> <span class="n">message</span><span class="p">):</span>
+    <span class="n">msg_with_ctxt</span> <span class="o">=</span> <span class="s">&quot;</span><span class="si">%s%s%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">context</span><span class="p">,</span> <span class="n">CONTEXT_SEPARATOR</span><span class="p">,</span> <span class="n">message</span><span class="p">)</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="n">ugettext</span><span class="p">(</span><span class="n">msg_with_ctxt</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">CONTEXT_SEPARATOR</span> <span class="ow">in</span> <span class="n">result</span><span class="p">:</span>
+        <span class="c"># Translation not found</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="n">message</span>
+    <span class="k">return</span> <span class="n">result</span>
+
+<div class="viewcode-block" id="gettext_noop"><a class="viewcode-back" href="../../../../django.utils.translation.html#django.utils.translation.trans_real.gettext_noop">[docs]</a><span class="k">def</span> <span class="nf">gettext_noop</span><span class="p">(</span><span class="n">message</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Marks strings for translation but doesn&#39;t translate them now. This can be</span>
+<span class="sd">    used to store strings in global variables that should stay in the base</span>
+<span class="sd">    language (because they might be used externally) and will be translated</span>
+<span class="sd">    later.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">message</span>
+</div>
+<span class="k">def</span> <span class="nf">do_ntranslate</span><span class="p">(</span><span class="n">singular</span><span class="p">,</span> <span class="n">plural</span><span class="p">,</span> <span class="n">number</span><span class="p">,</span> <span class="n">translation_function</span><span class="p">):</span>
+    <span class="k">global</span> <span class="n">_default</span>
+
+    <span class="n">t</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">_active</span><span class="p">,</span> <span class="s">&quot;value&quot;</span><span class="p">,</span> <span class="bp">None</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">t</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+        <span class="k">return</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="n">translation_function</span><span class="p">)(</span><span class="n">singular</span><span class="p">,</span> <span class="n">plural</span><span class="p">,</span> <span class="n">number</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">_default</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+        <span class="kn">from</span> <span class="nn">django.conf</span> <span class="kn">import</span> <span class="n">settings</span>
+        <span class="n">_default</span> <span class="o">=</span> <span class="n">translation</span><span class="p">(</span><span class="n">settings</span><span class="o">.</span><span class="n">LANGUAGE_CODE</span><span class="p">)</span>
+    <span class="k">return</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">_default</span><span class="p">,</span> <span class="n">translation_function</span><span class="p">)(</span><span class="n">singular</span><span class="p">,</span> <span class="n">plural</span><span class="p">,</span> <span class="n">number</span><span class="p">)</span>
+
+<div class="viewcode-block" id="ngettext"><a class="viewcode-back" href="../../../../django.utils.translation.html#django.utils.translation.trans_real.ngettext">[docs]</a><span class="k">def</span> <span class="nf">ngettext</span><span class="p">(</span><span class="n">singular</span><span class="p">,</span> <span class="n">plural</span><span class="p">,</span> <span class="n">number</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Returns a string of the translation of either the singular or plural,</span>
+<span class="sd">    based on the number.</span>
+
+<span class="sd">    Returns a string on Python 3 and an UTF-8-encoded bytestring on Python 2.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">do_ntranslate</span><span class="p">(</span><span class="n">singular</span><span class="p">,</span> <span class="n">plural</span><span class="p">,</span> <span class="n">number</span><span class="p">,</span> <span class="s">&#39;ngettext&#39;</span><span class="p">)</span>
+</div>
+<span class="k">if</span> <span class="n">six</span><span class="o">.</span><span class="n">PY3</span><span class="p">:</span>
+    <span class="n">ungettext</span> <span class="o">=</span> <span class="n">ngettext</span>
+<span class="k">else</span><span class="p">:</span>
+<div class="viewcode-block" id="ungettext"><a class="viewcode-back" href="../../../../django.utils.translation.html#django.utils.translation.trans_real.ungettext">[docs]</a>    <span class="k">def</span> <span class="nf">ungettext</span><span class="p">(</span><span class="n">singular</span><span class="p">,</span> <span class="n">plural</span><span class="p">,</span> <span class="n">number</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns a unicode strings of the translation of either the singular or</span>
+<span class="sd">        plural, based on the number.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">do_ntranslate</span><span class="p">(</span><span class="n">singular</span><span class="p">,</span> <span class="n">plural</span><span class="p">,</span> <span class="n">number</span><span class="p">,</span> <span class="s">&#39;ungettext&#39;</span><span class="p">)</span>
+</div>
+<span class="k">def</span> <span class="nf">npgettext</span><span class="p">(</span><span class="n">context</span><span class="p">,</span> <span class="n">singular</span><span class="p">,</span> <span class="n">plural</span><span class="p">,</span> <span class="n">number</span><span class="p">):</span>
+    <span class="n">msgs_with_ctxt</span> <span class="o">=</span> <span class="p">(</span><span class="s">&quot;</span><span class="si">%s%s%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">context</span><span class="p">,</span> <span class="n">CONTEXT_SEPARATOR</span><span class="p">,</span> <span class="n">singular</span><span class="p">),</span>
+                      <span class="s">&quot;</span><span class="si">%s%s%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">context</span><span class="p">,</span> <span class="n">CONTEXT_SEPARATOR</span><span class="p">,</span> <span class="n">plural</span><span class="p">),</span>
+                      <span class="n">number</span><span class="p">)</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="n">ungettext</span><span class="p">(</span><span class="o">*</span><span class="n">msgs_with_ctxt</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">CONTEXT_SEPARATOR</span> <span class="ow">in</span> <span class="n">result</span><span class="p">:</span>
+        <span class="c"># Translation not found</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="n">ungettext</span><span class="p">(</span><span class="n">singular</span><span class="p">,</span> <span class="n">plural</span><span class="p">,</span> <span class="n">number</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">result</span>
+
+<div class="viewcode-block" id="all_locale_paths"><a class="viewcode-back" href="../../../../django.utils.translation.html#django.utils.translation.trans_real.all_locale_paths">[docs]</a><span class="k">def</span> <span class="nf">all_locale_paths</span><span class="p">():</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Returns a list of paths to user-provides languages files.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="kn">from</span> <span class="nn">django.conf</span> <span class="kn">import</span> <span class="n">settings</span>
+    <span class="n">globalpath</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">upath</span><span class="p">(</span><span class="n">sys</span><span class="o">.</span><span class="n">modules</span><span class="p">[</span><span class="n">settings</span><span class="o">.</span><span class="n">__module__</span><span class="p">]</span><span class="o">.</span><span class="n">__file__</span><span class="p">)),</span> <span class="s">&#39;locale&#39;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="p">[</span><span class="n">globalpath</span><span class="p">]</span> <span class="o">+</span> <span class="nb">list</span><span class="p">(</span><span class="n">settings</span><span class="o">.</span><span class="n">LOCALE_PATHS</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="check_for_language"><a class="viewcode-back" href="../../../../django.utils.translation.html#django.utils.translation.trans_real.check_for_language">[docs]</a><span class="k">def</span> <span class="nf">check_for_language</span><span class="p">(</span><span class="n">lang_code</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Checks whether there is a global language file for the given language</span>
+<span class="sd">    code. This is used to decide whether a user-provided language is</span>
+<span class="sd">    available. This is only used for language codes from either the cookies</span>
+<span class="sd">    or session and during format localization.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">for</span> <span class="n">path</span> <span class="ow">in</span> <span class="n">all_locale_paths</span><span class="p">():</span>
+        <span class="k">if</span> <span class="n">gettext_module</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s">&#39;django&#39;</span><span class="p">,</span> <span class="n">path</span><span class="p">,</span> <span class="p">[</span><span class="n">to_locale</span><span class="p">(</span><span class="n">lang_code</span><span class="p">)])</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">True</span>
+    <span class="k">return</span> <span class="bp">False</span>
+</div>
+<div class="viewcode-block" id="get_language_from_path"><a class="viewcode-back" href="../../../../django.utils.translation.html#django.utils.translation.trans_real.get_language_from_path">[docs]</a><span class="k">def</span> <span class="nf">get_language_from_path</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">supported</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Returns the language-code if there is a valid language-code</span>
+<span class="sd">    found in the `path`.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">supported</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+        <span class="kn">from</span> <span class="nn">django.conf</span> <span class="kn">import</span> <span class="n">settings</span>
+        <span class="n">supported</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">settings</span><span class="o">.</span><span class="n">LANGUAGES</span><span class="p">)</span>
+    <span class="n">regex_match</span> <span class="o">=</span> <span class="n">language_code_prefix_re</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">regex_match</span><span class="p">:</span>
+        <span class="n">lang_code</span> <span class="o">=</span> <span class="n">regex_match</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">lang_code</span> <span class="ow">in</span> <span class="n">supported</span> <span class="ow">and</span> <span class="n">check_for_language</span><span class="p">(</span><span class="n">lang_code</span><span class="p">):</span>
+            <span class="k">return</span> <span class="n">lang_code</span>
+</div>
+<div class="viewcode-block" id="get_language_from_request"><a class="viewcode-back" href="../../../../django.utils.translation.html#django.utils.translation.trans_real.get_language_from_request">[docs]</a><span class="k">def</span> <span class="nf">get_language_from_request</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="n">check_path</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Analyzes the request to find what language the user wants the system to</span>
+<span class="sd">    show. Only languages listed in settings.LANGUAGES are taken into account.</span>
+<span class="sd">    If the user requests a sublanguage where we have a main language, we send</span>
+<span class="sd">    out the main language.</span>
+
+<span class="sd">    If check_path is True, the URL path prefix will be checked for a language</span>
+<span class="sd">    code, otherwise this is skipped for backwards compatibility.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">global</span> <span class="n">_accepted</span>
+    <span class="kn">from</span> <span class="nn">django.conf</span> <span class="kn">import</span> <span class="n">settings</span>
+    <span class="n">supported</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">settings</span><span class="o">.</span><span class="n">LANGUAGES</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">check_path</span><span class="p">:</span>
+        <span class="n">lang_code</span> <span class="o">=</span> <span class="n">get_language_from_path</span><span class="p">(</span><span class="n">request</span><span class="o">.</span><span class="n">path_info</span><span class="p">,</span> <span class="n">supported</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">lang_code</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">lang_code</span>
+
+    <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="s">&#39;session&#39;</span><span class="p">):</span>
+        <span class="n">lang_code</span> <span class="o">=</span> <span class="n">request</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;django_language&#39;</span><span class="p">,</span> <span class="bp">None</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">lang_code</span> <span class="ow">in</span> <span class="n">supported</span> <span class="ow">and</span> <span class="n">lang_code</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span> <span class="ow">and</span> <span class="n">check_for_language</span><span class="p">(</span><span class="n">lang_code</span><span class="p">):</span>
+            <span class="k">return</span> <span class="n">lang_code</span>
+
+    <span class="n">lang_code</span> <span class="o">=</span> <span class="n">request</span><span class="o">.</span><span class="n">COOKIES</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">settings</span><span class="o">.</span><span class="n">LANGUAGE_COOKIE_NAME</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">lang_code</span> <span class="ow">and</span> <span class="n">lang_code</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">supported</span><span class="p">:</span>
+        <span class="n">lang_code</span> <span class="o">=</span> <span class="n">lang_code</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&#39;-&#39;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span> <span class="c"># e.g. if fr-ca is not supported fallback to fr</span>
+
+    <span class="k">if</span> <span class="n">lang_code</span> <span class="ow">and</span> <span class="n">lang_code</span> <span class="ow">in</span> <span class="n">supported</span> <span class="ow">and</span> <span class="n">check_for_language</span><span class="p">(</span><span class="n">lang_code</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">lang_code</span>
+
+    <span class="n">accept</span> <span class="o">=</span> <span class="n">request</span><span class="o">.</span><span class="n">META</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;HTTP_ACCEPT_LANGUAGE&#39;</span><span class="p">,</span> <span class="s">&#39;&#39;</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">accept_lang</span><span class="p">,</span> <span class="n">unused</span> <span class="ow">in</span> <span class="n">parse_accept_lang_header</span><span class="p">(</span><span class="n">accept</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">accept_lang</span> <span class="o">==</span> <span class="s">&#39;*&#39;</span><span class="p">:</span>
+            <span class="k">break</span>
+
+        <span class="c"># We have a very restricted form for our language files (no encoding</span>
+        <span class="c"># specifier, since they all must be UTF-8 and only one possible</span>
+        <span class="c"># language each time. So we avoid the overhead of gettext.find() and</span>
+        <span class="c"># work out the MO file manually.</span>
+
+        <span class="c"># &#39;normalized&#39; is the root name of the locale in POSIX format (which is</span>
+        <span class="c"># the format used for the directories holding the MO files).</span>
+        <span class="n">normalized</span> <span class="o">=</span> <span class="n">locale</span><span class="o">.</span><span class="n">locale_alias</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">to_locale</span><span class="p">(</span><span class="n">accept_lang</span><span class="p">,</span> <span class="bp">True</span><span class="p">))</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">normalized</span><span class="p">:</span>
+            <span class="k">continue</span>
+        <span class="c"># Remove the default encoding from locale_alias.</span>
+        <span class="n">normalized</span> <span class="o">=</span> <span class="n">normalized</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&#39;.&#39;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="n">normalized</span> <span class="ow">in</span> <span class="n">_accepted</span><span class="p">:</span>
+            <span class="c"># We&#39;ve seen this locale before and have an MO file for it, so no</span>
+            <span class="c"># need to check again.</span>
+            <span class="k">return</span> <span class="n">_accepted</span><span class="p">[</span><span class="n">normalized</span><span class="p">]</span>
+
+        <span class="k">for</span> <span class="n">lang</span><span class="p">,</span> <span class="n">dirname</span> <span class="ow">in</span> <span class="p">((</span><span class="n">accept_lang</span><span class="p">,</span> <span class="n">normalized</span><span class="p">),</span>
+                <span class="p">(</span><span class="n">accept_lang</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&#39;-&#39;</span><span class="p">)[</span><span class="mi">0</span><span class="p">],</span> <span class="n">normalized</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&#39;_&#39;</span><span class="p">)[</span><span class="mi">0</span><span class="p">])):</span>
+            <span class="k">if</span> <span class="n">lang</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">supported</span><span class="p">:</span>
+                <span class="k">continue</span>
+            <span class="k">for</span> <span class="n">path</span> <span class="ow">in</span> <span class="n">all_locale_paths</span><span class="p">():</span>
+                <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">dirname</span><span class="p">,</span> <span class="s">&#39;LC_MESSAGES&#39;</span><span class="p">,</span> <span class="s">&#39;django.mo&#39;</span><span class="p">)):</span>
+                    <span class="n">_accepted</span><span class="p">[</span><span class="n">normalized</span><span class="p">]</span> <span class="o">=</span> <span class="n">lang</span>
+                    <span class="k">return</span> <span class="n">lang</span>
+
+    <span class="k">return</span> <span class="n">settings</span><span class="o">.</span><span class="n">LANGUAGE_CODE</span>
+</div>
+<span class="n">dot_re</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="s">r&#39;\S&#39;</span><span class="p">)</span>
+<div class="viewcode-block" id="blankout"><a class="viewcode-back" href="../../../../django.utils.translation.html#django.utils.translation.trans_real.blankout">[docs]</a><span class="k">def</span> <span class="nf">blankout</span><span class="p">(</span><span class="n">src</span><span class="p">,</span> <span class="n">char</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Changes every non-whitespace character to the given char.</span>
+<span class="sd">    Used in the templatize function.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">dot_re</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="n">char</span><span class="p">,</span> <span class="n">src</span><span class="p">)</span>
+</div>
+<span class="n">context_re</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="s">r&quot;&quot;&quot;^\s+.*context\s+((?:&quot;[^&quot;]*?&quot;)|(?:&#39;[^&#39;]*?&#39;))\s*&quot;&quot;&quot;</span><span class="p">)</span>
+<span class="n">inline_re</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="s">r&quot;&quot;&quot;^\s*trans\s+((?:&quot;[^&quot;]*?&quot;)|(?:&#39;[^&#39;]*?&#39;))(\s+.*context\s+((?:&quot;[^&quot;]*?&quot;)|(?:&#39;[^&#39;]*?&#39;)))?\s*&quot;&quot;&quot;</span><span class="p">)</span>
+<span class="n">block_re</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="s">r&quot;&quot;&quot;^\s*blocktrans(\s+.*context\s+((?:&quot;[^&quot;]*?&quot;)|(?:&#39;[^&#39;]*?&#39;)))?(?:\s+|$)&quot;&quot;&quot;</span><span class="p">)</span>
+<span class="n">endblock_re</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="s">r&quot;&quot;&quot;^\s*endblocktrans$&quot;&quot;&quot;</span><span class="p">)</span>
+<span class="n">plural_re</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="s">r&quot;&quot;&quot;^\s*plural$&quot;&quot;&quot;</span><span class="p">)</span>
+<span class="n">constant_re</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="s">r&quot;&quot;&quot;_\(((?:&quot;.*?&quot;)|(?:&#39;.*?&#39;))\)&quot;&quot;&quot;</span><span class="p">)</span>
+<span class="n">one_percent_re</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="s">r&quot;&quot;&quot;(?&lt;!%)%(?!%)&quot;&quot;&quot;</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="templatize"><a class="viewcode-back" href="../../../../django.utils.translation.html#django.utils.translation.trans_real.templatize">[docs]</a><span class="k">def</span> <span class="nf">templatize</span><span class="p">(</span><span class="n">src</span><span class="p">,</span> <span class="n">origin</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Turns a Django template into something that is understood by xgettext. It</span>
+<span class="sd">    does so by translating the Django translation tags into standard gettext</span>
+<span class="sd">    function invocations.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="kn">from</span> <span class="nn">django.conf</span> <span class="kn">import</span> <span class="n">settings</span>
+    <span class="kn">from</span> <span class="nn">django.template</span> <span class="kn">import</span> <span class="p">(</span><span class="n">Lexer</span><span class="p">,</span> <span class="n">TOKEN_TEXT</span><span class="p">,</span> <span class="n">TOKEN_VAR</span><span class="p">,</span> <span class="n">TOKEN_BLOCK</span><span class="p">,</span>
+            <span class="n">TOKEN_COMMENT</span><span class="p">,</span> <span class="n">TRANSLATOR_COMMENT_MARK</span><span class="p">)</span>
+    <span class="n">src</span> <span class="o">=</span> <span class="n">force_text</span><span class="p">(</span><span class="n">src</span><span class="p">,</span> <span class="n">settings</span><span class="o">.</span><span class="n">FILE_CHARSET</span><span class="p">)</span>
+    <span class="n">out</span> <span class="o">=</span> <span class="n">StringIO</span><span class="p">()</span>
+    <span class="n">message_context</span> <span class="o">=</span> <span class="bp">None</span>
+    <span class="n">intrans</span> <span class="o">=</span> <span class="bp">False</span>
+    <span class="n">inplural</span> <span class="o">=</span> <span class="bp">False</span>
+    <span class="n">singular</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">plural</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">incomment</span> <span class="o">=</span> <span class="bp">False</span>
+    <span class="n">comment</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="n">Lexer</span><span class="p">(</span><span class="n">src</span><span class="p">,</span> <span class="n">origin</span><span class="p">)</span><span class="o">.</span><span class="n">tokenize</span><span class="p">():</span>
+        <span class="k">if</span> <span class="n">incomment</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">t</span><span class="o">.</span><span class="n">token_type</span> <span class="o">==</span> <span class="n">TOKEN_BLOCK</span> <span class="ow">and</span> <span class="n">t</span><span class="o">.</span><span class="n">contents</span> <span class="o">==</span> <span class="s">&#39;endcomment&#39;</span><span class="p">:</span>
+                <span class="n">content</span> <span class="o">=</span> <span class="s">&#39;&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">comment</span><span class="p">)</span>
+                <span class="n">translators_comment_start</span> <span class="o">=</span> <span class="bp">None</span>
+                <span class="k">for</span> <span class="n">lineno</span><span class="p">,</span> <span class="n">line</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">content</span><span class="o">.</span><span class="n">splitlines</span><span class="p">(</span><span class="bp">True</span><span class="p">)):</span>
+                    <span class="k">if</span> <span class="n">line</span><span class="o">.</span><span class="n">lstrip</span><span class="p">()</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="n">TRANSLATOR_COMMENT_MARK</span><span class="p">):</span>
+                        <span class="n">translators_comment_start</span> <span class="o">=</span> <span class="n">lineno</span>
+                <span class="k">for</span> <span class="n">lineno</span><span class="p">,</span> <span class="n">line</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">content</span><span class="o">.</span><span class="n">splitlines</span><span class="p">(</span><span class="bp">True</span><span class="p">)):</span>
+                    <span class="k">if</span> <span class="n">translators_comment_start</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span> <span class="ow">and</span> <span class="n">lineno</span> <span class="o">&gt;=</span> <span class="n">translators_comment_start</span><span class="p">:</span>
+                        <span class="n">out</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s">&#39; # </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">line</span><span class="p">)</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="n">out</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s">&#39; #</span><span class="se">\n</span><span class="s">&#39;</span><span class="p">)</span>
+                <span class="n">incomment</span> <span class="o">=</span> <span class="bp">False</span>
+                <span class="n">comment</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">comment</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">t</span><span class="o">.</span><span class="n">contents</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">intrans</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">t</span><span class="o">.</span><span class="n">token_type</span> <span class="o">==</span> <span class="n">TOKEN_BLOCK</span><span class="p">:</span>
+                <span class="n">endbmatch</span> <span class="o">=</span> <span class="n">endblock_re</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="n">t</span><span class="o">.</span><span class="n">contents</span><span class="p">)</span>
+                <span class="n">pluralmatch</span> <span class="o">=</span> <span class="n">plural_re</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="n">t</span><span class="o">.</span><span class="n">contents</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">endbmatch</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="n">inplural</span><span class="p">:</span>
+                        <span class="k">if</span> <span class="n">message_context</span><span class="p">:</span>
+                            <span class="n">out</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s">&#39; npgettext(</span><span class="si">%r</span><span class="s">, </span><span class="si">%r</span><span class="s">, </span><span class="si">%r</span><span class="s">,count) &#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">message_context</span><span class="p">,</span> <span class="s">&#39;&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">singular</span><span class="p">),</span> <span class="s">&#39;&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">plural</span><span class="p">)))</span>
+                        <span class="k">else</span><span class="p">:</span>
+                            <span class="n">out</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s">&#39; ngettext(</span><span class="si">%r</span><span class="s">, </span><span class="si">%r</span><span class="s">, count) &#39;</span> <span class="o">%</span> <span class="p">(</span><span class="s">&#39;&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">singular</span><span class="p">),</span> <span class="s">&#39;&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">plural</span><span class="p">)))</span>
+                        <span class="k">for</span> <span class="n">part</span> <span class="ow">in</span> <span class="n">singular</span><span class="p">:</span>
+                            <span class="n">out</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">blankout</span><span class="p">(</span><span class="n">part</span><span class="p">,</span> <span class="s">&#39;S&#39;</span><span class="p">))</span>
+                        <span class="k">for</span> <span class="n">part</span> <span class="ow">in</span> <span class="n">plural</span><span class="p">:</span>
+                            <span class="n">out</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">blankout</span><span class="p">(</span><span class="n">part</span><span class="p">,</span> <span class="s">&#39;P&#39;</span><span class="p">))</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="k">if</span> <span class="n">message_context</span><span class="p">:</span>
+                            <span class="n">out</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s">&#39; pgettext(</span><span class="si">%r</span><span class="s">, </span><span class="si">%r</span><span class="s">) &#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">message_context</span><span class="p">,</span> <span class="s">&#39;&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">singular</span><span class="p">)))</span>
+                        <span class="k">else</span><span class="p">:</span>
+                            <span class="n">out</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s">&#39; gettext(</span><span class="si">%r</span><span class="s">) &#39;</span> <span class="o">%</span> <span class="s">&#39;&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">singular</span><span class="p">))</span>
+                        <span class="k">for</span> <span class="n">part</span> <span class="ow">in</span> <span class="n">singular</span><span class="p">:</span>
+                            <span class="n">out</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">blankout</span><span class="p">(</span><span class="n">part</span><span class="p">,</span> <span class="s">&#39;S&#39;</span><span class="p">))</span>
+                    <span class="n">message_context</span> <span class="o">=</span> <span class="bp">None</span>
+                    <span class="n">intrans</span> <span class="o">=</span> <span class="bp">False</span>
+                    <span class="n">inplural</span> <span class="o">=</span> <span class="bp">False</span>
+                    <span class="n">singular</span> <span class="o">=</span> <span class="p">[]</span>
+                    <span class="n">plural</span> <span class="o">=</span> <span class="p">[]</span>
+                <span class="k">elif</span> <span class="n">pluralmatch</span><span class="p">:</span>
+                    <span class="n">inplural</span> <span class="o">=</span> <span class="bp">True</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">filemsg</span> <span class="o">=</span> <span class="s">&#39;&#39;</span>
+                    <span class="k">if</span> <span class="n">origin</span><span class="p">:</span>
+                        <span class="n">filemsg</span> <span class="o">=</span> <span class="s">&#39;file </span><span class="si">%s</span><span class="s">, &#39;</span> <span class="o">%</span> <span class="n">origin</span>
+                    <span class="k">raise</span> <span class="ne">SyntaxError</span><span class="p">(</span><span class="s">&quot;Translation blocks must not include other block tags: </span><span class="si">%s</span><span class="s"> (</span><span class="si">%s</span><span class="s">line </span><span class="si">%d</span><span class="s">)&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">t</span><span class="o">.</span><span class="n">contents</span><span class="p">,</span> <span class="n">filemsg</span><span class="p">,</span> <span class="n">t</span><span class="o">.</span><span class="n">lineno</span><span class="p">))</span>
+            <span class="k">elif</span> <span class="n">t</span><span class="o">.</span><span class="n">token_type</span> <span class="o">==</span> <span class="n">TOKEN_VAR</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">inplural</span><span class="p">:</span>
+                    <span class="n">plural</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s">&#39;</span><span class="si">%%</span><span class="s">(</span><span class="si">%s</span><span class="s">)s&#39;</span> <span class="o">%</span> <span class="n">t</span><span class="o">.</span><span class="n">contents</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">singular</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s">&#39;</span><span class="si">%%</span><span class="s">(</span><span class="si">%s</span><span class="s">)s&#39;</span> <span class="o">%</span> <span class="n">t</span><span class="o">.</span><span class="n">contents</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="n">t</span><span class="o">.</span><span class="n">token_type</span> <span class="o">==</span> <span class="n">TOKEN_TEXT</span><span class="p">:</span>
+                <span class="n">contents</span> <span class="o">=</span> <span class="n">one_percent_re</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="s">&#39;</span><span class="si">%%</span><span class="s">&#39;</span><span class="p">,</span> <span class="n">t</span><span class="o">.</span><span class="n">contents</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">inplural</span><span class="p">:</span>
+                    <span class="n">plural</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">contents</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">singular</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">contents</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">t</span><span class="o">.</span><span class="n">token_type</span> <span class="o">==</span> <span class="n">TOKEN_BLOCK</span><span class="p">:</span>
+                <span class="n">imatch</span> <span class="o">=</span> <span class="n">inline_re</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="n">t</span><span class="o">.</span><span class="n">contents</span><span class="p">)</span>
+                <span class="n">bmatch</span> <span class="o">=</span> <span class="n">block_re</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="n">t</span><span class="o">.</span><span class="n">contents</span><span class="p">)</span>
+                <span class="n">cmatches</span> <span class="o">=</span> <span class="n">constant_re</span><span class="o">.</span><span class="n">findall</span><span class="p">(</span><span class="n">t</span><span class="o">.</span><span class="n">contents</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">imatch</span><span class="p">:</span>
+                    <span class="n">g</span> <span class="o">=</span> <span class="n">imatch</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+                    <span class="k">if</span> <span class="n">g</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="s">&#39;&quot;&#39;</span><span class="p">:</span>
+                        <span class="n">g</span> <span class="o">=</span> <span class="n">g</span><span class="o">.</span><span class="n">strip</span><span class="p">(</span><span class="s">&#39;&quot;&#39;</span><span class="p">)</span>
+                    <span class="k">elif</span> <span class="n">g</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="s">&quot;&#39;&quot;</span><span class="p">:</span>
+                        <span class="n">g</span> <span class="o">=</span> <span class="n">g</span><span class="o">.</span><span class="n">strip</span><span class="p">(</span><span class="s">&quot;&#39;&quot;</span><span class="p">)</span>
+                    <span class="n">g</span> <span class="o">=</span> <span class="n">one_percent_re</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="s">&#39;</span><span class="si">%%</span><span class="s">&#39;</span><span class="p">,</span> <span class="n">g</span><span class="p">)</span>
+                    <span class="k">if</span> <span class="n">imatch</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">2</span><span class="p">):</span>
+                        <span class="c"># A context is provided</span>
+                        <span class="n">context_match</span> <span class="o">=</span> <span class="n">context_re</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="n">imatch</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">2</span><span class="p">))</span>
+                        <span class="n">message_context</span> <span class="o">=</span> <span class="n">context_match</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+                        <span class="k">if</span> <span class="n">message_context</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="s">&#39;&quot;&#39;</span><span class="p">:</span>
+                            <span class="n">message_context</span> <span class="o">=</span> <span class="n">message_context</span><span class="o">.</span><span class="n">strip</span><span class="p">(</span><span class="s">&#39;&quot;&#39;</span><span class="p">)</span>
+                        <span class="k">elif</span> <span class="n">message_context</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="s">&quot;&#39;&quot;</span><span class="p">:</span>
+                            <span class="n">message_context</span> <span class="o">=</span> <span class="n">message_context</span><span class="o">.</span><span class="n">strip</span><span class="p">(</span><span class="s">&quot;&#39;&quot;</span><span class="p">)</span>
+                        <span class="n">out</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s">&#39; pgettext(</span><span class="si">%r</span><span class="s">, </span><span class="si">%r</span><span class="s">) &#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">message_context</span><span class="p">,</span> <span class="n">g</span><span class="p">))</span>
+                        <span class="n">message_context</span> <span class="o">=</span> <span class="bp">None</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="n">out</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s">&#39; gettext(</span><span class="si">%r</span><span class="s">) &#39;</span> <span class="o">%</span> <span class="n">g</span><span class="p">)</span>
+                <span class="k">elif</span> <span class="n">bmatch</span><span class="p">:</span>
+                    <span class="k">for</span> <span class="n">fmatch</span> <span class="ow">in</span> <span class="n">constant_re</span><span class="o">.</span><span class="n">findall</span><span class="p">(</span><span class="n">t</span><span class="o">.</span><span class="n">contents</span><span class="p">):</span>
+                        <span class="n">out</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s">&#39; _(</span><span class="si">%s</span><span class="s">) &#39;</span> <span class="o">%</span> <span class="n">fmatch</span><span class="p">)</span>
+                    <span class="k">if</span> <span class="n">bmatch</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">1</span><span class="p">):</span>
+                        <span class="c"># A context is provided</span>
+                        <span class="n">context_match</span> <span class="o">=</span> <span class="n">context_re</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="n">bmatch</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">1</span><span class="p">))</span>
+                        <span class="n">message_context</span> <span class="o">=</span> <span class="n">context_match</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+                        <span class="k">if</span> <span class="n">message_context</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="s">&#39;&quot;&#39;</span><span class="p">:</span>
+                            <span class="n">message_context</span> <span class="o">=</span> <span class="n">message_context</span><span class="o">.</span><span class="n">strip</span><span class="p">(</span><span class="s">&#39;&quot;&#39;</span><span class="p">)</span>
+                        <span class="k">elif</span> <span class="n">message_context</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="s">&quot;&#39;&quot;</span><span class="p">:</span>
+                            <span class="n">message_context</span> <span class="o">=</span> <span class="n">message_context</span><span class="o">.</span><span class="n">strip</span><span class="p">(</span><span class="s">&quot;&#39;&quot;</span><span class="p">)</span>
+                    <span class="n">intrans</span> <span class="o">=</span> <span class="bp">True</span>
+                    <span class="n">inplural</span> <span class="o">=</span> <span class="bp">False</span>
+                    <span class="n">singular</span> <span class="o">=</span> <span class="p">[]</span>
+                    <span class="n">plural</span> <span class="o">=</span> <span class="p">[]</span>
+                <span class="k">elif</span> <span class="n">cmatches</span><span class="p">:</span>
+                    <span class="k">for</span> <span class="n">cmatch</span> <span class="ow">in</span> <span class="n">cmatches</span><span class="p">:</span>
+                        <span class="n">out</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s">&#39; _(</span><span class="si">%s</span><span class="s">) &#39;</span> <span class="o">%</span> <span class="n">cmatch</span><span class="p">)</span>
+                <span class="k">elif</span> <span class="n">t</span><span class="o">.</span><span class="n">contents</span> <span class="o">==</span> <span class="s">&#39;comment&#39;</span><span class="p">:</span>
+                    <span class="n">incomment</span> <span class="o">=</span> <span class="bp">True</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">out</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">blankout</span><span class="p">(</span><span class="n">t</span><span class="o">.</span><span class="n">contents</span><span class="p">,</span> <span class="s">&#39;B&#39;</span><span class="p">))</span>
+            <span class="k">elif</span> <span class="n">t</span><span class="o">.</span><span class="n">token_type</span> <span class="o">==</span> <span class="n">TOKEN_VAR</span><span class="p">:</span>
+                <span class="n">parts</span> <span class="o">=</span> <span class="n">t</span><span class="o">.</span><span class="n">contents</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&#39;|&#39;</span><span class="p">)</span>
+                <span class="n">cmatch</span> <span class="o">=</span> <span class="n">constant_re</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="n">parts</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+                <span class="k">if</span> <span class="n">cmatch</span><span class="p">:</span>
+                    <span class="n">out</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s">&#39; _(</span><span class="si">%s</span><span class="s">) &#39;</span> <span class="o">%</span> <span class="n">cmatch</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">1</span><span class="p">))</span>
+                <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">parts</span><span class="p">[</span><span class="mi">1</span><span class="p">:]:</span>
+                    <span class="k">if</span> <span class="n">p</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s">&#39;:_(&#39;</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">:</span>
+                        <span class="n">out</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s">&#39; </span><span class="si">%s</span><span class="s"> &#39;</span> <span class="o">%</span> <span class="n">p</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&#39;:&#39;</span><span class="p">,</span><span class="mi">1</span><span class="p">)[</span><span class="mi">1</span><span class="p">])</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="n">out</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">blankout</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="s">&#39;F&#39;</span><span class="p">))</span>
+            <span class="k">elif</span> <span class="n">t</span><span class="o">.</span><span class="n">token_type</span> <span class="o">==</span> <span class="n">TOKEN_COMMENT</span><span class="p">:</span>
+                <span class="n">out</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s">&#39; # </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">t</span><span class="o">.</span><span class="n">contents</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">out</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">blankout</span><span class="p">(</span><span class="n">t</span><span class="o">.</span><span class="n">contents</span><span class="p">,</span> <span class="s">&#39;X&#39;</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">force_str</span><span class="p">(</span><span class="n">out</span><span class="o">.</span><span class="n">getvalue</span><span class="p">())</span>
+</div>
+<div class="viewcode-block" id="parse_accept_lang_header"><a class="viewcode-back" href="../../../../django.utils.translation.html#django.utils.translation.trans_real.parse_accept_lang_header">[docs]</a><span class="k">def</span> <span class="nf">parse_accept_lang_header</span><span class="p">(</span><span class="n">lang_string</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Parses the lang_string, which is the body of an HTTP Accept-Language</span>
+<span class="sd">    header, and returns a list of (lang, q-value), ordered by &#39;q&#39; values.</span>
+
+<span class="sd">    Any format errors in lang_string results in an empty list being returned.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">pieces</span> <span class="o">=</span> <span class="n">accept_language_re</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">lang_string</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">pieces</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]:</span>
+        <span class="k">return</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">pieces</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">3</span><span class="p">):</span>
+        <span class="n">first</span><span class="p">,</span> <span class="n">lang</span><span class="p">,</span> <span class="n">priority</span> <span class="o">=</span> <span class="n">pieces</span><span class="p">[</span><span class="n">i</span> <span class="p">:</span> <span class="n">i</span> <span class="o">+</span> <span class="mi">3</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">first</span><span class="p">:</span>
+            <span class="k">return</span> <span class="p">[]</span>
+        <span class="n">priority</span> <span class="o">=</span> <span class="n">priority</span> <span class="ow">and</span> <span class="nb">float</span><span class="p">(</span><span class="n">priority</span><span class="p">)</span> <span class="ow">or</span> <span class="mf">1.0</span>
+        <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">lang</span><span class="p">,</span> <span class="n">priority</span><span class="p">))</span>
+    <span class="n">result</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">k</span><span class="p">:</span> <span class="n">k</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">reverse</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">result</span></div>
+</pre></div>
+
+      </div>
+      <div class="bottomnav">
+      
+        <p>
+        <a href="/">Home</a>:
+        <a class="uplink" href="../../../../index.html">Contents</a>
+        </p>
+
+      </div>
+
+    <div class="footer">
+        &copy; Copyright 2012, HDKNR.COM.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2b1.
+    </div>
+  </body>
+</html>

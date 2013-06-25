@@ -1,0 +1,301 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>django.contrib.auth.tests.basic &mdash; Django Cheat 1 documentation</title>
+    
+    <link rel="stylesheet" href="../../../../../_static/haiku.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../../static/print.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../../../',
+        VERSION:     '1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../../../_static/doctools.js"></script>
+    <script type="text/javascript" src="../../../../../static/theme_extras.js"></script>
+    <link rel="top" title="Django Cheat 1 documentation" href="../../../../../index.html" />
+    <link rel="up" title="django.contrib.auth" href="../../auth.html" /> 
+  </head>
+  <body>
+      <div class="header"><h1 class="heading"><a href="../../../../../index.html">
+          <span>Django Cheat 1 documentation</span></a></h1>
+        <h2 class="heading"><span>django.contrib.auth.tests.basic</span></h2>
+      </div>
+      <div class="topnav">
+      
+        <p>
+        <a href="/">Home</a>:
+        <a class="uplink" href="../../../../../index.html">Contents</a>
+        </p>
+
+      </div>
+      <div class="content">
+        
+        
+  <h1>Source code for django.contrib.auth.tests.basic</h1><div class="highlight"><pre>
+<span class="c"># -*- encoding: utf-8 -*-</span>
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">unicode_literals</span>
+
+<span class="kn">import</span> <span class="nn">locale</span>
+
+<span class="kn">from</span> <span class="nn">django.contrib.auth</span> <span class="kn">import</span> <span class="n">get_user_model</span>
+<span class="kn">from</span> <span class="nn">django.contrib.auth.management.commands</span> <span class="kn">import</span> <span class="n">createsuperuser</span>
+<span class="kn">from</span> <span class="nn">django.contrib.auth.models</span> <span class="kn">import</span> <span class="n">User</span><span class="p">,</span> <span class="n">AnonymousUser</span>
+<span class="kn">from</span> <span class="nn">django.contrib.auth.tests.custom_user</span> <span class="kn">import</span> <span class="n">CustomUser</span>
+<span class="kn">from</span> <span class="nn">django.contrib.auth.tests.utils</span> <span class="kn">import</span> <span class="n">skipIfCustomUser</span>
+<span class="kn">from</span> <span class="nn">django.core.exceptions</span> <span class="kn">import</span> <span class="n">ImproperlyConfigured</span>
+<span class="kn">from</span> <span class="nn">django.core.management</span> <span class="kn">import</span> <span class="n">call_command</span>
+<span class="kn">from</span> <span class="nn">django.test</span> <span class="kn">import</span> <span class="n">TestCase</span>
+<span class="kn">from</span> <span class="nn">django.test.utils</span> <span class="kn">import</span> <span class="n">override_settings</span>
+<span class="kn">from</span> <span class="nn">django.utils.encoding</span> <span class="kn">import</span> <span class="n">force_str</span>
+<span class="kn">from</span> <span class="nn">django.utils.six</span> <span class="kn">import</span> <span class="n">binary_type</span><span class="p">,</span> <span class="n">PY3</span><span class="p">,</span> <span class="n">StringIO</span>
+
+
+<div class="viewcode-block" id="mock_inputs"><a class="viewcode-back" href="../../../../../django.contrib.auth.tests.html#django.contrib.auth.tests.basic.mock_inputs">[docs]</a><span class="k">def</span> <span class="nf">mock_inputs</span><span class="p">(</span><span class="n">inputs</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Decorator to temporarily replace input/getpass to allow interactive</span>
+<span class="sd">    createsuperuser.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">inner</span><span class="p">(</span><span class="n">test_func</span><span class="p">):</span>
+        <span class="k">def</span> <span class="nf">wrapped</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">):</span>
+            <span class="k">class</span> <span class="nc">mock_getpass</span><span class="p">:</span>
+                <span class="nd">@staticmethod</span>
+                <span class="k">def</span> <span class="nf">getpass</span><span class="p">(</span><span class="n">prompt</span><span class="o">=</span><span class="n">b</span><span class="s">&#39;Password: &#39;</span><span class="p">,</span> <span class="n">stream</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+                    <span class="k">if</span> <span class="ow">not</span> <span class="n">PY3</span><span class="p">:</span>
+                        <span class="c"># getpass on Windows only supports prompt as bytestring (#19807)</span>
+                        <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">prompt</span><span class="p">,</span> <span class="n">binary_type</span><span class="p">)</span>
+                    <span class="k">return</span> <span class="n">inputs</span><span class="p">[</span><span class="s">&#39;password&#39;</span><span class="p">]</span>
+
+            <span class="k">def</span> <span class="nf">mock_input</span><span class="p">(</span><span class="n">prompt</span><span class="p">):</span>
+                <span class="c"># prompt should be encoded in Python 2. This line will raise an</span>
+                <span class="c"># Exception if prompt contains unencoded non-ascii on Python 2.</span>
+                <span class="n">prompt</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">prompt</span><span class="p">)</span>
+                <span class="k">assert</span> <span class="nb">str</span><span class="p">(</span><span class="s">&#39;__proxy__&#39;</span><span class="p">)</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">prompt</span>
+                <span class="n">response</span> <span class="o">=</span> <span class="s">&#39;&#39;</span>
+                <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">val</span> <span class="ow">in</span> <span class="n">inputs</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                    <span class="k">if</span> <span class="n">force_str</span><span class="p">(</span><span class="n">key</span><span class="p">)</span> <span class="ow">in</span> <span class="n">prompt</span><span class="o">.</span><span class="n">lower</span><span class="p">():</span>
+                        <span class="n">response</span> <span class="o">=</span> <span class="n">val</span>
+                        <span class="k">break</span>
+                <span class="k">return</span> <span class="n">response</span>
+
+            <span class="n">old_getpass</span> <span class="o">=</span> <span class="n">createsuperuser</span><span class="o">.</span><span class="n">getpass</span>
+            <span class="n">old_input</span> <span class="o">=</span> <span class="n">createsuperuser</span><span class="o">.</span><span class="n">input</span>
+            <span class="n">createsuperuser</span><span class="o">.</span><span class="n">getpass</span> <span class="o">=</span> <span class="n">mock_getpass</span>
+            <span class="n">createsuperuser</span><span class="o">.</span><span class="n">input</span> <span class="o">=</span> <span class="n">mock_input</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">test_func</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">)</span>
+            <span class="k">finally</span><span class="p">:</span>
+                <span class="n">createsuperuser</span><span class="o">.</span><span class="n">getpass</span> <span class="o">=</span> <span class="n">old_getpass</span>
+                <span class="n">createsuperuser</span><span class="o">.</span><span class="n">input</span> <span class="o">=</span> <span class="n">old_input</span>
+        <span class="k">return</span> <span class="n">wrapped</span>
+    <span class="k">return</span> <span class="n">inner</span>
+
+</div>
+<span class="nd">@skipIfCustomUser</span>
+<span class="k">class</span> <span class="nc">BasicTestCase</span><span class="p">(</span><span class="n">TestCase</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">test_user</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="s">&quot;Check that users can be created and can set their password&quot;</span>
+        <span class="n">u</span> <span class="o">=</span> <span class="n">User</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">create_user</span><span class="p">(</span><span class="s">&#39;testuser&#39;</span><span class="p">,</span> <span class="s">&#39;test@example.com&#39;</span><span class="p">,</span> <span class="s">&#39;testpw&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="n">u</span><span class="o">.</span><span class="n">has_usable_password</span><span class="p">())</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertFalse</span><span class="p">(</span><span class="n">u</span><span class="o">.</span><span class="n">check_password</span><span class="p">(</span><span class="s">&#39;bad&#39;</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="n">u</span><span class="o">.</span><span class="n">check_password</span><span class="p">(</span><span class="s">&#39;testpw&#39;</span><span class="p">))</span>
+
+        <span class="c"># Check we can manually set an unusable password</span>
+        <span class="n">u</span><span class="o">.</span><span class="n">set_unusable_password</span><span class="p">()</span>
+        <span class="n">u</span><span class="o">.</span><span class="n">save</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertFalse</span><span class="p">(</span><span class="n">u</span><span class="o">.</span><span class="n">check_password</span><span class="p">(</span><span class="s">&#39;testpw&#39;</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertFalse</span><span class="p">(</span><span class="n">u</span><span class="o">.</span><span class="n">has_usable_password</span><span class="p">())</span>
+        <span class="n">u</span><span class="o">.</span><span class="n">set_password</span><span class="p">(</span><span class="s">&#39;testpw&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="n">u</span><span class="o">.</span><span class="n">check_password</span><span class="p">(</span><span class="s">&#39;testpw&#39;</span><span class="p">))</span>
+        <span class="n">u</span><span class="o">.</span><span class="n">set_password</span><span class="p">(</span><span class="bp">None</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertFalse</span><span class="p">(</span><span class="n">u</span><span class="o">.</span><span class="n">has_usable_password</span><span class="p">())</span>
+
+        <span class="c"># Check authentication/permissions</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="n">u</span><span class="o">.</span><span class="n">is_authenticated</span><span class="p">())</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertFalse</span><span class="p">(</span><span class="n">u</span><span class="o">.</span><span class="n">is_staff</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="n">u</span><span class="o">.</span><span class="n">is_active</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertFalse</span><span class="p">(</span><span class="n">u</span><span class="o">.</span><span class="n">is_superuser</span><span class="p">)</span>
+
+        <span class="c"># Check API-based user creation with no password</span>
+        <span class="n">u2</span> <span class="o">=</span> <span class="n">User</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">create_user</span><span class="p">(</span><span class="s">&#39;testuser2&#39;</span><span class="p">,</span> <span class="s">&#39;test2@example.com&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertFalse</span><span class="p">(</span><span class="n">u2</span><span class="o">.</span><span class="n">has_usable_password</span><span class="p">())</span>
+
+    <span class="k">def</span> <span class="nf">test_user_no_email</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="s">&quot;Check that users can be created without an email&quot;</span>
+        <span class="n">u</span> <span class="o">=</span> <span class="n">User</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">create_user</span><span class="p">(</span><span class="s">&#39;testuser1&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">u</span><span class="o">.</span><span class="n">email</span><span class="p">,</span> <span class="s">&#39;&#39;</span><span class="p">)</span>
+
+        <span class="n">u2</span> <span class="o">=</span> <span class="n">User</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">create_user</span><span class="p">(</span><span class="s">&#39;testuser2&#39;</span><span class="p">,</span> <span class="n">email</span><span class="o">=</span><span class="s">&#39;&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">u2</span><span class="o">.</span><span class="n">email</span><span class="p">,</span> <span class="s">&#39;&#39;</span><span class="p">)</span>
+
+        <span class="n">u3</span> <span class="o">=</span> <span class="n">User</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">create_user</span><span class="p">(</span><span class="s">&#39;testuser3&#39;</span><span class="p">,</span> <span class="n">email</span><span class="o">=</span><span class="bp">None</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">u3</span><span class="o">.</span><span class="n">email</span><span class="p">,</span> <span class="s">&#39;&#39;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">test_anonymous_user</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="s">&quot;Check the properties of the anonymous user&quot;</span>
+        <span class="n">a</span> <span class="o">=</span> <span class="n">AnonymousUser</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">a</span><span class="o">.</span><span class="n">pk</span><span class="p">,</span> <span class="bp">None</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertFalse</span><span class="p">(</span><span class="n">a</span><span class="o">.</span><span class="n">is_authenticated</span><span class="p">())</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertFalse</span><span class="p">(</span><span class="n">a</span><span class="o">.</span><span class="n">is_staff</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertFalse</span><span class="p">(</span><span class="n">a</span><span class="o">.</span><span class="n">is_active</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertFalse</span><span class="p">(</span><span class="n">a</span><span class="o">.</span><span class="n">is_superuser</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">a</span><span class="o">.</span><span class="n">groups</span><span class="o">.</span><span class="n">all</span><span class="p">()</span><span class="o">.</span><span class="n">count</span><span class="p">(),</span> <span class="mi">0</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">a</span><span class="o">.</span><span class="n">user_permissions</span><span class="o">.</span><span class="n">all</span><span class="p">()</span><span class="o">.</span><span class="n">count</span><span class="p">(),</span> <span class="mi">0</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">test_superuser</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="s">&quot;Check the creation and properties of a superuser&quot;</span>
+        <span class="nb">super</span> <span class="o">=</span> <span class="n">User</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">create_superuser</span><span class="p">(</span><span class="s">&#39;super&#39;</span><span class="p">,</span> <span class="s">&#39;super@example.com&#39;</span><span class="p">,</span> <span class="s">&#39;super&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="nb">super</span><span class="o">.</span><span class="n">is_superuser</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="nb">super</span><span class="o">.</span><span class="n">is_active</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="nb">super</span><span class="o">.</span><span class="n">is_staff</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">test_createsuperuser_management_command</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="s">&quot;Check the operation of the createsuperuser management command&quot;</span>
+        <span class="c"># We can use the management command to create a superuser</span>
+        <span class="n">new_io</span> <span class="o">=</span> <span class="n">StringIO</span><span class="p">()</span>
+        <span class="n">call_command</span><span class="p">(</span><span class="s">&quot;createsuperuser&quot;</span><span class="p">,</span>
+            <span class="n">interactive</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span>
+            <span class="n">username</span><span class="o">=</span><span class="s">&quot;joe&quot;</span><span class="p">,</span>
+            <span class="n">email</span><span class="o">=</span><span class="s">&quot;joe@somewhere.org&quot;</span><span class="p">,</span>
+            <span class="n">stdout</span><span class="o">=</span><span class="n">new_io</span>
+        <span class="p">)</span>
+        <span class="n">command_output</span> <span class="o">=</span> <span class="n">new_io</span><span class="o">.</span><span class="n">getvalue</span><span class="p">()</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">command_output</span><span class="p">,</span> <span class="s">&#39;Superuser created successfully.&#39;</span><span class="p">)</span>
+        <span class="n">u</span> <span class="o">=</span> <span class="n">User</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">username</span><span class="o">=</span><span class="s">&quot;joe&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">u</span><span class="o">.</span><span class="n">email</span><span class="p">,</span> <span class="s">&#39;joe@somewhere.org&#39;</span><span class="p">)</span>
+
+        <span class="c"># created password should be unusable</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertFalse</span><span class="p">(</span><span class="n">u</span><span class="o">.</span><span class="n">has_usable_password</span><span class="p">())</span>
+
+        <span class="c"># We can supress output on the management command</span>
+        <span class="n">new_io</span> <span class="o">=</span> <span class="n">StringIO</span><span class="p">()</span>
+        <span class="n">call_command</span><span class="p">(</span><span class="s">&quot;createsuperuser&quot;</span><span class="p">,</span>
+            <span class="n">interactive</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span>
+            <span class="n">username</span><span class="o">=</span><span class="s">&quot;joe2&quot;</span><span class="p">,</span>
+            <span class="n">email</span><span class="o">=</span><span class="s">&quot;joe2@somewhere.org&quot;</span><span class="p">,</span>
+            <span class="n">verbosity</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+            <span class="n">stdout</span><span class="o">=</span><span class="n">new_io</span>
+        <span class="p">)</span>
+        <span class="n">command_output</span> <span class="o">=</span> <span class="n">new_io</span><span class="o">.</span><span class="n">getvalue</span><span class="p">()</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">command_output</span><span class="p">,</span> <span class="s">&#39;&#39;</span><span class="p">)</span>
+        <span class="n">u</span> <span class="o">=</span> <span class="n">User</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">username</span><span class="o">=</span><span class="s">&quot;joe2&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">u</span><span class="o">.</span><span class="n">email</span><span class="p">,</span> <span class="s">&#39;joe2@somewhere.org&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertFalse</span><span class="p">(</span><span class="n">u</span><span class="o">.</span><span class="n">has_usable_password</span><span class="p">())</span>
+
+        <span class="n">call_command</span><span class="p">(</span><span class="s">&quot;createsuperuser&quot;</span><span class="p">,</span>
+            <span class="n">interactive</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span>
+            <span class="n">username</span><span class="o">=</span><span class="s">&quot;joe+admin@somewhere.org&quot;</span><span class="p">,</span>
+            <span class="n">email</span><span class="o">=</span><span class="s">&quot;joe@somewhere.org&quot;</span><span class="p">,</span>
+            <span class="n">verbosity</span><span class="o">=</span><span class="mi">0</span>
+        <span class="p">)</span>
+        <span class="n">u</span> <span class="o">=</span> <span class="n">User</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">username</span><span class="o">=</span><span class="s">&quot;joe+admin@somewhere.org&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">u</span><span class="o">.</span><span class="n">email</span><span class="p">,</span> <span class="s">&#39;joe@somewhere.org&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertFalse</span><span class="p">(</span><span class="n">u</span><span class="o">.</span><span class="n">has_usable_password</span><span class="p">())</span>
+
+    <span class="nd">@mock_inputs</span><span class="p">({</span><span class="s">&#39;password&#39;</span><span class="p">:</span> <span class="s">&quot;nopasswd&quot;</span><span class="p">})</span>
+    <span class="k">def</span> <span class="nf">test_createsuperuser_nolocale</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Check that createsuperuser does not break when no locale is set. See</span>
+<span class="sd">        ticket #16017.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">old_getdefaultlocale</span> <span class="o">=</span> <span class="n">locale</span><span class="o">.</span><span class="n">getdefaultlocale</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="c"># Temporarily remove locale information</span>
+            <span class="n">locale</span><span class="o">.</span><span class="n">getdefaultlocale</span> <span class="o">=</span> <span class="k">lambda</span><span class="p">:</span> <span class="p">(</span><span class="bp">None</span><span class="p">,</span> <span class="bp">None</span><span class="p">)</span>
+
+            <span class="c"># Call the command in this new environment</span>
+            <span class="n">call_command</span><span class="p">(</span><span class="s">&quot;createsuperuser&quot;</span><span class="p">,</span>
+                <span class="n">interactive</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span>
+                <span class="n">username</span><span class="o">=</span><span class="s">&quot;nolocale@somewhere.org&quot;</span><span class="p">,</span>
+                <span class="n">email</span><span class="o">=</span><span class="s">&quot;nolocale@somewhere.org&quot;</span><span class="p">,</span>
+                <span class="n">verbosity</span><span class="o">=</span><span class="mi">0</span>
+            <span class="p">)</span>
+
+        <span class="k">except</span> <span class="ne">TypeError</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">fail</span><span class="p">(</span><span class="s">&quot;createsuperuser fails if the OS provides no information about the current locale&quot;</span><span class="p">)</span>
+
+        <span class="k">finally</span><span class="p">:</span>
+            <span class="c"># Re-apply locale information</span>
+            <span class="n">locale</span><span class="o">.</span><span class="n">getdefaultlocale</span> <span class="o">=</span> <span class="n">old_getdefaultlocale</span>
+
+        <span class="c"># If we were successful, a user should have been created</span>
+        <span class="n">u</span> <span class="o">=</span> <span class="n">User</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">username</span><span class="o">=</span><span class="s">&quot;nolocale@somewhere.org&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">u</span><span class="o">.</span><span class="n">email</span><span class="p">,</span> <span class="s">&#39;nolocale@somewhere.org&#39;</span><span class="p">)</span>
+
+    <span class="nd">@mock_inputs</span><span class="p">({</span>
+        <span class="s">&#39;password&#39;</span><span class="p">:</span> <span class="s">&quot;nopasswd&quot;</span><span class="p">,</span>
+        <span class="s">&#39;uživatel&#39;</span><span class="p">:</span> <span class="s">&#39;foo&#39;</span><span class="p">,</span>  <span class="c"># username (cz)</span>
+        <span class="s">&#39;email&#39;</span><span class="p">:</span> <span class="s">&#39;nolocale@somewhere.org&#39;</span><span class="p">})</span>
+    <span class="k">def</span> <span class="nf">test_createsuperuser_non_ascii_verbose_name</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c"># Aliased so the string doesn&#39;t get extracted</span>
+        <span class="kn">from</span> <span class="nn">django.utils.translation</span> <span class="kn">import</span> <span class="n">ugettext_lazy</span> <span class="k">as</span> <span class="n">ulazy</span>
+        <span class="n">username_field</span> <span class="o">=</span> <span class="n">User</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">get_field</span><span class="p">(</span><span class="s">&#39;username&#39;</span><span class="p">)</span>
+        <span class="n">old_verbose_name</span> <span class="o">=</span> <span class="n">username_field</span><span class="o">.</span><span class="n">verbose_name</span>
+        <span class="n">username_field</span><span class="o">.</span><span class="n">verbose_name</span> <span class="o">=</span> <span class="n">ulazy</span><span class="p">(</span><span class="s">&#39;uživatel&#39;</span><span class="p">)</span>
+        <span class="n">new_io</span> <span class="o">=</span> <span class="n">StringIO</span><span class="p">()</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">call_command</span><span class="p">(</span><span class="s">&quot;createsuperuser&quot;</span><span class="p">,</span>
+                <span class="n">interactive</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span>
+                <span class="n">stdout</span><span class="o">=</span><span class="n">new_io</span>
+            <span class="p">)</span>
+        <span class="k">finally</span><span class="p">:</span>
+            <span class="n">username_field</span><span class="o">.</span><span class="n">verbose_name</span> <span class="o">=</span> <span class="n">old_verbose_name</span>
+
+        <span class="n">command_output</span> <span class="o">=</span> <span class="n">new_io</span><span class="o">.</span><span class="n">getvalue</span><span class="p">()</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">command_output</span><span class="p">,</span> <span class="s">&#39;Superuser created successfully.&#39;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">test_get_user_model</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="s">&quot;The current user model can be retrieved&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">get_user_model</span><span class="p">(),</span> <span class="n">User</span><span class="p">)</span>
+
+    <span class="nd">@override_settings</span><span class="p">(</span><span class="n">AUTH_USER_MODEL</span><span class="o">=</span><span class="s">&#39;auth.CustomUser&#39;</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">test_swappable_user</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="s">&quot;The current user model can be swapped out for another&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">get_user_model</span><span class="p">(),</span> <span class="n">CustomUser</span><span class="p">)</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">AttributeError</span><span class="p">):</span>
+            <span class="n">User</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">all</span><span class="p">()</span>
+
+    <span class="nd">@override_settings</span><span class="p">(</span><span class="n">AUTH_USER_MODEL</span><span class="o">=</span><span class="s">&#39;badsetting&#39;</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">test_swappable_user_bad_setting</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="s">&quot;The alternate user setting must point to something in the format app.model&quot;</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="n">ImproperlyConfigured</span><span class="p">):</span>
+            <span class="n">get_user_model</span><span class="p">()</span>
+
+    <span class="nd">@override_settings</span><span class="p">(</span><span class="n">AUTH_USER_MODEL</span><span class="o">=</span><span class="s">&#39;thismodel.doesntexist&#39;</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">test_swappable_user_nonexistent_model</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="s">&quot;The current user model must point to an installed model&quot;</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="n">ImproperlyConfigured</span><span class="p">):</span>
+            <span class="n">get_user_model</span><span class="p">()</span>
+</pre></div>
+
+      </div>
+      <div class="bottomnav">
+      
+        <p>
+        <a href="/">Home</a>:
+        <a class="uplink" href="../../../../../index.html">Contents</a>
+        </p>
+
+      </div>
+
+    <div class="footer">
+        &copy; Copyright 2012, HDKNR.COM.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2b1.
+    </div>
+  </body>
+</html>

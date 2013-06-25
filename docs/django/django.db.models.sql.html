@@ -10,22 +10,22 @@
     
     <title>django.db.models.sql &mdash; Django Cheat 1 documentation</title>
     
-    <link rel="stylesheet" href="static/haiku.css" type="text/css" />
-    <link rel="stylesheet" href="static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="_static/haiku.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
     <link rel="stylesheet" href="static/print.css" type="text/css" />
     
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
-        URL_ROOT:    '',
+        URL_ROOT:    './',
         VERSION:     '1',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true
       };
     </script>
-    <script type="text/javascript" src="static/jquery.js"></script>
-    <script type="text/javascript" src="static/underscore.js"></script>
-    <script type="text/javascript" src="static/doctools.js"></script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
     <script type="text/javascript" src="static/theme_extras.js"></script>
     <link rel="top" title="Django Cheat 1 documentation" href="index.html" />
     <link rel="up" title="Django Reference" href="ref.html" />
@@ -244,6 +244,12 @@ no ordering in the resulting query (not even the model&#8217;s default).</p>
 </dd></dl>
 
 <dl class="method">
+<dt id="django.db.models.sql.Query.clear_select_clause">
+<tt class="descname">clear_select_clause</tt><big>(</big><big>)</big><a class="headerlink" href="#django.db.models.sql.Query.clear_select_clause" title="Permalink to this definition">¶</a></dt>
+<dd><p>Removes all fields from SELECT clause.</p>
+</dd></dl>
+
+<dl class="method">
 <dt id="django.db.models.sql.Query.clear_select_fields">
 <tt class="descname">clear_select_fields</tt><big>(</big><big>)</big><a class="headerlink" href="#django.db.models.sql.Query.clear_select_fields" title="Permalink to this definition">¶</a></dt>
 <dd><p>Clears the list of fields to select (but not extra_select columns).
@@ -351,6 +357,15 @@ by subclasses.</p>
 </dd></dl>
 
 <dl class="method">
+<dt id="django.db.models.sql.Query.is_nullable">
+<tt class="descname">is_nullable</tt><big>(</big><em>field</em><big>)</big><a class="headerlink" href="#django.db.models.sql.Query.is_nullable" title="Permalink to this definition">¶</a></dt>
+<dd><p>A helper to check if the given field should be treated as nullable.</p>
+<p>Some backends treat &#8216;&#8217; as null and Django treats such fields as
+nullable for those backends. In such situations field.null can be
+False even if we should treat the field as nullable.</p>
+</dd></dl>
+
+<dl class="method">
 <dt id="django.db.models.sql.Query.join">
 <tt class="descname">join</tt><big>(</big><em>connection</em>, <em>always_create=False</em>, <em>exclusions=()</em>, <em>promote=False</em>, <em>outer_if_first=False</em>, <em>nullable=False</em>, <em>reuse=None</em><big>)</big><a class="headerlink" href="#django.db.models.sql.Query.join" title="Permalink to this definition">¶</a></dt>
 <dd><p>Returns an alias for the join in &#8216;connection&#8217;, either reusing an
@@ -376,6 +391,8 @@ to LOUTER, if necessary).</p>
 <p>If &#8216;outer_if_first&#8217; is True and a new join is created, it will have the
 LOUTER join type. This is used when joining certain types of querysets
 and Q-objects together.</p>
+<p>A join is always created as LOUTER if the lhs alias is LOUTER to make
+sure we do not generate chains like a LOUTER b INNER c.</p>
 <p>If &#8216;nullable&#8217; is True, the join can potentially involve NULL values and
 is a candidate for promotion (to &#8220;left outer&#8221;) when combining querysets.</p>
 </dd></dl>
@@ -388,21 +405,19 @@ together in the HAVING clause.</p>
 </dd></dl>
 
 <dl class="method">
-<dt id="django.db.models.sql.Query.promote_alias">
-<tt class="descname">promote_alias</tt><big>(</big><em>alias</em>, <em>unconditional=False</em><big>)</big><a class="headerlink" href="#django.db.models.sql.Query.promote_alias" title="Permalink to this definition">¶</a></dt>
-<dd><p>Promotes the join type of an alias to an outer join if it&#8217;s possible
-for the join to contain NULL values on the left. If &#8216;unconditional&#8217; is
-False, the join is only promoted if it is nullable, otherwise it is
-always promoted.</p>
-<p>Returns True if the join was promoted by this call.</p>
-</dd></dl>
-
-<dl class="method">
-<dt id="django.db.models.sql.Query.promote_alias_chain">
-<tt class="descname">promote_alias_chain</tt><big>(</big><em>chain</em>, <em>must_promote=False</em><big>)</big><a class="headerlink" href="#django.db.models.sql.Query.promote_alias_chain" title="Permalink to this definition">¶</a></dt>
-<dd><p>Walks along a chain of aliases, promoting the first nullable join and
-any joins following that. If &#8216;must_promote&#8217; is True, all the aliases in
-the chain are promoted.</p>
+<dt id="django.db.models.sql.Query.promote_joins">
+<tt class="descname">promote_joins</tt><big>(</big><em>aliases</em>, <em>unconditional=False</em><big>)</big><a class="headerlink" href="#django.db.models.sql.Query.promote_joins" title="Permalink to this definition">¶</a></dt>
+<dd><p>Promotes recursively the join type of given aliases and its children to
+an outer join. If &#8216;unconditional&#8217; is False, the join is only promoted if
+it is nullable or the parent join is an outer join.</p>
+<p>Note about join promotion: When promoting any alias, we make sure all
+joins which start from that alias are promoted, too. When adding a join
+in join(), we make sure any join added to already existing LOUTER join
+is generated as LOUTER. This ensures we don&#8217;t ever have broken join
+chains which contain first a LOUTER join, then an INNER JOIN, that is
+this kind of join should never be generated: a LOUTER b INNER c. The
+reason for avoiding this type of join chain is that the INNER after
+the LOUTER will effectively remove any effect the LOUTER had.</p>
 </dd></dl>
 
 <dl class="method">
@@ -599,11 +614,11 @@ for those other columns.</p>
 <span class="target" id="module-django.db.models.sql.aggregates"></span><p>Classes to represent the default SQL aggregate functions</p>
 <dl class="class">
 <dt id="django.db.models.sql.aggregates.Aggregate">
-<em class="property">class </em><tt class="descclassname">django.db.models.sql.aggregates.</tt><tt class="descname">Aggregate</tt><big>(</big><em>col</em>, <em>source=None</em>, <em>is_summary=False</em>, <em>**extra</em><big>)</big><a class="reference internal" href="modules/django/db/models/sql/aggregates.html#Aggregate"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.aggregates.Aggregate" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><tt class="descclassname">django.db.models.sql.aggregates.</tt><tt class="descname">Aggregate</tt><big>(</big><em>col</em>, <em>source=None</em>, <em>is_summary=False</em>, <em>**extra</em><big>)</big><a class="reference internal" href="_modules/django/db/models/sql/aggregates.html#Aggregate"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.aggregates.Aggregate" title="Permalink to this definition">¶</a></dt>
 <dd><p>Default SQL Aggregate.</p>
 <dl class="method">
 <dt id="django.db.models.sql.aggregates.Aggregate.as_sql">
-<tt class="descname">as_sql</tt><big>(</big><em>qn</em>, <em>connection</em><big>)</big><a class="reference internal" href="modules/django/db/models/sql/aggregates.html#Aggregate.as_sql"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.aggregates.Aggregate.as_sql" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">as_sql</tt><big>(</big><em>qn</em>, <em>connection</em><big>)</big><a class="reference internal" href="_modules/django/db/models/sql/aggregates.html#Aggregate.as_sql"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.aggregates.Aggregate.as_sql" title="Permalink to this definition">¶</a></dt>
 <dd><p>Return the aggregate, rendered as SQL.</p>
 </dd></dl>
 
@@ -616,14 +631,8 @@ for those other columns.</p>
 <li><a class="reference external" href="https://github.com/django/django/tree/master/django/db/models/sql/compiler.py">source</a></li>
 </ul>
 <span class="target" id="module-django.db.models.sql.compiler"></span><dl class="function">
-<dt id="django.db.models.sql.compiler.empty_iter">
-<tt class="descclassname">django.db.models.sql.compiler.</tt><tt class="descname">empty_iter</tt><big>(</big><big>)</big><a class="reference internal" href="modules/django/db/models/sql/compiler.html#empty_iter"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.compiler.empty_iter" title="Permalink to this definition">¶</a></dt>
-<dd><p>Returns an iterator containing no results.</p>
-</dd></dl>
-
-<dl class="function">
 <dt id="django.db.models.sql.compiler.order_modified_iter">
-<tt class="descclassname">django.db.models.sql.compiler.</tt><tt class="descname">order_modified_iter</tt><big>(</big><em>cursor</em>, <em>trim</em>, <em>sentinel</em><big>)</big><a class="reference internal" href="modules/django/db/models/sql/compiler.html#order_modified_iter"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.compiler.order_modified_iter" title="Permalink to this definition">¶</a></dt>
+<tt class="descclassname">django.db.models.sql.compiler.</tt><tt class="descname">order_modified_iter</tt><big>(</big><em>cursor</em>, <em>trim</em>, <em>sentinel</em><big>)</big><a class="reference internal" href="_modules/django/db/models/sql/compiler.html#order_modified_iter"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.compiler.order_modified_iter" title="Permalink to this definition">¶</a></dt>
 <dd><p>Yields blocks of rows from a cursor. We use this iterator in the special
 case when extra output columns have been added to support ordering
 requirements. We must trim those extra columns before anything else can use
@@ -636,7 +645,56 @@ the results, since they&#8217;re only needed to make the SQL valid.</p>
 <ul class="simple">
 <li><a class="reference external" href="https://github.com/django/django/tree/master/django/db/models/sql/constants.py">source</a></li>
 </ul>
-<span class="target" id="module-django.db.models.sql.constants"></span></div>
+<span class="target" id="module-django.db.models.sql.constants"></span><p>Constants specific to the SQL storage portion of the ORM.</p>
+<dl class="class">
+<dt id="django.db.models.sql.constants.JoinInfo">
+<em class="property">class </em><tt class="descclassname">django.db.models.sql.constants.</tt><tt class="descname">JoinInfo</tt><a class="headerlink" href="#django.db.models.sql.constants.JoinInfo" title="Permalink to this definition">¶</a></dt>
+<dd><p>JoinInfo(table_name, rhs_alias, join_type, lhs_alias, lhs_join_col, rhs_join_col, nullable)</p>
+<dl class="attribute">
+<dt id="django.db.models.sql.constants.JoinInfo.join_type">
+<tt class="descname">join_type</tt><a class="headerlink" href="#django.db.models.sql.constants.JoinInfo.join_type" title="Permalink to this definition">¶</a></dt>
+<dd><p>Alias for field number 2</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="django.db.models.sql.constants.JoinInfo.lhs_alias">
+<tt class="descname">lhs_alias</tt><a class="headerlink" href="#django.db.models.sql.constants.JoinInfo.lhs_alias" title="Permalink to this definition">¶</a></dt>
+<dd><p>Alias for field number 3</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="django.db.models.sql.constants.JoinInfo.lhs_join_col">
+<tt class="descname">lhs_join_col</tt><a class="headerlink" href="#django.db.models.sql.constants.JoinInfo.lhs_join_col" title="Permalink to this definition">¶</a></dt>
+<dd><p>Alias for field number 4</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="django.db.models.sql.constants.JoinInfo.nullable">
+<tt class="descname">nullable</tt><a class="headerlink" href="#django.db.models.sql.constants.JoinInfo.nullable" title="Permalink to this definition">¶</a></dt>
+<dd><p>Alias for field number 6</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="django.db.models.sql.constants.JoinInfo.rhs_alias">
+<tt class="descname">rhs_alias</tt><a class="headerlink" href="#django.db.models.sql.constants.JoinInfo.rhs_alias" title="Permalink to this definition">¶</a></dt>
+<dd><p>Alias for field number 1</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="django.db.models.sql.constants.JoinInfo.rhs_join_col">
+<tt class="descname">rhs_join_col</tt><a class="headerlink" href="#django.db.models.sql.constants.JoinInfo.rhs_join_col" title="Permalink to this definition">¶</a></dt>
+<dd><p>Alias for field number 5</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="django.db.models.sql.constants.JoinInfo.table_name">
+<tt class="descname">table_name</tt><a class="headerlink" href="#django.db.models.sql.constants.JoinInfo.table_name" title="Permalink to this definition">¶</a></dt>
+<dd><p>Alias for field number 0</p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
 <div class="section" id="django-db-models-sql-datastructures">
 <span id="id10"></span><h2><a class="toc-backref" href="#id25">django.db.models.sql.datastructures</a><a class="headerlink" href="#django-db-models-sql-datastructures" title="Permalink to this headline">¶</a></h2>
 <ul class="simple">
@@ -646,13 +704,13 @@ the results, since they&#8217;re only needed to make the SQL valid.</p>
 the SQL domain.</p>
 <dl class="class">
 <dt id="django.db.models.sql.datastructures.Date">
-<em class="property">class </em><tt class="descclassname">django.db.models.sql.datastructures.</tt><tt class="descname">Date</tt><big>(</big><em>col</em>, <em>lookup_type</em><big>)</big><a class="reference internal" href="modules/django/db/models/sql/datastructures.html#Date"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.datastructures.Date" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><tt class="descclassname">django.db.models.sql.datastructures.</tt><tt class="descname">Date</tt><big>(</big><em>col</em>, <em>lookup_type</em><big>)</big><a class="reference internal" href="_modules/django/db/models/sql/datastructures.html#Date"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.datastructures.Date" title="Permalink to this definition">¶</a></dt>
 <dd><p>Add a date selection column.</p>
 </dd></dl>
 
 <dl class="exception">
 <dt id="django.db.models.sql.datastructures.MultiJoin">
-<em class="property">exception </em><tt class="descclassname">django.db.models.sql.datastructures.</tt><tt class="descname">MultiJoin</tt><big>(</big><em>level</em><big>)</big><a class="reference internal" href="modules/django/db/models/sql/datastructures.html#MultiJoin"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.datastructures.MultiJoin" title="Permalink to this definition">¶</a></dt>
+<em class="property">exception </em><tt class="descclassname">django.db.models.sql.datastructures.</tt><tt class="descname">MultiJoin</tt><big>(</big><em>level</em><big>)</big><a class="reference internal" href="_modules/django/db/models/sql/datastructures.html#MultiJoin"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.datastructures.MultiJoin" title="Permalink to this definition">¶</a></dt>
 <dd><p>Used by join construction code to indicate the point at which a
 multi-valued join was attempted (if the caller wants to treat that
 exceptionally).</p>
@@ -677,24 +735,24 @@ databases). The abstraction barrier only works one way: this module has to know
 all about the internals of models in order to get the information it needs.</p>
 <dl class="class">
 <dt id="django.db.models.sql.query.Query">
-<em class="property">class </em><tt class="descclassname">django.db.models.sql.query.</tt><tt class="descname">Query</tt><big>(</big><em>model</em>, <em>where=&lt;class 'django.db.models.sql.where.WhereNode'&gt;</em><big>)</big><a class="reference internal" href="modules/django/db/models/sql/query.html#Query"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.query.Query" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><tt class="descclassname">django.db.models.sql.query.</tt><tt class="descname">Query</tt><big>(</big><em>model</em>, <em>where=&lt;class 'django.db.models.sql.where.WhereNode'&gt;</em><big>)</big><a class="reference internal" href="_modules/django/db/models/sql/query.html#Query"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.query.Query" title="Permalink to this definition">¶</a></dt>
 <dd><p>A single SQL query.</p>
 <dl class="method">
 <dt id="django.db.models.sql.query.Query.add_aggregate">
-<tt class="descname">add_aggregate</tt><big>(</big><em>aggregate</em>, <em>model</em>, <em>alias</em>, <em>is_summary</em><big>)</big><a class="reference internal" href="modules/django/db/models/sql/query.html#Query.add_aggregate"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.query.Query.add_aggregate" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">add_aggregate</tt><big>(</big><em>aggregate</em>, <em>model</em>, <em>alias</em>, <em>is_summary</em><big>)</big><a class="reference internal" href="_modules/django/db/models/sql/query.html#Query.add_aggregate"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.query.Query.add_aggregate" title="Permalink to this definition">¶</a></dt>
 <dd><p>Adds a single aggregate expression to the Query</p>
 </dd></dl>
 
 <dl class="method">
 <dt id="django.db.models.sql.query.Query.add_count_column">
-<tt class="descname">add_count_column</tt><big>(</big><big>)</big><a class="reference internal" href="modules/django/db/models/sql/query.html#Query.add_count_column"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.query.Query.add_count_column" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">add_count_column</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/django/db/models/sql/query.html#Query.add_count_column"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.query.Query.add_count_column" title="Permalink to this definition">¶</a></dt>
 <dd><p>Converts the query to do count(...) or count(distinct(pk)) in order to
 get its size.</p>
 </dd></dl>
 
 <dl class="method">
 <dt id="django.db.models.sql.query.Query.add_deferred_loading">
-<tt class="descname">add_deferred_loading</tt><big>(</big><em>field_names</em><big>)</big><a class="reference internal" href="modules/django/db/models/sql/query.html#Query.add_deferred_loading"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.query.Query.add_deferred_loading" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">add_deferred_loading</tt><big>(</big><em>field_names</em><big>)</big><a class="reference internal" href="_modules/django/db/models/sql/query.html#Query.add_deferred_loading"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.query.Query.add_deferred_loading" title="Permalink to this definition">¶</a></dt>
 <dd><p>Add the given list of model field names to the set of fields to
 exclude from loading from the database when automatic column selection
 is done. The new field names are added to any existing field names that
@@ -704,27 +762,27 @@ as the only ones for immediate loading).</p>
 
 <dl class="method">
 <dt id="django.db.models.sql.query.Query.add_distinct_fields">
-<tt class="descname">add_distinct_fields</tt><big>(</big><em>*field_names</em><big>)</big><a class="reference internal" href="modules/django/db/models/sql/query.html#Query.add_distinct_fields"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.query.Query.add_distinct_fields" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">add_distinct_fields</tt><big>(</big><em>*field_names</em><big>)</big><a class="reference internal" href="_modules/django/db/models/sql/query.html#Query.add_distinct_fields"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.query.Query.add_distinct_fields" title="Permalink to this definition">¶</a></dt>
 <dd><p>Adds and resolves the given fields to the query&#8217;s &#8220;distinct on&#8221; clause.</p>
 </dd></dl>
 
 <dl class="method">
 <dt id="django.db.models.sql.query.Query.add_extra">
-<tt class="descname">add_extra</tt><big>(</big><em>select</em>, <em>select_params</em>, <em>where</em>, <em>params</em>, <em>tables</em>, <em>order_by</em><big>)</big><a class="reference internal" href="modules/django/db/models/sql/query.html#Query.add_extra"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.query.Query.add_extra" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">add_extra</tt><big>(</big><em>select</em>, <em>select_params</em>, <em>where</em>, <em>params</em>, <em>tables</em>, <em>order_by</em><big>)</big><a class="reference internal" href="_modules/django/db/models/sql/query.html#Query.add_extra"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.query.Query.add_extra" title="Permalink to this definition">¶</a></dt>
 <dd><p>Adds data to the various extra_* attributes for user-created additions
 to the query.</p>
 </dd></dl>
 
 <dl class="method">
 <dt id="django.db.models.sql.query.Query.add_fields">
-<tt class="descname">add_fields</tt><big>(</big><em>field_names</em>, <em>allow_m2m=True</em><big>)</big><a class="reference internal" href="modules/django/db/models/sql/query.html#Query.add_fields"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.query.Query.add_fields" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">add_fields</tt><big>(</big><em>field_names</em>, <em>allow_m2m=True</em><big>)</big><a class="reference internal" href="_modules/django/db/models/sql/query.html#Query.add_fields"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.query.Query.add_fields" title="Permalink to this definition">¶</a></dt>
 <dd><p>Adds the given (model) fields to the select set. The field names are
 added in the order specified.</p>
 </dd></dl>
 
 <dl class="method">
 <dt id="django.db.models.sql.query.Query.add_filter">
-<tt class="descname">add_filter</tt><big>(</big><em>filter_expr</em>, <em>connector='AND'</em>, <em>negate=False</em>, <em>trim=False</em>, <em>can_reuse=None</em>, <em>process_extras=True</em>, <em>force_having=False</em><big>)</big><a class="reference internal" href="modules/django/db/models/sql/query.html#Query.add_filter"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.query.Query.add_filter" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">add_filter</tt><big>(</big><em>filter_expr</em>, <em>connector='AND'</em>, <em>negate=False</em>, <em>trim=False</em>, <em>can_reuse=None</em>, <em>process_extras=True</em>, <em>force_having=False</em><big>)</big><a class="reference internal" href="_modules/django/db/models/sql/query.html#Query.add_filter"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.query.Query.add_filter" title="Permalink to this definition">¶</a></dt>
 <dd><p>Add a single filter to the query. The &#8216;filter_expr&#8217; is a pair:
 (filter_string, value). E.g. (&#8216;name__contains&#8217;, &#8216;fred&#8217;)</p>
 <p>If &#8216;negate&#8217; is True, this is an exclude() filter. It&#8217;s important to
@@ -747,7 +805,7 @@ during the processing of extra filters to avoid infinite recursion.</p>
 
 <dl class="method">
 <dt id="django.db.models.sql.query.Query.add_immediate_loading">
-<tt class="descname">add_immediate_loading</tt><big>(</big><em>field_names</em><big>)</big><a class="reference internal" href="modules/django/db/models/sql/query.html#Query.add_immediate_loading"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.query.Query.add_immediate_loading" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">add_immediate_loading</tt><big>(</big><em>field_names</em><big>)</big><a class="reference internal" href="_modules/django/db/models/sql/query.html#Query.add_immediate_loading"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.query.Query.add_immediate_loading" title="Permalink to this definition">¶</a></dt>
 <dd><p>Add the given list of model field names to the set of fields to
 retrieve when the SQL is executed (&#8220;immediate loading&#8221; fields). The
 field names replace any existing immediate loading field names. If
@@ -759,7 +817,7 @@ existing immediate values, but respects existing deferrals.)</p>
 
 <dl class="method">
 <dt id="django.db.models.sql.query.Query.add_ordering">
-<tt class="descname">add_ordering</tt><big>(</big><em>*ordering</em><big>)</big><a class="reference internal" href="modules/django/db/models/sql/query.html#Query.add_ordering"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.query.Query.add_ordering" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">add_ordering</tt><big>(</big><em>*ordering</em><big>)</big><a class="reference internal" href="_modules/django/db/models/sql/query.html#Query.add_ordering"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.query.Query.add_ordering" title="Permalink to this definition">¶</a></dt>
 <dd><p>Adds items from the &#8216;ordering&#8217; sequence to the query&#8217;s &#8220;order by&#8221;
 clause. These items are either field names (not column names) &#8211;
 possibly with a direction prefix (&#8216;-&#8216; or &#8216;?&#8217;) &#8211; or ordinals,
@@ -769,14 +827,14 @@ corresponding to column positions in the &#8216;select&#8217; list.</p>
 
 <dl class="method">
 <dt id="django.db.models.sql.query.Query.add_q">
-<tt class="descname">add_q</tt><big>(</big><em>q_object</em>, <em>used_aliases=None</em>, <em>force_having=False</em><big>)</big><a class="reference internal" href="modules/django/db/models/sql/query.html#Query.add_q"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.query.Query.add_q" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">add_q</tt><big>(</big><em>q_object</em>, <em>used_aliases=None</em>, <em>force_having=False</em><big>)</big><a class="reference internal" href="_modules/django/db/models/sql/query.html#Query.add_q"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.query.Query.add_q" title="Permalink to this definition">¶</a></dt>
 <dd><p>Adds a Q-object to the current filter.</p>
 <p>Can also be used to add anything that has an &#8216;add_to_query()&#8217; method.</p>
 </dd></dl>
 
 <dl class="method">
 <dt id="django.db.models.sql.query.Query.add_select_related">
-<tt class="descname">add_select_related</tt><big>(</big><em>fields</em><big>)</big><a class="reference internal" href="modules/django/db/models/sql/query.html#Query.add_select_related"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.query.Query.add_select_related" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">add_select_related</tt><big>(</big><em>fields</em><big>)</big><a class="reference internal" href="_modules/django/db/models/sql/query.html#Query.add_select_related"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.query.Query.add_select_related" title="Permalink to this definition">¶</a></dt>
 <dd><p>Sets up the select_related data structure so that we only select
 certain related models (as opposed to all models, when
 self.select_related=True).</p>
@@ -797,7 +855,7 @@ be used in the SELECT clause.</p>
 
 <dl class="method">
 <dt id="django.db.models.sql.query.Query.bump_prefix">
-<tt class="descname">bump_prefix</tt><big>(</big><em>exceptions=()</em><big>)</big><a class="reference internal" href="modules/django/db/models/sql/query.html#Query.bump_prefix"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.query.Query.bump_prefix" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">bump_prefix</tt><big>(</big><em>exceptions=()</em><big>)</big><a class="reference internal" href="_modules/django/db/models/sql/query.html#Query.bump_prefix"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.query.Query.bump_prefix" title="Permalink to this definition">¶</a></dt>
 <dd><p>Changes the alias prefix to the next letter in the alphabet and
 relabels all the aliases. Even tables that previously had no alias will
 get an alias after this call (it&#8217;s mostly used for nested queries and
@@ -810,14 +868,14 @@ should not be changed.</p>
 
 <dl class="method">
 <dt id="django.db.models.sql.query.Query.can_filter">
-<tt class="descname">can_filter</tt><big>(</big><big>)</big><a class="reference internal" href="modules/django/db/models/sql/query.html#Query.can_filter"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.query.Query.can_filter" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">can_filter</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/django/db/models/sql/query.html#Query.can_filter"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.query.Query.can_filter" title="Permalink to this definition">¶</a></dt>
 <dd><p>Returns True if adding filters to this instance is still possible.</p>
 <p>Typically, this means no limits or offsets have been put on the results.</p>
 </dd></dl>
 
 <dl class="method">
 <dt id="django.db.models.sql.query.Query.change_aliases">
-<tt class="descname">change_aliases</tt><big>(</big><em>change_map</em><big>)</big><a class="reference internal" href="modules/django/db/models/sql/query.html#Query.change_aliases"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.query.Query.change_aliases" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">change_aliases</tt><big>(</big><em>change_map</em><big>)</big><a class="reference internal" href="_modules/django/db/models/sql/query.html#Query.change_aliases"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.query.Query.change_aliases" title="Permalink to this definition">¶</a></dt>
 <dd><p>Changes the aliases in change_map (which maps old-alias -&gt; new-alias),
 relabelling any references to them in select columns and the where
 clause.</p>
@@ -825,26 +883,32 @@ clause.</p>
 
 <dl class="method">
 <dt id="django.db.models.sql.query.Query.clear_deferred_loading">
-<tt class="descname">clear_deferred_loading</tt><big>(</big><big>)</big><a class="reference internal" href="modules/django/db/models/sql/query.html#Query.clear_deferred_loading"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.query.Query.clear_deferred_loading" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">clear_deferred_loading</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/django/db/models/sql/query.html#Query.clear_deferred_loading"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.query.Query.clear_deferred_loading" title="Permalink to this definition">¶</a></dt>
 <dd><p>Remove any fields from the deferred loading set.</p>
 </dd></dl>
 
 <dl class="method">
 <dt id="django.db.models.sql.query.Query.clear_limits">
-<tt class="descname">clear_limits</tt><big>(</big><big>)</big><a class="reference internal" href="modules/django/db/models/sql/query.html#Query.clear_limits"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.query.Query.clear_limits" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">clear_limits</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/django/db/models/sql/query.html#Query.clear_limits"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.query.Query.clear_limits" title="Permalink to this definition">¶</a></dt>
 <dd><p>Clears any existing limits.</p>
 </dd></dl>
 
 <dl class="method">
 <dt id="django.db.models.sql.query.Query.clear_ordering">
-<tt class="descname">clear_ordering</tt><big>(</big><em>force_empty=False</em><big>)</big><a class="reference internal" href="modules/django/db/models/sql/query.html#Query.clear_ordering"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.query.Query.clear_ordering" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">clear_ordering</tt><big>(</big><em>force_empty=False</em><big>)</big><a class="reference internal" href="_modules/django/db/models/sql/query.html#Query.clear_ordering"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.query.Query.clear_ordering" title="Permalink to this definition">¶</a></dt>
 <dd><p>Removes any ordering settings. If &#8216;force_empty&#8217; is True, there will be
 no ordering in the resulting query (not even the model&#8217;s default).</p>
 </dd></dl>
 
 <dl class="method">
+<dt id="django.db.models.sql.query.Query.clear_select_clause">
+<tt class="descname">clear_select_clause</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/django/db/models/sql/query.html#Query.clear_select_clause"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.query.Query.clear_select_clause" title="Permalink to this definition">¶</a></dt>
+<dd><p>Removes all fields from SELECT clause.</p>
+</dd></dl>
+
+<dl class="method">
 <dt id="django.db.models.sql.query.Query.clear_select_fields">
-<tt class="descname">clear_select_fields</tt><big>(</big><big>)</big><a class="reference internal" href="modules/django/db/models/sql/query.html#Query.clear_select_fields"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.query.Query.clear_select_fields" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">clear_select_fields</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/django/db/models/sql/query.html#Query.clear_select_fields"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.query.Query.clear_select_fields" title="Permalink to this definition">¶</a></dt>
 <dd><p>Clears the list of fields to select (but not extra_select columns).
 Some queryset types completely replace any existing list of select
 columns.</p>
@@ -852,14 +916,14 @@ columns.</p>
 
 <dl class="method">
 <dt id="django.db.models.sql.query.Query.clone">
-<tt class="descname">clone</tt><big>(</big><em>klass=None</em>, <em>memo=None</em>, <em>**kwargs</em><big>)</big><a class="reference internal" href="modules/django/db/models/sql/query.html#Query.clone"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.query.Query.clone" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">clone</tt><big>(</big><em>klass=None</em>, <em>memo=None</em>, <em>**kwargs</em><big>)</big><a class="reference internal" href="_modules/django/db/models/sql/query.html#Query.clone"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.query.Query.clone" title="Permalink to this definition">¶</a></dt>
 <dd><p>Creates a copy of the current instance. The &#8216;kwargs&#8217; parameter can be
 used by clients to update attributes after copying has taken place.</p>
 </dd></dl>
 
 <dl class="method">
 <dt id="django.db.models.sql.query.Query.combine">
-<tt class="descname">combine</tt><big>(</big><em>rhs</em>, <em>connector</em><big>)</big><a class="reference internal" href="modules/django/db/models/sql/query.html#Query.combine"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.query.Query.combine" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">combine</tt><big>(</big><em>rhs</em>, <em>connector</em><big>)</big><a class="reference internal" href="_modules/django/db/models/sql/query.html#Query.combine"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.query.Query.combine" title="Permalink to this definition">¶</a></dt>
 <dd><p>Merge the &#8216;rhs&#8217; query into the current one (with any &#8216;rhs&#8217; effects
 being applied <em>after</em> (that is, &#8220;to the right of&#8221;) anything in the
 current query. &#8216;rhs&#8217; is not modified during a call to this function.</p>
@@ -869,7 +933,7 @@ current query. &#8216;rhs&#8217; is not modified during a call to this function.
 
 <dl class="method">
 <dt id="django.db.models.sql.query.Query.convert_values">
-<tt class="descname">convert_values</tt><big>(</big><em>value</em>, <em>field</em>, <em>connection</em><big>)</big><a class="reference internal" href="modules/django/db/models/sql/query.html#Query.convert_values"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.query.Query.convert_values" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">convert_values</tt><big>(</big><em>value</em>, <em>field</em>, <em>connection</em><big>)</big><a class="reference internal" href="_modules/django/db/models/sql/query.html#Query.convert_values"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.query.Query.convert_values" title="Permalink to this definition">¶</a></dt>
 <dd><p>Convert the database-returned value into a type that is consistent
 across database backends.</p>
 <p>By default, this defers to the underlying backend operations, but
@@ -878,7 +942,7 @@ it can be overridden by Query classes for specific backends.</p>
 
 <dl class="method">
 <dt id="django.db.models.sql.query.Query.count_active_tables">
-<tt class="descname">count_active_tables</tt><big>(</big><big>)</big><a class="reference internal" href="modules/django/db/models/sql/query.html#Query.count_active_tables"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.query.Query.count_active_tables" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">count_active_tables</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/django/db/models/sql/query.html#Query.count_active_tables"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.query.Query.count_active_tables" title="Permalink to this definition">¶</a></dt>
 <dd><p>Returns the number of tables in this query with a non-zero reference
 count. Note that after execution, the reference counts are zeroed, so
 tables added in compiler will not be seen by this method.</p>
@@ -886,14 +950,14 @@ tables added in compiler will not be seen by this method.</p>
 
 <dl class="method">
 <dt id="django.db.models.sql.query.Query.deferred_to_columns_cb">
-<tt class="descname">deferred_to_columns_cb</tt><big>(</big><em>target</em>, <em>model</em>, <em>fields</em><big>)</big><a class="reference internal" href="modules/django/db/models/sql/query.html#Query.deferred_to_columns_cb"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.query.Query.deferred_to_columns_cb" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">deferred_to_columns_cb</tt><big>(</big><em>target</em>, <em>model</em>, <em>fields</em><big>)</big><a class="reference internal" href="_modules/django/db/models/sql/query.html#Query.deferred_to_columns_cb"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.query.Query.deferred_to_columns_cb" title="Permalink to this definition">¶</a></dt>
 <dd><p>Callback used by deferred_to_columns(). The &#8220;target&#8221; parameter should
 be a set instance.</p>
 </dd></dl>
 
 <dl class="method">
 <dt id="django.db.models.sql.query.Query.deferred_to_data">
-<tt class="descname">deferred_to_data</tt><big>(</big><em>target</em>, <em>callback</em><big>)</big><a class="reference internal" href="modules/django/db/models/sql/query.html#Query.deferred_to_data"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.query.Query.deferred_to_data" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">deferred_to_data</tt><big>(</big><em>target</em>, <em>callback</em><big>)</big><a class="reference internal" href="_modules/django/db/models/sql/query.html#Query.deferred_to_data"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.query.Query.deferred_to_data" title="Permalink to this definition">¶</a></dt>
 <dd><p>Converts the self.deferred_loading data structure to an alternate data
 structure, describing the field that <em>will</em> be loaded. This is used to
 compute the columns to select from the database and also by the
@@ -908,26 +972,26 @@ pair need to be added to &#8220;target&#8221;. It accepts three parameters:
 
 <dl class="method">
 <dt id="django.db.models.sql.query.Query.get_aggregation">
-<tt class="descname">get_aggregation</tt><big>(</big><em>using</em><big>)</big><a class="reference internal" href="modules/django/db/models/sql/query.html#Query.get_aggregation"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.query.Query.get_aggregation" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">get_aggregation</tt><big>(</big><em>using</em><big>)</big><a class="reference internal" href="_modules/django/db/models/sql/query.html#Query.get_aggregation"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.query.Query.get_aggregation" title="Permalink to this definition">¶</a></dt>
 <dd><p>Returns the dictionary with the values of the existing aggregations.</p>
 </dd></dl>
 
 <dl class="method">
 <dt id="django.db.models.sql.query.Query.get_count">
-<tt class="descname">get_count</tt><big>(</big><em>using</em><big>)</big><a class="reference internal" href="modules/django/db/models/sql/query.html#Query.get_count"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.query.Query.get_count" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">get_count</tt><big>(</big><em>using</em><big>)</big><a class="reference internal" href="_modules/django/db/models/sql/query.html#Query.get_count"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.query.Query.get_count" title="Permalink to this definition">¶</a></dt>
 <dd><p>Performs a COUNT() query using the current filter constraints.</p>
 </dd></dl>
 
 <dl class="method">
 <dt id="django.db.models.sql.query.Query.get_initial_alias">
-<tt class="descname">get_initial_alias</tt><big>(</big><big>)</big><a class="reference internal" href="modules/django/db/models/sql/query.html#Query.get_initial_alias"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.query.Query.get_initial_alias" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">get_initial_alias</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/django/db/models/sql/query.html#Query.get_initial_alias"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.query.Query.get_initial_alias" title="Permalink to this definition">¶</a></dt>
 <dd><p>Returns the first alias for this query, after increasing its reference
 count.</p>
 </dd></dl>
 
 <dl class="method">
 <dt id="django.db.models.sql.query.Query.get_loaded_field_names">
-<tt class="descname">get_loaded_field_names</tt><big>(</big><big>)</big><a class="reference internal" href="modules/django/db/models/sql/query.html#Query.get_loaded_field_names"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.query.Query.get_loaded_field_names" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">get_loaded_field_names</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/django/db/models/sql/query.html#Query.get_loaded_field_names"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.query.Query.get_loaded_field_names" title="Permalink to this definition">¶</a></dt>
 <dd><p>If any fields are marked to be deferred, returns a dictionary mapping
 models to a set of names in those fields that will be loaded. If a
 model is not in the returned dictionary, none of it&#8217;s fields are
@@ -937,21 +1001,30 @@ deferred.</p>
 
 <dl class="method">
 <dt id="django.db.models.sql.query.Query.get_loaded_field_names_cb">
-<tt class="descname">get_loaded_field_names_cb</tt><big>(</big><em>target</em>, <em>model</em>, <em>fields</em><big>)</big><a class="reference internal" href="modules/django/db/models/sql/query.html#Query.get_loaded_field_names_cb"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.query.Query.get_loaded_field_names_cb" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">get_loaded_field_names_cb</tt><big>(</big><em>target</em>, <em>model</em>, <em>fields</em><big>)</big><a class="reference internal" href="_modules/django/db/models/sql/query.html#Query.get_loaded_field_names_cb"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.query.Query.get_loaded_field_names_cb" title="Permalink to this definition">¶</a></dt>
 <dd><p>Callback used by get_deferred_field_names().</p>
 </dd></dl>
 
 <dl class="method">
 <dt id="django.db.models.sql.query.Query.get_meta">
-<tt class="descname">get_meta</tt><big>(</big><big>)</big><a class="reference internal" href="modules/django/db/models/sql/query.html#Query.get_meta"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.query.Query.get_meta" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">get_meta</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/django/db/models/sql/query.html#Query.get_meta"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.query.Query.get_meta" title="Permalink to this definition">¶</a></dt>
 <dd><p>Returns the Options instance (the model._meta) from which to start
 processing. Normally, this is self.model._meta, but it can be changed
 by subclasses.</p>
 </dd></dl>
 
 <dl class="method">
+<dt id="django.db.models.sql.query.Query.is_nullable">
+<tt class="descname">is_nullable</tt><big>(</big><em>field</em><big>)</big><a class="reference internal" href="_modules/django/db/models/sql/query.html#Query.is_nullable"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.query.Query.is_nullable" title="Permalink to this definition">¶</a></dt>
+<dd><p>A helper to check if the given field should be treated as nullable.</p>
+<p>Some backends treat &#8216;&#8217; as null and Django treats such fields as
+nullable for those backends. In such situations field.null can be
+False even if we should treat the field as nullable.</p>
+</dd></dl>
+
+<dl class="method">
 <dt id="django.db.models.sql.query.Query.join">
-<tt class="descname">join</tt><big>(</big><em>connection</em>, <em>always_create=False</em>, <em>exclusions=()</em>, <em>promote=False</em>, <em>outer_if_first=False</em>, <em>nullable=False</em>, <em>reuse=None</em><big>)</big><a class="reference internal" href="modules/django/db/models/sql/query.html#Query.join"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.query.Query.join" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">join</tt><big>(</big><em>connection</em>, <em>always_create=False</em>, <em>exclusions=()</em>, <em>promote=False</em>, <em>outer_if_first=False</em>, <em>nullable=False</em>, <em>reuse=None</em><big>)</big><a class="reference internal" href="_modules/django/db/models/sql/query.html#Query.join"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.query.Query.join" title="Permalink to this definition">¶</a></dt>
 <dd><p>Returns an alias for the join in &#8216;connection&#8217;, either reusing an
 existing alias for that join or creating a new one. &#8216;connection&#8217; is a
 tuple (lhs, table, lhs_col, col) where &#8216;lhs&#8217; is either an existing
@@ -975,38 +1048,38 @@ to LOUTER, if necessary).</p>
 <p>If &#8216;outer_if_first&#8217; is True and a new join is created, it will have the
 LOUTER join type. This is used when joining certain types of querysets
 and Q-objects together.</p>
+<p>A join is always created as LOUTER if the lhs alias is LOUTER to make
+sure we do not generate chains like a LOUTER b INNER c.</p>
 <p>If &#8216;nullable&#8217; is True, the join can potentially involve NULL values and
 is a candidate for promotion (to &#8220;left outer&#8221;) when combining querysets.</p>
 </dd></dl>
 
 <dl class="method">
 <dt id="django.db.models.sql.query.Query.need_force_having">
-<tt class="descname">need_force_having</tt><big>(</big><em>q_object</em><big>)</big><a class="reference internal" href="modules/django/db/models/sql/query.html#Query.need_force_having"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.query.Query.need_force_having" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">need_force_having</tt><big>(</big><em>q_object</em><big>)</big><a class="reference internal" href="_modules/django/db/models/sql/query.html#Query.need_force_having"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.query.Query.need_force_having" title="Permalink to this definition">¶</a></dt>
 <dd><p>Returns whether or not all elements of this q_object need to be put
 together in the HAVING clause.</p>
 </dd></dl>
 
 <dl class="method">
-<dt id="django.db.models.sql.query.Query.promote_alias">
-<tt class="descname">promote_alias</tt><big>(</big><em>alias</em>, <em>unconditional=False</em><big>)</big><a class="reference internal" href="modules/django/db/models/sql/query.html#Query.promote_alias"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.query.Query.promote_alias" title="Permalink to this definition">¶</a></dt>
-<dd><p>Promotes the join type of an alias to an outer join if it&#8217;s possible
-for the join to contain NULL values on the left. If &#8216;unconditional&#8217; is
-False, the join is only promoted if it is nullable, otherwise it is
-always promoted.</p>
-<p>Returns True if the join was promoted by this call.</p>
-</dd></dl>
-
-<dl class="method">
-<dt id="django.db.models.sql.query.Query.promote_alias_chain">
-<tt class="descname">promote_alias_chain</tt><big>(</big><em>chain</em>, <em>must_promote=False</em><big>)</big><a class="reference internal" href="modules/django/db/models/sql/query.html#Query.promote_alias_chain"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.query.Query.promote_alias_chain" title="Permalink to this definition">¶</a></dt>
-<dd><p>Walks along a chain of aliases, promoting the first nullable join and
-any joins following that. If &#8216;must_promote&#8217; is True, all the aliases in
-the chain are promoted.</p>
+<dt id="django.db.models.sql.query.Query.promote_joins">
+<tt class="descname">promote_joins</tt><big>(</big><em>aliases</em>, <em>unconditional=False</em><big>)</big><a class="reference internal" href="_modules/django/db/models/sql/query.html#Query.promote_joins"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.query.Query.promote_joins" title="Permalink to this definition">¶</a></dt>
+<dd><p>Promotes recursively the join type of given aliases and its children to
+an outer join. If &#8216;unconditional&#8217; is False, the join is only promoted if
+it is nullable or the parent join is an outer join.</p>
+<p>Note about join promotion: When promoting any alias, we make sure all
+joins which start from that alias are promoted, too. When adding a join
+in join(), we make sure any join added to already existing LOUTER join
+is generated as LOUTER. This ensures we don&#8217;t ever have broken join
+chains which contain first a LOUTER join, then an INNER JOIN, that is
+this kind of join should never be generated: a LOUTER b INNER c. The
+reason for avoiding this type of join chain is that the INNER after
+the LOUTER will effectively remove any effect the LOUTER had.</p>
 </dd></dl>
 
 <dl class="method">
 <dt id="django.db.models.sql.query.Query.promote_unused_aliases">
-<tt class="descname">promote_unused_aliases</tt><big>(</big><em>initial_refcounts</em>, <em>used_aliases</em><big>)</big><a class="reference internal" href="modules/django/db/models/sql/query.html#Query.promote_unused_aliases"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.query.Query.promote_unused_aliases" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">promote_unused_aliases</tt><big>(</big><em>initial_refcounts</em>, <em>used_aliases</em><big>)</big><a class="reference internal" href="_modules/django/db/models/sql/query.html#Query.promote_unused_aliases"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.query.Query.promote_unused_aliases" title="Permalink to this definition">¶</a></dt>
 <dd><p>Given a &#8220;before&#8221; copy of the alias_refcounts dictionary (as
 &#8216;initial_refcounts&#8217;) and a collection of aliases that may have been
 changed or created, works out which aliases have been created since
@@ -1016,27 +1089,27 @@ aliases, plus any children of theirs in the alias tree, to outer joins.</p>
 
 <dl class="method">
 <dt id="django.db.models.sql.query.Query.ref_alias">
-<tt class="descname">ref_alias</tt><big>(</big><em>alias</em><big>)</big><a class="reference internal" href="modules/django/db/models/sql/query.html#Query.ref_alias"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.query.Query.ref_alias" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">ref_alias</tt><big>(</big><em>alias</em><big>)</big><a class="reference internal" href="_modules/django/db/models/sql/query.html#Query.ref_alias"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.query.Query.ref_alias" title="Permalink to this definition">¶</a></dt>
 <dd><p>Increases the reference count for this alias.</p>
 </dd></dl>
 
 <dl class="method">
 <dt id="django.db.models.sql.query.Query.remove_inherited_models">
-<tt class="descname">remove_inherited_models</tt><big>(</big><big>)</big><a class="reference internal" href="modules/django/db/models/sql/query.html#Query.remove_inherited_models"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.query.Query.remove_inherited_models" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">remove_inherited_models</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/django/db/models/sql/query.html#Query.remove_inherited_models"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.query.Query.remove_inherited_models" title="Permalink to this definition">¶</a></dt>
 <dd><p>Undoes the effects of setup_inherited_models(). Should be called
 whenever select columns (self.select) are set explicitly.</p>
 </dd></dl>
 
 <dl class="method">
 <dt id="django.db.models.sql.query.Query.reset_refcounts">
-<tt class="descname">reset_refcounts</tt><big>(</big><em>to_counts</em><big>)</big><a class="reference internal" href="modules/django/db/models/sql/query.html#Query.reset_refcounts"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.query.Query.reset_refcounts" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">reset_refcounts</tt><big>(</big><em>to_counts</em><big>)</big><a class="reference internal" href="_modules/django/db/models/sql/query.html#Query.reset_refcounts"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.query.Query.reset_refcounts" title="Permalink to this definition">¶</a></dt>
 <dd><p>This method will reset reference counts for aliases so that they match
 the value passed in :param to_counts:.</p>
 </dd></dl>
 
 <dl class="method">
 <dt id="django.db.models.sql.query.Query.resolve_aggregate">
-<tt class="descname">resolve_aggregate</tt><big>(</big><em>value</em>, <em>aggregate</em>, <em>connection</em><big>)</big><a class="reference internal" href="modules/django/db/models/sql/query.html#Query.resolve_aggregate"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.query.Query.resolve_aggregate" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">resolve_aggregate</tt><big>(</big><em>value</em>, <em>aggregate</em>, <em>connection</em><big>)</big><a class="reference internal" href="_modules/django/db/models/sql/query.html#Query.resolve_aggregate"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.query.Query.resolve_aggregate" title="Permalink to this definition">¶</a></dt>
 <dd><p>Resolve the value of aggregates returned by the database to
 consistent (and reasonable) types.</p>
 <p>This is required because of the predisposition of certain backends
@@ -1045,13 +1118,13 @@ to return Decimal and long types when they are not needed.</p>
 
 <dl class="method">
 <dt id="django.db.models.sql.query.Query.set_aggregate_mask">
-<tt class="descname">set_aggregate_mask</tt><big>(</big><em>names</em><big>)</big><a class="reference internal" href="modules/django/db/models/sql/query.html#Query.set_aggregate_mask"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.query.Query.set_aggregate_mask" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">set_aggregate_mask</tt><big>(</big><em>names</em><big>)</big><a class="reference internal" href="_modules/django/db/models/sql/query.html#Query.set_aggregate_mask"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.query.Query.set_aggregate_mask" title="Permalink to this definition">¶</a></dt>
 <dd><p>Set the mask of aggregates that will actually be returned by the SELECT</p>
 </dd></dl>
 
 <dl class="method">
 <dt id="django.db.models.sql.query.Query.set_extra_mask">
-<tt class="descname">set_extra_mask</tt><big>(</big><em>names</em><big>)</big><a class="reference internal" href="modules/django/db/models/sql/query.html#Query.set_extra_mask"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.query.Query.set_extra_mask" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">set_extra_mask</tt><big>(</big><em>names</em><big>)</big><a class="reference internal" href="_modules/django/db/models/sql/query.html#Query.set_extra_mask"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.query.Query.set_extra_mask" title="Permalink to this definition">¶</a></dt>
 <dd><p>Set the mask of extra select items that will be returned by SELECT,
 we don&#8217;t actually remove them from the Query since they might be used
 later</p>
@@ -1059,7 +1132,7 @@ later</p>
 
 <dl class="method">
 <dt id="django.db.models.sql.query.Query.set_group_by">
-<tt class="descname">set_group_by</tt><big>(</big><big>)</big><a class="reference internal" href="modules/django/db/models/sql/query.html#Query.set_group_by"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.query.Query.set_group_by" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">set_group_by</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/django/db/models/sql/query.html#Query.set_group_by"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.query.Query.set_group_by" title="Permalink to this definition">¶</a></dt>
 <dd><p>Expands the GROUP BY clause required by the query.</p>
 <p>This will usually be the set of all non-aggregate fields in the
 return data. If the database backend supports grouping by the
@@ -1069,7 +1142,7 @@ will be made automatically.</p>
 
 <dl class="method">
 <dt id="django.db.models.sql.query.Query.set_limits">
-<tt class="descname">set_limits</tt><big>(</big><em>low=None</em>, <em>high=None</em><big>)</big><a class="reference internal" href="modules/django/db/models/sql/query.html#Query.set_limits"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.query.Query.set_limits" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">set_limits</tt><big>(</big><em>low=None</em>, <em>high=None</em><big>)</big><a class="reference internal" href="_modules/django/db/models/sql/query.html#Query.set_limits"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.query.Query.set_limits" title="Permalink to this definition">¶</a></dt>
 <dd><p>Adjusts the limits on the rows retrieved. We use low/high to set these,
 as it makes it more Pythonic to read and write. When the SQL query is
 created, they are converted to the appropriate offset and limit values.</p>
@@ -1080,7 +1153,7 @@ clamped to any existing high value.</p>
 
 <dl class="method">
 <dt id="django.db.models.sql.query.Query.set_start">
-<tt class="descname">set_start</tt><big>(</big><em>start</em><big>)</big><a class="reference internal" href="modules/django/db/models/sql/query.html#Query.set_start"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.query.Query.set_start" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">set_start</tt><big>(</big><em>start</em><big>)</big><a class="reference internal" href="_modules/django/db/models/sql/query.html#Query.set_start"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.query.Query.set_start" title="Permalink to this definition">¶</a></dt>
 <dd><p>Sets the table from which to start joining. The start position is
 specified by the related attribute from the base model. This will
 automatically set to the select column to be the column linked from the
@@ -1092,7 +1165,7 @@ against the join table of many-to-many relation in a subquery.</p>
 
 <dl class="method">
 <dt id="django.db.models.sql.query.Query.setup_inherited_models">
-<tt class="descname">setup_inherited_models</tt><big>(</big><big>)</big><a class="reference internal" href="modules/django/db/models/sql/query.html#Query.setup_inherited_models"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.query.Query.setup_inherited_models" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">setup_inherited_models</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/django/db/models/sql/query.html#Query.setup_inherited_models"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.query.Query.setup_inherited_models" title="Permalink to this definition">¶</a></dt>
 <dd><p>If the model that is the basis for this QuerySet inherits other models,
 we need to ensure that those other models have their tables included in
 the query.</p>
@@ -1105,7 +1178,7 @@ as_sql()).</p>
 
 <dl class="method">
 <dt id="django.db.models.sql.query.Query.setup_joins">
-<tt class="descname">setup_joins</tt><big>(</big><em>names</em>, <em>opts</em>, <em>alias</em>, <em>dupe_multis</em>, <em>allow_many=True</em>, <em>allow_explicit_fk=False</em>, <em>can_reuse=None</em>, <em>negate=False</em>, <em>process_extras=True</em><big>)</big><a class="reference internal" href="modules/django/db/models/sql/query.html#Query.setup_joins"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.query.Query.setup_joins" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">setup_joins</tt><big>(</big><em>names</em>, <em>opts</em>, <em>alias</em>, <em>dupe_multis</em>, <em>allow_many=True</em>, <em>allow_explicit_fk=False</em>, <em>can_reuse=None</em>, <em>negate=False</em>, <em>process_extras=True</em><big>)</big><a class="reference internal" href="_modules/django/db/models/sql/query.html#Query.setup_joins"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.query.Query.setup_joins" title="Permalink to this definition">¶</a></dt>
 <dd><p>Compute the necessary table joins for the passage through the fields
 given in &#8216;names&#8217;. &#8216;opts&#8217; is the Options class for the current model
 (which gives the table we are joining to), &#8216;alias&#8217; is the alias for the
@@ -1124,7 +1197,7 @@ list of tables joined.</p>
 
 <dl class="method">
 <dt id="django.db.models.sql.query.Query.split_exclude">
-<tt class="descname">split_exclude</tt><big>(</big><em>filter_expr</em>, <em>prefix</em>, <em>can_reuse</em><big>)</big><a class="reference internal" href="modules/django/db/models/sql/query.html#Query.split_exclude"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.query.Query.split_exclude" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">split_exclude</tt><big>(</big><em>filter_expr</em>, <em>prefix</em>, <em>can_reuse</em><big>)</big><a class="reference internal" href="_modules/django/db/models/sql/query.html#Query.split_exclude"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.query.Query.split_exclude" title="Permalink to this definition">¶</a></dt>
 <dd><p>When doing an exclude against any kind of N-to-many relation, we need
 to use a subquery. This method constructs the nested query, given the
 original exclude filter (filter_expr) and the portion up to the first
@@ -1133,14 +1206,14 @@ N-to-many relation field.</p>
 
 <dl class="method">
 <dt id="django.db.models.sql.query.Query.sql_with_params">
-<tt class="descname">sql_with_params</tt><big>(</big><big>)</big><a class="reference internal" href="modules/django/db/models/sql/query.html#Query.sql_with_params"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.query.Query.sql_with_params" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">sql_with_params</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/django/db/models/sql/query.html#Query.sql_with_params"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.query.Query.sql_with_params" title="Permalink to this definition">¶</a></dt>
 <dd><p>Returns the query as an SQL string and the parameters that will be
 subsituted into the query.</p>
 </dd></dl>
 
 <dl class="method">
 <dt id="django.db.models.sql.query.Query.table_alias">
-<tt class="descname">table_alias</tt><big>(</big><em>table_name</em>, <em>create=False</em><big>)</big><a class="reference internal" href="modules/django/db/models/sql/query.html#Query.table_alias"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.query.Query.table_alias" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">table_alias</tt><big>(</big><em>table_name</em>, <em>create=False</em><big>)</big><a class="reference internal" href="_modules/django/db/models/sql/query.html#Query.table_alias"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.query.Query.table_alias" title="Permalink to this definition">¶</a></dt>
 <dd><p>Returns a table alias for the given table_name and whether this is a
 new alias or not.</p>
 <p>If &#8216;create&#8217; is true, a new alias is always created. Otherwise, the
@@ -1149,7 +1222,7 @@ most recently created alias for the table (if one exists) is reused.</p>
 
 <dl class="method">
 <dt id="django.db.models.sql.query.Query.trim_joins">
-<tt class="descname">trim_joins</tt><big>(</big><em>target</em>, <em>join_list</em>, <em>last</em>, <em>trim</em>, <em>nonnull_check=False</em><big>)</big><a class="reference internal" href="modules/django/db/models/sql/query.html#Query.trim_joins"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.query.Query.trim_joins" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">trim_joins</tt><big>(</big><em>target</em>, <em>join_list</em>, <em>last</em>, <em>trim</em>, <em>nonnull_check=False</em><big>)</big><a class="reference internal" href="_modules/django/db/models/sql/query.html#Query.trim_joins"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.query.Query.trim_joins" title="Permalink to this definition">¶</a></dt>
 <dd><p>Sometimes joins at the end of a multi-table sequence can be trimmed. If
 the final join is against the same column as we are comparing against,
 and is an inner join, we can go back one step in a join chain and
@@ -1175,13 +1248,13 @@ join_list.</p>
 
 <dl class="method">
 <dt id="django.db.models.sql.query.Query.unref_alias">
-<tt class="descname">unref_alias</tt><big>(</big><em>alias</em>, <em>amount=1</em><big>)</big><a class="reference internal" href="modules/django/db/models/sql/query.html#Query.unref_alias"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.query.Query.unref_alias" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">unref_alias</tt><big>(</big><em>alias</em>, <em>amount=1</em><big>)</big><a class="reference internal" href="_modules/django/db/models/sql/query.html#Query.unref_alias"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.query.Query.unref_alias" title="Permalink to this definition">¶</a></dt>
 <dd><p>Decreases the reference count for this alias.</p>
 </dd></dl>
 
 <dl class="method">
 <dt id="django.db.models.sql.query.Query.update_dupe_avoidance">
-<tt class="descname">update_dupe_avoidance</tt><big>(</big><em>opts</em>, <em>col</em>, <em>alias</em><big>)</big><a class="reference internal" href="modules/django/db/models/sql/query.html#Query.update_dupe_avoidance"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.query.Query.update_dupe_avoidance" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">update_dupe_avoidance</tt><big>(</big><em>opts</em>, <em>col</em>, <em>alias</em><big>)</big><a class="reference internal" href="_modules/django/db/models/sql/query.html#Query.update_dupe_avoidance"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.query.Query.update_dupe_avoidance" title="Permalink to this definition">¶</a></dt>
 <dd><p>For a column that is one of multiple pointing to the same table, update
 the internal data structures to note that this alias shouldn&#8217;t be used
 for those other columns.</p>
@@ -1191,11 +1264,11 @@ for those other columns.</p>
 
 <dl class="class">
 <dt id="django.db.models.sql.query.RawQuery">
-<em class="property">class </em><tt class="descclassname">django.db.models.sql.query.</tt><tt class="descname">RawQuery</tt><big>(</big><em>sql</em>, <em>using</em>, <em>params=None</em><big>)</big><a class="reference internal" href="modules/django/db/models/sql/query.html#RawQuery"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.query.RawQuery" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><tt class="descclassname">django.db.models.sql.query.</tt><tt class="descname">RawQuery</tt><big>(</big><em>sql</em>, <em>using</em>, <em>params=None</em><big>)</big><a class="reference internal" href="_modules/django/db/models/sql/query.html#RawQuery"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.query.RawQuery" title="Permalink to this definition">¶</a></dt>
 <dd><p>A single raw SQL query</p>
 <dl class="method">
 <dt id="django.db.models.sql.query.RawQuery.convert_values">
-<tt class="descname">convert_values</tt><big>(</big><em>value</em>, <em>field</em>, <em>connection</em><big>)</big><a class="reference internal" href="modules/django/db/models/sql/query.html#RawQuery.convert_values"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.query.RawQuery.convert_values" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">convert_values</tt><big>(</big><em>value</em>, <em>field</em>, <em>connection</em><big>)</big><a class="reference internal" href="_modules/django/db/models/sql/query.html#RawQuery.convert_values"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.query.RawQuery.convert_values" title="Permalink to this definition">¶</a></dt>
 <dd><p>Convert the database-returned value into a type that is consistent
 across database backends.</p>
 <p>By default, this defers to the underlying backend operations, but
@@ -1213,33 +1286,41 @@ it can be overridden by Query classes for specific backends.</p>
 <span class="target" id="module-django.db.models.sql.subqueries"></span><p>Query subclasses which provide extra functionality beyond simple data retrieval.</p>
 <dl class="class">
 <dt id="django.db.models.sql.subqueries.DeleteQuery">
-<em class="property">class </em><tt class="descclassname">django.db.models.sql.subqueries.</tt><tt class="descname">DeleteQuery</tt><big>(</big><em>model</em>, <em>where=&lt;class 'django.db.models.sql.where.WhereNode'&gt;</em><big>)</big><a class="reference internal" href="modules/django/db/models/sql/subqueries.html#DeleteQuery"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.subqueries.DeleteQuery" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><tt class="descclassname">django.db.models.sql.subqueries.</tt><tt class="descname">DeleteQuery</tt><big>(</big><em>model</em>, <em>where=&lt;class 'django.db.models.sql.where.WhereNode'&gt;</em><big>)</big><a class="reference internal" href="_modules/django/db/models/sql/subqueries.html#DeleteQuery"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.subqueries.DeleteQuery" title="Permalink to this definition">¶</a></dt>
 <dd><p>Delete queries are done through this class, since they are more constrained
 than general queries.</p>
 <dl class="method">
 <dt id="django.db.models.sql.subqueries.DeleteQuery.delete_batch">
-<tt class="descname">delete_batch</tt><big>(</big><em>pk_list</em>, <em>using</em>, <em>field=None</em><big>)</big><a class="reference internal" href="modules/django/db/models/sql/subqueries.html#DeleteQuery.delete_batch"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.subqueries.DeleteQuery.delete_batch" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">delete_batch</tt><big>(</big><em>pk_list</em>, <em>using</em>, <em>field=None</em><big>)</big><a class="reference internal" href="_modules/django/db/models/sql/subqueries.html#DeleteQuery.delete_batch"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.subqueries.DeleteQuery.delete_batch" title="Permalink to this definition">¶</a></dt>
 <dd><p>Set up and execute delete queries for all the objects in pk_list.</p>
 <p>More than one physical query may be executed if there are a
 lot of values in pk_list.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="django.db.models.sql.subqueries.DeleteQuery.delete_qs">
+<tt class="descname">delete_qs</tt><big>(</big><em>query</em>, <em>using</em><big>)</big><a class="reference internal" href="_modules/django/db/models/sql/subqueries.html#DeleteQuery.delete_qs"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.subqueries.DeleteQuery.delete_qs" title="Permalink to this definition">¶</a></dt>
+<dd><p>Delete the queryset in one SQL query (if possible). For simple queries
+this is done by copying the query.query.where to self.query, for
+complex queries by using subquery.</p>
 </dd></dl>
 
 </dd></dl>
 
 <dl class="class">
 <dt id="django.db.models.sql.subqueries.UpdateQuery">
-<em class="property">class </em><tt class="descclassname">django.db.models.sql.subqueries.</tt><tt class="descname">UpdateQuery</tt><big>(</big><em>*args</em>, <em>**kwargs</em><big>)</big><a class="reference internal" href="modules/django/db/models/sql/subqueries.html#UpdateQuery"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.subqueries.UpdateQuery" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><tt class="descclassname">django.db.models.sql.subqueries.</tt><tt class="descname">UpdateQuery</tt><big>(</big><em>*args</em>, <em>**kwargs</em><big>)</big><a class="reference internal" href="_modules/django/db/models/sql/subqueries.html#UpdateQuery"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.subqueries.UpdateQuery" title="Permalink to this definition">¶</a></dt>
 <dd><p>Represents an &#8220;update&#8221; SQL query.</p>
 <dl class="method">
 <dt id="django.db.models.sql.subqueries.UpdateQuery.add_related_update">
-<tt class="descname">add_related_update</tt><big>(</big><em>model</em>, <em>field</em>, <em>value</em><big>)</big><a class="reference internal" href="modules/django/db/models/sql/subqueries.html#UpdateQuery.add_related_update"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.subqueries.UpdateQuery.add_related_update" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">add_related_update</tt><big>(</big><em>model</em>, <em>field</em>, <em>value</em><big>)</big><a class="reference internal" href="_modules/django/db/models/sql/subqueries.html#UpdateQuery.add_related_update"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.subqueries.UpdateQuery.add_related_update" title="Permalink to this definition">¶</a></dt>
 <dd><p>Adds (name, value) to an update query for an ancestor model.</p>
 <p>Updates are coalesced so that we only run one update query per ancestor.</p>
 </dd></dl>
 
 <dl class="method">
 <dt id="django.db.models.sql.subqueries.UpdateQuery.add_update_fields">
-<tt class="descname">add_update_fields</tt><big>(</big><em>values_seq</em><big>)</big><a class="reference internal" href="modules/django/db/models/sql/subqueries.html#UpdateQuery.add_update_fields"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.subqueries.UpdateQuery.add_update_fields" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">add_update_fields</tt><big>(</big><em>values_seq</em><big>)</big><a class="reference internal" href="_modules/django/db/models/sql/subqueries.html#UpdateQuery.add_update_fields"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.subqueries.UpdateQuery.add_update_fields" title="Permalink to this definition">¶</a></dt>
 <dd><p>Turn a sequence of (field, model, value) triples into an update query.
 Used by add_update_values() as well as the &#8220;fast&#8221; update path when
 saving models.</p>
@@ -1247,7 +1328,7 @@ saving models.</p>
 
 <dl class="method">
 <dt id="django.db.models.sql.subqueries.UpdateQuery.add_update_values">
-<tt class="descname">add_update_values</tt><big>(</big><em>values</em><big>)</big><a class="reference internal" href="modules/django/db/models/sql/subqueries.html#UpdateQuery.add_update_values"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.subqueries.UpdateQuery.add_update_values" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">add_update_values</tt><big>(</big><em>values</em><big>)</big><a class="reference internal" href="_modules/django/db/models/sql/subqueries.html#UpdateQuery.add_update_values"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.subqueries.UpdateQuery.add_update_values" title="Permalink to this definition">¶</a></dt>
 <dd><p>Convert a dictionary of field name to value mappings into an update
 query. This is the entry point for the public update() method on
 querysets.</p>
@@ -1255,7 +1336,7 @@ querysets.</p>
 
 <dl class="method">
 <dt id="django.db.models.sql.subqueries.UpdateQuery.get_related_updates">
-<tt class="descname">get_related_updates</tt><big>(</big><big>)</big><a class="reference internal" href="modules/django/db/models/sql/subqueries.html#UpdateQuery.get_related_updates"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.subqueries.UpdateQuery.get_related_updates" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">get_related_updates</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/django/db/models/sql/subqueries.html#UpdateQuery.get_related_updates"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.subqueries.UpdateQuery.get_related_updates" title="Permalink to this definition">¶</a></dt>
 <dd><p>Returns a list of query objects: one for each update required to an
 ancestor model. Each query will have the same filtering conditions as
 the current query but will only update a single table.</p>
@@ -1265,13 +1346,13 @@ the current query but will only update a single table.</p>
 
 <dl class="class">
 <dt id="django.db.models.sql.subqueries.DateQuery">
-<em class="property">class </em><tt class="descclassname">django.db.models.sql.subqueries.</tt><tt class="descname">DateQuery</tt><big>(</big><em>model</em>, <em>where=&lt;class 'django.db.models.sql.where.WhereNode'&gt;</em><big>)</big><a class="reference internal" href="modules/django/db/models/sql/subqueries.html#DateQuery"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.subqueries.DateQuery" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><tt class="descclassname">django.db.models.sql.subqueries.</tt><tt class="descname">DateQuery</tt><big>(</big><em>model</em>, <em>where=&lt;class 'django.db.models.sql.where.WhereNode'&gt;</em><big>)</big><a class="reference internal" href="_modules/django/db/models/sql/subqueries.html#DateQuery"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.subqueries.DateQuery" title="Permalink to this definition">¶</a></dt>
 <dd><p>A DateQuery is a normal query, except that it specifically selects a single
 date field. This requires some special handling when converting the results
 back to Python objects, so we put it in a separate class.</p>
 <dl class="method">
 <dt id="django.db.models.sql.subqueries.DateQuery.add_date_select">
-<tt class="descname">add_date_select</tt><big>(</big><em>field_name</em>, <em>lookup_type</em>, <em>order='ASC'</em><big>)</big><a class="reference internal" href="modules/django/db/models/sql/subqueries.html#DateQuery.add_date_select"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.subqueries.DateQuery.add_date_select" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">add_date_select</tt><big>(</big><em>field_name</em>, <em>lookup_type</em>, <em>order='ASC'</em><big>)</big><a class="reference internal" href="_modules/django/db/models/sql/subqueries.html#DateQuery.add_date_select"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.subqueries.DateQuery.add_date_select" title="Permalink to this definition">¶</a></dt>
 <dd><p>Converts the query into a date extraction query.</p>
 </dd></dl>
 
@@ -1279,7 +1360,7 @@ back to Python objects, so we put it in a separate class.</p>
 
 <dl class="class">
 <dt id="django.db.models.sql.subqueries.AggregateQuery">
-<em class="property">class </em><tt class="descclassname">django.db.models.sql.subqueries.</tt><tt class="descname">AggregateQuery</tt><big>(</big><em>model</em>, <em>where=&lt;class 'django.db.models.sql.where.WhereNode'&gt;</em><big>)</big><a class="reference internal" href="modules/django/db/models/sql/subqueries.html#AggregateQuery"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.subqueries.AggregateQuery" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><tt class="descclassname">django.db.models.sql.subqueries.</tt><tt class="descname">AggregateQuery</tt><big>(</big><em>model</em>, <em>where=&lt;class 'django.db.models.sql.where.WhereNode'&gt;</em><big>)</big><a class="reference internal" href="_modules/django/db/models/sql/subqueries.html#AggregateQuery"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.subqueries.AggregateQuery" title="Permalink to this definition">¶</a></dt>
 <dd><p>An AggregateQuery takes another query as a parameter to the FROM
 clause and only selects the elements in the provided list.</p>
 </dd></dl>
@@ -1293,12 +1374,12 @@ clause and only selects the elements in the provided list.</p>
 <span class="target" id="module-django.db.models.sql.where"></span><p>Code to manage the creation and SQL rendering of &#8216;where&#8217; constraints.</p>
 <dl class="class">
 <dt id="django.db.models.sql.where.Constraint">
-<em class="property">class </em><tt class="descclassname">django.db.models.sql.where.</tt><tt class="descname">Constraint</tt><big>(</big><em>alias</em>, <em>col</em>, <em>field</em><big>)</big><a class="reference internal" href="modules/django/db/models/sql/where.html#Constraint"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.where.Constraint" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><tt class="descclassname">django.db.models.sql.where.</tt><tt class="descname">Constraint</tt><big>(</big><em>alias</em>, <em>col</em>, <em>field</em><big>)</big><a class="reference internal" href="_modules/django/db/models/sql/where.html#Constraint"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.where.Constraint" title="Permalink to this definition">¶</a></dt>
 <dd><p>An object that can be passed to WhereNode.add() and knows how to
 pre-process itself prior to including in the WhereNode.</p>
 <dl class="method">
 <dt id="django.db.models.sql.where.Constraint.process">
-<tt class="descname">process</tt><big>(</big><em>lookup_type</em>, <em>value</em>, <em>connection</em><big>)</big><a class="reference internal" href="modules/django/db/models/sql/where.html#Constraint.process"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.where.Constraint.process" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">process</tt><big>(</big><em>lookup_type</em>, <em>value</em>, <em>connection</em><big>)</big><a class="reference internal" href="_modules/django/db/models/sql/where.html#Constraint.process"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.where.Constraint.process" title="Permalink to this definition">¶</a></dt>
 <dd><p>Returns a tuple of data suitable for inclusion in a WhereNode
 instance.</p>
 </dd></dl>
@@ -1307,26 +1388,26 @@ instance.</p>
 
 <dl class="exception">
 <dt id="django.db.models.sql.where.EmptyShortCircuit">
-<em class="property">exception </em><tt class="descclassname">django.db.models.sql.where.</tt><tt class="descname">EmptyShortCircuit</tt><a class="reference internal" href="modules/django/db/models/sql/where.html#EmptyShortCircuit"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.where.EmptyShortCircuit" title="Permalink to this definition">¶</a></dt>
+<em class="property">exception </em><tt class="descclassname">django.db.models.sql.where.</tt><tt class="descname">EmptyShortCircuit</tt><a class="reference internal" href="_modules/django/db/models/sql/where.html#EmptyShortCircuit"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.where.EmptyShortCircuit" title="Permalink to this definition">¶</a></dt>
 <dd><p>Internal exception used to indicate that a &#8220;matches nothing&#8221; node should be
 added to the where-clause.</p>
 </dd></dl>
 
 <dl class="class">
 <dt id="django.db.models.sql.where.EverythingNode">
-<em class="property">class </em><tt class="descclassname">django.db.models.sql.where.</tt><tt class="descname">EverythingNode</tt><a class="reference internal" href="modules/django/db/models/sql/where.html#EverythingNode"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.where.EverythingNode" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><tt class="descclassname">django.db.models.sql.where.</tt><tt class="descname">EverythingNode</tt><a class="reference internal" href="_modules/django/db/models/sql/where.html#EverythingNode"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.where.EverythingNode" title="Permalink to this definition">¶</a></dt>
 <dd><p>A node that matches everything.</p>
 </dd></dl>
 
 <dl class="class">
 <dt id="django.db.models.sql.where.NothingNode">
-<em class="property">class </em><tt class="descclassname">django.db.models.sql.where.</tt><tt class="descname">NothingNode</tt><a class="reference internal" href="modules/django/db/models/sql/where.html#NothingNode"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.where.NothingNode" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><tt class="descclassname">django.db.models.sql.where.</tt><tt class="descname">NothingNode</tt><a class="reference internal" href="_modules/django/db/models/sql/where.html#NothingNode"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.where.NothingNode" title="Permalink to this definition">¶</a></dt>
 <dd><p>A node that matches nothing.</p>
 </dd></dl>
 
 <dl class="class">
 <dt id="django.db.models.sql.where.WhereNode">
-<em class="property">class </em><tt class="descclassname">django.db.models.sql.where.</tt><tt class="descname">WhereNode</tt><big>(</big><em>children=None</em>, <em>connector=None</em>, <em>negated=False</em><big>)</big><a class="reference internal" href="modules/django/db/models/sql/where.html#WhereNode"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.where.WhereNode" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><tt class="descclassname">django.db.models.sql.where.</tt><tt class="descname">WhereNode</tt><big>(</big><em>children=None</em>, <em>connector=None</em>, <em>negated=False</em><big>)</big><a class="reference internal" href="_modules/django/db/models/sql/where.html#WhereNode"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.where.WhereNode" title="Permalink to this definition">¶</a></dt>
 <dd><p>Used to represent the SQL where-clause.</p>
 <p>The class is tied to the Query class that created it (in order to create
 the correct SQL).</p>
@@ -1335,7 +1416,7 @@ the correct SQL).</p>
 However, a child could also be any class with as_sql() and relabel_aliases() methods.</p>
 <dl class="method">
 <dt id="django.db.models.sql.where.WhereNode.add">
-<tt class="descname">add</tt><big>(</big><em>data</em>, <em>connector</em><big>)</big><a class="reference internal" href="modules/django/db/models/sql/where.html#WhereNode.add"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.where.WhereNode.add" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">add</tt><big>(</big><em>data</em>, <em>connector</em><big>)</big><a class="reference internal" href="_modules/django/db/models/sql/where.html#WhereNode.add"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.where.WhereNode.add" title="Permalink to this definition">¶</a></dt>
 <dd><p>Add a node to the where-tree. If the data is a list or tuple, it is
 expected to be of the form (obj, lookup_type, value), where obj is
 a Constraint object, and is then slightly munged before being stored
@@ -1345,17 +1426,16 @@ is stored unchanged and can be any class with an &#8216;as_sql()&#8217; method.<
 
 <dl class="method">
 <dt id="django.db.models.sql.where.WhereNode.as_sql">
-<tt class="descname">as_sql</tt><big>(</big><em>qn</em>, <em>connection</em><big>)</big><a class="reference internal" href="modules/django/db/models/sql/where.html#WhereNode.as_sql"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.where.WhereNode.as_sql" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">as_sql</tt><big>(</big><em>qn</em>, <em>connection</em><big>)</big><a class="reference internal" href="_modules/django/db/models/sql/where.html#WhereNode.as_sql"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.where.WhereNode.as_sql" title="Permalink to this definition">¶</a></dt>
 <dd><p>Returns the SQL version of the where clause and the value to be
-substituted in. Returns None, None if this node is empty.</p>
-<p>If &#8216;node&#8217; is provided, that is the root of the SQL generation
-(generally not needed except by the internal implementation for
-recursion).</p>
+substituted in. Returns &#8216;&#8217;, [] if this node matches everything,
+None, [] if this node is empty, and raises EmptyResultSet if this
+node can&#8217;t match anything.</p>
 </dd></dl>
 
 <dl class="method">
 <dt id="django.db.models.sql.where.WhereNode.make_atom">
-<tt class="descname">make_atom</tt><big>(</big><em>child</em>, <em>qn</em>, <em>connection</em><big>)</big><a class="reference internal" href="modules/django/db/models/sql/where.html#WhereNode.make_atom"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.where.WhereNode.make_atom" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">make_atom</tt><big>(</big><em>child</em>, <em>qn</em>, <em>connection</em><big>)</big><a class="reference internal" href="_modules/django/db/models/sql/where.html#WhereNode.make_atom"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.where.WhereNode.make_atom" title="Permalink to this definition">¶</a></dt>
 <dd><p>Turn a tuple (Constraint(table_alias, column_name, db_type),
 lookup_type, value_annotation, params) into valid SQL.</p>
 <p>The first item of the tuple may also be an Aggregate.</p>
@@ -1365,14 +1445,14 @@ it.</p>
 
 <dl class="method">
 <dt id="django.db.models.sql.where.WhereNode.relabel_aliases">
-<tt class="descname">relabel_aliases</tt><big>(</big><em>change_map</em>, <em>node=None</em><big>)</big><a class="reference internal" href="modules/django/db/models/sql/where.html#WhereNode.relabel_aliases"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.where.WhereNode.relabel_aliases" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">relabel_aliases</tt><big>(</big><em>change_map</em>, <em>node=None</em><big>)</big><a class="reference internal" href="_modules/django/db/models/sql/where.html#WhereNode.relabel_aliases"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.where.WhereNode.relabel_aliases" title="Permalink to this definition">¶</a></dt>
 <dd><p>Relabels the alias values of any children. &#8216;change_map&#8217; is a dictionary
 mapping old (current) alias values to the new values.</p>
 </dd></dl>
 
 <dl class="method">
 <dt id="django.db.models.sql.where.WhereNode.sql_for_columns">
-<tt class="descname">sql_for_columns</tt><big>(</big><em>data</em>, <em>qn</em>, <em>connection</em><big>)</big><a class="reference internal" href="modules/django/db/models/sql/where.html#WhereNode.sql_for_columns"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.where.WhereNode.sql_for_columns" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">sql_for_columns</tt><big>(</big><em>data</em>, <em>qn</em>, <em>connection</em><big>)</big><a class="reference internal" href="_modules/django/db/models/sql/where.html#WhereNode.sql_for_columns"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#django.db.models.sql.where.WhereNode.sql_for_columns" title="Permalink to this definition">¶</a></dt>
 <dd><p>Returns the SQL fragment used for the left-hand side of a column
 constraint (for example, the &#8220;T1.foo&#8221; portion in the clause
 &#8220;WHERE ... T1.foo = 6&#8221;).</p>
@@ -1400,7 +1480,7 @@ constraint (for example, the &#8220;T1.foo&#8221; portion in the clause
 
     <div class="footer">
         &copy; Copyright 2012, HDKNR.COM.
-      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.2pre/3c28de26aac2.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2b1.
     </div>
   </body>
 </html>

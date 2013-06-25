@@ -1,0 +1,370 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>django.contrib.staticfiles.management.commands.collectstatic &mdash; Django Cheat 1 documentation</title>
+    
+    <link rel="stylesheet" href="../../../../../../_static/haiku.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../../../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../../../static/print.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../../../../',
+        VERSION:     '1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../../../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../../../../_static/doctools.js"></script>
+    <script type="text/javascript" src="../../../../../../static/theme_extras.js"></script>
+    <link rel="top" title="Django Cheat 1 documentation" href="../../../../../../index.html" />
+    <link rel="up" title="Module code" href="../../../../../index.html" /> 
+  </head>
+  <body>
+      <div class="header"><h1 class="heading"><a href="../../../../../../index.html">
+          <span>Django Cheat 1 documentation</span></a></h1>
+        <h2 class="heading"><span>django.contrib.staticfiles.management.commands.collectstatic</span></h2>
+      </div>
+      <div class="topnav">
+      
+        <p>
+        <a href="/">Home</a>:
+        <a class="uplink" href="../../../../../../index.html">Contents</a>
+        </p>
+
+      </div>
+      <div class="content">
+        
+        
+  <h1>Source code for django.contrib.staticfiles.management.commands.collectstatic</h1><div class="highlight"><pre>
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">unicode_literals</span>
+
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">sys</span>
+<span class="kn">from</span> <span class="nn">optparse</span> <span class="kn">import</span> <span class="n">make_option</span>
+
+<span class="kn">from</span> <span class="nn">django.core.files.storage</span> <span class="kn">import</span> <span class="n">FileSystemStorage</span>
+<span class="kn">from</span> <span class="nn">django.core.management.base</span> <span class="kn">import</span> <span class="n">CommandError</span><span class="p">,</span> <span class="n">NoArgsCommand</span>
+<span class="kn">from</span> <span class="nn">django.utils.encoding</span> <span class="kn">import</span> <span class="n">smart_text</span>
+<span class="kn">from</span> <span class="nn">django.utils.datastructures</span> <span class="kn">import</span> <span class="n">SortedDict</span>
+<span class="kn">from</span> <span class="nn">django.utils.six.moves</span> <span class="kn">import</span> <span class="nb">input</span>
+
+<span class="kn">from</span> <span class="nn">django.contrib.staticfiles</span> <span class="kn">import</span> <span class="n">finders</span><span class="p">,</span> <span class="n">storage</span>
+
+
+<div class="viewcode-block" id="Command"><a class="viewcode-back" href="../../../../../../django.contrib.staticfiles.management.commands.html#django.contrib.staticfiles.management.commands.collectstatic.Command">[docs]</a><span class="k">class</span> <span class="nc">Command</span><span class="p">(</span><span class="n">NoArgsCommand</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Command that allows to copy or symlink static files from different</span>
+<span class="sd">    locations to the settings.STATIC_ROOT.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">option_list</span> <span class="o">=</span> <span class="n">NoArgsCommand</span><span class="o">.</span><span class="n">option_list</span> <span class="o">+</span> <span class="p">(</span>
+        <span class="n">make_option</span><span class="p">(</span><span class="s">&#39;--noinput&#39;</span><span class="p">,</span>
+            <span class="n">action</span><span class="o">=</span><span class="s">&#39;store_false&#39;</span><span class="p">,</span> <span class="n">dest</span><span class="o">=</span><span class="s">&#39;interactive&#39;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span>
+            <span class="n">help</span><span class="o">=</span><span class="s">&quot;Do NOT prompt the user for input of any kind.&quot;</span><span class="p">),</span>
+        <span class="n">make_option</span><span class="p">(</span><span class="s">&#39;--no-post-process&#39;</span><span class="p">,</span>
+            <span class="n">action</span><span class="o">=</span><span class="s">&#39;store_false&#39;</span><span class="p">,</span> <span class="n">dest</span><span class="o">=</span><span class="s">&#39;post_process&#39;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span>
+            <span class="n">help</span><span class="o">=</span><span class="s">&quot;Do NOT post process collected files.&quot;</span><span class="p">),</span>
+        <span class="n">make_option</span><span class="p">(</span><span class="s">&#39;-i&#39;</span><span class="p">,</span> <span class="s">&#39;--ignore&#39;</span><span class="p">,</span> <span class="n">action</span><span class="o">=</span><span class="s">&#39;append&#39;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="p">[],</span>
+            <span class="n">dest</span><span class="o">=</span><span class="s">&#39;ignore_patterns&#39;</span><span class="p">,</span> <span class="n">metavar</span><span class="o">=</span><span class="s">&#39;PATTERN&#39;</span><span class="p">,</span>
+            <span class="n">help</span><span class="o">=</span><span class="s">&quot;Ignore files or directories matching this glob-style &quot;</span>
+                <span class="s">&quot;pattern. Use multiple times to ignore more.&quot;</span><span class="p">),</span>
+        <span class="n">make_option</span><span class="p">(</span><span class="s">&#39;-n&#39;</span><span class="p">,</span> <span class="s">&#39;--dry-run&#39;</span><span class="p">,</span>
+            <span class="n">action</span><span class="o">=</span><span class="s">&#39;store_true&#39;</span><span class="p">,</span> <span class="n">dest</span><span class="o">=</span><span class="s">&#39;dry_run&#39;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span>
+            <span class="n">help</span><span class="o">=</span><span class="s">&quot;Do everything except modify the filesystem.&quot;</span><span class="p">),</span>
+        <span class="n">make_option</span><span class="p">(</span><span class="s">&#39;-c&#39;</span><span class="p">,</span> <span class="s">&#39;--clear&#39;</span><span class="p">,</span>
+            <span class="n">action</span><span class="o">=</span><span class="s">&#39;store_true&#39;</span><span class="p">,</span> <span class="n">dest</span><span class="o">=</span><span class="s">&#39;clear&#39;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span>
+            <span class="n">help</span><span class="o">=</span><span class="s">&quot;Clear the existing files using the storage &quot;</span>
+                 <span class="s">&quot;before trying to copy or link the original file.&quot;</span><span class="p">),</span>
+        <span class="n">make_option</span><span class="p">(</span><span class="s">&#39;-l&#39;</span><span class="p">,</span> <span class="s">&#39;--link&#39;</span><span class="p">,</span>
+            <span class="n">action</span><span class="o">=</span><span class="s">&#39;store_true&#39;</span><span class="p">,</span> <span class="n">dest</span><span class="o">=</span><span class="s">&#39;link&#39;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span>
+            <span class="n">help</span><span class="o">=</span><span class="s">&quot;Create a symbolic link to each file instead of copying.&quot;</span><span class="p">),</span>
+        <span class="n">make_option</span><span class="p">(</span><span class="s">&#39;--no-default-ignore&#39;</span><span class="p">,</span> <span class="n">action</span><span class="o">=</span><span class="s">&#39;store_false&#39;</span><span class="p">,</span>
+            <span class="n">dest</span><span class="o">=</span><span class="s">&#39;use_default_ignore_patterns&#39;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span>
+            <span class="n">help</span><span class="o">=</span><span class="s">&quot;Don&#39;t ignore the common private glob-style patterns &#39;CVS&#39;, &quot;</span>
+                <span class="s">&quot;&#39;.*&#39; and &#39;*~&#39;.&quot;</span><span class="p">),</span>
+    <span class="p">)</span>
+    <span class="n">help</span> <span class="o">=</span> <span class="s">&quot;Collect static files in a single location.&quot;</span>
+    <span class="n">requires_model_validation</span> <span class="o">=</span> <span class="bp">False</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">NoArgsCommand</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">copied_files</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">symlinked_files</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">unmodified_files</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">post_processed_files</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">storage</span> <span class="o">=</span> <span class="n">storage</span><span class="o">.</span><span class="n">staticfiles_storage</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">storage</span><span class="o">.</span><span class="n">path</span><span class="p">(</span><span class="s">&#39;&#39;</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">NotImplementedError</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">local</span> <span class="o">=</span> <span class="bp">False</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">local</span> <span class="o">=</span> <span class="bp">True</span>
+        <span class="c"># Use ints for file times (ticket #14665), if supported</span>
+        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">os</span><span class="p">,</span> <span class="s">&#39;stat_float_times&#39;</span><span class="p">):</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">stat_float_times</span><span class="p">(</span><span class="bp">False</span><span class="p">)</span>
+
+<div class="viewcode-block" id="Command.set_options"><a class="viewcode-back" href="../../../../../../django.contrib.staticfiles.management.commands.html#django.contrib.staticfiles.management.commands.collectstatic.Command.set_options">[docs]</a>    <span class="k">def</span> <span class="nf">set_options</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">options</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Set instance variables based on an options dict</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">interactive</span> <span class="o">=</span> <span class="n">options</span><span class="p">[</span><span class="s">&#39;interactive&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">verbosity</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">options</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;verbosity&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">symlink</span> <span class="o">=</span> <span class="n">options</span><span class="p">[</span><span class="s">&#39;link&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">clear</span> <span class="o">=</span> <span class="n">options</span><span class="p">[</span><span class="s">&#39;clear&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dry_run</span> <span class="o">=</span> <span class="n">options</span><span class="p">[</span><span class="s">&#39;dry_run&#39;</span><span class="p">]</span>
+        <span class="n">ignore_patterns</span> <span class="o">=</span> <span class="n">options</span><span class="p">[</span><span class="s">&#39;ignore_patterns&#39;</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">options</span><span class="p">[</span><span class="s">&#39;use_default_ignore_patterns&#39;</span><span class="p">]:</span>
+            <span class="n">ignore_patterns</span> <span class="o">+=</span> <span class="p">[</span><span class="s">&#39;CVS&#39;</span><span class="p">,</span> <span class="s">&#39;.*&#39;</span><span class="p">,</span> <span class="s">&#39;*~&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ignore_patterns</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">ignore_patterns</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">post_process</span> <span class="o">=</span> <span class="n">options</span><span class="p">[</span><span class="s">&#39;post_process&#39;</span><span class="p">]</span>
+</div>
+<div class="viewcode-block" id="Command.collect"><a class="viewcode-back" href="../../../../../../django.contrib.staticfiles.management.commands.html#django.contrib.staticfiles.management.commands.collectstatic.Command.collect">[docs]</a>    <span class="k">def</span> <span class="nf">collect</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Perform the bulk of the work of collectstatic.</span>
+
+<span class="sd">        Split off from handle_noargs() to facilitate testing.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">symlink</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">sys</span><span class="o">.</span><span class="n">platform</span> <span class="o">==</span> <span class="s">&#39;win32&#39;</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">CommandError</span><span class="p">(</span><span class="s">&quot;Symlinking is not supported by this &quot;</span>
+                                   <span class="s">&quot;platform (</span><span class="si">%s</span><span class="s">).&quot;</span> <span class="o">%</span> <span class="n">sys</span><span class="o">.</span><span class="n">platform</span><span class="p">)</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">local</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">CommandError</span><span class="p">(</span><span class="s">&quot;Can&#39;t symlink to a remote destination.&quot;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">clear</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">clear_dir</span><span class="p">(</span><span class="s">&#39;&#39;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">symlink</span><span class="p">:</span>
+            <span class="n">handler</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">link_file</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">handler</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">copy_file</span>
+
+        <span class="n">found_files</span> <span class="o">=</span> <span class="n">SortedDict</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">finder</span> <span class="ow">in</span> <span class="n">finders</span><span class="o">.</span><span class="n">get_finders</span><span class="p">():</span>
+            <span class="k">for</span> <span class="n">path</span><span class="p">,</span> <span class="n">storage</span> <span class="ow">in</span> <span class="n">finder</span><span class="o">.</span><span class="n">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ignore_patterns</span><span class="p">):</span>
+                <span class="c"># Prefix the relative path if the source storage contains it</span>
+                <span class="k">if</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">storage</span><span class="p">,</span> <span class="s">&#39;prefix&#39;</span><span class="p">,</span> <span class="bp">None</span><span class="p">):</span>
+                    <span class="n">prefixed_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">storage</span><span class="o">.</span><span class="n">prefix</span><span class="p">,</span> <span class="n">path</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">prefixed_path</span> <span class="o">=</span> <span class="n">path</span>
+
+                <span class="k">if</span> <span class="n">prefixed_path</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">found_files</span><span class="p">:</span>
+                    <span class="n">found_files</span><span class="p">[</span><span class="n">prefixed_path</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">storage</span><span class="p">,</span> <span class="n">path</span><span class="p">)</span>
+                    <span class="n">handler</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">prefixed_path</span><span class="p">,</span> <span class="n">storage</span><span class="p">)</span>
+
+        <span class="c"># Here we check if the storage backend has a post_process</span>
+        <span class="c"># method and pass it the list of modified files.</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">post_process</span> <span class="ow">and</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">storage</span><span class="p">,</span> <span class="s">&#39;post_process&#39;</span><span class="p">):</span>
+            <span class="n">processor</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">storage</span><span class="o">.</span><span class="n">post_process</span><span class="p">(</span><span class="n">found_files</span><span class="p">,</span>
+                                                  <span class="n">dry_run</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">dry_run</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">original_path</span><span class="p">,</span> <span class="n">processed_path</span><span class="p">,</span> <span class="n">processed</span> <span class="ow">in</span> <span class="n">processor</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">processed</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="s">&quot;Post-processed &#39;</span><span class="si">%s</span><span class="s">&#39; as &#39;</span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span>
+                             <span class="p">(</span><span class="n">original_path</span><span class="p">,</span> <span class="n">processed_path</span><span class="p">),</span> <span class="n">level</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">post_processed_files</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">original_path</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="s">&quot;Skipped post-processing &#39;</span><span class="si">%s</span><span class="s">&#39;&quot;</span> <span class="o">%</span> <span class="n">original_path</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s">&#39;modified&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">copied_files</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">symlinked_files</span><span class="p">,</span>
+            <span class="s">&#39;unmodified&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">unmodified_files</span><span class="p">,</span>
+            <span class="s">&#39;post_processed&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">post_processed_files</span><span class="p">,</span>
+        <span class="p">}</span>
+</div>
+    <span class="k">def</span> <span class="nf">handle_noargs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">options</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">set_options</span><span class="p">(</span><span class="o">**</span><span class="n">options</span><span class="p">)</span>
+        <span class="c"># Warn before doing anything more.</span>
+        <span class="k">if</span> <span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">storage</span><span class="p">,</span> <span class="n">FileSystemStorage</span><span class="p">)</span> <span class="ow">and</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">storage</span><span class="o">.</span><span class="n">location</span><span class="p">):</span>
+            <span class="n">destination_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">storage</span><span class="o">.</span><span class="n">location</span>
+            <span class="n">destination_display</span> <span class="o">=</span> <span class="s">&#39;:</span><span class="se">\n\n</span><span class="s">    </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">destination_path</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">destination_path</span> <span class="o">=</span> <span class="bp">None</span>
+            <span class="n">destination_display</span> <span class="o">=</span> <span class="s">&#39;.&#39;</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">clear</span><span class="p">:</span>
+            <span class="n">clear_display</span> <span class="o">=</span> <span class="s">&#39;This will DELETE EXISTING FILES!&#39;</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">clear_display</span> <span class="o">=</span> <span class="s">&#39;This will overwrite existing files!&#39;</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">interactive</span><span class="p">:</span>
+            <span class="n">confirm</span> <span class="o">=</span> <span class="nb">input</span><span class="p">(</span><span class="s">&quot;&quot;&quot;</span>
+<span class="s">You have requested to collect static files at the destination</span>
+<span class="s">location as specified in your settings</span><span class="si">%s</span><span class="s"></span>
+
+<span class="si">%s</span><span class="s"></span>
+<span class="s">Are you sure you want to do this?</span>
+
+<span class="s">Type &#39;yes&#39; to continue, or &#39;no&#39; to cancel: &quot;&quot;&quot;</span>
+<span class="o">%</span> <span class="p">(</span><span class="n">destination_display</span><span class="p">,</span> <span class="n">clear_display</span><span class="p">))</span>
+            <span class="k">if</span> <span class="n">confirm</span> <span class="o">!=</span> <span class="s">&#39;yes&#39;</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">CommandError</span><span class="p">(</span><span class="s">&quot;Collecting static files cancelled.&quot;</span><span class="p">)</span>
+
+        <span class="n">collected</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">collect</span><span class="p">()</span>
+        <span class="n">modified_count</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">collected</span><span class="p">[</span><span class="s">&#39;modified&#39;</span><span class="p">])</span>
+        <span class="n">unmodified_count</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">collected</span><span class="p">[</span><span class="s">&#39;unmodified&#39;</span><span class="p">])</span>
+        <span class="n">post_processed_count</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">collected</span><span class="p">[</span><span class="s">&#39;post_processed&#39;</span><span class="p">])</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">verbosity</span> <span class="o">&gt;=</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">template</span> <span class="o">=</span> <span class="p">(</span><span class="s">&quot;</span><span class="se">\n</span><span class="si">%(modified_count)s</span><span class="s"> </span><span class="si">%(identifier)s</span><span class="s"> </span><span class="si">%(action)s</span><span class="s">&quot;</span>
+                        <span class="s">&quot;</span><span class="si">%(destination)s%(unmodified)s%(post_processed)s</span><span class="s">.</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">)</span>
+            <span class="n">summary</span> <span class="o">=</span> <span class="n">template</span> <span class="o">%</span> <span class="p">{</span>
+                <span class="s">&#39;modified_count&#39;</span><span class="p">:</span> <span class="n">modified_count</span><span class="p">,</span>
+                <span class="s">&#39;identifier&#39;</span><span class="p">:</span> <span class="s">&#39;static file&#39;</span> <span class="o">+</span> <span class="p">(</span><span class="n">modified_count</span> <span class="o">!=</span> <span class="mi">1</span> <span class="ow">and</span> <span class="s">&#39;s&#39;</span> <span class="ow">or</span> <span class="s">&#39;&#39;</span><span class="p">),</span>
+                <span class="s">&#39;action&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">symlink</span> <span class="ow">and</span> <span class="s">&#39;symlinked&#39;</span> <span class="ow">or</span> <span class="s">&#39;copied&#39;</span><span class="p">,</span>
+                <span class="s">&#39;destination&#39;</span><span class="p">:</span> <span class="p">(</span><span class="n">destination_path</span> <span class="ow">and</span> <span class="s">&quot; to &#39;</span><span class="si">%s</span><span class="s">&#39;&quot;</span>
+                                <span class="o">%</span> <span class="n">destination_path</span> <span class="ow">or</span> <span class="s">&#39;&#39;</span><span class="p">),</span>
+                <span class="s">&#39;unmodified&#39;</span><span class="p">:</span> <span class="p">(</span><span class="n">collected</span><span class="p">[</span><span class="s">&#39;unmodified&#39;</span><span class="p">]</span> <span class="ow">and</span> <span class="s">&#39;, </span><span class="si">%s</span><span class="s"> unmodified&#39;</span>
+                               <span class="o">%</span> <span class="n">unmodified_count</span> <span class="ow">or</span> <span class="s">&#39;&#39;</span><span class="p">),</span>
+                <span class="s">&#39;post_processed&#39;</span><span class="p">:</span> <span class="p">(</span><span class="n">collected</span><span class="p">[</span><span class="s">&#39;post_processed&#39;</span><span class="p">]</span> <span class="ow">and</span>
+                                   <span class="s">&#39;, </span><span class="si">%s</span><span class="s"> post-processed&#39;</span>
+                                   <span class="o">%</span> <span class="n">post_processed_count</span> <span class="ow">or</span> <span class="s">&#39;&#39;</span><span class="p">),</span>
+            <span class="p">}</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">summary</span><span class="p">)</span>
+
+<div class="viewcode-block" id="Command.log"><a class="viewcode-back" href="../../../../../../django.contrib.staticfiles.management.commands.html#django.contrib.staticfiles.management.commands.collectstatic.Command.log">[docs]</a>    <span class="k">def</span> <span class="nf">log</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">msg</span><span class="p">,</span> <span class="n">level</span><span class="o">=</span><span class="mi">2</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Small log helper</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">verbosity</span> <span class="o">&gt;=</span> <span class="n">level</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="Command.clear_dir"><a class="viewcode-back" href="../../../../../../django.contrib.staticfiles.management.commands.html#django.contrib.staticfiles.management.commands.collectstatic.Command.clear_dir">[docs]</a>    <span class="k">def</span> <span class="nf">clear_dir</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Deletes the given relative path using the destination storage backend.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">dirs</span><span class="p">,</span> <span class="n">files</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">storage</span><span class="o">.</span><span class="n">listdir</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">files</span><span class="p">:</span>
+            <span class="n">fpath</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">f</span><span class="p">)</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">dry_run</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="s">&quot;Pretending to delete &#39;</span><span class="si">%s</span><span class="s">&#39;&quot;</span> <span class="o">%</span>
+                         <span class="n">smart_text</span><span class="p">(</span><span class="n">fpath</span><span class="p">),</span> <span class="n">level</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="s">&quot;Deleting &#39;</span><span class="si">%s</span><span class="s">&#39;&quot;</span> <span class="o">%</span> <span class="n">smart_text</span><span class="p">(</span><span class="n">fpath</span><span class="p">),</span> <span class="n">level</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">storage</span><span class="o">.</span><span class="n">delete</span><span class="p">(</span><span class="n">fpath</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">dirs</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">clear_dir</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">d</span><span class="p">))</span>
+</div>
+<div class="viewcode-block" id="Command.delete_file"><a class="viewcode-back" href="../../../../../../django.contrib.staticfiles.management.commands.html#django.contrib.staticfiles.management.commands.collectstatic.Command.delete_file">[docs]</a>    <span class="k">def</span> <span class="nf">delete_file</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">,</span> <span class="n">prefixed_path</span><span class="p">,</span> <span class="n">source_storage</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Checks if the target file should be deleted if it already exists</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">storage</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">prefixed_path</span><span class="p">):</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="c"># When was the target file modified last time?</span>
+                <span class="n">target_last_modified</span> <span class="o">=</span> \
+                    <span class="bp">self</span><span class="o">.</span><span class="n">storage</span><span class="o">.</span><span class="n">modified_time</span><span class="p">(</span><span class="n">prefixed_path</span><span class="p">)</span>
+            <span class="k">except</span> <span class="p">(</span><span class="ne">OSError</span><span class="p">,</span> <span class="ne">NotImplementedError</span><span class="p">,</span> <span class="ne">AttributeError</span><span class="p">):</span>
+                <span class="c"># The storage doesn&#39;t support ``modified_time`` or failed</span>
+                <span class="k">pass</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="c"># When was the source file modified last time?</span>
+                    <span class="n">source_last_modified</span> <span class="o">=</span> <span class="n">source_storage</span><span class="o">.</span><span class="n">modified_time</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+                <span class="k">except</span> <span class="p">(</span><span class="ne">OSError</span><span class="p">,</span> <span class="ne">NotImplementedError</span><span class="p">,</span> <span class="ne">AttributeError</span><span class="p">):</span>
+                    <span class="k">pass</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="c"># The full path of the target file</span>
+                    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">local</span><span class="p">:</span>
+                        <span class="n">full_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">storage</span><span class="o">.</span><span class="n">path</span><span class="p">(</span><span class="n">prefixed_path</span><span class="p">)</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="n">full_path</span> <span class="o">=</span> <span class="bp">None</span>
+                    <span class="c"># Skip the file if the source file is younger</span>
+                    <span class="k">if</span> <span class="n">target_last_modified</span> <span class="o">&gt;=</span> <span class="n">source_last_modified</span><span class="p">:</span>
+                        <span class="k">if</span> <span class="ow">not</span> <span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">symlink</span> <span class="ow">and</span> <span class="n">full_path</span>
+                                 <span class="ow">and</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">islink</span><span class="p">(</span><span class="n">full_path</span><span class="p">))</span> <span class="ow">or</span>
+                                <span class="p">(</span><span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">symlink</span> <span class="ow">and</span> <span class="n">full_path</span>
+                                 <span class="ow">and</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">islink</span><span class="p">(</span><span class="n">full_path</span><span class="p">))):</span>
+                            <span class="k">if</span> <span class="n">prefixed_path</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">unmodified_files</span><span class="p">:</span>
+                                <span class="bp">self</span><span class="o">.</span><span class="n">unmodified_files</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">prefixed_path</span><span class="p">)</span>
+                            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="s">&quot;Skipping &#39;</span><span class="si">%s</span><span class="s">&#39; (not modified)&quot;</span> <span class="o">%</span> <span class="n">path</span><span class="p">)</span>
+                            <span class="k">return</span> <span class="bp">False</span>
+            <span class="c"># Then delete the existing file if really needed</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">dry_run</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="s">&quot;Pretending to delete &#39;</span><span class="si">%s</span><span class="s">&#39;&quot;</span> <span class="o">%</span> <span class="n">path</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="s">&quot;Deleting &#39;</span><span class="si">%s</span><span class="s">&#39;&quot;</span> <span class="o">%</span> <span class="n">path</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">storage</span><span class="o">.</span><span class="n">delete</span><span class="p">(</span><span class="n">prefixed_path</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">True</span>
+</div>
+<div class="viewcode-block" id="Command.link_file"><a class="viewcode-back" href="../../../../../../django.contrib.staticfiles.management.commands.html#django.contrib.staticfiles.management.commands.collectstatic.Command.link_file">[docs]</a>    <span class="k">def</span> <span class="nf">link_file</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">,</span> <span class="n">prefixed_path</span><span class="p">,</span> <span class="n">source_storage</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Attempt to link ``path``</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c"># Skip this file if it was already copied earlier</span>
+        <span class="k">if</span> <span class="n">prefixed_path</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">symlinked_files</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="s">&quot;Skipping &#39;</span><span class="si">%s</span><span class="s">&#39; (already linked earlier)&quot;</span> <span class="o">%</span> <span class="n">path</span><span class="p">)</span>
+        <span class="c"># Delete the target file if needed or break</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">delete_file</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">prefixed_path</span><span class="p">,</span> <span class="n">source_storage</span><span class="p">):</span>
+            <span class="k">return</span>
+        <span class="c"># The full path of the source file</span>
+        <span class="n">source_path</span> <span class="o">=</span> <span class="n">source_storage</span><span class="o">.</span><span class="n">path</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+        <span class="c"># Finally link the file</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">dry_run</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="s">&quot;Pretending to link &#39;</span><span class="si">%s</span><span class="s">&#39;&quot;</span> <span class="o">%</span> <span class="n">source_path</span><span class="p">,</span> <span class="n">level</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="s">&quot;Linking &#39;</span><span class="si">%s</span><span class="s">&#39;&quot;</span> <span class="o">%</span> <span class="n">source_path</span><span class="p">,</span> <span class="n">level</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+            <span class="n">full_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">storage</span><span class="o">.</span><span class="n">path</span><span class="p">(</span><span class="n">prefixed_path</span><span class="p">)</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">full_path</span><span class="p">))</span>
+            <span class="k">except</span> <span class="ne">OSError</span><span class="p">:</span>
+                <span class="k">pass</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">symlink</span><span class="p">(</span><span class="n">source_path</span><span class="p">,</span> <span class="n">full_path</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">prefixed_path</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">symlinked_files</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">symlinked_files</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">prefixed_path</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="Command.copy_file"><a class="viewcode-back" href="../../../../../../django.contrib.staticfiles.management.commands.html#django.contrib.staticfiles.management.commands.collectstatic.Command.copy_file">[docs]</a>    <span class="k">def</span> <span class="nf">copy_file</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">,</span> <span class="n">prefixed_path</span><span class="p">,</span> <span class="n">source_storage</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Attempt to copy ``path`` with storage</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c"># Skip this file if it was already copied earlier</span>
+        <span class="k">if</span> <span class="n">prefixed_path</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">copied_files</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="s">&quot;Skipping &#39;</span><span class="si">%s</span><span class="s">&#39; (already copied earlier)&quot;</span> <span class="o">%</span> <span class="n">path</span><span class="p">)</span>
+        <span class="c"># Delete the target file if needed or break</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">delete_file</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">prefixed_path</span><span class="p">,</span> <span class="n">source_storage</span><span class="p">):</span>
+            <span class="k">return</span>
+        <span class="c"># The full path of the source file</span>
+        <span class="n">source_path</span> <span class="o">=</span> <span class="n">source_storage</span><span class="o">.</span><span class="n">path</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+        <span class="c"># Finally start copying</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">dry_run</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="s">&quot;Pretending to copy &#39;</span><span class="si">%s</span><span class="s">&#39;&quot;</span> <span class="o">%</span> <span class="n">source_path</span><span class="p">,</span> <span class="n">level</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="s">&quot;Copying &#39;</span><span class="si">%s</span><span class="s">&#39;&quot;</span> <span class="o">%</span> <span class="n">source_path</span><span class="p">,</span> <span class="n">level</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">local</span><span class="p">:</span>
+                <span class="n">full_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">storage</span><span class="o">.</span><span class="n">path</span><span class="p">(</span><span class="n">prefixed_path</span><span class="p">)</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">full_path</span><span class="p">))</span>
+                <span class="k">except</span> <span class="ne">OSError</span><span class="p">:</span>
+                    <span class="k">pass</span>
+            <span class="k">with</span> <span class="n">source_storage</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">path</span><span class="p">)</span> <span class="k">as</span> <span class="n">source_file</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">storage</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">prefixed_path</span><span class="p">,</span> <span class="n">source_file</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">prefixed_path</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">copied_files</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">copied_files</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">prefixed_path</span><span class="p">)</span></div></div>
+</pre></div>
+
+      </div>
+      <div class="bottomnav">
+      
+        <p>
+        <a href="/">Home</a>:
+        <a class="uplink" href="../../../../../../index.html">Contents</a>
+        </p>
+
+      </div>
+
+    <div class="footer">
+        &copy; Copyright 2012, HDKNR.COM.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2b1.
+    </div>
+  </body>
+</html>

@@ -1,0 +1,324 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>django.dispatch.saferef &mdash; Django Cheat 1 documentation</title>
+    
+    <link rel="stylesheet" href="../../../_static/haiku.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../../../static/print.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../',
+        VERSION:     '1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <script type="text/javascript" src="../../../static/theme_extras.js"></script>
+    <link rel="top" title="Django Cheat 1 documentation" href="../../../index.html" />
+    <link rel="up" title="Module code" href="../../index.html" /> 
+  </head>
+  <body>
+      <div class="header"><h1 class="heading"><a href="../../../index.html">
+          <span>Django Cheat 1 documentation</span></a></h1>
+        <h2 class="heading"><span>django.dispatch.saferef</span></h2>
+      </div>
+      <div class="topnav">
+      
+        <p>
+        <a href="/">Home</a>:
+        <a class="uplink" href="../../../index.html">Contents</a>
+        </p>
+
+      </div>
+      <div class="content">
+        
+        
+  <h1>Source code for django.dispatch.saferef</h1><div class="highlight"><pre>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">&quot;Safe weakrefs&quot;, originally from pyDispatcher.</span>
+
+<span class="sd">Provides a way to safely weakref any function, including bound methods (which</span>
+<span class="sd">aren&#39;t handled by the core weakref module).</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">traceback</span>
+<span class="kn">import</span> <span class="nn">weakref</span>
+
+<div class="viewcode-block" id="safeRef"><a class="viewcode-back" href="../../../django.dispatch.html#django.dispatch.saferef.safeRef">[docs]</a><span class="k">def</span> <span class="nf">safeRef</span><span class="p">(</span><span class="n">target</span><span class="p">,</span> <span class="n">onDelete</span> <span class="o">=</span> <span class="bp">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Return a *safe* weak reference to a callable target</span>
+
+<span class="sd">    target -- the object to be weakly referenced, if it&#39;s a</span>
+<span class="sd">        bound method reference, will create a BoundMethodWeakref,</span>
+<span class="sd">        otherwise creates a simple weakref.</span>
+<span class="sd">    onDelete -- if provided, will have a hard reference stored</span>
+<span class="sd">        to the callable to be called after the safe reference</span>
+<span class="sd">        goes out of scope with the reference object, (either a</span>
+<span class="sd">        weakref or a BoundMethodWeakref) as argument.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">target</span><span class="p">,</span> <span class="s">&#39;__self__&#39;</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">target</span><span class="o">.</span><span class="n">__self__</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="c"># Turn a bound method into a BoundMethodWeakref instance.</span>
+            <span class="c"># Keep track of these instances for lookup by disconnect().</span>
+            <span class="k">assert</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">target</span><span class="p">,</span> <span class="s">&#39;__func__&#39;</span><span class="p">),</span> <span class="s">&quot;&quot;&quot;safeRef target </span><span class="si">%r</span><span class="s"> has __self__, but no __func__, don&#39;t know how to create reference&quot;&quot;&quot;</span><span class="o">%</span><span class="p">(</span> <span class="n">target</span><span class="p">,)</span>
+            <span class="n">reference</span> <span class="o">=</span> <span class="n">get_bound_method_weakref</span><span class="p">(</span>
+                <span class="n">target</span><span class="o">=</span><span class="n">target</span><span class="p">,</span>
+                <span class="n">onDelete</span><span class="o">=</span><span class="n">onDelete</span>
+            <span class="p">)</span>
+            <span class="k">return</span> <span class="n">reference</span>
+    <span class="k">if</span> <span class="nb">callable</span><span class="p">(</span><span class="n">onDelete</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">weakref</span><span class="o">.</span><span class="n">ref</span><span class="p">(</span><span class="n">target</span><span class="p">,</span> <span class="n">onDelete</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">weakref</span><span class="o">.</span><span class="n">ref</span><span class="p">(</span> <span class="n">target</span> <span class="p">)</span>
+</div>
+<div class="viewcode-block" id="BoundMethodWeakref"><a class="viewcode-back" href="../../../django.dispatch.html#django.dispatch.saferef.BoundMethodWeakref">[docs]</a><span class="k">class</span> <span class="nc">BoundMethodWeakref</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;&#39;Safe&#39; and reusable weak references to instance methods</span>
+
+<span class="sd">    BoundMethodWeakref objects provide a mechanism for</span>
+<span class="sd">    referencing a bound method without requiring that the</span>
+<span class="sd">    method object itself (which is normally a transient</span>
+<span class="sd">    object) is kept alive.  Instead, the BoundMethodWeakref</span>
+<span class="sd">    object keeps weak references to both the object and the</span>
+<span class="sd">    function which together define the instance method.</span>
+
+<span class="sd">    Attributes:</span>
+<span class="sd">        key -- the identity key for the reference, calculated</span>
+<span class="sd">            by the class&#39;s calculateKey method applied to the</span>
+<span class="sd">            target instance method</span>
+<span class="sd">        deletionMethods -- sequence of callable objects taking</span>
+<span class="sd">            single argument, a reference to this object which</span>
+<span class="sd">            will be called when *either* the target object or</span>
+<span class="sd">            target function is garbage collected (i.e. when</span>
+<span class="sd">            this object becomes invalid).  These are specified</span>
+<span class="sd">            as the onDelete parameters of safeRef calls.</span>
+<span class="sd">        weakSelf -- weak reference to the target object</span>
+<span class="sd">        weakFunc -- weak reference to the target function</span>
+
+<span class="sd">    Class Attributes:</span>
+<span class="sd">        _allInstances -- class attribute pointing to all live</span>
+<span class="sd">            BoundMethodWeakref objects indexed by the class&#39;s</span>
+<span class="sd">            calculateKey(target) method applied to the target</span>
+<span class="sd">            objects.  This weak value dictionary is used to</span>
+<span class="sd">            short-circuit creation so that multiple references</span>
+<span class="sd">            to the same (object, function) pair produce the</span>
+<span class="sd">            same BoundMethodWeakref instance.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">_allInstances</span> <span class="o">=</span> <span class="n">weakref</span><span class="o">.</span><span class="n">WeakValueDictionary</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">__new__</span><span class="p">(</span> <span class="n">cls</span><span class="p">,</span> <span class="n">target</span><span class="p">,</span> <span class="n">onDelete</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="o">*</span><span class="n">arguments</span><span class="p">,</span><span class="o">**</span><span class="n">named</span> <span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Create new instance or return current instance</span>
+
+<span class="sd">        Basically this method of construction allows us to</span>
+<span class="sd">        short-circuit creation of references to already-</span>
+<span class="sd">        referenced instance methods.  The key corresponding</span>
+<span class="sd">        to the target is calculated, and if there is already</span>
+<span class="sd">        an existing reference, that is returned, with its</span>
+<span class="sd">        deletionMethods attribute updated.  Otherwise the</span>
+<span class="sd">        new instance is created and registered in the table</span>
+<span class="sd">        of already-referenced methods.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">key</span> <span class="o">=</span> <span class="n">cls</span><span class="o">.</span><span class="n">calculateKey</span><span class="p">(</span><span class="n">target</span><span class="p">)</span>
+        <span class="n">current</span> <span class="o">=</span><span class="n">cls</span><span class="o">.</span><span class="n">_allInstances</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">current</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="n">current</span><span class="o">.</span><span class="n">deletionMethods</span><span class="o">.</span><span class="n">append</span><span class="p">(</span> <span class="n">onDelete</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">current</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">base</span> <span class="o">=</span> <span class="nb">super</span><span class="p">(</span> <span class="n">BoundMethodWeakref</span><span class="p">,</span> <span class="n">cls</span><span class="p">)</span><span class="o">.</span><span class="n">__new__</span><span class="p">(</span> <span class="n">cls</span> <span class="p">)</span>
+            <span class="n">cls</span><span class="o">.</span><span class="n">_allInstances</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">base</span>
+            <span class="n">base</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span> <span class="n">target</span><span class="p">,</span> <span class="n">onDelete</span><span class="p">,</span> <span class="o">*</span><span class="n">arguments</span><span class="p">,</span><span class="o">**</span><span class="n">named</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">base</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">target</span><span class="p">,</span> <span class="n">onDelete</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Return a weak-reference-like instance for a bound method</span>
+
+<span class="sd">        target -- the instance-method target for the weak</span>
+<span class="sd">            reference, must have __self__ and __func__ attributes</span>
+<span class="sd">            and be reconstructable via:</span>
+<span class="sd">                target.__func__.__get__( target.__self__ )</span>
+<span class="sd">            which is true of built-in instance methods.</span>
+<span class="sd">        onDelete -- optional callback which will be called</span>
+<span class="sd">            when this weak reference ceases to be valid</span>
+<span class="sd">            (i.e. either the object or the function is garbage</span>
+<span class="sd">            collected).  Should take a single argument,</span>
+<span class="sd">            which will be passed a pointer to this object.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">def</span> <span class="nf">remove</span><span class="p">(</span><span class="n">weak</span><span class="p">,</span> <span class="bp">self</span><span class="o">=</span><span class="bp">self</span><span class="p">):</span>
+            <span class="sd">&quot;&quot;&quot;Set self.isDead to true when method or instance is destroyed&quot;&quot;&quot;</span>
+            <span class="n">methods</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">deletionMethods</span><span class="p">[:]</span>
+            <span class="k">del</span> <span class="bp">self</span><span class="o">.</span><span class="n">deletionMethods</span><span class="p">[:]</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="k">del</span> <span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="o">.</span><span class="n">_allInstances</span><span class="p">[</span> <span class="bp">self</span><span class="o">.</span><span class="n">key</span> <span class="p">]</span>
+            <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+                <span class="k">pass</span>
+            <span class="k">for</span> <span class="n">function</span> <span class="ow">in</span> <span class="n">methods</span><span class="p">:</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="nb">callable</span><span class="p">(</span> <span class="n">function</span> <span class="p">):</span>
+                        <span class="n">function</span><span class="p">(</span> <span class="bp">self</span> <span class="p">)</span>
+                <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                    <span class="k">try</span><span class="p">:</span>
+                        <span class="n">traceback</span><span class="o">.</span><span class="n">print_exc</span><span class="p">()</span>
+                    <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>
+                        <span class="k">print</span><span class="p">(</span><span class="s">&#39;Exception during saferef </span><span class="si">%s</span><span class="s"> cleanup function </span><span class="si">%s</span><span class="s">: </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="p">(</span>
+                            <span class="bp">self</span><span class="p">,</span> <span class="n">function</span><span class="p">,</span> <span class="n">e</span><span class="p">)</span>
+                        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">deletionMethods</span> <span class="o">=</span> <span class="p">[</span><span class="n">onDelete</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">key</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">calculateKey</span><span class="p">(</span> <span class="n">target</span> <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">weakSelf</span> <span class="o">=</span> <span class="n">weakref</span><span class="o">.</span><span class="n">ref</span><span class="p">(</span><span class="n">target</span><span class="o">.</span><span class="n">__self__</span><span class="p">,</span> <span class="n">remove</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">weakFunc</span> <span class="o">=</span> <span class="n">weakref</span><span class="o">.</span><span class="n">ref</span><span class="p">(</span><span class="n">target</span><span class="o">.</span><span class="n">__func__</span><span class="p">,</span> <span class="n">remove</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">selfName</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">target</span><span class="o">.</span><span class="n">__self__</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">funcName</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">target</span><span class="o">.</span><span class="n">__func__</span><span class="o">.</span><span class="n">__name__</span><span class="p">)</span>
+
+<div class="viewcode-block" id="BoundMethodWeakref.calculateKey"><a class="viewcode-back" href="../../../django.dispatch.html#django.dispatch.saferef.BoundMethodWeakref.calculateKey">[docs]</a>    <span class="k">def</span> <span class="nf">calculateKey</span><span class="p">(</span> <span class="n">cls</span><span class="p">,</span> <span class="n">target</span> <span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Calculate the reference key for this reference</span>
+
+<span class="sd">        Currently this is a two-tuple of the id()&#39;s of the</span>
+<span class="sd">        target object and the target function respectively.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="p">(</span><span class="nb">id</span><span class="p">(</span><span class="n">target</span><span class="o">.</span><span class="n">__self__</span><span class="p">),</span><span class="nb">id</span><span class="p">(</span><span class="n">target</span><span class="o">.</span><span class="n">__func__</span><span class="p">))</span></div>
+    <span class="n">calculateKey</span> <span class="o">=</span> <span class="nb">classmethod</span><span class="p">(</span> <span class="n">calculateKey</span> <span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Give a friendly representation of the object&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="s">&quot;&quot;&quot;</span><span class="si">%s</span><span class="s">( </span><span class="si">%s</span><span class="s">.</span><span class="si">%s</span><span class="s"> )&quot;&quot;&quot;</span><span class="o">%</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="o">.</span><span class="n">__name__</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">selfName</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">funcName</span><span class="p">,</span>
+        <span class="p">)</span>
+
+    <span class="n">__repr__</span> <span class="o">=</span> <span class="n">__str__</span>
+
+    <span class="k">def</span> <span class="nf">__hash__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="nb">hash</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">key</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__bool__</span><span class="p">(</span> <span class="bp">self</span> <span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Whether we are still a valid reference&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="p">()</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span>
+
+    <span class="k">def</span> <span class="nf">__nonzero__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>      <span class="c"># Python 2 compatibility</span>
+        <span class="k">return</span> <span class="nb">type</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__bool__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__eq__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Compare with another reference&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">other</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="p">):</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">__class__</span> <span class="o">==</span> <span class="nb">type</span><span class="p">(</span><span class="n">other</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">key</span> <span class="o">==</span> <span class="n">other</span><span class="o">.</span><span class="n">key</span>
+
+    <span class="k">def</span> <span class="nf">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Return a strong reference to the bound method</span>
+
+<span class="sd">        If the target cannot be retrieved, then will</span>
+<span class="sd">        return None, otherwise returns a bound instance</span>
+<span class="sd">        method for our object and function.</span>
+
+<span class="sd">        Note:</span>
+<span class="sd">            You may call this method any number of times,</span>
+<span class="sd">            as it does not invalidate the reference.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">target</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">weakSelf</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">target</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="n">function</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">weakFunc</span><span class="p">()</span>
+            <span class="k">if</span> <span class="n">function</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">function</span><span class="o">.</span><span class="n">__get__</span><span class="p">(</span><span class="n">target</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">None</span>
+</div>
+<div class="viewcode-block" id="BoundNonDescriptorMethodWeakref"><a class="viewcode-back" href="../../../django.dispatch.html#django.dispatch.saferef.BoundNonDescriptorMethodWeakref">[docs]</a><span class="k">class</span> <span class="nc">BoundNonDescriptorMethodWeakref</span><span class="p">(</span><span class="n">BoundMethodWeakref</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;A specialized BoundMethodWeakref, for platforms where instance methods</span>
+<span class="sd">    are not descriptors.</span>
+
+<span class="sd">    It assumes that the function name and the target attribute name are the</span>
+<span class="sd">    same, instead of assuming that the function is a descriptor. This approach</span>
+<span class="sd">    is equally fast, but not 100% reliable because functions can be stored on an</span>
+<span class="sd">    attribute named differenty than the function&#39;s name such as in:</span>
+
+<span class="sd">    class A: pass</span>
+<span class="sd">    def foo(self): return &quot;foo&quot;</span>
+<span class="sd">    A.bar = foo</span>
+
+<span class="sd">    But this shouldn&#39;t be a common use case. So, on platforms where methods</span>
+<span class="sd">    aren&#39;t descriptors (such as Jython) this implementation has the advantage</span>
+<span class="sd">    of working in the most cases.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">target</span><span class="p">,</span> <span class="n">onDelete</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Return a weak-reference-like instance for a bound method</span>
+
+<span class="sd">        target -- the instance-method target for the weak</span>
+<span class="sd">            reference, must have __self__ and __func__ attributes</span>
+<span class="sd">            and be reconstructable via:</span>
+<span class="sd">                target.__func__.__get__( target.__self__ )</span>
+<span class="sd">            which is true of built-in instance methods.</span>
+<span class="sd">        onDelete -- optional callback which will be called</span>
+<span class="sd">            when this weak reference ceases to be valid</span>
+<span class="sd">            (i.e. either the object or the function is garbage</span>
+<span class="sd">            collected).  Should take a single argument,</span>
+<span class="sd">            which will be passed a pointer to this object.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">assert</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">target</span><span class="o">.</span><span class="n">__self__</span><span class="p">,</span> <span class="n">target</span><span class="o">.</span><span class="n">__name__</span><span class="p">)</span> <span class="o">==</span> <span class="n">target</span><span class="p">,</span> \
+               <span class="p">(</span><span class="s">&quot;method </span><span class="si">%s</span><span class="s"> isn&#39;t available as the attribute </span><span class="si">%s</span><span class="s"> of </span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span>
+                <span class="p">(</span><span class="n">target</span><span class="p">,</span> <span class="n">target</span><span class="o">.</span><span class="n">__name__</span><span class="p">,</span> <span class="n">target</span><span class="o">.</span><span class="n">__self__</span><span class="p">))</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">BoundNonDescriptorMethodWeakref</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="n">target</span><span class="p">,</span> <span class="n">onDelete</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Return a strong reference to the bound method</span>
+
+<span class="sd">        If the target cannot be retrieved, then will</span>
+<span class="sd">        return None, otherwise returns a bound instance</span>
+<span class="sd">        method for our object and function.</span>
+
+<span class="sd">        Note:</span>
+<span class="sd">            You may call this method any number of times,</span>
+<span class="sd">            as it does not invalidate the reference.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">target</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">weakSelf</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">target</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="n">function</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">weakFunc</span><span class="p">()</span>
+            <span class="k">if</span> <span class="n">function</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+                <span class="c"># Using partial() would be another option, but it erases the</span>
+                <span class="c"># &quot;signature&quot; of the function. That is, after a function is</span>
+                <span class="c"># curried, the inspect module can&#39;t be used to determine how</span>
+                <span class="c"># many arguments the function expects, nor what keyword</span>
+                <span class="c"># arguments it supports, and pydispatcher needs this</span>
+                <span class="c"># information.</span>
+                <span class="k">return</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">target</span><span class="p">,</span> <span class="n">function</span><span class="o">.</span><span class="n">__name__</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">None</span>
+</div>
+<div class="viewcode-block" id="get_bound_method_weakref"><a class="viewcode-back" href="../../../django.dispatch.html#django.dispatch.saferef.get_bound_method_weakref">[docs]</a><span class="k">def</span> <span class="nf">get_bound_method_weakref</span><span class="p">(</span><span class="n">target</span><span class="p">,</span> <span class="n">onDelete</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Instantiates the appropiate BoundMethodWeakRef, depending on the details of</span>
+<span class="sd">    the underlying class method implementation&quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">target</span><span class="p">,</span> <span class="s">&#39;__get__&#39;</span><span class="p">):</span>
+        <span class="c"># target method is a descriptor, so the default implementation works:</span>
+        <span class="k">return</span> <span class="n">BoundMethodWeakref</span><span class="p">(</span><span class="n">target</span><span class="o">=</span><span class="n">target</span><span class="p">,</span> <span class="n">onDelete</span><span class="o">=</span><span class="n">onDelete</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="c"># no luck, use the alternative implementation:</span>
+        <span class="k">return</span> <span class="n">BoundNonDescriptorMethodWeakref</span><span class="p">(</span><span class="n">target</span><span class="o">=</span><span class="n">target</span><span class="p">,</span> <span class="n">onDelete</span><span class="o">=</span><span class="n">onDelete</span><span class="p">)</span></div>
+</pre></div>
+
+      </div>
+      <div class="bottomnav">
+      
+        <p>
+        <a href="/">Home</a>:
+        <a class="uplink" href="../../../index.html">Contents</a>
+        </p>
+
+      </div>
+
+    <div class="footer">
+        &copy; Copyright 2012, HDKNR.COM.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2b1.
+    </div>
+  </body>
+</html>

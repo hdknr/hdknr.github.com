@@ -1,0 +1,222 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>django.utils.tree &mdash; Django Cheat 1 documentation</title>
+    
+    <link rel="stylesheet" href="../../../_static/haiku.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../../../static/print.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../',
+        VERSION:     '1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <script type="text/javascript" src="../../../static/theme_extras.js"></script>
+    <link rel="top" title="Django Cheat 1 documentation" href="../../../index.html" />
+    <link rel="up" title="Module code" href="../../index.html" /> 
+  </head>
+  <body>
+      <div class="header"><h1 class="heading"><a href="../../../index.html">
+          <span>Django Cheat 1 documentation</span></a></h1>
+        <h2 class="heading"><span>django.utils.tree</span></h2>
+      </div>
+      <div class="topnav">
+      
+        <p>
+        <a href="/">Home</a>:
+        <a class="uplink" href="../../../index.html">Contents</a>
+        </p>
+
+      </div>
+      <div class="content">
+        
+        
+  <h1>Source code for django.utils.tree</h1><div class="highlight"><pre>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">A class for storing a tree graph. Primarily used for filter constructs in the</span>
+<span class="sd">ORM.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">copy</span>
+
+<div class="viewcode-block" id="Node"><a class="viewcode-back" href="../../../django.utils.html#django.utils.tree.Node">[docs]</a><span class="k">class</span> <span class="nc">Node</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    A single internal node in the tree graph. A Node should be viewed as a</span>
+<span class="sd">    connection (the root) with the children being either leaf nodes or other</span>
+<span class="sd">    Node instances.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c"># Standard connector type. Clients usually won&#39;t use this at all and</span>
+    <span class="c"># subclasses will usually override the value.</span>
+    <span class="n">default</span> <span class="o">=</span> <span class="s">&#39;DEFAULT&#39;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">children</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">connector</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">negated</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Constructs a new Node. If no connector is given, the default will be</span>
+<span class="sd">        used.</span>
+
+<span class="sd">        Warning: You probably don&#39;t want to pass in the &#39;negated&#39; parameter. It</span>
+<span class="sd">        is NOT the same as constructing a node and calling negate() on the</span>
+<span class="sd">        result.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">children</span> <span class="o">=</span> <span class="n">children</span> <span class="ow">and</span> <span class="n">children</span><span class="p">[:]</span> <span class="ow">or</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">connector</span> <span class="o">=</span> <span class="n">connector</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">default</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">subtree_parents</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">negated</span> <span class="o">=</span> <span class="n">negated</span>
+
+    <span class="c"># We need this because of django.db.models.query_utils.Q. Q. __init__() is</span>
+    <span class="c"># problematic, but it is a natural Node subclass in all other respects.</span>
+    <span class="k">def</span> <span class="nf">_new_instance</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">children</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">connector</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">negated</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        This is called to create a new instance of this class when we need new</span>
+<span class="sd">        Nodes (or subclasses) in the internal code in this class. Normally, it</span>
+<span class="sd">        just shadows __init__(). However, subclasses with an __init__ signature</span>
+<span class="sd">        that is not an extension of Node.__init__ might need to implement this</span>
+<span class="sd">        method to allow a Node to create a new instance of them (if they have</span>
+<span class="sd">        any extra setting up to do).</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">obj</span> <span class="o">=</span> <span class="n">Node</span><span class="p">(</span><span class="n">children</span><span class="p">,</span> <span class="n">connector</span><span class="p">,</span> <span class="n">negated</span><span class="p">)</span>
+        <span class="n">obj</span><span class="o">.</span><span class="n">__class__</span> <span class="o">=</span> <span class="n">cls</span>
+        <span class="k">return</span> <span class="n">obj</span>
+    <span class="n">_new_instance</span> <span class="o">=</span> <span class="nb">classmethod</span><span class="p">(</span><span class="n">_new_instance</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">negated</span><span class="p">:</span>
+            <span class="k">return</span> <span class="s">&#39;(NOT (</span><span class="si">%s</span><span class="s">: </span><span class="si">%s</span><span class="s">))&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">connector</span><span class="p">,</span> <span class="s">&#39;, &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="nb">str</span><span class="p">(</span><span class="n">c</span><span class="p">)</span> <span class="k">for</span> <span class="n">c</span>
+                    <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">children</span><span class="p">]))</span>
+        <span class="k">return</span> <span class="s">&#39;(</span><span class="si">%s</span><span class="s">: </span><span class="si">%s</span><span class="s">)&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">connector</span><span class="p">,</span> <span class="s">&#39;, &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="nb">str</span><span class="p">(</span><span class="n">c</span><span class="p">)</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">children</span><span class="p">]))</span>
+
+    <span class="k">def</span> <span class="nf">__deepcopy__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">memodict</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Utility method used by copy.deepcopy().</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">obj</span> <span class="o">=</span> <span class="n">Node</span><span class="p">(</span><span class="n">connector</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">connector</span><span class="p">,</span> <span class="n">negated</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">negated</span><span class="p">)</span>
+        <span class="n">obj</span><span class="o">.</span><span class="n">__class__</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__class__</span>
+        <span class="n">obj</span><span class="o">.</span><span class="n">children</span> <span class="o">=</span> <span class="n">copy</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">children</span><span class="p">,</span> <span class="n">memodict</span><span class="p">)</span>
+        <span class="n">obj</span><span class="o">.</span><span class="n">subtree_parents</span> <span class="o">=</span> <span class="n">copy</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">subtree_parents</span><span class="p">,</span> <span class="n">memodict</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">obj</span>
+
+    <span class="k">def</span> <span class="nf">__len__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        The size of a node if the number of children it has.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">children</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__bool__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        For truth value testing.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="nb">bool</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">children</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__nonzero__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>      <span class="c"># Python 2 compatibility</span>
+        <span class="k">return</span> <span class="nb">type</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__bool__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__contains__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns True is &#39;other&#39; is a direct child of this instance.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">other</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">children</span>
+
+<div class="viewcode-block" id="Node.add"><a class="viewcode-back" href="../../../django.utils.html#django.utils.tree.Node.add">[docs]</a>    <span class="k">def</span> <span class="nf">add</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">node</span><span class="p">,</span> <span class="n">conn_type</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Adds a new node to the tree. If the conn_type is the same as the root&#39;s</span>
+<span class="sd">        current connector type, the node is added to the first level.</span>
+<span class="sd">        Otherwise, the whole tree is pushed down one level and a new root</span>
+<span class="sd">        connector is created, connecting the existing tree and the new node.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">node</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">children</span> <span class="ow">and</span> <span class="n">conn_type</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">connector</span><span class="p">:</span>
+            <span class="k">return</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">children</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">connector</span> <span class="o">=</span> <span class="n">conn_type</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">connector</span> <span class="o">==</span> <span class="n">conn_type</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">node</span><span class="p">,</span> <span class="n">Node</span><span class="p">)</span> <span class="ow">and</span> <span class="p">(</span><span class="n">node</span><span class="o">.</span><span class="n">connector</span> <span class="o">==</span> <span class="n">conn_type</span> <span class="ow">or</span>
+                    <span class="nb">len</span><span class="p">(</span><span class="n">node</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">children</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">node</span><span class="o">.</span><span class="n">children</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">children</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">node</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">obj</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_new_instance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">children</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">connector</span><span class="p">,</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">negated</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">connector</span> <span class="o">=</span> <span class="n">conn_type</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">children</span> <span class="o">=</span> <span class="p">[</span><span class="n">obj</span><span class="p">,</span> <span class="n">node</span><span class="p">]</span>
+</div>
+<div class="viewcode-block" id="Node.negate"><a class="viewcode-back" href="../../../django.utils.html#django.utils.tree.Node.negate">[docs]</a>    <span class="k">def</span> <span class="nf">negate</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Negate the sense of the root connector. This reorganises the children</span>
+<span class="sd">        so that the current node has a single child: a negated node containing</span>
+<span class="sd">        all the previous children. This slightly odd construction makes adding</span>
+<span class="sd">        new children behave more intuitively.</span>
+
+<span class="sd">        Interpreting the meaning of this negate is up to client code. This</span>
+<span class="sd">        method is useful for implementing &quot;not&quot; arrangements.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">children</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_new_instance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">children</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">connector</span><span class="p">,</span>
+                <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">negated</span><span class="p">)]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">connector</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">default</span>
+</div>
+<div class="viewcode-block" id="Node.start_subtree"><a class="viewcode-back" href="../../../django.utils.html#django.utils.tree.Node.start_subtree">[docs]</a>    <span class="k">def</span> <span class="nf">start_subtree</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">conn_type</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Sets up internal state so that new nodes are added to a subtree of the</span>
+<span class="sd">        current node. The conn_type specifies how the sub-tree is joined to the</span>
+<span class="sd">        existing children.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">children</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">connector</span> <span class="o">=</span> <span class="n">conn_type</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">connector</span> <span class="o">!=</span> <span class="n">conn_type</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">children</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_new_instance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">children</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">connector</span><span class="p">,</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">negated</span><span class="p">)]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">connector</span> <span class="o">=</span> <span class="n">conn_type</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">negated</span> <span class="o">=</span> <span class="bp">False</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">subtree_parents</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">children</span><span class="p">,</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">connector</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">negated</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">connector</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">default</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">negated</span> <span class="o">=</span> <span class="bp">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">children</span> <span class="o">=</span> <span class="p">[]</span>
+</div>
+<div class="viewcode-block" id="Node.end_subtree"><a class="viewcode-back" href="../../../django.utils.html#django.utils.tree.Node.end_subtree">[docs]</a>    <span class="k">def</span> <span class="nf">end_subtree</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Closes off the most recently unmatched start_subtree() call.</span>
+
+<span class="sd">        This puts the current state into a node of the parent tree and returns</span>
+<span class="sd">        the current instances state to be the parent.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">obj</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">subtree_parents</span><span class="o">.</span><span class="n">pop</span><span class="p">()</span>
+        <span class="n">node</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">children</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">connector</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">connector</span> <span class="o">=</span> <span class="n">obj</span><span class="o">.</span><span class="n">connector</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">negated</span> <span class="o">=</span> <span class="n">obj</span><span class="o">.</span><span class="n">negated</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">children</span> <span class="o">=</span> <span class="n">obj</span><span class="o">.</span><span class="n">children</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">children</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">node</span><span class="p">)</span>
+</pre></div></div></div>
+
+      </div>
+      <div class="bottomnav">
+      
+        <p>
+        <a href="/">Home</a>:
+        <a class="uplink" href="../../../index.html">Contents</a>
+        </p>
+
+      </div>
+
+    <div class="footer">
+        &copy; Copyright 2012, HDKNR.COM.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2b1.
+    </div>
+  </body>
+</html>

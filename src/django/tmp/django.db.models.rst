@@ -52,6 +52,19 @@ django.db.models.base
 .. automodule:: django.db.models.base
     :members:
 
+.. _django.db.models.constants:
+
+django.db.models.constants
+==========================
+
+
+- `source <https://github.com/django/django/tree/master/django/db/models/constants.py>`_ 
+
+.. include:: cheat/django.db.models.constants.rst
+
+.. automodule:: django.db.models.constants
+    :members:
+
 .. _django.db.models.deletion:
 
 django.db.models.deletion

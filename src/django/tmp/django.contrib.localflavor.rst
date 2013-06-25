@@ -58,6 +58,8 @@ Sub
 
 - :doc:`django.contrib.localflavor.generic`
 
+- :doc:`django.contrib.localflavor.hk`
+
 - :doc:`django.contrib.localflavor.hr`
 
 - :doc:`django.contrib.localflavor.id`

@@ -32,32 +32,6 @@ django.views.generic.base
 .. automodule:: django.views.generic.base
     :members:
 
-.. _django.views.generic.create_update:
-
-django.views.generic.create_update
-==================================
-
-
-- `source <https://github.com/django/django/tree/master/django/views/generic/create_update.py>`_ 
-
-.. include:: cheat/django.views.generic.create_update.rst
-
-.. automodule:: django.views.generic.create_update
-    :members:
-
-.. _django.views.generic.date_based:
-
-django.views.generic.date_based
-===============================
-
-
-- `source <https://github.com/django/django/tree/master/django/views/generic/date_based.py>`_ 
-
-.. include:: cheat/django.views.generic.date_based.rst
-
-.. automodule:: django.views.generic.date_based
-    :members:
-
 .. _django.views.generic.dates:
 
 django.views.generic.dates
@@ -108,31 +82,5 @@ django.views.generic.list
 .. include:: cheat/django.views.generic.list.rst
 
 .. automodule:: django.views.generic.list
-    :members:
-
-.. _django.views.generic.list_detail:
-
-django.views.generic.list_detail
-================================
-
-
-- `source <https://github.com/django/django/tree/master/django/views/generic/list_detail.py>`_ 
-
-.. include:: cheat/django.views.generic.list_detail.rst
-
-.. automodule:: django.views.generic.list_detail
-    :members:
-
-.. _django.views.generic.simple:
-
-django.views.generic.simple
-===========================
-
-
-- `source <https://github.com/django/django/tree/master/django/views/generic/simple.py>`_ 
-
-.. include:: cheat/django.views.generic.simple.rst
-
-.. automodule:: django.views.generic.simple
     :members:
 
