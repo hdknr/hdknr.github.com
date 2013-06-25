@@ -256,13 +256,29 @@ The OAuth 2.0 Authorization Framework
 
 .. include:: oauth/7.2.rst
 
-.. _oauth_8:
+.. _oauth.8:
 
 .. include:: oauth/8.rst
 
-.. _oauth_8_4:
+.. _oauth.8.1:
 
-.. include:: oauth/8_4.rst
+.. include:: oauth/8.1.rst
+
+.. _oauth.8.2:
+
+.. include:: oauth/8.2.rst
+
+.. _oauth.8.3:
+
+.. include:: oauth/8.3.rst
+
+.. _oauth.8.4:
+
+.. include:: oauth/8.4.rst
+
+.. _oauth.8.5:
+
+.. include:: oauth/8.5.rst
 
 .. _oauth.9:
 
@@ -306,7 +322,6 @@ The OAuth 2.0 Authorization Framework
 
 .. include:: oauth/10.8.rst
 
-
 .. _oauth.10.9:
 
 .. include:: oauth/10.9.rst
@@ -346,32 +361,62 @@ The OAuth 2.0 Authorization Framework
 .. include:: oauth/10.16.rst
 
 
-.. _oauth_11:
+.. _oauth.11:
 
 .. include:: oauth/11.rst
 
-.. _oauth_11_2:
+.. _oauth.11.1:
 
-.. include:: oauth/11_2.rst
+.. include:: oauth/11.1.rst
 
-.. _oauth_11_3:
+.. _oauth.11.1.1:
 
-.. include:: oauth/11_3.rst
+.. include:: oauth/11.1.1.rst
 
-.. _oauth_11_4:
+.. _oauth.11.2:
+
+.. include:: oauth/1123.rst
+
+.. _oauth.11.2.1:
+
+.. include:: oauth/11.2.1.rst
+
+.. _oauth.11.2.2:
+
+.. include:: oauth/11.2.2.rst
+
+.. _oauth.11.3:
+
+.. include:: oauth/11.3.rst
+
+.. _oauth.11.3.1:
+
+.. include:: oauth/11.3.1.rst
+
+.. _oauth.11.3.2:
+
+.. include:: oauth/11.3.2.rst
+
+.. _oauth.11.4:
+
+.. include:: oauth/11.4.rst
+
+.. _oauth.11.4.1:
+
+.. include:: oauth/11.4.1.rst
 
 
-.. _oauth_13:
+.. _oauth.12:
 
-.. include:: oauth/13.rst
+.. include:: oauth/12.rst
 
-.. _oauth_13_1:
+.. _oauth.12.1:
 
-.. include:: oauth/13_1.rst
+.. include:: oauth/12.1.rst
 
-.. _oauth_13_2:
+.. _oauth.12.2:
 
-.. include:: oauth/13_2.rst
+.. include:: oauth/12.2.rst
 
 .. _oauth.appendix.a:
 
@@ -381,6 +426,108 @@ The OAuth 2.0 Authorization Framework
 
 .. include:: oauth/appendix.a.1.rst
 
+.. _oauth.appendix.a.2:
+
+.. include:: oauth/appendix.a.2.rst
+
+.. _oauth.appendix.a.3:
+
+.. include:: oauth/appendix.a.3.rst
+
 .. _oauth.appendix.a.4:
 
 .. include:: oauth/appendix.a.4.rst
+
+
+
+.. _oauth.appendix.a.5: 
+
+.. include:: oauth/appendix.a.5.rst 
+
+
+
+.. _oauth.appendix.a.6: 
+
+.. include:: oauth/appendix.a.6.rst 
+
+
+
+.. _oauth.appendix.a.7: 
+
+.. include:: oauth/appendix.a.7.rst 
+
+
+
+.. _oauth.appendix.a.8: 
+
+.. include:: oauth/appendix.a.8.rst 
+
+
+
+.. _oauth.appendix.a.9: 
+
+.. include:: oauth/appendix.a.9.rst 
+
+
+
+.. _oauth.appendix.a.10: 
+
+.. include:: oauth/appendix.a.10.rst 
+
+
+
+.. _oauth.appendix.a.11: 
+
+.. include:: oauth/appendix.a.11.rst 
+
+
+
+.. _oauth.appendix.a.12: 
+
+.. include:: oauth/appendix.a.12.rst 
+
+
+
+.. _oauth.appendix.a.13: 
+
+.. include:: oauth/appendix.a.13.rst 
+
+
+
+.. _oauth.appendix.a.14: 
+
+.. include:: oauth/appendix.a.14.rst 
+
+
+
+.. _oauth.appendix.a.15: 
+
+.. include:: oauth/appendix.a.15.rst 
+
+
+
+.. _oauth.appendix.a.16: 
+
+.. include:: oauth/appendix.a.16.rst 
+
+
+
+.. _oauth.appendix.a.17: 
+
+.. include:: oauth/appendix.a.17.rst 
+
+
+
+.. _oauth.appendix.a.18: 
+
+.. include:: oauth/appendix.a.18.rst 
+
+
+.. _oauth.appendix.b: 
+
+.. include:: oauth/appendix.b.rst 
+
+.. _oauth.appendix.c: 
+
+.. include:: oauth/appendix.c.rst 
+
