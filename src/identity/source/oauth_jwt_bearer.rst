@@ -3,7 +3,10 @@ JSON Web Token (JWT) Bearer Token Profiles for OAuth 2.0
 =============================================================================
 
 
-- http://tools.ietf.org/html/draft-ietf-oauth-jwt-bearer-04
+.. contents::
+    :local:
+
+- https://tools.ietf.org/html/draft-ietf-oauth-jwt-bearer-05
 
 .. _oauth_jwt_bearer.abstract:
 
@@ -14,7 +17,6 @@ JSON Web Token (JWT) Bearer Token Profiles for OAuth 2.0
 .. _oauth_jwt_bearer.1:
 
 .. include:: oauth_jwt_bearer/1.rst
-
 
 .. _oauth_jwt_bearer.1.2:
 
