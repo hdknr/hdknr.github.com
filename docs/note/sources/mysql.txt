@@ -33,6 +33,7 @@ management
 - my.cnf に ログファイルの場所を指定してリスタート ( RedHat? : /etc/my.cnf , Debian : /etc/mysql/my.cnf )
 
 ::
+
     [mysqld]
     log=/tmp/xxx.log
     # Debian では /etc/mysql/my.cnfにコメントアウトされているlogエントリを使ったほうがいいです。
@@ -48,6 +49,14 @@ management
     
     GRANT ALL PRIVILEGES ON * . * TO  'prospects'@'localhost' WITH GRANT OPTION MAX_QUERIES_PER_HOUR 0 MAX_CONNECTIONS_PER_HOUR 0 MAX_UPDATES_PER_HOUR 0 MAX_USER_CONNECTIONS 0 ;
     
+
+ユーザー一覧
+-------------
+
+
+.. code-block:: mysql
+
+    SELECT User, Password FROM mysql.user
 
 SQL
 =====

@@ -2,6 +2,13 @@
 メモ
 ======
 
+xargs
+--------
+
+.. code-block:: bash
+
+    $ ls /etc/init.d/a* | xargs -i basename {}
+
 seq コマンド
 ----------------
 

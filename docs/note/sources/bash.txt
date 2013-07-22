@@ -168,6 +168,8 @@ $(コマンド)
 seqコマンド
 ==================
 
+- for でループさせるとき便利よ
+
 ::
 
     (main)hdknr@sqg:~$ for i in $(seq 1 5 ) ; do echo $i; done

@@ -2,9 +2,10 @@
 JSON Web Token(JWT)
 =====================
 
+.. contents::
+    :local:
  
-- draft-ietf-oauth-json-web-token-05
-- http://tools.ietf.org/html/draft-ietf-oauth-json-web-token-08
+- https://tools.ietf.org/html/draft-ietf-oauth-json-web-token-10 
 
 .. _jwt.abstract:
 

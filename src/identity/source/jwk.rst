@@ -2,9 +2,11 @@
 JSON Web Key (JWK)
 =====================
 
-.. contents:: Table of Contents
+.. contents::
+    :local:
 
-- Draft 11 : http://tools.ietf.org/html/draft-ietf-jose-json-web-key-11
+.. note::
+    - https://tools.ietf.org/html/draft-ietf-jose-json-web-key-13
 
 .. _jwk.abstract:
 

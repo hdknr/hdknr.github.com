@@ -2,10 +2,12 @@
 JSON Web Signature (JWS)
 ========================================
 
-.. contents:: Table of Contents
-Based on 
-`JWS Draft  08 <http://tools.ietf.org/html/draft-ietf-jose-json-web-signature-08>`_
-( December 27, 2012 - June 30, 2013 )
+.. contents::
+    :local:
+
+.. note::
+
+    - https://tools.ietf.org/html/draft-ietf-jose-json-web-signature-13
 
 .. _jws.abstract:
 

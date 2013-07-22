@@ -6,7 +6,7 @@ JSON Web Encryption (JWE)
     :local:
 
 .. note::
-    - https://tools.ietf.org/html/draft-ietf-jose-json-web-encryption-11
+    - https://tools.ietf.org/html/draft-ietf-jose-json-web-encryption-13
 
 .. _jwe.abstract:
 
@@ -214,3 +214,76 @@ JSON Web Encryption (JWE)
 
 .. include:: jwe/appendix.a.1.12.rst
 
+
+.. _jwe.appendix.a.2:
+
+.. include:: jwe/appendix.a.2.rst
+
+.. _jwe.appendix.a.2.1:
+
+.. include:: jwe/appendix.a.2.1.rst
+
+.. _jwe.appendix.a.2.2:
+
+.. include:: jwe/appendix.a.2.2.rst
+
+.. _jwe.appendix.a.2.3:
+
+.. include:: jwe/appendix.a.2.3.rst
+
+.. _jwe.appendix.a.2.4:
+
+.. include:: jwe/appendix.a.2.4.rst
+
+.. _jwe.appendix.a.2.5:
+
+.. include:: jwe/appendix.a.2.5.rst
+
+.. _jwe.appendix.a.2.6:
+
+.. include:: jwe/appendix.a.2.6.rst
+
+.. _jwe.appendix.a.2.7:
+
+.. include:: jwe/appendix.a.2.7.rst
+
+.. _jwe.appendix.a.2.8:
+
+.. include:: jwe/appendix.a.2.8.rst
+
+
+.. _jwe.appendix.b:
+
+.. include:: jwe/appendix.b.rst
+
+.. _jwe.appendix.b.1:
+
+.. include:: jwe/appendix.b.1.rst
+
+.. _jwe.appendix.b.2:
+
+.. include:: jwe/appendix.b.2.rst
+
+.. _jwe.appendix.b.3:
+
+.. include:: jwe/appendix.b.3.rst
+
+.. _jwe.appendix.b.4:
+
+.. include:: jwe/appendix.b.4.rst
+
+.. _jwe.appendix.b.5:
+
+.. include:: jwe/appendix.b.5.rst
+
+.. _jwe.appendix.b.6:
+
+.. include:: jwe/appendix.b.6.rst
+
+.. _jwe.appendix.b.7:
+
+.. include:: jwe/appendix.b.7.rst
+
+.. _jwe.appendix.b.8:
+
+.. include:: jwe/appendix.b.8.rst
