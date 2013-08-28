@@ -4,9 +4,9 @@ OpenID Connect Discovery 1.0
 
 .. contents:: Table of Contents
 
-Based on `OpenID Connect Discovery 1.0 - draft 10 <http://openid.bitbucket.org/openid-connect-discovery-1_0.html>`_
+Based on `OpenID Connect Discovery 1.0 - draft 17 <http://openid.bitbucket.org/openid-connect-discovery-1_0.html>`_
 
-( September 14, 2012 )
+( July 5, 2013 ) 
 
 .. _discovery.abstract:
 
@@ -55,6 +55,10 @@ Based on `OpenID Connect Discovery 1.0 - draft 10 <http://openid.bitbucket.org/o
 .. _discovery.2.2.3:
 
 .. include:: discovery/2.2.3.rst
+
+.. _discovery.2.2.4:
+
+.. include:: discovery/2.2.4.rst
 
 .. _discovery.3:
 

@@ -224,9 +224,20 @@ sudo usermod(管理者)
 chsh (自分で変える)
 ----------------------------
 
-::
+パスワード聞いてきます::
 
     $ chsh -s /bin/bash
+
+デフォルトの設定ファイル ::
+
+    $ ls -al /etc/skel
+
+    合計 20
+    drwxr-xr-x  2 root root 4096 2011-12-31 07:58 .
+    drwxr-xr-x 78 root root 4096 2013-08-02 16:23 ..
+    -rw-r--r--  1 root root  220 2010-04-10 19:50 .bash_logout
+    -rw-r--r--  1 root root 3184 2010-04-10 19:50 .bashrc
+    -rw-r--r--  1 root root  675 2010-04-10 19:50 .profile
 
 
 Link
