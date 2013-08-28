@@ -717,7 +717,7 @@ Others
         Sites can use this to avoid :term:`clickjacking` attacks, by ensuring that their content is not embedded into other sites.
 
     TLS
-        ( TODO )
+        - :ref:`basic.7.1`
     
     End-User Authorization Endpoint
         :term:`Authorization Endpoint`
