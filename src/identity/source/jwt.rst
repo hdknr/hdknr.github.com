@@ -4,14 +4,14 @@ JSON Web Token(JWT)
 
 .. contents::
     :local:
- 
-- https://tools.ietf.org/html/draft-ietf-oauth-json-web-token-10 
+
+.. note:: 
+
+    - https://tools.ietf.org/html/draft-ietf-oauth-json-web-token-11
 
 .. _jwt.abstract:
 
 .. include:: jwt/abstract.rst
-
-.. contents:: Table of Contents
 
 .. _jwt.1:
 

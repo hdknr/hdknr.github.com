@@ -6,8 +6,7 @@ JSON Web Signature (JWS)
     :local:
 
 .. note::
-
-    - https://tools.ietf.org/html/draft-ietf-jose-json-web-signature-13
+    - https://tools.ietf.org/html/draft-ietf-jose-json-web-signature-14
 
 .. _jws.abstract:
 

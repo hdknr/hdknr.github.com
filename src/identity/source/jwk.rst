@@ -6,7 +6,7 @@ JSON Web Key (JWK)
     :local:
 
 .. note::
-    - https://tools.ietf.org/html/draft-ietf-jose-json-web-key-13
+    - https://tools.ietf.org/html/draft-ietf-jose-json-web-key-14
 
 .. _jwk.abstract:
 

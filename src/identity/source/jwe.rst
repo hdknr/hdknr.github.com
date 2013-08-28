@@ -6,7 +6,7 @@ JSON Web Encryption (JWE)
     :local:
 
 .. note::
-    - https://tools.ietf.org/html/draft-ietf-jose-json-web-encryption-13
+    - https://tools.ietf.org/html/draft-ietf-jose-json-web-encryption-14
 
 .. _jwe.abstract:
 
