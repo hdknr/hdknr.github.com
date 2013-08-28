@@ -47,6 +47,7 @@ others
     oauth_meta
     oauth_res_reg
     oauth-lrdd
+    oauth_auth
 
 Resource
 -----------

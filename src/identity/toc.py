@@ -33,8 +33,11 @@ def section_cmp(x,y ):
 SECTION=lambda pathname: os.path.splitext(os.path.basename(pathname))[0]
 
 def get_sections(spec):
+    import functools 
     sections = [ SECTION(i)   for i in glob.glob("source/%s/*.rst" % spec ) ]
-    sections.sort(cmp=section_cmp )
+#    sections.sort(cmp=section_cmp )
+    sections.sort(key=functools.cmp_to_key(section_cmp) )
+    
     return sections
 
 def make(spec,command='make') :
@@ -64,4 +67,4 @@ if __name__ == '__main__':
     parser.add_argument('command',metavar='Command',nargs='?',default='make',)
     args = parser.parse_args()
 
-    make(args.spec,args.command)
+    make(args.spec.split('/')[-1],args.command)
