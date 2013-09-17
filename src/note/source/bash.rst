@@ -2,7 +2,8 @@
 bash
 ======
 
-.. contents:: bash 
+.. contents::
+    :local:
 
 
 Cookbook
@@ -239,6 +240,12 @@ chsh (自分で変える)
     -rw-r--r--  1 root root 3184 2010-04-10 19:50 .bashrc
     -rw-r--r--  1 root root  675 2010-04-10 19:50 .profile
 
+デフォルトの.bashrc
+------------------------
+
+Debian::
+
+    $ cp /etc/skel/.bashrc ~/.bashrc
 
 Link
 =======
