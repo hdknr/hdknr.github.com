@@ -8,6 +8,9 @@ cat > $BASE/docs.html <<EOF
 EOF
 
 for i in $BASE/src/* ; do
+    cd $i;
+    make html; 
+    cd ..;
     DOC=`basename $i`;
     echo "**** $i > $BASE/docs/`basename $i`";
     if [ ! -d $BASE/docs/$DOC ] ; then
