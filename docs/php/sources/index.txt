@@ -16,6 +16,7 @@ Contents:
     dict
     class
     i18n
+    glossary
 
 
 Indices and tables

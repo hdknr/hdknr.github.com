@@ -6,5 +6,5 @@ JSON Web Algorithms (JWA)
     :local:
 
 .. note::
-    - Draft 14 : https://tools.ietf.org/html/draft-ietf-jose-json-web-algorithms-14
+    - Draft 16 : https://tools.ietf.org/html/draft-ietf-jose-json-web-algorithms-16
 
