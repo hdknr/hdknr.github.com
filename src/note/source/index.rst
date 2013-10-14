@@ -35,6 +35,7 @@ Misc
     software_design
     dns
     supervisord
+    rabbitmq
 
 Mail
 

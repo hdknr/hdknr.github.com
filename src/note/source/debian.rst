@@ -117,6 +117,15 @@ AWSインスタンス
 - ユーザー : :doc:`user` 
 - シェル : :doc:`bash`
 
+cron
+------
+
+- ログの確認
+
+.. code-block:: bash
+
+    $ tail -f /var/log/cron
+
 証明書
 --------
 

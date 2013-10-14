@@ -61,6 +61,16 @@ management
 SQL
 =====
 
+- 現在接続中のデータベース
+
+.. code-block:: mysql
+
+    select database();
+
+.. code-block:: mysql
+
+    SHOW PROCESSLIST;
+
 - 年月集約
 
 .. code-block:: mysql
@@ -108,6 +118,7 @@ SQL
      show variables like "char%";
 
 - `照合順序 <http://harajuku-tech.posterous.com/mysql37-collationitpro>`_
+
 
 
 
