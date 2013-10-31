@@ -36,6 +36,7 @@ Misc
     dns
     supervisord
     rabbitmq
+    sentry
 
 Mail
 
