@@ -95,6 +95,7 @@ Linux Commands:
     logging
     curl
     upstart
+    cron
 
     memo
 

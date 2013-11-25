@@ -62,3 +62,25 @@ post-commit
     echo $BASE/$1
     $PY $TA $BASE/$1/trac repository resync $2
     
+
+
+コマンド
+================
+
+
+svn log
+--------
+
+
+svn diff
+---------
+
+
+コミット内容
+^^^^^^^^^^^^^
+
+- r1022の修正内容
+
+.. code-block:: bash
+
+    $svn diff -r 1021:1022

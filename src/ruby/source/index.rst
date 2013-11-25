@@ -13,6 +13,11 @@ Contents:
 
     rbenv
     gem
+    rake
+    rails
+
+    django
+
     memo
 
 Indices and tables
