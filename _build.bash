@@ -1,6 +1,7 @@
 #!/bin/bash
 
-BASE=`dirname $0`
+SCRIPT=`realpath -s $0`
+BASE=`dirname $SCRIPT`
 
 if [ "$1" == "push" ] ; then
     pushd .
@@ -19,6 +20,7 @@ EOF
 
 for i in $BASE/src/* ; do
     cd $i;
+    echo "Now buiding `pwd` for $BASE"
     make html; 
     cd ..;
     DOC=`basename $i`;

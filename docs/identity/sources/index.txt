@@ -19,6 +19,7 @@ RFC
     oauth
     oauth_bearer
     oauth_threat
+    oauth_revocation
 
 Draft
 ---------
@@ -42,7 +43,6 @@ others
     oauth_responses
     oauth_mac
     oauth_reg
-    oauth_revocation
     oauth_introspect
     oauth_meta
     oauth_res_reg
