@@ -24,6 +24,8 @@ Sub
 
 - :doc:`django.contrib.sessions.backends`
 
+- :doc:`django.contrib.sessions.management`
+
 .. _django.contrib.sessions.middleware:
 
 django.contrib.sessions.middleware

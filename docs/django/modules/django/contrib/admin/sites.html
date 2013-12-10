@@ -58,7 +58,7 @@
 <span class="kn">from</span> <span class="nn">django.core.exceptions</span> <span class="kn">import</span> <span class="n">ImproperlyConfigured</span>
 <span class="kn">from</span> <span class="nn">django.core.urlresolvers</span> <span class="kn">import</span> <span class="n">reverse</span><span class="p">,</span> <span class="n">NoReverseMatch</span>
 <span class="kn">from</span> <span class="nn">django.template.response</span> <span class="kn">import</span> <span class="n">TemplateResponse</span>
-<span class="kn">from</span> <span class="nn">django.utils.safestring</span> <span class="kn">import</span> <span class="n">mark_safe</span>
+<span class="kn">from</span> <span class="nn">django.utils</span> <span class="kn">import</span> <span class="n">six</span>
 <span class="kn">from</span> <span class="nn">django.utils.text</span> <span class="kn">import</span> <span class="n">capfirst</span>
 <span class="kn">from</span> <span class="nn">django.utils.translation</span> <span class="kn">import</span> <span class="n">ugettext</span> <span class="k">as</span> <span class="n">_</span>
 <span class="kn">from</span> <span class="nn">django.views.decorators.cache</span> <span class="kn">import</span> <span class="n">never_cache</span>
@@ -66,11 +66,14 @@
 
 <span class="n">LOGIN_FORM_KEY</span> <span class="o">=</span> <span class="s">&#39;this_is_the_login_form&#39;</span>
 
+
 <span class="k">class</span> <span class="nc">AlreadyRegistered</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
     <span class="k">pass</span>
 
+
 <span class="k">class</span> <span class="nc">NotRegistered</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
     <span class="k">pass</span>
+
 
 <div class="viewcode-block" id="AdminSite"><a class="viewcode-back" href="../../../../django.contrib.admin.html#django.contrib.admin.sites.AdminSite">[docs]</a><span class="k">class</span> <span class="nc">AdminSite</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
@@ -89,7 +92,7 @@
     <span class="n">password_change_done_template</span> <span class="o">=</span> <span class="bp">None</span>
 
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s">&#39;admin&#39;</span><span class="p">,</span> <span class="n">app_name</span><span class="o">=</span><span class="s">&#39;admin&#39;</span><span class="p">):</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_registry</span> <span class="o">=</span> <span class="p">{}</span> <span class="c"># model_class class -&gt; admin_class instance</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_registry</span> <span class="o">=</span> <span class="p">{}</span>  <span class="c"># model_class class -&gt; admin_class instance</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">name</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">app_name</span> <span class="o">=</span> <span class="n">app_name</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_actions</span> <span class="o">=</span> <span class="p">{</span><span class="s">&#39;delete_selected&#39;</span><span class="p">:</span> <span class="n">actions</span><span class="o">.</span><span class="n">delete_selected</span><span class="p">}</span>
@@ -128,20 +131,23 @@
             <span class="k">if</span> <span class="n">model</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_registry</span><span class="p">:</span>
                 <span class="k">raise</span> <span class="n">AlreadyRegistered</span><span class="p">(</span><span class="s">&#39;The model </span><span class="si">%s</span><span class="s"> is already registered&#39;</span> <span class="o">%</span> <span class="n">model</span><span class="o">.</span><span class="n">__name__</span><span class="p">)</span>
 
-            <span class="c"># If we got **options then dynamically construct a subclass of</span>
-            <span class="c"># admin_class with those **options.</span>
-            <span class="k">if</span> <span class="n">options</span><span class="p">:</span>
-                <span class="c"># For reasons I don&#39;t quite understand, without a __module__</span>
-                <span class="c"># the created class appears to &quot;live&quot; in the wrong place,</span>
-                <span class="c"># which causes issues later on.</span>
-                <span class="n">options</span><span class="p">[</span><span class="s">&#39;__module__&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">__name__</span>
-                <span class="n">admin_class</span> <span class="o">=</span> <span class="nb">type</span><span class="p">(</span><span class="s">&quot;</span><span class="si">%s</span><span class="s">Admin&quot;</span> <span class="o">%</span> <span class="n">model</span><span class="o">.</span><span class="n">__name__</span><span class="p">,</span> <span class="p">(</span><span class="n">admin_class</span><span class="p">,),</span> <span class="n">options</span><span class="p">)</span>
+            <span class="c"># Ignore the registration if the model has been</span>
+            <span class="c"># swapped out.</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">model</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">swapped</span><span class="p">:</span>
+                <span class="c"># If we got **options then dynamically construct a subclass of</span>
+                <span class="c"># admin_class with those **options.</span>
+                <span class="k">if</span> <span class="n">options</span><span class="p">:</span>
+                    <span class="c"># For reasons I don&#39;t quite understand, without a __module__</span>
+                    <span class="c"># the created class appears to &quot;live&quot; in the wrong place,</span>
+                    <span class="c"># which causes issues later on.</span>
+                    <span class="n">options</span><span class="p">[</span><span class="s">&#39;__module__&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">__name__</span>
+                    <span class="n">admin_class</span> <span class="o">=</span> <span class="nb">type</span><span class="p">(</span><span class="s">&quot;</span><span class="si">%s</span><span class="s">Admin&quot;</span> <span class="o">%</span> <span class="n">model</span><span class="o">.</span><span class="n">__name__</span><span class="p">,</span> <span class="p">(</span><span class="n">admin_class</span><span class="p">,),</span> <span class="n">options</span><span class="p">)</span>
 
-            <span class="c"># Validate (which might be a no-op)</span>
-            <span class="n">validate</span><span class="p">(</span><span class="n">admin_class</span><span class="p">,</span> <span class="n">model</span><span class="p">)</span>
+                <span class="c"># Validate (which might be a no-op)</span>
+                <span class="n">validate</span><span class="p">(</span><span class="n">admin_class</span><span class="p">,</span> <span class="n">model</span><span class="p">)</span>
 
-            <span class="c"># Instantiate the admin class to save in the registry</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_registry</span><span class="p">[</span><span class="n">model</span><span class="p">]</span> <span class="o">=</span> <span class="n">admin_class</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span>
+                <span class="c"># Instantiate the admin class to save in the registry</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_registry</span><span class="p">[</span><span class="n">model</span><span class="p">]</span> <span class="o">=</span> <span class="n">admin_class</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span>
 </div>
 <div class="viewcode-block" id="AdminSite.unregister"><a class="viewcode-back" href="../../../../django.contrib.admin.html#django.contrib.admin.sites.AdminSite.unregister">[docs]</a>    <span class="k">def</span> <span class="nf">unregister</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">model_or_iterable</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
@@ -182,7 +188,7 @@
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Get all the enabled actions as an iterable of (name, func).</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_actions</span><span class="o">.</span><span class="n">iteritems</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">six</span><span class="o">.</span><span class="n">iteritems</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_actions</span><span class="p">)</span>
 </div>
 <div class="viewcode-block" id="AdminSite.has_permission"><a class="viewcode-back" href="../../../../django.contrib.admin.html#django.contrib.admin.sites.AdminSite.has_permission">[docs]</a>    <span class="k">def</span> <span class="nf">has_permission</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">request</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
@@ -280,14 +286,15 @@
                 <span class="n">wrap</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">i18n_javascript</span><span class="p">,</span> <span class="n">cacheable</span><span class="o">=</span><span class="bp">True</span><span class="p">),</span>
                 <span class="n">name</span><span class="o">=</span><span class="s">&#39;jsi18n&#39;</span><span class="p">),</span>
             <span class="n">url</span><span class="p">(</span><span class="s">r&#39;^r/(?P&lt;content_type_id&gt;\d+)/(?P&lt;object_id&gt;.+)/$&#39;</span><span class="p">,</span>
-                <span class="n">wrap</span><span class="p">(</span><span class="n">contenttype_views</span><span class="o">.</span><span class="n">shortcut</span><span class="p">)),</span>
+                <span class="n">wrap</span><span class="p">(</span><span class="n">contenttype_views</span><span class="o">.</span><span class="n">shortcut</span><span class="p">),</span>
+                <span class="n">name</span><span class="o">=</span><span class="s">&#39;view_on_site&#39;</span><span class="p">),</span>
             <span class="n">url</span><span class="p">(</span><span class="s">r&#39;^(?P&lt;app_label&gt;\w+)/$&#39;</span><span class="p">,</span>
                 <span class="n">wrap</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">app_index</span><span class="p">),</span>
                 <span class="n">name</span><span class="o">=</span><span class="s">&#39;app_list&#39;</span><span class="p">)</span>
         <span class="p">)</span>
 
         <span class="c"># Add in each model&#39;s views.</span>
-        <span class="k">for</span> <span class="n">model</span><span class="p">,</span> <span class="n">model_admin</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_registry</span><span class="o">.</span><span class="n">iteritems</span><span class="p">():</span>
+        <span class="k">for</span> <span class="n">model</span><span class="p">,</span> <span class="n">model_admin</span> <span class="ow">in</span> <span class="n">six</span><span class="o">.</span><span class="n">iteritems</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_registry</span><span class="p">):</span>
             <span class="n">urlpatterns</span> <span class="o">+=</span> <span class="n">patterns</span><span class="p">(</span><span class="s">&#39;&#39;</span><span class="p">,</span>
                 <span class="n">url</span><span class="p">(</span><span class="s">r&#39;^</span><span class="si">%s</span><span class="s">/</span><span class="si">%s</span><span class="s">/&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">app_label</span><span class="p">,</span> <span class="n">model</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">module_name</span><span class="p">),</span>
                     <span class="n">include</span><span class="p">(</span><span class="n">model_admin</span><span class="o">.</span><span class="n">urls</span><span class="p">))</span>
@@ -366,6 +373,7 @@
             <span class="n">REDIRECT_FIELD_NAME</span><span class="p">:</span> <span class="n">request</span><span class="o">.</span><span class="n">get_full_path</span><span class="p">(),</span>
         <span class="p">}</span>
         <span class="n">context</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">extra_context</span> <span class="ow">or</span> <span class="p">{})</span>
+
         <span class="n">defaults</span> <span class="o">=</span> <span class="p">{</span>
             <span class="s">&#39;extra_context&#39;</span><span class="p">:</span> <span class="n">context</span><span class="p">,</span>
             <span class="s">&#39;current_app&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
@@ -418,7 +426,7 @@
                         <span class="p">}</span>
 
         <span class="c"># Sort the apps alphabetically.</span>
-        <span class="n">app_list</span> <span class="o">=</span> <span class="n">app_dict</span><span class="o">.</span><span class="n">values</span><span class="p">()</span>
+        <span class="n">app_list</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">six</span><span class="o">.</span><span class="n">itervalues</span><span class="p">(</span><span class="n">app_dict</span><span class="p">))</span>
         <span class="n">app_list</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="p">[</span><span class="s">&#39;name&#39;</span><span class="p">])</span>
 
         <span class="c"># Sort the models alphabetically within each app.</span>
@@ -430,9 +438,9 @@
             <span class="s">&#39;app_list&#39;</span><span class="p">:</span> <span class="n">app_list</span><span class="p">,</span>
         <span class="p">}</span>
         <span class="n">context</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">extra_context</span> <span class="ow">or</span> <span class="p">{})</span>
-        <span class="k">return</span> <span class="n">TemplateResponse</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="p">[</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">index_template</span> <span class="ow">or</span> <span class="s">&#39;admin/index.html&#39;</span><span class="p">,</span>
-        <span class="p">],</span> <span class="n">context</span><span class="p">,</span> <span class="n">current_app</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">TemplateResponse</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">index_template</span> <span class="ow">or</span>
+                                <span class="s">&#39;admin/index.html&#39;</span><span class="p">,</span> <span class="n">context</span><span class="p">,</span>
+                                <span class="n">current_app</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
 </div>
     <span class="k">def</span> <span class="nf">app_index</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">request</span><span class="p">,</span> <span class="n">app_label</span><span class="p">,</span> <span class="n">extra_context</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
         <span class="n">user</span> <span class="o">=</span> <span class="n">request</span><span class="o">.</span><span class="n">user</span>
@@ -505,7 +513,7 @@
 
     <div class="footer">
         &copy; Copyright 2012, HDKNR.COM.
-      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.2pre/3c28de26aac2.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2b1.
     </div>
   </body>
 </html>

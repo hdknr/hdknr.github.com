@@ -47,11 +47,14 @@
         
         
   <h1>Source code for django.db.backends.creation</h1><div class="highlight"><pre>
+<span class="kn">import</span> <span class="nn">hashlib</span>
 <span class="kn">import</span> <span class="nn">sys</span>
 <span class="kn">import</span> <span class="nn">time</span>
 
 <span class="kn">from</span> <span class="nn">django.conf</span> <span class="kn">import</span> <span class="n">settings</span>
 <span class="kn">from</span> <span class="nn">django.db.utils</span> <span class="kn">import</span> <span class="n">load_backend</span>
+<span class="kn">from</span> <span class="nn">django.utils.encoding</span> <span class="kn">import</span> <span class="n">force_bytes</span>
+<span class="kn">from</span> <span class="nn">django.utils.six.moves</span> <span class="kn">import</span> <span class="nb">input</span>
 
 <span class="c"># The prefix to put on the default database name when creating</span>
 <span class="c"># the test database.</span>
@@ -75,7 +78,10 @@
 <span class="sd">        Generates a 32-bit digest of a set of arguments that can be used to</span>
 <span class="sd">        shorten identifying names.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">return</span> <span class="s">&#39;</span><span class="si">%x</span><span class="s">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="nb">abs</span><span class="p">(</span><span class="nb">hash</span><span class="p">(</span><span class="n">args</span><span class="p">))</span> <span class="o">%</span> <span class="il">4294967296L</span><span class="p">)</span>  <span class="c"># 2**32</span>
+        <span class="n">h</span> <span class="o">=</span> <span class="n">hashlib</span><span class="o">.</span><span class="n">md5</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">arg</span> <span class="ow">in</span> <span class="n">args</span><span class="p">:</span>
+            <span class="n">h</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">force_bytes</span><span class="p">(</span><span class="n">arg</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">h</span><span class="o">.</span><span class="n">hexdigest</span><span class="p">()[:</span><span class="mi">8</span><span class="p">]</span>
 
 <div class="viewcode-block" id="BaseDatabaseCreation.sql_create_model"><a class="viewcode-back" href="../../../../django.db.backends.html#django.db.backends.creation.BaseDatabaseCreation.sql_create_model">[docs]</a>    <span class="k">def</span> <span class="nf">sql_create_model</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">model</span><span class="p">,</span> <span class="n">style</span><span class="p">,</span> <span class="n">known_models</span><span class="o">=</span><span class="nb">set</span><span class="p">()):</span>
         <span class="sd">&quot;&quot;&quot;</span>
@@ -83,7 +89,7 @@
 <span class="sd">            (list_of_sql, pending_references_dict)</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">opts</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">_meta</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">opts</span><span class="o">.</span><span class="n">managed</span> <span class="ow">or</span> <span class="n">opts</span><span class="o">.</span><span class="n">proxy</span><span class="p">:</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">opts</span><span class="o">.</span><span class="n">managed</span> <span class="ow">or</span> <span class="n">opts</span><span class="o">.</span><span class="n">proxy</span> <span class="ow">or</span> <span class="n">opts</span><span class="o">.</span><span class="n">swapped</span><span class="p">:</span>
             <span class="k">return</span> <span class="p">[],</span> <span class="p">{}</span>
         <span class="n">final_output</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="n">table_output</span> <span class="o">=</span> <span class="p">[]</span>
@@ -99,7 +105,13 @@
             <span class="c"># Make the definition (e.g. &#39;foo VARCHAR(30)&#39;) for this field.</span>
             <span class="n">field_output</span> <span class="o">=</span> <span class="p">[</span><span class="n">style</span><span class="o">.</span><span class="n">SQL_FIELD</span><span class="p">(</span><span class="n">qn</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">column</span><span class="p">)),</span>
                 <span class="n">style</span><span class="o">.</span><span class="n">SQL_COLTYPE</span><span class="p">(</span><span class="n">col_type</span><span class="p">)]</span>
-            <span class="k">if</span> <span class="ow">not</span> <span class="n">f</span><span class="o">.</span><span class="n">null</span><span class="p">:</span>
+            <span class="c"># Oracle treats the empty string (&#39;&#39;) as null, so coerce the null</span>
+            <span class="c"># option whenever &#39;&#39; is a possible value.</span>
+            <span class="n">null</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">null</span>
+            <span class="k">if</span> <span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">empty_strings_allowed</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">f</span><span class="o">.</span><span class="n">primary_key</span> <span class="ow">and</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">features</span><span class="o">.</span><span class="n">interprets_empty_strings_as_nulls</span><span class="p">):</span>
+                <span class="n">null</span> <span class="o">=</span> <span class="bp">True</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">null</span><span class="p">:</span>
                 <span class="n">field_output</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">style</span><span class="o">.</span><span class="n">SQL_KEYWORD</span><span class="p">(</span><span class="s">&#39;NOT NULL&#39;</span><span class="p">))</span>
             <span class="k">if</span> <span class="n">f</span><span class="o">.</span><span class="n">primary_key</span><span class="p">:</span>
                 <span class="n">field_output</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">style</span><span class="o">.</span><span class="n">SQL_KEYWORD</span><span class="p">(</span><span class="s">&#39;PRIMARY KEY&#39;</span><span class="p">))</span>
@@ -129,9 +141,9 @@
 
         <span class="n">full_statement</span> <span class="o">=</span> <span class="p">[</span><span class="n">style</span><span class="o">.</span><span class="n">SQL_KEYWORD</span><span class="p">(</span><span class="s">&#39;CREATE TABLE&#39;</span><span class="p">)</span> <span class="o">+</span> <span class="s">&#39; &#39;</span> <span class="o">+</span>
                           <span class="n">style</span><span class="o">.</span><span class="n">SQL_TABLE</span><span class="p">(</span><span class="n">qn</span><span class="p">(</span><span class="n">opts</span><span class="o">.</span><span class="n">db_table</span><span class="p">))</span> <span class="o">+</span> <span class="s">&#39; (&#39;</span><span class="p">]</span>
-        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">line</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">table_output</span><span class="p">):</span> <span class="c"># Combine and add commas.</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">line</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">table_output</span><span class="p">):</span>  <span class="c"># Combine and add commas.</span>
             <span class="n">full_statement</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
-                <span class="s">&#39;    </span><span class="si">%s%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">line</span><span class="p">,</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">table_output</span><span class="p">)</span><span class="o">-</span><span class="mi">1</span> <span class="ow">and</span> <span class="s">&#39;,&#39;</span> <span class="ow">or</span> <span class="s">&#39;&#39;</span><span class="p">))</span>
+                <span class="s">&#39;    </span><span class="si">%s%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">line</span><span class="p">,</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">table_output</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span> <span class="ow">and</span> <span class="s">&#39;,&#39;</span> <span class="ow">or</span> <span class="s">&#39;&#39;</span><span class="p">))</span>
         <span class="n">full_statement</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s">&#39;)&#39;</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">opts</span><span class="o">.</span><span class="n">db_tablespace</span><span class="p">:</span>
             <span class="n">tablespace_sql</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">tablespace_sql</span><span class="p">(</span>
@@ -180,11 +192,11 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="kn">from</span> <span class="nn">django.db.backends.util</span> <span class="kn">import</span> <span class="n">truncate_name</span>
 
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">model</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">managed</span> <span class="ow">or</span> <span class="n">model</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">proxy</span><span class="p">:</span>
+        <span class="n">opts</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">_meta</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">opts</span><span class="o">.</span><span class="n">managed</span> <span class="ow">or</span> <span class="n">opts</span><span class="o">.</span><span class="n">proxy</span> <span class="ow">or</span> <span class="n">opts</span><span class="o">.</span><span class="n">swapped</span><span class="p">:</span>
             <span class="k">return</span> <span class="p">[]</span>
         <span class="n">qn</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">quote_name</span>
         <span class="n">final_output</span> <span class="o">=</span> <span class="p">[]</span>
-        <span class="n">opts</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">_meta</span>
         <span class="k">if</span> <span class="n">model</span> <span class="ow">in</span> <span class="n">pending_references</span><span class="p">:</span>
             <span class="k">for</span> <span class="n">rel_class</span><span class="p">,</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">pending_references</span><span class="p">[</span><span class="n">model</span><span class="p">]:</span>
                 <span class="n">rel_opts</span> <span class="o">=</span> <span class="n">rel_class</span><span class="o">.</span><span class="n">_meta</span>
@@ -209,46 +221,59 @@
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Returns the CREATE INDEX SQL statements for a single model.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">model</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">managed</span> <span class="ow">or</span> <span class="n">model</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">proxy</span><span class="p">:</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">model</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">managed</span> <span class="ow">or</span> <span class="n">model</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">proxy</span> <span class="ow">or</span> <span class="n">model</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">swapped</span><span class="p">:</span>
             <span class="k">return</span> <span class="p">[]</span>
         <span class="n">output</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">model</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">local_fields</span><span class="p">:</span>
             <span class="n">output</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sql_indexes_for_field</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">f</span><span class="p">,</span> <span class="n">style</span><span class="p">))</span>
+        <span class="k">for</span> <span class="n">fs</span> <span class="ow">in</span> <span class="n">model</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">index_together</span><span class="p">:</span>
+            <span class="n">fields</span> <span class="o">=</span> <span class="p">[</span><span class="n">model</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">get_field_by_name</span><span class="p">(</span><span class="n">f</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">fs</span><span class="p">]</span>
+            <span class="n">output</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sql_indexes_for_fields</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">fields</span><span class="p">,</span> <span class="n">style</span><span class="p">))</span>
         <span class="k">return</span> <span class="n">output</span>
 </div>
 <div class="viewcode-block" id="BaseDatabaseCreation.sql_indexes_for_field"><a class="viewcode-back" href="../../../../django.db.backends.html#django.db.backends.creation.BaseDatabaseCreation.sql_indexes_for_field">[docs]</a>    <span class="k">def</span> <span class="nf">sql_indexes_for_field</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">model</span><span class="p">,</span> <span class="n">f</span><span class="p">,</span> <span class="n">style</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Return the CREATE INDEX SQL statements for a single model field.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">f</span><span class="o">.</span><span class="n">db_index</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">f</span><span class="o">.</span><span class="n">unique</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">sql_indexes_for_fields</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="p">[</span><span class="n">f</span><span class="p">],</span> <span class="n">style</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="p">[]</span>
+</div>
+    <span class="k">def</span> <span class="nf">sql_indexes_for_fields</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">model</span><span class="p">,</span> <span class="n">fields</span><span class="p">,</span> <span class="n">style</span><span class="p">):</span>
         <span class="kn">from</span> <span class="nn">django.db.backends.util</span> <span class="kn">import</span> <span class="n">truncate_name</span>
 
-        <span class="k">if</span> <span class="n">f</span><span class="o">.</span><span class="n">db_index</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">f</span><span class="o">.</span><span class="n">unique</span><span class="p">:</span>
-            <span class="n">qn</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">quote_name</span>
-            <span class="n">tablespace</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">db_tablespace</span> <span class="ow">or</span> <span class="n">model</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">db_tablespace</span>
-            <span class="k">if</span> <span class="n">tablespace</span><span class="p">:</span>
-                <span class="n">tablespace_sql</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">tablespace_sql</span><span class="p">(</span><span class="n">tablespace</span><span class="p">)</span>
-                <span class="k">if</span> <span class="n">tablespace_sql</span><span class="p">:</span>
-                    <span class="n">tablespace_sql</span> <span class="o">=</span> <span class="s">&#39; &#39;</span> <span class="o">+</span> <span class="n">tablespace_sql</span>
-            <span class="k">else</span><span class="p">:</span>
-                <span class="n">tablespace_sql</span> <span class="o">=</span> <span class="s">&#39;&#39;</span>
-            <span class="n">i_name</span> <span class="o">=</span> <span class="s">&#39;</span><span class="si">%s</span><span class="s">_</span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">db_table</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_digest</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">column</span><span class="p">))</span>
-            <span class="n">output</span> <span class="o">=</span> <span class="p">[</span><span class="n">style</span><span class="o">.</span><span class="n">SQL_KEYWORD</span><span class="p">(</span><span class="s">&#39;CREATE INDEX&#39;</span><span class="p">)</span> <span class="o">+</span> <span class="s">&#39; &#39;</span> <span class="o">+</span>
-                <span class="n">style</span><span class="o">.</span><span class="n">SQL_TABLE</span><span class="p">(</span><span class="n">qn</span><span class="p">(</span><span class="n">truncate_name</span><span class="p">(</span>
-                    <span class="n">i_name</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">max_name_length</span><span class="p">())))</span> <span class="o">+</span> <span class="s">&#39; &#39;</span> <span class="o">+</span>
-                <span class="n">style</span><span class="o">.</span><span class="n">SQL_KEYWORD</span><span class="p">(</span><span class="s">&#39;ON&#39;</span><span class="p">)</span> <span class="o">+</span> <span class="s">&#39; &#39;</span> <span class="o">+</span>
-                <span class="n">style</span><span class="o">.</span><span class="n">SQL_TABLE</span><span class="p">(</span><span class="n">qn</span><span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">db_table</span><span class="p">))</span> <span class="o">+</span> <span class="s">&#39; &#39;</span> <span class="o">+</span>
-                <span class="s">&quot;(</span><span class="si">%s</span><span class="s">)&quot;</span> <span class="o">%</span> <span class="n">style</span><span class="o">.</span><span class="n">SQL_FIELD</span><span class="p">(</span><span class="n">qn</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">column</span><span class="p">))</span> <span class="o">+</span>
-                <span class="s">&quot;</span><span class="si">%s</span><span class="s">;&quot;</span> <span class="o">%</span> <span class="n">tablespace_sql</span><span class="p">]</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">fields</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span> <span class="ow">and</span> <span class="n">fields</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">db_tablespace</span><span class="p">:</span>
+            <span class="n">tablespace_sql</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">tablespace_sql</span><span class="p">(</span><span class="n">fields</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">db_tablespace</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">model</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">db_tablespace</span><span class="p">:</span>
+            <span class="n">tablespace_sql</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">tablespace_sql</span><span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">db_tablespace</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="n">output</span> <span class="o">=</span> <span class="p">[]</span>
-        <span class="k">return</span> <span class="n">output</span>
-</div>
+            <span class="n">tablespace_sql</span> <span class="o">=</span> <span class="s">&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">tablespace_sql</span><span class="p">:</span>
+            <span class="n">tablespace_sql</span> <span class="o">=</span> <span class="s">&quot; &quot;</span> <span class="o">+</span> <span class="n">tablespace_sql</span>
+
+        <span class="n">field_names</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">qn</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">quote_name</span>
+        <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">fields</span><span class="p">:</span>
+            <span class="n">field_names</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">style</span><span class="o">.</span><span class="n">SQL_FIELD</span><span class="p">(</span><span class="n">qn</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">column</span><span class="p">)))</span>
+
+        <span class="n">index_name</span> <span class="o">=</span> <span class="s">&quot;</span><span class="si">%s</span><span class="s">_</span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">db_table</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_digest</span><span class="p">([</span><span class="n">f</span><span class="o">.</span><span class="n">name</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">fields</span><span class="p">]))</span>
+
+        <span class="k">return</span> <span class="p">[</span>
+            <span class="n">style</span><span class="o">.</span><span class="n">SQL_KEYWORD</span><span class="p">(</span><span class="s">&quot;CREATE INDEX&quot;</span><span class="p">)</span> <span class="o">+</span> <span class="s">&quot; &quot;</span> <span class="o">+</span>
+            <span class="n">style</span><span class="o">.</span><span class="n">SQL_TABLE</span><span class="p">(</span><span class="n">qn</span><span class="p">(</span><span class="n">truncate_name</span><span class="p">(</span><span class="n">index_name</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">max_name_length</span><span class="p">())))</span> <span class="o">+</span> <span class="s">&quot; &quot;</span> <span class="o">+</span>
+            <span class="n">style</span><span class="o">.</span><span class="n">SQL_KEYWORD</span><span class="p">(</span><span class="s">&quot;ON&quot;</span><span class="p">)</span> <span class="o">+</span> <span class="s">&quot; &quot;</span> <span class="o">+</span>
+            <span class="n">style</span><span class="o">.</span><span class="n">SQL_TABLE</span><span class="p">(</span><span class="n">qn</span><span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">db_table</span><span class="p">))</span> <span class="o">+</span> <span class="s">&quot; &quot;</span> <span class="o">+</span>
+            <span class="s">&quot;(</span><span class="si">%s</span><span class="s">)&quot;</span> <span class="o">%</span> <span class="n">style</span><span class="o">.</span><span class="n">SQL_FIELD</span><span class="p">(</span><span class="s">&quot;, &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">field_names</span><span class="p">))</span> <span class="o">+</span>
+            <span class="s">&quot;</span><span class="si">%s</span><span class="s">;&quot;</span> <span class="o">%</span> <span class="n">tablespace_sql</span><span class="p">,</span>
+        <span class="p">]</span>
+
 <div class="viewcode-block" id="BaseDatabaseCreation.sql_destroy_model"><a class="viewcode-back" href="../../../../django.db.backends.html#django.db.backends.creation.BaseDatabaseCreation.sql_destroy_model">[docs]</a>    <span class="k">def</span> <span class="nf">sql_destroy_model</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">model</span><span class="p">,</span> <span class="n">references_to_delete</span><span class="p">,</span> <span class="n">style</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Return the DROP TABLE and restraint dropping statements for a single</span>
 <span class="sd">        model.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">model</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">managed</span> <span class="ow">or</span> <span class="n">model</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">proxy</span><span class="p">:</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">model</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">managed</span> <span class="ow">or</span> <span class="n">model</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">proxy</span> <span class="ow">or</span> <span class="n">model</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">swapped</span><span class="p">:</span>
             <span class="k">return</span> <span class="p">[]</span>
         <span class="c"># Drop the table now</span>
         <span class="n">qn</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">quote_name</span>
@@ -265,7 +290,7 @@
 </div>
     <span class="k">def</span> <span class="nf">sql_remove_table_constraints</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">model</span><span class="p">,</span> <span class="n">references_to_delete</span><span class="p">,</span> <span class="n">style</span><span class="p">):</span>
         <span class="kn">from</span> <span class="nn">django.db.backends.util</span> <span class="kn">import</span> <span class="n">truncate_name</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">model</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">managed</span> <span class="ow">or</span> <span class="n">model</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">proxy</span><span class="p">:</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">model</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">managed</span> <span class="ow">or</span> <span class="n">model</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">proxy</span> <span class="ow">or</span> <span class="n">model</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">swapped</span><span class="p">:</span>
             <span class="k">return</span> <span class="p">[]</span>
         <span class="n">output</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="n">qn</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">quote_name</span>
@@ -299,16 +324,13 @@
             <span class="n">test_db_repr</span> <span class="o">=</span> <span class="s">&#39;&#39;</span>
             <span class="k">if</span> <span class="n">verbosity</span> <span class="o">&gt;=</span> <span class="mi">2</span><span class="p">:</span>
                 <span class="n">test_db_repr</span> <span class="o">=</span> <span class="s">&quot; (&#39;</span><span class="si">%s</span><span class="s">&#39;)&quot;</span> <span class="o">%</span> <span class="n">test_database_name</span>
-            <span class="k">print</span> <span class="s">&quot;Creating test database for alias &#39;</span><span class="si">%s</span><span class="s">&#39;</span><span class="si">%s</span><span class="s">...&quot;</span> <span class="o">%</span> <span class="p">(</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">alias</span><span class="p">,</span> <span class="n">test_db_repr</span><span class="p">)</span>
+            <span class="k">print</span><span class="p">(</span><span class="s">&quot;Creating test database for alias &#39;</span><span class="si">%s</span><span class="s">&#39;</span><span class="si">%s</span><span class="s">...&quot;</span> <span class="o">%</span> <span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">alias</span><span class="p">,</span> <span class="n">test_db_repr</span><span class="p">))</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">_create_test_db</span><span class="p">(</span><span class="n">verbosity</span><span class="p">,</span> <span class="n">autoclobber</span><span class="p">)</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">settings_dict</span><span class="p">[</span><span class="s">&quot;NAME&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">test_database_name</span>
-
-        <span class="c"># Confirm the feature set of the test database</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">features</span><span class="o">.</span><span class="n">confirm</span><span class="p">()</span>
 
         <span class="c"># Report syncdb messages at one level lower than that requested.</span>
         <span class="c"># This ensures we don&#39;t get flooded with messages during testing</span>
@@ -372,29 +394,29 @@
         <span class="k">try</span><span class="p">:</span>
             <span class="n">cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span>
                 <span class="s">&quot;CREATE DATABASE </span><span class="si">%s</span><span class="s"> </span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">qn</span><span class="p">(</span><span class="n">test_database_name</span><span class="p">),</span> <span class="n">suffix</span><span class="p">))</span>
-        <span class="k">except</span> <span class="ne">Exception</span><span class="p">,</span> <span class="n">e</span><span class="p">:</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
             <span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="o">.</span><span class="n">write</span><span class="p">(</span>
                 <span class="s">&quot;Got an error creating the test database: </span><span class="si">%s</span><span class="se">\n</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">e</span><span class="p">)</span>
             <span class="k">if</span> <span class="ow">not</span> <span class="n">autoclobber</span><span class="p">:</span>
-                <span class="n">confirm</span> <span class="o">=</span> <span class="nb">raw_input</span><span class="p">(</span>
+                <span class="n">confirm</span> <span class="o">=</span> <span class="nb">input</span><span class="p">(</span>
                     <span class="s">&quot;Type &#39;yes&#39; if you would like to try deleting the test &quot;</span>
                     <span class="s">&quot;database &#39;</span><span class="si">%s</span><span class="s">&#39;, or &#39;no&#39; to cancel: &quot;</span> <span class="o">%</span> <span class="n">test_database_name</span><span class="p">)</span>
             <span class="k">if</span> <span class="n">autoclobber</span> <span class="ow">or</span> <span class="n">confirm</span> <span class="o">==</span> <span class="s">&#39;yes&#39;</span><span class="p">:</span>
                 <span class="k">try</span><span class="p">:</span>
                     <span class="k">if</span> <span class="n">verbosity</span> <span class="o">&gt;=</span> <span class="mi">1</span><span class="p">:</span>
-                        <span class="k">print</span> <span class="p">(</span><span class="s">&quot;Destroying old test database &#39;</span><span class="si">%s</span><span class="s">&#39;...&quot;</span>
-                               <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">alias</span><span class="p">)</span>
+                        <span class="k">print</span><span class="p">(</span><span class="s">&quot;Destroying old test database &#39;</span><span class="si">%s</span><span class="s">&#39;...&quot;</span>
+                              <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">alias</span><span class="p">)</span>
                     <span class="n">cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span>
                         <span class="s">&quot;DROP DATABASE </span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">qn</span><span class="p">(</span><span class="n">test_database_name</span><span class="p">))</span>
                     <span class="n">cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span>
                         <span class="s">&quot;CREATE DATABASE </span><span class="si">%s</span><span class="s"> </span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">qn</span><span class="p">(</span><span class="n">test_database_name</span><span class="p">),</span>
                                                    <span class="n">suffix</span><span class="p">))</span>
-                <span class="k">except</span> <span class="ne">Exception</span><span class="p">,</span> <span class="n">e</span><span class="p">:</span>
+                <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
                     <span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="o">.</span><span class="n">write</span><span class="p">(</span>
                         <span class="s">&quot;Got an error recreating the test database: </span><span class="si">%s</span><span class="se">\n</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">e</span><span class="p">)</span>
                     <span class="n">sys</span><span class="o">.</span><span class="n">exit</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
             <span class="k">else</span><span class="p">:</span>
-                <span class="k">print</span> <span class="s">&quot;Tests cancelled.&quot;</span>
+                <span class="k">print</span><span class="p">(</span><span class="s">&quot;Tests cancelled.&quot;</span><span class="p">)</span>
                 <span class="n">sys</span><span class="o">.</span><span class="n">exit</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
 
         <span class="k">return</span> <span class="n">test_database_name</span>
@@ -410,8 +432,8 @@
             <span class="n">test_db_repr</span> <span class="o">=</span> <span class="s">&#39;&#39;</span>
             <span class="k">if</span> <span class="n">verbosity</span> <span class="o">&gt;=</span> <span class="mi">2</span><span class="p">:</span>
                 <span class="n">test_db_repr</span> <span class="o">=</span> <span class="s">&quot; (&#39;</span><span class="si">%s</span><span class="s">&#39;)&quot;</span> <span class="o">%</span> <span class="n">test_database_name</span>
-            <span class="k">print</span> <span class="s">&quot;Destroying test database for alias &#39;</span><span class="si">%s</span><span class="s">&#39;</span><span class="si">%s</span><span class="s">...&quot;</span> <span class="o">%</span> <span class="p">(</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">alias</span><span class="p">,</span> <span class="n">test_db_repr</span><span class="p">)</span>
+            <span class="k">print</span><span class="p">(</span><span class="s">&quot;Destroying test database for alias &#39;</span><span class="si">%s</span><span class="s">&#39;</span><span class="si">%s</span><span class="s">...&quot;</span> <span class="o">%</span> <span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">alias</span><span class="p">,</span> <span class="n">test_db_repr</span><span class="p">))</span>
 
         <span class="c"># Temporarily use a new connection and a copy of the settings dict.</span>
         <span class="c"># This prevents the production database from being exposed to potential</span>
@@ -492,7 +514,7 @@
 
     <div class="footer">
         &copy; Copyright 2012, HDKNR.COM.
-      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.2pre/3c28de26aac2.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2b1.
     </div>
   </body>
 </html>

@@ -58,3 +58,16 @@ django.contrib.redirects.models
 .. automodule:: django.contrib.redirects.models
     :members:
 
+.. _django.contrib.redirects.tests:
+
+django.contrib.redirects.tests
+==============================
+
+
+- `source <https://github.com/django/django/tree/master/django/contrib/redirects/tests.py>`_ 
+
+.. include:: cheat/django.contrib.redirects.tests.rst
+
+.. automodule:: django.contrib.redirects.tests
+    :members:
+

@@ -58,8 +58,10 @@
 
 <span class="kn">from</span> <span class="nn">django.utils</span> <span class="kn">import</span> <span class="n">tree</span>
 <span class="kn">from</span> <span class="nn">django.db.models.fields</span> <span class="kn">import</span> <span class="n">Field</span>
-<span class="kn">from</span> <span class="nn">django.db.models.sql.datastructures</span> <span class="kn">import</span> <span class="n">EmptyResultSet</span><span class="p">,</span> <span class="n">FullResultSet</span>
+<span class="kn">from</span> <span class="nn">django.db.models.sql.datastructures</span> <span class="kn">import</span> <span class="n">EmptyResultSet</span>
 <span class="kn">from</span> <span class="nn">django.db.models.sql.aggregates</span> <span class="kn">import</span> <span class="n">Aggregate</span>
+<span class="kn">from</span> <span class="nn">django.utils.itercompat</span> <span class="kn">import</span> <span class="n">is_iterator</span>
+<span class="kn">from</span> <span class="nn">django.utils.six.moves</span> <span class="kn">import</span> <span class="nb">xrange</span>
 
 <span class="c"># Connection types</span>
 <span class="n">AND</span> <span class="o">=</span> <span class="s">&#39;AND&#39;</span>
@@ -98,7 +100,7 @@
             <span class="k">return</span>
 
         <span class="n">obj</span><span class="p">,</span> <span class="n">lookup_type</span><span class="p">,</span> <span class="n">value</span> <span class="o">=</span> <span class="n">data</span>
-        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="s">&#39;__iter__&#39;</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="s">&#39;next&#39;</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">is_iterator</span><span class="p">(</span><span class="n">value</span><span class="p">):</span>
             <span class="c"># Consume any generators immediately, so that we can determine</span>
             <span class="c"># emptiness and transform any non-empty values correctly.</span>
             <span class="n">value</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
@@ -123,17 +125,21 @@
 <div class="viewcode-block" id="WhereNode.as_sql"><a class="viewcode-back" href="../../../../../django.db.models.sql.html#django.db.models.sql.where.WhereNode.as_sql">[docs]</a>    <span class="k">def</span> <span class="nf">as_sql</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">qn</span><span class="p">,</span> <span class="n">connection</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Returns the SQL version of the where clause and the value to be</span>
-<span class="sd">        substituted in. Returns None, None if this node is empty.</span>
-
-<span class="sd">        If &#39;node&#39; is provided, that is the root of the SQL generation</span>
-<span class="sd">        (generally not needed except by the internal implementation for</span>
-<span class="sd">        recursion).</span>
+<span class="sd">        substituted in. Returns &#39;&#39;, [] if this node matches everything,</span>
+<span class="sd">        None, [] if this node is empty, and raises EmptyResultSet if this</span>
+<span class="sd">        node can&#39;t match anything.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">children</span><span class="p">:</span>
-            <span class="k">return</span> <span class="bp">None</span><span class="p">,</span> <span class="p">[]</span>
+        <span class="c"># Note that the logic here is made slightly more complex than</span>
+        <span class="c"># necessary because there are two kind of empty nodes: Nodes</span>
+        <span class="c"># containing 0 children, and nodes that are known to match everything.</span>
+        <span class="c"># A match-everything node is different than empty node (which also</span>
+        <span class="c"># technically matches everything) for backwards compatibility reasons.</span>
+        <span class="c"># Refs #5261.</span>
         <span class="n">result</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="n">result_params</span> <span class="o">=</span> <span class="p">[]</span>
-        <span class="n">empty</span> <span class="o">=</span> <span class="bp">True</span>
+        <span class="n">everything_childs</span><span class="p">,</span> <span class="n">nothing_childs</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span>
+        <span class="n">non_empty_childs</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">children</span><span class="p">)</span>
+
         <span class="k">for</span> <span class="n">child</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">children</span><span class="p">:</span>
             <span class="k">try</span><span class="p">:</span>
                 <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">child</span><span class="p">,</span> <span class="s">&#39;as_sql&#39;</span><span class="p">):</span>
@@ -141,38 +147,50 @@
                 <span class="k">else</span><span class="p">:</span>
                     <span class="c"># A leaf node in the tree.</span>
                     <span class="n">sql</span><span class="p">,</span> <span class="n">params</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">make_atom</span><span class="p">(</span><span class="n">child</span><span class="p">,</span> <span class="n">qn</span><span class="p">,</span> <span class="n">connection</span><span class="p">)</span>
-
             <span class="k">except</span> <span class="n">EmptyResultSet</span><span class="p">:</span>
-                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">connector</span> <span class="o">==</span> <span class="n">AND</span> <span class="ow">and</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">negated</span><span class="p">:</span>
-                    <span class="c"># We can bail out early in this particular case (only).</span>
-                    <span class="k">raise</span>
-                <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">negated</span><span class="p">:</span>
-                    <span class="n">empty</span> <span class="o">=</span> <span class="bp">False</span>
-                <span class="k">continue</span>
-            <span class="k">except</span> <span class="n">FullResultSet</span><span class="p">:</span>
-                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">connector</span> <span class="o">==</span> <span class="n">OR</span><span class="p">:</span>
-                    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">negated</span><span class="p">:</span>
-                        <span class="n">empty</span> <span class="o">=</span> <span class="bp">True</span>
-                        <span class="k">break</span>
-                    <span class="c"># We match everything. No need for any constraints.</span>
-                    <span class="k">return</span> <span class="s">&#39;&#39;</span><span class="p">,</span> <span class="p">[]</span>
+                <span class="n">nothing_childs</span> <span class="o">+=</span> <span class="mi">1</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">sql</span><span class="p">:</span>
+                    <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">sql</span><span class="p">)</span>
+                    <span class="n">result_params</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">params</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="n">sql</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+                        <span class="c"># Skip empty childs totally.</span>
+                        <span class="n">non_empty_childs</span> <span class="o">-=</span> <span class="mi">1</span>
+                        <span class="k">continue</span>
+                    <span class="n">everything_childs</span> <span class="o">+=</span> <span class="mi">1</span>
+            <span class="c"># Check if this node matches nothing or everything.</span>
+            <span class="c"># First check the amount of full nodes and empty nodes</span>
+            <span class="c"># to make this node empty/full.</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">connector</span> <span class="o">==</span> <span class="n">AND</span><span class="p">:</span>
+                <span class="n">full_needed</span><span class="p">,</span> <span class="n">empty_needed</span> <span class="o">=</span> <span class="n">non_empty_childs</span><span class="p">,</span> <span class="mi">1</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">full_needed</span><span class="p">,</span> <span class="n">empty_needed</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span> <span class="n">non_empty_childs</span>
+            <span class="c"># Now, check if this node is full/empty using the</span>
+            <span class="c"># counts.</span>
+            <span class="k">if</span> <span class="n">empty_needed</span> <span class="o">-</span> <span class="n">nothing_childs</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">:</span>
                 <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">negated</span><span class="p">:</span>
-                    <span class="n">empty</span> <span class="o">=</span> <span class="bp">True</span>
-                <span class="k">continue</span>
+                    <span class="k">return</span> <span class="s">&#39;&#39;</span><span class="p">,</span> <span class="p">[]</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="n">EmptyResultSet</span>
+            <span class="k">if</span> <span class="n">full_needed</span> <span class="o">-</span> <span class="n">everything_childs</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">negated</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="n">EmptyResultSet</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="k">return</span> <span class="s">&#39;&#39;</span><span class="p">,</span> <span class="p">[]</span>
 
-            <span class="n">empty</span> <span class="o">=</span> <span class="bp">False</span>
-            <span class="k">if</span> <span class="n">sql</span><span class="p">:</span>
-                <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">sql</span><span class="p">)</span>
-                <span class="n">result_params</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">params</span><span class="p">)</span>
-        <span class="k">if</span> <span class="n">empty</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="n">EmptyResultSet</span>
-
+        <span class="k">if</span> <span class="n">non_empty_childs</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="c"># All the child nodes were empty, so this one is empty, too.</span>
+            <span class="k">return</span> <span class="bp">None</span><span class="p">,</span> <span class="p">[]</span>
         <span class="n">conn</span> <span class="o">=</span> <span class="s">&#39; </span><span class="si">%s</span><span class="s"> &#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">connector</span>
         <span class="n">sql_string</span> <span class="o">=</span> <span class="n">conn</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">result</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">sql_string</span><span class="p">:</span>
             <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">negated</span><span class="p">:</span>
+                <span class="c"># Some backends (Oracle at least) need parentheses</span>
+                <span class="c"># around the inner SQL in the negated case, even if the</span>
+                <span class="c"># inner SQL contains just a single expression.</span>
                 <span class="n">sql_string</span> <span class="o">=</span> <span class="s">&#39;NOT (</span><span class="si">%s</span><span class="s">)&#39;</span> <span class="o">%</span> <span class="n">sql_string</span>
-            <span class="k">elif</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">children</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="k">elif</span> <span class="nb">len</span><span class="p">(</span><span class="n">result</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
                 <span class="n">sql_string</span> <span class="o">=</span> <span class="s">&#39;(</span><span class="si">%s</span><span class="s">)&#39;</span> <span class="o">%</span> <span class="n">sql_string</span>
         <span class="k">return</span> <span class="n">sql_string</span><span class="p">,</span> <span class="n">result_params</span>
 </div>
@@ -309,7 +327,7 @@
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="k">def</span> <span class="nf">as_sql</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">qn</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">connection</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
-        <span class="k">raise</span> <span class="n">FullResultSet</span>
+        <span class="k">return</span> <span class="s">&#39;&#39;</span><span class="p">,</span> <span class="p">[]</span>
 
     <span class="k">def</span> <span class="nf">relabel_aliases</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">change_map</span><span class="p">,</span> <span class="n">node</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
         <span class="k">return</span>
@@ -330,7 +348,8 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">params</span> <span class="o">=</span> <span class="n">params</span>
 
     <span class="k">def</span> <span class="nf">as_sql</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">qn</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">connection</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
-        <span class="k">return</span> <span class="s">&quot; AND &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sqls</span><span class="p">),</span> <span class="nb">tuple</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span> <span class="ow">or</span> <span class="p">())</span>
+        <span class="n">sqls</span> <span class="o">=</span> <span class="p">[</span><span class="s">&quot;(</span><span class="si">%s</span><span class="s">)&quot;</span> <span class="o">%</span> <span class="n">sql</span> <span class="k">for</span> <span class="n">sql</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">sqls</span><span class="p">]</span>
+        <span class="k">return</span> <span class="s">&quot; AND &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">sqls</span><span class="p">),</span> <span class="nb">tuple</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span> <span class="ow">or</span> <span class="p">())</span>
 
 <div class="viewcode-block" id="Constraint"><a class="viewcode-back" href="../../../../../django.db.models.sql.html#django.db.models.sql.where.Constraint">[docs]</a><span class="k">class</span> <span class="nc">Constraint</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
@@ -410,7 +429,7 @@
 
     <div class="footer">
         &copy; Copyright 2012, HDKNR.COM.
-      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.2pre/3c28de26aac2.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2b1.
     </div>
   </body>
 </html>

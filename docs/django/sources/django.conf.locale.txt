@@ -40,6 +40,8 @@ Sub
 
 - :doc:`django.conf.locale.de`
 
+- :doc:`django.conf.locale.de_CH`
+
 - :doc:`django.conf.locale.el`
 
 - :doc:`django.conf.locale.en`

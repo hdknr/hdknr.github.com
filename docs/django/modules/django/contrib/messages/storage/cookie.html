@@ -47,11 +47,14 @@
         
         
   <h1>Source code for django.contrib.messages.storage.cookie</h1><div class="highlight"><pre>
+<span class="kn">import</span> <span class="nn">json</span>
+
 <span class="kn">from</span> <span class="nn">django.conf</span> <span class="kn">import</span> <span class="n">settings</span>
 <span class="kn">from</span> <span class="nn">django.contrib.messages.storage.base</span> <span class="kn">import</span> <span class="n">BaseStorage</span><span class="p">,</span> <span class="n">Message</span>
 <span class="kn">from</span> <span class="nn">django.http</span> <span class="kn">import</span> <span class="n">SimpleCookie</span>
-<span class="kn">from</span> <span class="nn">django.utils</span> <span class="kn">import</span> <span class="n">simplejson</span> <span class="k">as</span> <span class="n">json</span>
 <span class="kn">from</span> <span class="nn">django.utils.crypto</span> <span class="kn">import</span> <span class="n">salted_hmac</span><span class="p">,</span> <span class="n">constant_time_compare</span>
+<span class="kn">from</span> <span class="nn">django.utils.safestring</span> <span class="kn">import</span> <span class="n">SafeData</span><span class="p">,</span> <span class="n">mark_safe</span>
+<span class="kn">from</span> <span class="nn">django.utils</span> <span class="kn">import</span> <span class="n">six</span>
 
 
 <div class="viewcode-block" id="MessageEncoder"><a class="viewcode-back" href="../../../../../django.contrib.messages.storage.html#django.contrib.messages.storage.cookie.MessageEncoder">[docs]</a><span class="k">class</span> <span class="nc">MessageEncoder</span><span class="p">(</span><span class="n">json</span><span class="o">.</span><span class="n">JSONEncoder</span><span class="p">):</span>
@@ -62,7 +65,9 @@
 
     <span class="k">def</span> <span class="nf">default</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">obj</span><span class="p">):</span>
         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">Message</span><span class="p">):</span>
-            <span class="n">message</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">message_key</span><span class="p">,</span> <span class="n">obj</span><span class="o">.</span><span class="n">level</span><span class="p">,</span> <span class="n">obj</span><span class="o">.</span><span class="n">message</span><span class="p">]</span>
+            <span class="c"># Using 0/1 here instead of False/True to produce more compact json</span>
+            <span class="n">is_safedata</span> <span class="o">=</span> <span class="mi">1</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">obj</span><span class="o">.</span><span class="n">message</span><span class="p">,</span> <span class="n">SafeData</span><span class="p">)</span> <span class="k">else</span> <span class="mi">0</span>
+            <span class="n">message</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">message_key</span><span class="p">,</span> <span class="n">is_safedata</span><span class="p">,</span> <span class="n">obj</span><span class="o">.</span><span class="n">level</span><span class="p">,</span> <span class="n">obj</span><span class="o">.</span><span class="n">message</span><span class="p">]</span>
             <span class="k">if</span> <span class="n">obj</span><span class="o">.</span><span class="n">extra_tags</span><span class="p">:</span>
                 <span class="n">message</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">obj</span><span class="o">.</span><span class="n">extra_tags</span><span class="p">)</span>
             <span class="k">return</span> <span class="n">message</span>
@@ -77,11 +82,16 @@
     <span class="k">def</span> <span class="nf">process_messages</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">obj</span><span class="p">):</span>
         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="nb">list</span><span class="p">)</span> <span class="ow">and</span> <span class="n">obj</span><span class="p">:</span>
             <span class="k">if</span> <span class="n">obj</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="n">MessageEncoder</span><span class="o">.</span><span class="n">message_key</span><span class="p">:</span>
-                <span class="k">return</span> <span class="n">Message</span><span class="p">(</span><span class="o">*</span><span class="n">obj</span><span class="p">[</span><span class="mi">1</span><span class="p">:])</span>
+                <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">obj</span><span class="p">)</span> <span class="o">==</span> <span class="mi">3</span><span class="p">:</span>
+                    <span class="c"># Compatibility with previously-encoded messages</span>
+                    <span class="k">return</span> <span class="n">Message</span><span class="p">(</span><span class="o">*</span><span class="n">obj</span><span class="p">[</span><span class="mi">1</span><span class="p">:])</span>
+                <span class="k">if</span> <span class="n">obj</span><span class="p">[</span><span class="mi">1</span><span class="p">]:</span>
+                    <span class="n">obj</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span> <span class="o">=</span> <span class="n">mark_safe</span><span class="p">(</span><span class="n">obj</span><span class="p">[</span><span class="mi">3</span><span class="p">])</span>
+                <span class="k">return</span> <span class="n">Message</span><span class="p">(</span><span class="o">*</span><span class="n">obj</span><span class="p">[</span><span class="mi">2</span><span class="p">:])</span>
             <span class="k">return</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">process_messages</span><span class="p">(</span><span class="n">item</span><span class="p">)</span> <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">obj</span><span class="p">]</span>
         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
             <span class="k">return</span> <span class="nb">dict</span><span class="p">([(</span><span class="n">key</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">process_messages</span><span class="p">(</span><span class="n">value</span><span class="p">))</span>
-                         <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">obj</span><span class="o">.</span><span class="n">iteritems</span><span class="p">()])</span>
+                         <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">six</span><span class="o">.</span><span class="n">iteritems</span><span class="p">(</span><span class="n">obj</span><span class="p">)])</span>
         <span class="k">return</span> <span class="n">obj</span>
 
     <span class="k">def</span> <span class="nf">decode</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">s</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
@@ -93,10 +103,10 @@
 <span class="sd">    Stores messages in a cookie.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">cookie_name</span> <span class="o">=</span> <span class="s">&#39;messages&#39;</span>
-    <span class="c"># We should be able to store 4K in a cookie, but Internet Explorer</span>
-    <span class="c"># imposes 4K as the *total* limit for a domain.  To allow other</span>
-    <span class="c"># cookies, we go for 3/4 of 4K.</span>
-    <span class="n">max_cookie_size</span> <span class="o">=</span> <span class="mi">3072</span>
+    <span class="c"># uwsgi&#39;s default configuration enforces a maximum size of 4kb for all the</span>
+    <span class="c"># HTTP headers. In order to leave some room for other cookies and headers,</span>
+    <span class="c"># restrict the session cookie to 1/2 of 4kb. See #18781.</span>
+    <span class="n">max_cookie_size</span> <span class="o">=</span> <span class="mi">2048</span>
     <span class="n">not_finished</span> <span class="o">=</span> <span class="s">&#39;__messagesnotfinished__&#39;</span>
 
     <span class="k">def</span> <span class="nf">_get</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
@@ -212,7 +222,7 @@
 
     <div class="footer">
         &copy; Copyright 2012, HDKNR.COM.
-      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.2pre/3c28de26aac2.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2b1.
     </div>
   </body>
 </html>

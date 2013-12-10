@@ -53,6 +53,7 @@
 <span class="sd">Works with either the pysqlite2 module or the sqlite3 module in the</span>
 <span class="sd">standard library.</span>
 <span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">unicode_literals</span>
 
 <span class="kn">import</span> <span class="nn">datetime</span>
 <span class="kn">import</span> <span class="nn">decimal</span>
@@ -67,15 +68,17 @@
 <span class="kn">from</span> <span class="nn">django.db.backends.sqlite3.creation</span> <span class="kn">import</span> <span class="n">DatabaseCreation</span>
 <span class="kn">from</span> <span class="nn">django.db.backends.sqlite3.introspection</span> <span class="kn">import</span> <span class="n">DatabaseIntrospection</span>
 <span class="kn">from</span> <span class="nn">django.utils.dateparse</span> <span class="kn">import</span> <span class="n">parse_date</span><span class="p">,</span> <span class="n">parse_datetime</span><span class="p">,</span> <span class="n">parse_time</span>
-<span class="kn">from</span> <span class="nn">django.utils.safestring</span> <span class="kn">import</span> <span class="n">SafeString</span>
+<span class="kn">from</span> <span class="nn">django.utils.functional</span> <span class="kn">import</span> <span class="n">cached_property</span>
+<span class="kn">from</span> <span class="nn">django.utils.safestring</span> <span class="kn">import</span> <span class="n">SafeBytes</span>
+<span class="kn">from</span> <span class="nn">django.utils</span> <span class="kn">import</span> <span class="n">six</span>
 <span class="kn">from</span> <span class="nn">django.utils</span> <span class="kn">import</span> <span class="n">timezone</span>
 
 <span class="k">try</span><span class="p">:</span>
     <span class="k">try</span><span class="p">:</span>
         <span class="kn">from</span> <span class="nn">pysqlite2</span> <span class="kn">import</span> <span class="n">dbapi2</span> <span class="k">as</span> <span class="n">Database</span>
-    <span class="k">except</span> <span class="ne">ImportError</span><span class="p">,</span> <span class="n">e1</span><span class="p">:</span>
+    <span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
         <span class="kn">from</span> <span class="nn">sqlite3</span> <span class="kn">import</span> <span class="n">dbapi2</span> <span class="k">as</span> <span class="n">Database</span>
-<span class="k">except</span> <span class="ne">ImportError</span><span class="p">,</span> <span class="n">exc</span><span class="p">:</span>
+<span class="k">except</span> <span class="ne">ImportError</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
     <span class="kn">from</span> <span class="nn">django.core.exceptions</span> <span class="kn">import</span> <span class="n">ImproperlyConfigured</span>
     <span class="k">raise</span> <span class="n">ImproperlyConfigured</span><span class="p">(</span><span class="s">&quot;Error loading either pysqlite2 or sqlite3 modules (tried in that order): </span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">exc</span><span class="p">)</span>
 
@@ -94,21 +97,29 @@
     <span class="c"># Equivalent to DateTimeField.get_db_prep_value. Used only by raw SQL.</span>
     <span class="k">if</span> <span class="n">settings</span><span class="o">.</span><span class="n">USE_TZ</span><span class="p">:</span>
         <span class="k">if</span> <span class="n">timezone</span><span class="o">.</span><span class="n">is_naive</span><span class="p">(</span><span class="n">value</span><span class="p">):</span>
-            <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s">u&quot;SQLite received a naive datetime (</span><span class="si">%s</span><span class="s">)&quot;</span>
-                          <span class="s">u&quot; while time zone support is active.&quot;</span> <span class="o">%</span> <span class="n">value</span><span class="p">,</span>
+            <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s">&quot;SQLite received a naive datetime (</span><span class="si">%s</span><span class="s">)&quot;</span>
+                          <span class="s">&quot; while time zone support is active.&quot;</span> <span class="o">%</span> <span class="n">value</span><span class="p">,</span>
                           <span class="ne">RuntimeWarning</span><span class="p">)</span>
             <span class="n">default_timezone</span> <span class="o">=</span> <span class="n">timezone</span><span class="o">.</span><span class="n">get_default_timezone</span><span class="p">()</span>
             <span class="n">value</span> <span class="o">=</span> <span class="n">timezone</span><span class="o">.</span><span class="n">make_aware</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">default_timezone</span><span class="p">)</span>
         <span class="n">value</span> <span class="o">=</span> <span class="n">value</span><span class="o">.</span><span class="n">astimezone</span><span class="p">(</span><span class="n">timezone</span><span class="o">.</span><span class="n">utc</span><span class="p">)</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="n">tzinfo</span><span class="o">=</span><span class="bp">None</span><span class="p">)</span>
-    <span class="k">return</span> <span class="n">value</span><span class="o">.</span><span class="n">isoformat</span><span class="p">(</span><span class="s">&quot; &quot;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">value</span><span class="o">.</span><span class="n">isoformat</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="s">&quot; &quot;</span><span class="p">))</span>
 
-<span class="n">Database</span><span class="o">.</span><span class="n">register_converter</span><span class="p">(</span><span class="s">&quot;bool&quot;</span><span class="p">,</span> <span class="k">lambda</span> <span class="n">s</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">s</span><span class="p">)</span> <span class="o">==</span> <span class="s">&#39;1&#39;</span><span class="p">)</span>
-<span class="n">Database</span><span class="o">.</span><span class="n">register_converter</span><span class="p">(</span><span class="s">&quot;time&quot;</span><span class="p">,</span> <span class="n">parse_time</span><span class="p">)</span>
-<span class="n">Database</span><span class="o">.</span><span class="n">register_converter</span><span class="p">(</span><span class="s">&quot;date&quot;</span><span class="p">,</span> <span class="n">parse_date</span><span class="p">)</span>
-<span class="n">Database</span><span class="o">.</span><span class="n">register_converter</span><span class="p">(</span><span class="s">&quot;datetime&quot;</span><span class="p">,</span> <span class="n">parse_datetime_with_timezone_support</span><span class="p">)</span>
-<span class="n">Database</span><span class="o">.</span><span class="n">register_converter</span><span class="p">(</span><span class="s">&quot;timestamp&quot;</span><span class="p">,</span> <span class="n">parse_datetime_with_timezone_support</span><span class="p">)</span>
-<span class="n">Database</span><span class="o">.</span><span class="n">register_converter</span><span class="p">(</span><span class="s">&quot;TIMESTAMP&quot;</span><span class="p">,</span> <span class="n">parse_datetime_with_timezone_support</span><span class="p">)</span>
-<span class="n">Database</span><span class="o">.</span><span class="n">register_converter</span><span class="p">(</span><span class="s">&quot;decimal&quot;</span><span class="p">,</span> <span class="n">util</span><span class="o">.</span><span class="n">typecast_decimal</span><span class="p">)</span>
+<div class="viewcode-block" id="decoder"><a class="viewcode-back" href="../../../../../django.db.backends.sqlite3.html#django.db.backends.sqlite3.base.decoder">[docs]</a><span class="k">def</span> <span class="nf">decoder</span><span class="p">(</span><span class="n">conv_func</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot; The Python sqlite3 interface returns always byte strings.</span>
+<span class="sd">        This function converts the received value to a regular string before</span>
+<span class="sd">        passing it to the receiver function.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="k">lambda</span> <span class="n">s</span><span class="p">:</span> <span class="n">conv_func</span><span class="p">(</span><span class="n">s</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s">&#39;utf-8&#39;</span><span class="p">))</span>
+</div>
+<span class="n">Database</span><span class="o">.</span><span class="n">register_converter</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="s">&quot;bool&quot;</span><span class="p">),</span> <span class="n">decoder</span><span class="p">(</span><span class="k">lambda</span> <span class="n">s</span><span class="p">:</span> <span class="n">s</span> <span class="o">==</span> <span class="s">&#39;1&#39;</span><span class="p">))</span>
+<span class="n">Database</span><span class="o">.</span><span class="n">register_converter</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="s">&quot;time&quot;</span><span class="p">),</span> <span class="n">decoder</span><span class="p">(</span><span class="n">parse_time</span><span class="p">))</span>
+<span class="n">Database</span><span class="o">.</span><span class="n">register_converter</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="s">&quot;date&quot;</span><span class="p">),</span> <span class="n">decoder</span><span class="p">(</span><span class="n">parse_date</span><span class="p">))</span>
+<span class="n">Database</span><span class="o">.</span><span class="n">register_converter</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="s">&quot;datetime&quot;</span><span class="p">),</span> <span class="n">decoder</span><span class="p">(</span><span class="n">parse_datetime_with_timezone_support</span><span class="p">))</span>
+<span class="n">Database</span><span class="o">.</span><span class="n">register_converter</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="s">&quot;timestamp&quot;</span><span class="p">),</span> <span class="n">decoder</span><span class="p">(</span><span class="n">parse_datetime_with_timezone_support</span><span class="p">))</span>
+<span class="n">Database</span><span class="o">.</span><span class="n">register_converter</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="s">&quot;TIMESTAMP&quot;</span><span class="p">),</span> <span class="n">decoder</span><span class="p">(</span><span class="n">parse_datetime_with_timezone_support</span><span class="p">))</span>
+<span class="n">Database</span><span class="o">.</span><span class="n">register_converter</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="s">&quot;decimal&quot;</span><span class="p">),</span> <span class="n">decoder</span><span class="p">(</span><span class="n">util</span><span class="o">.</span><span class="n">typecast_decimal</span><span class="p">))</span>
+
 <span class="n">Database</span><span class="o">.</span><span class="n">register_adapter</span><span class="p">(</span><span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="p">,</span> <span class="n">adapt_datetime_with_timezone_support</span><span class="p">)</span>
 <span class="n">Database</span><span class="o">.</span><span class="n">register_adapter</span><span class="p">(</span><span class="n">decimal</span><span class="o">.</span><span class="n">Decimal</span><span class="p">,</span> <span class="n">util</span><span class="o">.</span><span class="n">rev_typecast_decimal</span><span class="p">)</span>
 <span class="k">if</span> <span class="n">Database</span><span class="o">.</span><span class="n">version_info</span> <span class="o">&gt;=</span> <span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">1</span><span class="p">):</span>
@@ -118,7 +129,7 @@
     <span class="c"># slow-down, this adapter is only registered for sqlite3 versions</span>
     <span class="c"># needing it (Python 2.6 and up).</span>
     <span class="n">Database</span><span class="o">.</span><span class="n">register_adapter</span><span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="k">lambda</span> <span class="n">s</span><span class="p">:</span> <span class="n">s</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s">&#39;utf-8&#39;</span><span class="p">))</span>
-    <span class="n">Database</span><span class="o">.</span><span class="n">register_adapter</span><span class="p">(</span><span class="n">SafeString</span><span class="p">,</span> <span class="k">lambda</span> <span class="n">s</span><span class="p">:</span> <span class="n">s</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s">&#39;utf-8&#39;</span><span class="p">))</span>
+    <span class="n">Database</span><span class="o">.</span><span class="n">register_adapter</span><span class="p">(</span><span class="n">SafeBytes</span><span class="p">,</span> <span class="k">lambda</span> <span class="n">s</span><span class="p">:</span> <span class="n">s</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s">&#39;utf-8&#39;</span><span class="p">))</span>
 
 <span class="k">class</span> <span class="nc">DatabaseFeatures</span><span class="p">(</span><span class="n">BaseDatabaseFeatures</span><span class="p">):</span>
     <span class="c"># SQLite cannot handle us only partially reading from a cursor&#39;s result set</span>
@@ -132,9 +143,10 @@
     <span class="n">supports_1000_query_parameters</span> <span class="o">=</span> <span class="bp">False</span>
     <span class="n">supports_mixed_date_datetime_comparisons</span> <span class="o">=</span> <span class="bp">False</span>
     <span class="n">has_bulk_insert</span> <span class="o">=</span> <span class="bp">True</span>
-    <span class="n">can_combine_inserts_with_and_without_auto_increment_pk</span> <span class="o">=</span> <span class="bp">True</span>
+    <span class="n">can_combine_inserts_with_and_without_auto_increment_pk</span> <span class="o">=</span> <span class="bp">False</span>
 
-    <span class="k">def</span> <span class="nf">_supports_stddev</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="nd">@cached_property</span>
+    <span class="k">def</span> <span class="nf">supports_stddev</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Confirm support for STDDEV and related stats functions</span>
 
 <span class="sd">        SQLite supports STDDEV as an extension package; so</span>
@@ -153,6 +165,17 @@
         <span class="k">return</span> <span class="n">has_support</span>
 
 <span class="k">class</span> <span class="nc">DatabaseOperations</span><span class="p">(</span><span class="n">BaseDatabaseOperations</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">bulk_batch_size</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fields</span><span class="p">,</span> <span class="n">objs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        SQLite has a compile-time default (SQLITE_LIMIT_VARIABLE_NUMBER) of</span>
+<span class="sd">        999 variables per query.</span>
+
+<span class="sd">        If there is just single field to insert, then we can hit another</span>
+<span class="sd">        limit, SQLITE_MAX_COMPOUND_SELECT which defaults to 500.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">limit</span> <span class="o">=</span> <span class="mi">999</span> <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">fields</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span> <span class="k">else</span> <span class="mi">500</span>
+        <span class="k">return</span> <span class="p">(</span><span class="n">limit</span> <span class="o">//</span> <span class="nb">len</span><span class="p">(</span><span class="n">fields</span><span class="p">))</span> <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">fields</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="k">else</span> <span class="nb">len</span><span class="p">(</span><span class="n">objs</span><span class="p">)</span>
+
     <span class="k">def</span> <span class="nf">date_extract_sql</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">lookup_type</span><span class="p">,</span> <span class="n">field_name</span><span class="p">):</span>
         <span class="c"># sqlite doesn&#39;t support extract, so we fake it with the user-defined</span>
         <span class="c"># function django_extract that&#39;s registered in connect(). Note that</span>
@@ -167,7 +190,7 @@
         <span class="c"># values differently. So instead we register our own function that</span>
         <span class="c"># formats the datetime combined with the delta in a manner suitable</span>
         <span class="c"># for comparisons.</span>
-        <span class="k">return</span>  <span class="s">u&#39;django_format_dtdelta(</span><span class="si">%s</span><span class="s">, &quot;</span><span class="si">%s</span><span class="s">&quot;, &quot;</span><span class="si">%d</span><span class="s">&quot;, &quot;</span><span class="si">%d</span><span class="s">&quot;, &quot;</span><span class="si">%d</span><span class="s">&quot;)&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">sql</span><span class="p">,</span>
+        <span class="k">return</span>  <span class="s">&#39;django_format_dtdelta(</span><span class="si">%s</span><span class="s">, &quot;</span><span class="si">%s</span><span class="s">&quot;, &quot;</span><span class="si">%d</span><span class="s">&quot;, &quot;</span><span class="si">%d</span><span class="s">&quot;, &quot;</span><span class="si">%d</span><span class="s">&quot;)&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">sql</span><span class="p">,</span>
             <span class="n">connector</span><span class="p">,</span> <span class="n">timedelta</span><span class="o">.</span><span class="n">days</span><span class="p">,</span> <span class="n">timedelta</span><span class="o">.</span><span class="n">seconds</span><span class="p">,</span> <span class="n">timedelta</span><span class="o">.</span><span class="n">microseconds</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">date_trunc_sql</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">lookup_type</span><span class="p">,</span> <span class="n">field_name</span><span class="p">):</span>
@@ -215,7 +238,7 @@
             <span class="k">else</span><span class="p">:</span>
                 <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s">&quot;SQLite backend does not support timezone-aware datetimes when USE_TZ is False.&quot;</span><span class="p">)</span>
 
-        <span class="k">return</span> <span class="nb">unicode</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">six</span><span class="o">.</span><span class="n">text_type</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">value_to_db_time</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
         <span class="k">if</span> <span class="n">value</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
@@ -225,7 +248,7 @@
         <span class="k">if</span> <span class="n">timezone</span><span class="o">.</span><span class="n">is_aware</span><span class="p">(</span><span class="n">value</span><span class="p">):</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s">&quot;SQLite backend does not support timezone-aware times.&quot;</span><span class="p">)</span>
 
-        <span class="k">return</span> <span class="nb">unicode</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">six</span><span class="o">.</span><span class="n">text_type</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">year_lookup_bounds</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
         <span class="n">first</span> <span class="o">=</span> <span class="s">&#39;</span><span class="si">%s</span><span class="s">-01-01&#39;</span>
@@ -257,7 +280,7 @@
         <span class="n">res</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s">&quot;SELECT </span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="s">&quot;, &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
             <span class="s">&quot;</span><span class="si">%%</span><span class="s">s AS </span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">quote_name</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">column</span><span class="p">)</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">fields</span>
         <span class="p">))</span>
-        <span class="n">res</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="s">&quot;UNION SELECT </span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="s">&quot;, &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="s">&quot;</span><span class="si">%s</span><span class="s">&quot;</span><span class="p">]</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="n">fields</span><span class="p">))]</span> <span class="o">*</span> <span class="p">(</span><span class="n">num_values</span> <span class="o">-</span> <span class="mi">1</span><span class="p">))</span>
+        <span class="n">res</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="s">&quot;UNION ALL SELECT </span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="s">&quot;, &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="s">&quot;</span><span class="si">%s</span><span class="s">&quot;</span><span class="p">]</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="n">fields</span><span class="p">))]</span> <span class="o">*</span> <span class="p">(</span><span class="n">num_values</span> <span class="o">-</span> <span class="mi">1</span><span class="p">))</span>
         <span class="k">return</span> <span class="s">&quot; &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">res</span><span class="p">)</span>
 
 <span class="k">class</span> <span class="nc">DatabaseWrapper</span><span class="p">(</span><span class="n">BaseDatabaseWrapper</span><span class="p">):</span>
@@ -296,7 +319,9 @@
         <span class="n">settings_dict</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">settings_dict</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="n">settings_dict</span><span class="p">[</span><span class="s">&#39;NAME&#39;</span><span class="p">]:</span>
             <span class="kn">from</span> <span class="nn">django.core.exceptions</span> <span class="kn">import</span> <span class="n">ImproperlyConfigured</span>
-            <span class="k">raise</span> <span class="n">ImproperlyConfigured</span><span class="p">(</span><span class="s">&quot;Please fill out the database NAME in the settings module before using the database.&quot;</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="n">ImproperlyConfigured</span><span class="p">(</span>
+                <span class="s">&quot;settings.DATABASES is improperly configured. &quot;</span>
+                <span class="s">&quot;Please supply the NAME value.&quot;</span><span class="p">)</span>
         <span class="n">kwargs</span> <span class="o">=</span> <span class="p">{</span>
             <span class="s">&#39;database&#39;</span><span class="p">:</span> <span class="n">settings_dict</span><span class="p">[</span><span class="s">&#39;NAME&#39;</span><span class="p">],</span>
             <span class="s">&#39;detect_types&#39;</span><span class="p">:</span> <span class="n">Database</span><span class="o">.</span><span class="n">PARSE_DECLTYPES</span> <span class="o">|</span> <span class="n">Database</span><span class="o">.</span><span class="n">PARSE_COLNAMES</span><span class="p">,</span>
@@ -344,7 +369,7 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">cursor</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cursor</span><span class="p">()</span>
         <span class="k">if</span> <span class="n">table_names</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
-            <span class="n">table_names</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">introspection</span><span class="o">.</span><span class="n">get_table_list</span><span class="p">(</span><span class="n">cursor</span><span class="p">)</span>
+            <span class="n">table_names</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">introspection</span><span class="o">.</span><span class="n">table_names</span><span class="p">(</span><span class="n">cursor</span><span class="p">)</span>
         <span class="k">for</span> <span class="n">table_name</span> <span class="ow">in</span> <span class="n">table_names</span><span class="p">:</span>
             <span class="n">primary_key_column_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">introspection</span><span class="o">.</span><span class="n">get_primary_key_column</span><span class="p">(</span><span class="n">cursor</span><span class="p">,</span> <span class="n">table_name</span><span class="p">)</span>
             <span class="k">if</span> <span class="ow">not</span> <span class="n">primary_key_column_name</span><span class="p">:</span>
@@ -384,19 +409,19 @@
         <span class="n">query</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">convert_query</span><span class="p">(</span><span class="n">query</span><span class="p">)</span>
         <span class="k">try</span><span class="p">:</span>
             <span class="k">return</span> <span class="n">Database</span><span class="o">.</span><span class="n">Cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">query</span><span class="p">,</span> <span class="n">params</span><span class="p">)</span>
-        <span class="k">except</span> <span class="n">Database</span><span class="o">.</span><span class="n">IntegrityError</span><span class="p">,</span> <span class="n">e</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="n">utils</span><span class="o">.</span><span class="n">IntegrityError</span><span class="p">,</span> <span class="n">utils</span><span class="o">.</span><span class="n">IntegrityError</span><span class="p">(</span><span class="o">*</span><span class="nb">tuple</span><span class="p">(</span><span class="n">e</span><span class="p">)),</span> <span class="n">sys</span><span class="o">.</span><span class="n">exc_info</span><span class="p">()[</span><span class="mi">2</span><span class="p">]</span>
-        <span class="k">except</span> <span class="n">Database</span><span class="o">.</span><span class="n">DatabaseError</span><span class="p">,</span> <span class="n">e</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="n">utils</span><span class="o">.</span><span class="n">DatabaseError</span><span class="p">,</span> <span class="n">utils</span><span class="o">.</span><span class="n">DatabaseError</span><span class="p">(</span><span class="o">*</span><span class="nb">tuple</span><span class="p">(</span><span class="n">e</span><span class="p">)),</span> <span class="n">sys</span><span class="o">.</span><span class="n">exc_info</span><span class="p">()[</span><span class="mi">2</span><span class="p">]</span>
+        <span class="k">except</span> <span class="n">Database</span><span class="o">.</span><span class="n">IntegrityError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">six</span><span class="o">.</span><span class="n">reraise</span><span class="p">(</span><span class="n">utils</span><span class="o">.</span><span class="n">IntegrityError</span><span class="p">,</span> <span class="n">utils</span><span class="o">.</span><span class="n">IntegrityError</span><span class="p">(</span><span class="o">*</span><span class="nb">tuple</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">args</span><span class="p">)),</span> <span class="n">sys</span><span class="o">.</span><span class="n">exc_info</span><span class="p">()[</span><span class="mi">2</span><span class="p">])</span>
+        <span class="k">except</span> <span class="n">Database</span><span class="o">.</span><span class="n">DatabaseError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">six</span><span class="o">.</span><span class="n">reraise</span><span class="p">(</span><span class="n">utils</span><span class="o">.</span><span class="n">DatabaseError</span><span class="p">,</span> <span class="n">utils</span><span class="o">.</span><span class="n">DatabaseError</span><span class="p">(</span><span class="o">*</span><span class="nb">tuple</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">args</span><span class="p">)),</span> <span class="n">sys</span><span class="o">.</span><span class="n">exc_info</span><span class="p">()[</span><span class="mi">2</span><span class="p">])</span>
 
     <span class="k">def</span> <span class="nf">executemany</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">query</span><span class="p">,</span> <span class="n">param_list</span><span class="p">):</span>
         <span class="n">query</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">convert_query</span><span class="p">(</span><span class="n">query</span><span class="p">)</span>
         <span class="k">try</span><span class="p">:</span>
             <span class="k">return</span> <span class="n">Database</span><span class="o">.</span><span class="n">Cursor</span><span class="o">.</span><span class="n">executemany</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">query</span><span class="p">,</span> <span class="n">param_list</span><span class="p">)</span>
-        <span class="k">except</span> <span class="n">Database</span><span class="o">.</span><span class="n">IntegrityError</span><span class="p">,</span> <span class="n">e</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="n">utils</span><span class="o">.</span><span class="n">IntegrityError</span><span class="p">,</span> <span class="n">utils</span><span class="o">.</span><span class="n">IntegrityError</span><span class="p">(</span><span class="o">*</span><span class="nb">tuple</span><span class="p">(</span><span class="n">e</span><span class="p">)),</span> <span class="n">sys</span><span class="o">.</span><span class="n">exc_info</span><span class="p">()[</span><span class="mi">2</span><span class="p">]</span>
-        <span class="k">except</span> <span class="n">Database</span><span class="o">.</span><span class="n">DatabaseError</span><span class="p">,</span> <span class="n">e</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="n">utils</span><span class="o">.</span><span class="n">DatabaseError</span><span class="p">,</span> <span class="n">utils</span><span class="o">.</span><span class="n">DatabaseError</span><span class="p">(</span><span class="o">*</span><span class="nb">tuple</span><span class="p">(</span><span class="n">e</span><span class="p">)),</span> <span class="n">sys</span><span class="o">.</span><span class="n">exc_info</span><span class="p">()[</span><span class="mi">2</span><span class="p">]</span>
+        <span class="k">except</span> <span class="n">Database</span><span class="o">.</span><span class="n">IntegrityError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">six</span><span class="o">.</span><span class="n">reraise</span><span class="p">(</span><span class="n">utils</span><span class="o">.</span><span class="n">IntegrityError</span><span class="p">,</span> <span class="n">utils</span><span class="o">.</span><span class="n">IntegrityError</span><span class="p">(</span><span class="o">*</span><span class="nb">tuple</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">args</span><span class="p">)),</span> <span class="n">sys</span><span class="o">.</span><span class="n">exc_info</span><span class="p">()[</span><span class="mi">2</span><span class="p">])</span>
+        <span class="k">except</span> <span class="n">Database</span><span class="o">.</span><span class="n">DatabaseError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">six</span><span class="o">.</span><span class="n">reraise</span><span class="p">(</span><span class="n">utils</span><span class="o">.</span><span class="n">DatabaseError</span><span class="p">,</span> <span class="n">utils</span><span class="o">.</span><span class="n">DatabaseError</span><span class="p">(</span><span class="o">*</span><span class="nb">tuple</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">args</span><span class="p">)),</span> <span class="n">sys</span><span class="o">.</span><span class="n">exc_info</span><span class="p">()[</span><span class="mi">2</span><span class="p">])</span>
 
     <span class="k">def</span> <span class="nf">convert_query</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">query</span><span class="p">):</span>
         <span class="k">return</span> <span class="n">FORMAT_QMARK_REGEX</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="s">&#39;?&#39;</span><span class="p">,</span> <span class="n">query</span><span class="p">)</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s">&#39;</span><span class="si">%%</span><span class="s">&#39;</span><span class="p">,</span><span class="s">&#39;%&#39;</span><span class="p">)</span>
@@ -440,10 +465,7 @@
     <span class="k">return</span> <span class="nb">str</span><span class="p">(</span><span class="n">dt</span><span class="p">)</span>
 
 <span class="k">def</span> <span class="nf">_sqlite_regexp</span><span class="p">(</span><span class="n">re_pattern</span><span class="p">,</span> <span class="n">re_string</span><span class="p">):</span>
-    <span class="k">try</span><span class="p">:</span>
-        <span class="k">return</span> <span class="nb">bool</span><span class="p">(</span><span class="n">re</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="n">re_pattern</span><span class="p">,</span> <span class="n">re_string</span><span class="p">))</span>
-    <span class="k">except</span><span class="p">:</span>
-        <span class="k">return</span> <span class="bp">False</span>
+    <span class="k">return</span> <span class="nb">bool</span><span class="p">(</span><span class="n">re</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="n">re_pattern</span><span class="p">,</span> <span class="n">re_string</span><span class="p">))</span>
 </pre></div>
 
       </div>
@@ -458,7 +480,7 @@
 
     <div class="footer">
         &copy; Copyright 2012, HDKNR.COM.
-      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.2pre/3c28de26aac2.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2b1.
     </div>
   </body>
 </html>

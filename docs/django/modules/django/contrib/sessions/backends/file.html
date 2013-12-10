@@ -28,7 +28,7 @@
     <script type="text/javascript" src="../../../../../static/doctools.js"></script>
     <script type="text/javascript" src="../../../../../static/theme_extras.js"></script>
     <link rel="top" title="Django Cheat 1 documentation" href="../../../../../index.html" />
-    <link rel="up" title="django" href="../../../../django.html" /> 
+    <link rel="up" title="Module code" href="../../../../index.html" /> 
   </head>
   <body>
       <div class="header"><h1 class="heading"><a href="../../../../../index.html">
@@ -47,35 +47,43 @@
         
         
   <h1>Source code for django.contrib.sessions.backends.file</h1><div class="highlight"><pre>
+<span class="kn">import</span> <span class="nn">datetime</span>
 <span class="kn">import</span> <span class="nn">errno</span>
 <span class="kn">import</span> <span class="nn">os</span>
 <span class="kn">import</span> <span class="nn">tempfile</span>
 
 <span class="kn">from</span> <span class="nn">django.conf</span> <span class="kn">import</span> <span class="n">settings</span>
-<span class="kn">from</span> <span class="nn">django.contrib.sessions.backends.base</span> <span class="kn">import</span> <span class="n">SessionBase</span><span class="p">,</span> <span class="n">CreateError</span>
+<span class="kn">from</span> <span class="nn">django.contrib.sessions.backends.base</span> <span class="kn">import</span> <span class="n">SessionBase</span><span class="p">,</span> <span class="n">CreateError</span><span class="p">,</span> <span class="n">VALID_KEY_CHARS</span>
 <span class="kn">from</span> <span class="nn">django.core.exceptions</span> <span class="kn">import</span> <span class="n">SuspiciousOperation</span><span class="p">,</span> <span class="n">ImproperlyConfigured</span>
-
+<span class="kn">from</span> <span class="nn">django.utils</span> <span class="kn">import</span> <span class="n">timezone</span>
 
 <div class="viewcode-block" id="SessionStore"><a class="viewcode-back" href="../../../../../django.contrib.sessions.backends.html#django.contrib.sessions.backends.file.SessionStore">[docs]</a><span class="k">class</span> <span class="nc">SessionStore</span><span class="p">(</span><span class="n">SessionBase</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Implements a file based session store.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">session_key</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">storage_path</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">settings</span><span class="p">,</span> <span class="s">&quot;SESSION_FILE_PATH&quot;</span><span class="p">,</span> <span class="bp">None</span><span class="p">)</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">storage_path</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">storage_path</span> <span class="o">=</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">gettempdir</span><span class="p">()</span>
-
-        <span class="c"># Make sure the storage path is valid.</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isdir</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">storage_path</span><span class="p">):</span>
-            <span class="k">raise</span> <span class="n">ImproperlyConfigured</span><span class="p">(</span>
-                <span class="s">&quot;The session storage path </span><span class="si">%r</span><span class="s"> doesn&#39;t exist. Please set your&quot;</span>
-                <span class="s">&quot; SESSION_FILE_PATH setting to an existing directory in which&quot;</span>
-                <span class="s">&quot; Django can store session data.&quot;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">storage_path</span><span class="p">)</span>
-
+        <span class="bp">self</span><span class="o">.</span><span class="n">storage_path</span> <span class="o">=</span> <span class="nb">type</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">_get_storage_path</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">file_prefix</span> <span class="o">=</span> <span class="n">settings</span><span class="o">.</span><span class="n">SESSION_COOKIE_NAME</span>
         <span class="nb">super</span><span class="p">(</span><span class="n">SessionStore</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="n">session_key</span><span class="p">)</span>
 
-    <span class="n">VALID_KEY_CHARS</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="s">&quot;abcdef0123456789&quot;</span><span class="p">)</span>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">_get_storage_path</span><span class="p">(</span><span class="n">cls</span><span class="p">):</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">cls</span><span class="o">.</span><span class="n">_storage_path</span>
+        <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>
+            <span class="n">storage_path</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">settings</span><span class="p">,</span> <span class="s">&quot;SESSION_FILE_PATH&quot;</span><span class="p">,</span> <span class="bp">None</span><span class="p">)</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">storage_path</span><span class="p">:</span>
+                <span class="n">storage_path</span> <span class="o">=</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">gettempdir</span><span class="p">()</span>
+
+            <span class="c"># Make sure the storage path is valid.</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isdir</span><span class="p">(</span><span class="n">storage_path</span><span class="p">):</span>
+                <span class="k">raise</span> <span class="n">ImproperlyConfigured</span><span class="p">(</span>
+                    <span class="s">&quot;The session storage path </span><span class="si">%r</span><span class="s"> doesn&#39;t exist. Please set your&quot;</span>
+                    <span class="s">&quot; SESSION_FILE_PATH setting to an existing directory in which&quot;</span>
+                    <span class="s">&quot; Django can store session data.&quot;</span> <span class="o">%</span> <span class="n">storage_path</span><span class="p">)</span>
+
+            <span class="n">cls</span><span class="o">.</span><span class="n">_storage_path</span> <span class="o">=</span> <span class="n">storage_path</span>
+            <span class="k">return</span> <span class="n">storage_path</span>
 
     <span class="k">def</span> <span class="nf">_key_to_file</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">session_key</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
@@ -87,27 +95,45 @@
         <span class="c"># Make sure we&#39;re not vulnerable to directory traversal. Session keys</span>
         <span class="c"># should always be md5s, so they should never contain directory</span>
         <span class="c"># components.</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="nb">set</span><span class="p">(</span><span class="n">session_key</span><span class="p">)</span><span class="o">.</span><span class="n">issubset</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">VALID_KEY_CHARS</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">set</span><span class="p">(</span><span class="n">session_key</span><span class="p">)</span><span class="o">.</span><span class="n">issubset</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">VALID_KEY_CHARS</span><span class="p">)):</span>
             <span class="k">raise</span> <span class="n">SuspiciousOperation</span><span class="p">(</span>
                 <span class="s">&quot;Invalid characters in session key&quot;</span><span class="p">)</span>
 
         <span class="k">return</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">storage_path</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">file_prefix</span> <span class="o">+</span> <span class="n">session_key</span><span class="p">)</span>
 
+    <span class="k">def</span> <span class="nf">_last_modification</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Return the modification time of the file storing the session&#39;s content.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">modification</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">stat</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_key_to_file</span><span class="p">())</span><span class="o">.</span><span class="n">st_mtime</span>
+        <span class="k">if</span> <span class="n">settings</span><span class="o">.</span><span class="n">USE_TZ</span><span class="p">:</span>
+            <span class="n">modification</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="o">.</span><span class="n">utcfromtimestamp</span><span class="p">(</span><span class="n">modification</span><span class="p">)</span>
+            <span class="n">modification</span> <span class="o">=</span> <span class="n">modification</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="n">tzinfo</span><span class="o">=</span><span class="n">timezone</span><span class="o">.</span><span class="n">utc</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">modification</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="o">.</span><span class="n">fromtimestamp</span><span class="p">(</span><span class="n">modification</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">modification</span>
+
     <span class="k">def</span> <span class="nf">load</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="n">session_data</span> <span class="o">=</span> <span class="p">{}</span>
         <span class="k">try</span><span class="p">:</span>
-            <span class="n">session_file</span> <span class="o">=</span> <span class="nb">open</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_key_to_file</span><span class="p">(),</span> <span class="s">&quot;rb&quot;</span><span class="p">)</span>
-            <span class="k">try</span><span class="p">:</span>
+            <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_key_to_file</span><span class="p">(),</span> <span class="s">&quot;rb&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">session_file</span><span class="p">:</span>
                 <span class="n">file_data</span> <span class="o">=</span> <span class="n">session_file</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
-                <span class="c"># Don&#39;t fail if there is no data in the session file.</span>
-                <span class="c"># We may have opened the empty placeholder file.</span>
-                <span class="k">if</span> <span class="n">file_data</span><span class="p">:</span>
-                    <span class="k">try</span><span class="p">:</span>
-                        <span class="n">session_data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="n">file_data</span><span class="p">)</span>
-                    <span class="k">except</span> <span class="p">(</span><span class="ne">EOFError</span><span class="p">,</span> <span class="n">SuspiciousOperation</span><span class="p">):</span>
-                        <span class="bp">self</span><span class="o">.</span><span class="n">create</span><span class="p">()</span>
-            <span class="k">finally</span><span class="p">:</span>
-                <span class="n">session_file</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+            <span class="c"># Don&#39;t fail if there is no data in the session file.</span>
+            <span class="c"># We may have opened the empty placeholder file.</span>
+            <span class="k">if</span> <span class="n">file_data</span><span class="p">:</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="n">session_data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="n">file_data</span><span class="p">)</span>
+                <span class="k">except</span> <span class="p">(</span><span class="ne">EOFError</span><span class="p">,</span> <span class="n">SuspiciousOperation</span><span class="p">):</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">create</span><span class="p">()</span>
+
+                <span class="c"># Remove expired sessions.</span>
+                <span class="n">expiry_age</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_expiry_age</span><span class="p">(</span>
+                    <span class="n">modification</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_last_modification</span><span class="p">(),</span>
+                    <span class="n">expiry</span><span class="o">=</span><span class="n">session_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;_session_expiry&#39;</span><span class="p">))</span>
+                <span class="k">if</span> <span class="n">expiry_age</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+                    <span class="n">session_data</span> <span class="o">=</span> <span class="p">{}</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">delete</span><span class="p">()</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">create</span><span class="p">()</span>
         <span class="k">except</span> <span class="ne">IOError</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">create</span><span class="p">()</span>
         <span class="k">return</span> <span class="n">session_data</span>
@@ -139,7 +165,7 @@
             <span class="n">fd</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">session_file_name</span><span class="p">,</span> <span class="n">flags</span><span class="p">)</span>
             <span class="n">os</span><span class="o">.</span><span class="n">close</span><span class="p">(</span><span class="n">fd</span><span class="p">)</span>
 
-        <span class="k">except</span> <span class="ne">OSError</span><span class="p">,</span> <span class="n">e</span><span class="p">:</span>
+        <span class="k">except</span> <span class="ne">OSError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
             <span class="k">if</span> <span class="n">must_create</span> <span class="ow">and</span> <span class="n">e</span><span class="o">.</span><span class="n">errno</span> <span class="o">==</span> <span class="n">errno</span><span class="o">.</span><span class="n">EEXIST</span><span class="p">:</span>
                 <span class="k">raise</span> <span class="n">CreateError</span>
             <span class="k">raise</span>
@@ -167,7 +193,7 @@
             <span class="n">renamed</span> <span class="o">=</span> <span class="bp">False</span>
             <span class="k">try</span><span class="p">:</span>
                 <span class="k">try</span><span class="p">:</span>
-                    <span class="n">os</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">output_file_fd</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="n">session_data</span><span class="p">))</span>
+                    <span class="n">os</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">output_file_fd</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="n">session_data</span><span class="p">)</span><span class="o">.</span><span class="n">encode</span><span class="p">())</span>
                 <span class="k">finally</span><span class="p">:</span>
                     <span class="n">os</span><span class="o">.</span><span class="n">close</span><span class="p">(</span><span class="n">output_file_fd</span><span class="p">)</span>
                 <span class="n">os</span><span class="o">.</span><span class="n">rename</span><span class="p">(</span><span class="n">output_file_name</span><span class="p">,</span> <span class="n">session_file_name</span><span class="p">)</span>
@@ -193,7 +219,23 @@
             <span class="k">pass</span>
 
     <span class="k">def</span> <span class="nf">clean</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="k">pass</span></div>
+        <span class="k">pass</span>
+
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">clear_expired</span><span class="p">(</span><span class="n">cls</span><span class="p">):</span>
+        <span class="n">storage_path</span> <span class="o">=</span> <span class="n">cls</span><span class="o">.</span><span class="n">_get_storage_path</span><span class="p">()</span>
+        <span class="n">file_prefix</span> <span class="o">=</span> <span class="n">settings</span><span class="o">.</span><span class="n">SESSION_COOKIE_NAME</span>
+
+        <span class="k">for</span> <span class="n">session_file</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">listdir</span><span class="p">(</span><span class="n">storage_path</span><span class="p">):</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">session_file</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="n">file_prefix</span><span class="p">):</span>
+                <span class="k">continue</span>
+            <span class="n">session_key</span> <span class="o">=</span> <span class="n">session_file</span><span class="p">[</span><span class="nb">len</span><span class="p">(</span><span class="n">file_prefix</span><span class="p">):]</span>
+            <span class="n">session</span> <span class="o">=</span> <span class="n">cls</span><span class="p">(</span><span class="n">session_key</span><span class="p">)</span>
+            <span class="c"># When an expired session is loaded, its file is removed, and a</span>
+            <span class="c"># new file is immediately created. Prevent this by disabling</span>
+            <span class="c"># the create() method.</span>
+            <span class="n">session</span><span class="o">.</span><span class="n">create</span> <span class="o">=</span> <span class="k">lambda</span><span class="p">:</span> <span class="bp">None</span>
+            <span class="n">session</span><span class="o">.</span><span class="n">load</span><span class="p">()</span></div>
 </pre></div>
 
       </div>
@@ -208,7 +250,7 @@
 
     <div class="footer">
         &copy; Copyright 2012, HDKNR.COM.
-      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.2pre/3c28de26aac2.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2b1.
     </div>
   </body>
 </html>

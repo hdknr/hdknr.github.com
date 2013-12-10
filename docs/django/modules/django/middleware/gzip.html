@@ -28,7 +28,7 @@
     <script type="text/javascript" src="../../../static/doctools.js"></script>
     <script type="text/javascript" src="../../../static/theme_extras.js"></script>
     <link rel="top" title="Django Cheat 1 documentation" href="../../../index.html" />
-    <link rel="up" title="django" href="../../django.html" /> 
+    <link rel="up" title="Module code" href="../../index.html" /> 
   </head>
   <body>
       <div class="header"><h1 class="heading"><a href="../../../index.html">
@@ -49,7 +49,7 @@
   <h1>Source code for django.middleware.gzip</h1><div class="highlight"><pre>
 <span class="kn">import</span> <span class="nn">re</span>
 
-<span class="kn">from</span> <span class="nn">django.utils.text</span> <span class="kn">import</span> <span class="n">compress_string</span>
+<span class="kn">from</span> <span class="nn">django.utils.text</span> <span class="kn">import</span> <span class="n">compress_sequence</span><span class="p">,</span> <span class="n">compress_string</span>
 <span class="kn">from</span> <span class="nn">django.utils.cache</span> <span class="kn">import</span> <span class="n">patch_vary_headers</span>
 
 <span class="n">re_accepts_gzip</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="s">r&#39;\bgzip\b&#39;</span><span class="p">)</span>
@@ -62,7 +62,7 @@
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">def</span> <span class="nf">process_response</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">request</span><span class="p">,</span> <span class="n">response</span><span class="p">):</span>
         <span class="c"># It&#39;s not worth attempting to compress really short responses.</span>
-        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">content</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">200</span><span class="p">:</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">response</span><span class="o">.</span><span class="n">streaming</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">content</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">200</span><span class="p">:</span>
             <span class="k">return</span> <span class="n">response</span>
 
         <span class="n">patch_vary_headers</span><span class="p">(</span><span class="n">response</span><span class="p">,</span> <span class="p">(</span><span class="s">&#39;Accept-Encoding&#39;</span><span class="p">,))</span>
@@ -81,17 +81,23 @@
         <span class="k">if</span> <span class="ow">not</span> <span class="n">re_accepts_gzip</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="n">ae</span><span class="p">):</span>
             <span class="k">return</span> <span class="n">response</span>
 
-        <span class="c"># Return the compressed content only if it&#39;s actually shorter.</span>
-        <span class="n">compressed_content</span> <span class="o">=</span> <span class="n">compress_string</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">content</span><span class="p">)</span>
-        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">compressed_content</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="nb">len</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">content</span><span class="p">):</span>
-            <span class="k">return</span> <span class="n">response</span>
+        <span class="k">if</span> <span class="n">response</span><span class="o">.</span><span class="n">streaming</span><span class="p">:</span>
+            <span class="c"># Delete the `Content-Length` header for streaming content, because</span>
+            <span class="c"># we won&#39;t know the compressed size until we stream it.</span>
+            <span class="n">response</span><span class="o">.</span><span class="n">streaming_content</span> <span class="o">=</span> <span class="n">compress_sequence</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">streaming_content</span><span class="p">)</span>
+            <span class="k">del</span> <span class="n">response</span><span class="p">[</span><span class="s">&#39;Content-Length&#39;</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c"># Return the compressed content only if it&#39;s actually shorter.</span>
+            <span class="n">compressed_content</span> <span class="o">=</span> <span class="n">compress_string</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">content</span><span class="p">)</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">compressed_content</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="nb">len</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">content</span><span class="p">):</span>
+                <span class="k">return</span> <span class="n">response</span>
+            <span class="n">response</span><span class="o">.</span><span class="n">content</span> <span class="o">=</span> <span class="n">compressed_content</span>
+            <span class="n">response</span><span class="p">[</span><span class="s">&#39;Content-Length&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">content</span><span class="p">))</span>
 
         <span class="k">if</span> <span class="n">response</span><span class="o">.</span><span class="n">has_header</span><span class="p">(</span><span class="s">&#39;ETag&#39;</span><span class="p">):</span>
             <span class="n">response</span><span class="p">[</span><span class="s">&#39;ETag&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="s">&#39;&quot;$&#39;</span><span class="p">,</span> <span class="s">&#39;;gzip&quot;&#39;</span><span class="p">,</span> <span class="n">response</span><span class="p">[</span><span class="s">&#39;ETag&#39;</span><span class="p">])</span>
-
-        <span class="n">response</span><span class="o">.</span><span class="n">content</span> <span class="o">=</span> <span class="n">compressed_content</span>
         <span class="n">response</span><span class="p">[</span><span class="s">&#39;Content-Encoding&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s">&#39;gzip&#39;</span>
-        <span class="n">response</span><span class="p">[</span><span class="s">&#39;Content-Length&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">content</span><span class="p">))</span>
+
         <span class="k">return</span> <span class="n">response</span></div>
 </pre></div>
 
@@ -107,7 +113,7 @@
 
     <div class="footer">
         &copy; Copyright 2012, HDKNR.COM.
-      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.2pre/3c28de26aac2.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2b1.
     </div>
   </body>
 </html>

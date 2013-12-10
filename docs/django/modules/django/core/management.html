@@ -28,7 +28,7 @@
     <script type="text/javascript" src="../../../static/doctools.js"></script>
     <script type="text/javascript" src="../../../static/theme_extras.js"></script>
     <link rel="top" title="Django Cheat 1 documentation" href="../../../index.html" />
-    <link rel="up" title="django" href="../../django.html" /> 
+    <link rel="up" title="Module code" href="../../index.html" /> 
   </head>
   <body>
       <div class="header"><h1 class="heading"><a href="../../../index.html">
@@ -54,9 +54,12 @@
 <span class="kn">import</span> <span class="nn">imp</span>
 <span class="kn">import</span> <span class="nn">warnings</span>
 
+<span class="kn">from</span> <span class="nn">django.core.exceptions</span> <span class="kn">import</span> <span class="n">ImproperlyConfigured</span>
 <span class="kn">from</span> <span class="nn">django.core.management.base</span> <span class="kn">import</span> <span class="n">BaseCommand</span><span class="p">,</span> <span class="n">CommandError</span><span class="p">,</span> <span class="n">handle_default_options</span>
 <span class="kn">from</span> <span class="nn">django.core.management.color</span> <span class="kn">import</span> <span class="n">color_style</span>
 <span class="kn">from</span> <span class="nn">django.utils.importlib</span> <span class="kn">import</span> <span class="n">import_module</span>
+<span class="kn">from</span> <span class="nn">django.utils._os</span> <span class="kn">import</span> <span class="n">upath</span>
+<span class="kn">from</span> <span class="nn">django.utils</span> <span class="kn">import</span> <span class="n">six</span>
 
 <span class="c"># For backwards compatibility: get_version() used to be in this module.</span>
 <span class="kn">from</span> <span class="nn">django</span> <span class="kn">import</span> <span class="n">get_version</span>
@@ -99,14 +102,19 @@
     <span class="c"># module, we need look for the case where the project name is part</span>
     <span class="c"># of the app_name but the project directory itself isn&#39;t on the path.</span>
     <span class="k">try</span><span class="p">:</span>
-        <span class="n">f</span><span class="p">,</span> <span class="n">path</span><span class="p">,</span> <span class="n">descr</span> <span class="o">=</span> <span class="n">imp</span><span class="o">.</span><span class="n">find_module</span><span class="p">(</span><span class="n">part</span><span class="p">,</span><span class="n">path</span><span class="p">)</span>
-    <span class="k">except</span> <span class="ne">ImportError</span><span class="p">,</span><span class="n">e</span><span class="p">:</span>
+        <span class="n">f</span><span class="p">,</span> <span class="n">path</span><span class="p">,</span> <span class="n">descr</span> <span class="o">=</span> <span class="n">imp</span><span class="o">.</span><span class="n">find_module</span><span class="p">(</span><span class="n">part</span><span class="p">,</span> <span class="n">path</span><span class="p">)</span>
+    <span class="k">except</span> <span class="ne">ImportError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
         <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">getcwd</span><span class="p">())</span> <span class="o">!=</span> <span class="n">part</span><span class="p">:</span>
             <span class="k">raise</span> <span class="n">e</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">f</span><span class="p">:</span>
+            <span class="n">f</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
 
     <span class="k">while</span> <span class="n">parts</span><span class="p">:</span>
         <span class="n">part</span> <span class="o">=</span> <span class="n">parts</span><span class="o">.</span><span class="n">pop</span><span class="p">()</span>
         <span class="n">f</span><span class="p">,</span> <span class="n">path</span><span class="p">,</span> <span class="n">descr</span> <span class="o">=</span> <span class="n">imp</span><span class="o">.</span><span class="n">find_module</span><span class="p">(</span><span class="n">part</span><span class="p">,</span> <span class="n">path</span> <span class="ow">and</span> <span class="p">[</span><span class="n">path</span><span class="p">]</span> <span class="ow">or</span> <span class="bp">None</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">f</span><span class="p">:</span>
+            <span class="n">f</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
     <span class="k">return</span> <span class="n">path</span>
 </div>
 <div class="viewcode-block" id="load_command_class"><a class="viewcode-back" href="../../../django.core.management.html#django.core.management.load_command_class">[docs]</a><span class="k">def</span> <span class="nf">load_command_class</span><span class="p">(</span><span class="n">app_name</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
@@ -145,10 +153,12 @@
         <span class="n">_commands</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">([(</span><span class="n">name</span><span class="p">,</span> <span class="s">&#39;django.core&#39;</span><span class="p">)</span> <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">find_commands</span><span class="p">(</span><span class="n">__path__</span><span class="p">[</span><span class="mi">0</span><span class="p">])])</span>
 
         <span class="c"># Find the installed apps</span>
+        <span class="kn">from</span> <span class="nn">django.conf</span> <span class="kn">import</span> <span class="n">settings</span>
         <span class="k">try</span><span class="p">:</span>
-            <span class="kn">from</span> <span class="nn">django.conf</span> <span class="kn">import</span> <span class="n">settings</span>
             <span class="n">apps</span> <span class="o">=</span> <span class="n">settings</span><span class="o">.</span><span class="n">INSTALLED_APPS</span>
-        <span class="k">except</span> <span class="p">(</span><span class="ne">AttributeError</span><span class="p">,</span> <span class="ne">EnvironmentError</span><span class="p">,</span> <span class="ne">ImportError</span><span class="p">):</span>
+        <span class="k">except</span> <span class="n">ImproperlyConfigured</span><span class="p">:</span>
+            <span class="c"># Still useful for commands that do not require functional settings,</span>
+            <span class="c"># like startproject or help</span>
             <span class="n">apps</span> <span class="o">=</span> <span class="p">[]</span>
 
         <span class="c"># Find and load the management module for each installed app.</span>
@@ -176,13 +186,14 @@
     <span class="c"># Load the command object.</span>
     <span class="k">try</span><span class="p">:</span>
         <span class="n">app_name</span> <span class="o">=</span> <span class="n">get_commands</span><span class="p">()[</span><span class="n">name</span><span class="p">]</span>
-        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">app_name</span><span class="p">,</span> <span class="n">BaseCommand</span><span class="p">):</span>
-            <span class="c"># If the command is already loaded, use it directly.</span>
-            <span class="n">klass</span> <span class="o">=</span> <span class="n">app_name</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="n">klass</span> <span class="o">=</span> <span class="n">load_command_class</span><span class="p">(</span><span class="n">app_name</span><span class="p">,</span> <span class="n">name</span><span class="p">)</span>
     <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
         <span class="k">raise</span> <span class="n">CommandError</span><span class="p">(</span><span class="s">&quot;Unknown command: </span><span class="si">%r</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">name</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">app_name</span><span class="p">,</span> <span class="n">BaseCommand</span><span class="p">):</span>
+        <span class="c"># If the command is already loaded, use it directly.</span>
+        <span class="n">klass</span> <span class="o">=</span> <span class="n">app_name</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">klass</span> <span class="o">=</span> <span class="n">load_command_class</span><span class="p">(</span><span class="n">app_name</span><span class="p">,</span> <span class="n">name</span><span class="p">)</span>
 
     <span class="c"># Grab out a list of defaults from the options. optparse does this for us</span>
     <span class="c"># when the script runs from the command line, but since call_command can</span>
@@ -277,7 +288,7 @@
                 <span class="s">&quot;Available subcommands:&quot;</span><span class="p">,</span>
             <span class="p">]</span>
             <span class="n">commands_dict</span> <span class="o">=</span> <span class="n">collections</span><span class="o">.</span><span class="n">defaultdict</span><span class="p">(</span><span class="k">lambda</span><span class="p">:</span> <span class="p">[])</span>
-            <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">app</span> <span class="ow">in</span> <span class="n">get_commands</span><span class="p">()</span><span class="o">.</span><span class="n">iteritems</span><span class="p">():</span>
+            <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">app</span> <span class="ow">in</span> <span class="n">six</span><span class="o">.</span><span class="n">iteritems</span><span class="p">(</span><span class="n">get_commands</span><span class="p">()):</span>
                 <span class="k">if</span> <span class="n">app</span> <span class="o">==</span> <span class="s">&#39;django.core&#39;</span><span class="p">:</span>
                     <span class="n">app</span> <span class="o">=</span> <span class="s">&#39;django&#39;</span>
                 <span class="k">else</span><span class="p">:</span>
@@ -343,12 +354,12 @@
         <span class="k">except</span> <span class="ne">IndexError</span><span class="p">:</span>
             <span class="n">curr</span> <span class="o">=</span> <span class="s">&#39;&#39;</span>
 
-        <span class="n">subcommands</span> <span class="o">=</span> <span class="n">get_commands</span><span class="p">()</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span> <span class="o">+</span> <span class="p">[</span><span class="s">&#39;help&#39;</span><span class="p">]</span>
+        <span class="n">subcommands</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">get_commands</span><span class="p">())</span> <span class="o">+</span> <span class="p">[</span><span class="s">&#39;help&#39;</span><span class="p">]</span>
         <span class="n">options</span> <span class="o">=</span> <span class="p">[(</span><span class="s">&#39;--help&#39;</span><span class="p">,</span> <span class="bp">None</span><span class="p">)]</span>
 
         <span class="c"># subcommand</span>
         <span class="k">if</span> <span class="n">cword</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
-            <span class="k">print</span> <span class="s">&#39; &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">sorted</span><span class="p">(</span><span class="nb">filter</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="n">curr</span><span class="p">),</span> <span class="n">subcommands</span><span class="p">)))</span>
+            <span class="k">print</span><span class="p">(</span><span class="s">&#39; &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">sorted</span><span class="p">(</span><span class="nb">filter</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="n">curr</span><span class="p">),</span> <span class="n">subcommands</span><span class="p">))))</span>
         <span class="c"># subcommand options</span>
         <span class="c"># special case: the &#39;help&#39; subcommand has no options</span>
         <span class="k">elif</span> <span class="n">cwords</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="ow">in</span> <span class="n">subcommands</span> <span class="ow">and</span> <span class="n">cwords</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">!=</span> <span class="s">&#39;help&#39;</span><span class="p">:</span>
@@ -359,9 +370,8 @@
                 <span class="kn">from</span> <span class="nn">django.core.servers.fastcgi</span> <span class="kn">import</span> <span class="n">FASTCGI_OPTIONS</span>
                 <span class="n">options</span> <span class="o">+=</span> <span class="p">[(</span><span class="n">k</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">FASTCGI_OPTIONS</span><span class="p">]</span>
             <span class="c"># special case: add the names of installed apps to options</span>
-            <span class="k">elif</span> <span class="n">cwords</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="ow">in</span> <span class="p">(</span><span class="s">&#39;dumpdata&#39;</span><span class="p">,</span> <span class="s">&#39;reset&#39;</span><span class="p">,</span> <span class="s">&#39;sql&#39;</span><span class="p">,</span> <span class="s">&#39;sqlall&#39;</span><span class="p">,</span>
-                               <span class="s">&#39;sqlclear&#39;</span><span class="p">,</span> <span class="s">&#39;sqlcustom&#39;</span><span class="p">,</span> <span class="s">&#39;sqlindexes&#39;</span><span class="p">,</span>
-                               <span class="s">&#39;sqlreset&#39;</span><span class="p">,</span> <span class="s">&#39;sqlsequencereset&#39;</span><span class="p">,</span> <span class="s">&#39;test&#39;</span><span class="p">):</span>
+            <span class="k">elif</span> <span class="n">cwords</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="ow">in</span> <span class="p">(</span><span class="s">&#39;dumpdata&#39;</span><span class="p">,</span> <span class="s">&#39;sql&#39;</span><span class="p">,</span> <span class="s">&#39;sqlall&#39;</span><span class="p">,</span> <span class="s">&#39;sqlclear&#39;</span><span class="p">,</span>
+                    <span class="s">&#39;sqlcustom&#39;</span><span class="p">,</span> <span class="s">&#39;sqlindexes&#39;</span><span class="p">,</span> <span class="s">&#39;sqlsequencereset&#39;</span><span class="p">,</span> <span class="s">&#39;test&#39;</span><span class="p">):</span>
                 <span class="k">try</span><span class="p">:</span>
                     <span class="kn">from</span> <span class="nn">django.conf</span> <span class="kn">import</span> <span class="n">settings</span>
                     <span class="c"># Get the last part of the dotted path as the app name.</span>
@@ -374,7 +384,7 @@
                         <span class="n">subcommand_cls</span><span class="o">.</span><span class="n">option_list</span><span class="p">]</span>
             <span class="c"># filter out previously specified options from available options</span>
             <span class="n">prev_opts</span> <span class="o">=</span> <span class="p">[</span><span class="n">x</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&#39;=&#39;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">cwords</span><span class="p">[</span><span class="mi">1</span><span class="p">:</span><span class="n">cword</span><span class="o">-</span><span class="mi">1</span><span class="p">]]</span>
-            <span class="n">options</span> <span class="o">=</span> <span class="nb">filter</span><span class="p">(</span><span class="k">lambda</span> <span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">v</span><span class="p">):</span> <span class="n">x</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">prev_opts</span><span class="p">,</span> <span class="n">options</span><span class="p">)</span>
+            <span class="n">options</span> <span class="o">=</span> <span class="p">[</span><span class="n">opt</span> <span class="k">for</span> <span class="n">opt</span> <span class="ow">in</span> <span class="n">options</span> <span class="k">if</span> <span class="n">opt</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">prev_opts</span><span class="p">]</span>
 
             <span class="c"># filter options by current input</span>
             <span class="n">options</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">([(</span><span class="n">k</span><span class="p">,</span> <span class="n">v</span><span class="p">)</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">options</span> <span class="k">if</span> <span class="n">k</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="n">curr</span><span class="p">)])</span>
@@ -383,7 +393,7 @@
                 <span class="c"># append &#39;=&#39; to options which require args</span>
                 <span class="k">if</span> <span class="n">option</span><span class="p">[</span><span class="mi">1</span><span class="p">]:</span>
                     <span class="n">opt_label</span> <span class="o">+=</span> <span class="s">&#39;=&#39;</span>
-                <span class="k">print</span> <span class="n">opt_label</span>
+                <span class="k">print</span><span class="p">(</span><span class="n">opt_label</span><span class="p">)</span>
         <span class="n">sys</span><span class="o">.</span><span class="n">exit</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
 </div>
 <div class="viewcode-block" id="ManagementUtility.execute"><a class="viewcode-back" href="../../../django.core.management.html#django.core.management.ManagementUtility.execute">[docs]</a>    <span class="k">def</span> <span class="nf">execute</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
@@ -445,15 +455,15 @@
         <span class="s">&quot;you likely need to update your &#39;manage.py&#39;; &quot;</span>
         <span class="s">&quot;please see the Django 1.4 release notes &quot;</span>
         <span class="s">&quot;(https://docs.djangoproject.com/en/dev/releases/1.4/).&quot;</span><span class="p">,</span>
-        <span class="ne">PendingDeprecationWarning</span><span class="p">)</span>
+        <span class="ne">DeprecationWarning</span><span class="p">)</span>
 
     <span class="c"># Add this project to sys.path so that it&#39;s importable in the conventional</span>
     <span class="c"># way. For example, if this file (manage.py) lives in a directory</span>
     <span class="c"># &quot;myproject&quot;, this code would add &quot;/path/to/myproject&quot; to sys.path.</span>
-    <span class="k">if</span> <span class="s">&#39;__init__.py&#39;</span> <span class="ow">in</span> <span class="n">settings_mod</span><span class="o">.</span><span class="n">__file__</span><span class="p">:</span>
-        <span class="n">p</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">settings_mod</span><span class="o">.</span><span class="n">__file__</span><span class="p">)</span>
+    <span class="k">if</span> <span class="s">&#39;__init__.py&#39;</span> <span class="ow">in</span> <span class="n">upath</span><span class="p">(</span><span class="n">settings_mod</span><span class="o">.</span><span class="n">__file__</span><span class="p">):</span>
+        <span class="n">p</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">upath</span><span class="p">(</span><span class="n">settings_mod</span><span class="o">.</span><span class="n">__file__</span><span class="p">))</span>
     <span class="k">else</span><span class="p">:</span>
-        <span class="n">p</span> <span class="o">=</span> <span class="n">settings_mod</span><span class="o">.</span><span class="n">__file__</span>
+        <span class="n">p</span> <span class="o">=</span> <span class="n">upath</span><span class="p">(</span><span class="n">settings_mod</span><span class="o">.</span><span class="n">__file__</span><span class="p">)</span>
     <span class="n">project_directory</span><span class="p">,</span> <span class="n">settings_filename</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">p</span><span class="p">)</span>
     <span class="k">if</span> <span class="n">project_directory</span> <span class="o">==</span> <span class="n">os</span><span class="o">.</span><span class="n">curdir</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">project_directory</span><span class="p">:</span>
         <span class="n">project_directory</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">getcwd</span><span class="p">()</span>
@@ -501,7 +511,7 @@
         <span class="s">&quot;you likely need to update your &#39;manage.py&#39;; &quot;</span>
         <span class="s">&quot;please see the Django 1.4 release notes &quot;</span>
         <span class="s">&quot;(https://docs.djangoproject.com/en/dev/releases/1.4/).&quot;</span><span class="p">,</span>
-        <span class="ne">PendingDeprecationWarning</span><span class="p">)</span>
+        <span class="ne">DeprecationWarning</span><span class="p">)</span>
 
     <span class="n">setup_environ</span><span class="p">(</span><span class="n">settings_mod</span><span class="p">)</span>
     <span class="n">utility</span> <span class="o">=</span> <span class="n">ManagementUtility</span><span class="p">(</span><span class="n">argv</span><span class="p">)</span>
@@ -520,7 +530,7 @@
 
     <div class="footer">
         &copy; Copyright 2012, HDKNR.COM.
-      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.2pre/3c28de26aac2.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2b1.
     </div>
   </body>
 </html>

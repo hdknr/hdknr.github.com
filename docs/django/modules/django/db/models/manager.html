@@ -63,6 +63,10 @@
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">cls</span> <span class="o">=</span> <span class="n">sender</span>
     <span class="k">if</span> <span class="n">cls</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">abstract</span><span class="p">:</span>
+        <span class="nb">setattr</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="s">&#39;objects&#39;</span><span class="p">,</span> <span class="n">AbstractManagerDescriptor</span><span class="p">(</span><span class="n">cls</span><span class="p">))</span>
+        <span class="k">return</span>
+    <span class="k">elif</span> <span class="n">cls</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">swapped</span><span class="p">:</span>
+        <span class="nb">setattr</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="s">&#39;objects&#39;</span><span class="p">,</span> <span class="n">SwappedManagerDescriptor</span><span class="p">(</span><span class="n">cls</span><span class="p">))</span>
         <span class="k">return</span>
     <span class="k">if</span> <span class="ow">not</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="s">&#39;_default_manager&#39;</span><span class="p">,</span> <span class="bp">None</span><span class="p">):</span>
         <span class="c"># Create the default manager, if needed.</span>
@@ -91,6 +95,7 @@
 </div>
 <span class="n">signals</span><span class="o">.</span><span class="n">class_prepared</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">ensure_default_manager</span><span class="p">)</span>
 
+
 <span class="k">class</span> <span class="nc">Manager</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
     <span class="c"># Tracks each time a Manager instance is created. Used to retain order.</span>
     <span class="n">creation_counter</span> <span class="o">=</span> <span class="mi">0</span>
@@ -105,7 +110,14 @@
     <span class="k">def</span> <span class="nf">contribute_to_class</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">model</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
         <span class="c"># TODO: Use weakref because of possible memory leak / circular reference.</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">model</span> <span class="o">=</span> <span class="n">model</span>
-        <span class="nb">setattr</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">ManagerDescriptor</span><span class="p">(</span><span class="bp">self</span><span class="p">))</span>
+        <span class="c"># Only contribute the manager if the model is concrete</span>
+        <span class="k">if</span> <span class="n">model</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">abstract</span><span class="p">:</span>
+            <span class="nb">setattr</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">AbstractManagerDescriptor</span><span class="p">(</span><span class="n">model</span><span class="p">))</span>
+        <span class="k">elif</span> <span class="n">model</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">swapped</span><span class="p">:</span>
+            <span class="nb">setattr</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">SwappedManagerDescriptor</span><span class="p">(</span><span class="n">model</span><span class="p">))</span>
+        <span class="k">else</span><span class="p">:</span>
+        <span class="c"># if not model._meta.abstract and not model._meta.swapped:</span>
+            <span class="nb">setattr</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">ManagerDescriptor</span><span class="p">(</span><span class="bp">self</span><span class="p">))</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="s">&#39;_default_manager&#39;</span><span class="p">,</span> <span class="bp">None</span><span class="p">)</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">creation_counter</span> <span class="o">&lt;</span> <span class="n">model</span><span class="o">.</span><span class="n">_default_manager</span><span class="o">.</span><span class="n">creation_counter</span><span class="p">:</span>
             <span class="n">model</span><span class="o">.</span><span class="n">_default_manager</span> <span class="o">=</span> <span class="bp">self</span>
         <span class="k">if</span> <span class="n">model</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">abstract</span> <span class="ow">or</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_inherited</span> <span class="ow">and</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">proxy</span><span class="p">):</span>
@@ -257,6 +269,7 @@
     <span class="k">def</span> <span class="nf">raw</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">raw_query</span><span class="p">,</span> <span class="n">params</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
         <span class="k">return</span> <span class="n">RawQuerySet</span><span class="p">(</span><span class="n">raw_query</span><span class="o">=</span><span class="n">raw_query</span><span class="p">,</span> <span class="n">model</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="p">,</span> <span class="n">params</span><span class="o">=</span><span class="n">params</span><span class="p">,</span> <span class="n">using</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_db</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
 
+
 <span class="k">class</span> <span class="nc">ManagerDescriptor</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
     <span class="c"># This class ensures managers aren&#39;t accessible via model instances.</span>
     <span class="c"># For example, Poll.objects works, but poll_obj.objects raises AttributeError.</span>
@@ -267,6 +280,31 @@
         <span class="k">if</span> <span class="n">instance</span> <span class="o">!=</span> <span class="bp">None</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">AttributeError</span><span class="p">(</span><span class="s">&quot;Manager isn&#39;t accessible via </span><span class="si">%s</span><span class="s"> instances&quot;</span> <span class="o">%</span> <span class="nb">type</span><span class="o">.</span><span class="n">__name__</span><span class="p">)</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">manager</span>
+
+
+<span class="k">class</span> <span class="nc">AbstractManagerDescriptor</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="c"># This class provides a better error message when you try to access a</span>
+    <span class="c"># manager on an abstract model.</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">model</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">model</span> <span class="o">=</span> <span class="n">model</span>
+
+    <span class="k">def</span> <span class="nf">__get__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">instance</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">AttributeError</span><span class="p">(</span><span class="s">&quot;Manager isn&#39;t available; </span><span class="si">%s</span><span class="s"> is abstract&quot;</span> <span class="o">%</span> <span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">object_name</span><span class="p">,</span>
+        <span class="p">))</span>
+
+
+<span class="k">class</span> <span class="nc">SwappedManagerDescriptor</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="c"># This class provides a better error message when you try to access a</span>
+    <span class="c"># manager on a swapped model.</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">model</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">model</span> <span class="o">=</span> <span class="n">model</span>
+
+    <span class="k">def</span> <span class="nf">__get__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">instance</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">AttributeError</span><span class="p">(</span><span class="s">&quot;Manager isn&#39;t available; </span><span class="si">%s</span><span class="s"> has been swapped for &#39;</span><span class="si">%s</span><span class="s">&#39;&quot;</span> <span class="o">%</span> <span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">object_name</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">swapped</span>
+        <span class="p">))</span>
+
 
 <span class="k">class</span> <span class="nc">EmptyManager</span><span class="p">(</span><span class="n">Manager</span><span class="p">):</span>
     <span class="k">def</span> <span class="nf">get_query_set</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
@@ -285,7 +323,7 @@
 
     <div class="footer">
         &copy; Copyright 2012, HDKNR.COM.
-      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.2pre/3c28de26aac2.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2b1.
     </div>
   </body>
 </html>

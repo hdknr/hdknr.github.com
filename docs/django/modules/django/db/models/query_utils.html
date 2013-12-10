@@ -54,10 +54,10 @@
 <span class="sd">large and/or so that they can be used by other modules without getting into</span>
 <span class="sd">circular import difficulties.</span>
 <span class="sd">&quot;&quot;&quot;</span>
-
-<span class="kn">import</span> <span class="nn">weakref</span>
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">unicode_literals</span>
 
 <span class="kn">from</span> <span class="nn">django.db.backends</span> <span class="kn">import</span> <span class="n">util</span>
+<span class="kn">from</span> <span class="nn">django.utils</span> <span class="kn">import</span> <span class="n">six</span>
 <span class="kn">from</span> <span class="nn">django.utils</span> <span class="kn">import</span> <span class="n">tree</span>
 
 
@@ -90,7 +90,7 @@
     <span class="n">default</span> <span class="o">=</span> <span class="n">AND</span>
 
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
-        <span class="nb">super</span><span class="p">(</span><span class="n">Q</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="n">children</span><span class="o">=</span><span class="nb">list</span><span class="p">(</span><span class="n">args</span><span class="p">)</span> <span class="o">+</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">items</span><span class="p">())</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">Q</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="n">children</span><span class="o">=</span><span class="nb">list</span><span class="p">(</span><span class="n">args</span><span class="p">)</span> <span class="o">+</span> <span class="nb">list</span><span class="p">(</span><span class="n">six</span><span class="o">.</span><span class="n">iteritems</span><span class="p">(</span><span class="n">kwargs</span><span class="p">)))</span>
 
     <span class="k">def</span> <span class="nf">_combine</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">,</span> <span class="n">conn</span><span class="p">):</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">other</span><span class="p">,</span> <span class="n">Q</span><span class="p">):</span>
@@ -119,8 +119,6 @@
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">field_name</span><span class="p">,</span> <span class="n">model</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">field_name</span> <span class="o">=</span> <span class="n">field_name</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">model_ref</span> <span class="o">=</span> <span class="n">weakref</span><span class="o">.</span><span class="n">ref</span><span class="p">(</span><span class="n">model</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">loaded</span> <span class="o">=</span> <span class="bp">False</span>
 
     <span class="k">def</span> <span class="nf">__get__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">instance</span><span class="p">,</span> <span class="n">owner</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
@@ -128,27 +126,32 @@
 <span class="sd">        Returns the cached value.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="kn">from</span> <span class="nn">django.db.models.fields</span> <span class="kn">import</span> <span class="n">FieldDoesNotExist</span>
+        <span class="n">non_deferred_model</span> <span class="o">=</span> <span class="n">instance</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">proxy_for_model</span>
+        <span class="n">opts</span> <span class="o">=</span> <span class="n">non_deferred_model</span><span class="o">.</span><span class="n">_meta</span>
 
         <span class="k">assert</span> <span class="n">instance</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span>
-        <span class="n">cls</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">model_ref</span><span class="p">()</span>
         <span class="n">data</span> <span class="o">=</span> <span class="n">instance</span><span class="o">.</span><span class="n">__dict__</span>
         <span class="k">if</span> <span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">field_name</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span> <span class="ow">is</span> <span class="bp">self</span><span class="p">:</span>
             <span class="c"># self.field_name is the attname of the field, but only() takes the</span>
             <span class="c"># actual name, so we need to translate it here.</span>
             <span class="k">try</span><span class="p">:</span>
-                <span class="n">cls</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">get_field_by_name</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">field_name</span><span class="p">)</span>
-                <span class="n">name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">field_name</span>
+                <span class="n">f</span> <span class="o">=</span> <span class="n">opts</span><span class="o">.</span><span class="n">get_field_by_name</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">field_name</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
             <span class="k">except</span> <span class="n">FieldDoesNotExist</span><span class="p">:</span>
-                <span class="n">name</span> <span class="o">=</span> <span class="p">[</span><span class="n">f</span><span class="o">.</span><span class="n">name</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">cls</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">fields</span>
-                    <span class="k">if</span> <span class="n">f</span><span class="o">.</span><span class="n">attname</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">field_name</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
-            <span class="c"># We use only() instead of values() here because we want the</span>
-            <span class="c"># various data coersion methods (to_python(), etc.) to be called</span>
-            <span class="c"># here.</span>
-            <span class="n">val</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span>
-                <span class="n">cls</span><span class="o">.</span><span class="n">_base_manager</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">pk</span><span class="o">=</span><span class="n">instance</span><span class="o">.</span><span class="n">pk</span><span class="p">)</span><span class="o">.</span><span class="n">only</span><span class="p">(</span><span class="n">name</span><span class="p">)</span><span class="o">.</span><span class="n">using</span><span class="p">(</span>
-                    <span class="n">instance</span><span class="o">.</span><span class="n">_state</span><span class="o">.</span><span class="n">db</span><span class="p">)</span><span class="o">.</span><span class="n">get</span><span class="p">(),</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">field_name</span>
-            <span class="p">)</span>
+                <span class="n">f</span> <span class="o">=</span> <span class="p">[</span><span class="n">f</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">opts</span><span class="o">.</span><span class="n">fields</span>
+                     <span class="k">if</span> <span class="n">f</span><span class="o">.</span><span class="n">attname</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">field_name</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">name</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">name</span>
+            <span class="c"># Lets see if the field is part of the parent chain. If so we</span>
+            <span class="c"># might be able to reuse the already loaded value. Refs #18343.</span>
+            <span class="n">val</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_check_parent_chain</span><span class="p">(</span><span class="n">instance</span><span class="p">,</span> <span class="n">name</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">val</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+                <span class="c"># We use only() instead of values() here because we want the</span>
+                <span class="c"># various data coersion methods (to_python(), etc.) to be</span>
+                <span class="c"># called here.</span>
+                <span class="n">val</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span>
+                    <span class="n">non_deferred_model</span><span class="o">.</span><span class="n">_base_manager</span><span class="o">.</span><span class="n">only</span><span class="p">(</span><span class="n">name</span><span class="p">)</span><span class="o">.</span><span class="n">using</span><span class="p">(</span>
+                        <span class="n">instance</span><span class="o">.</span><span class="n">_state</span><span class="o">.</span><span class="n">db</span><span class="p">)</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">pk</span><span class="o">=</span><span class="n">instance</span><span class="o">.</span><span class="n">pk</span><span class="p">),</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">field_name</span>
+                <span class="p">)</span>
             <span class="n">data</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">field_name</span><span class="p">]</span> <span class="o">=</span> <span class="n">val</span>
         <span class="k">return</span> <span class="n">data</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">field_name</span><span class="p">]</span>
 
@@ -158,19 +161,34 @@
 <span class="sd">        never be a database lookup involved.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">instance</span><span class="o">.</span><span class="n">__dict__</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">field_name</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span>
+
+    <span class="k">def</span> <span class="nf">_check_parent_chain</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">instance</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Check if the field value can be fetched from a parent field already</span>
+<span class="sd">        loaded in the instance. This can be done if the to-be fetched</span>
+<span class="sd">        field is a primary key field.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">opts</span> <span class="o">=</span> <span class="n">instance</span><span class="o">.</span><span class="n">_meta</span>
+        <span class="n">f</span> <span class="o">=</span> <span class="n">opts</span><span class="o">.</span><span class="n">get_field_by_name</span><span class="p">(</span><span class="n">name</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">link_field</span> <span class="o">=</span> <span class="n">opts</span><span class="o">.</span><span class="n">get_ancestor_link</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">model</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">f</span><span class="o">.</span><span class="n">primary_key</span> <span class="ow">and</span> <span class="n">f</span> <span class="o">!=</span> <span class="n">link_field</span><span class="p">:</span>
+            <span class="k">return</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">instance</span><span class="p">,</span> <span class="n">link_field</span><span class="o">.</span><span class="n">attname</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">None</span>
+
 </div>
-<div class="viewcode-block" id="select_related_descend"><a class="viewcode-back" href="../../../../django.db.models.html#django.db.models.query_utils.select_related_descend">[docs]</a><span class="k">def</span> <span class="nf">select_related_descend</span><span class="p">(</span><span class="n">field</span><span class="p">,</span> <span class="n">restricted</span><span class="p">,</span> <span class="n">requested</span><span class="p">,</span> <span class="n">reverse</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+<div class="viewcode-block" id="select_related_descend"><a class="viewcode-back" href="../../../../django.db.models.html#django.db.models.query_utils.select_related_descend">[docs]</a><span class="k">def</span> <span class="nf">select_related_descend</span><span class="p">(</span><span class="n">field</span><span class="p">,</span> <span class="n">restricted</span><span class="p">,</span> <span class="n">requested</span><span class="p">,</span> <span class="n">load_fields</span><span class="p">,</span> <span class="n">reverse</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Returns True if this field should be used to descend deeper for</span>
 <span class="sd">    select_related() purposes. Used by both the query construction code</span>
 <span class="sd">    (sql.query.fill_related_selections()) and the model instance creation code</span>
-<span class="sd">    (query.get_cached_row()).</span>
+<span class="sd">    (query.get_klass_info()).</span>
 
 <span class="sd">    Arguments:</span>
 <span class="sd">     * field - the field to be checked</span>
 <span class="sd">     * restricted - a boolean field, indicating if the field list has been</span>
 <span class="sd">       manually restricted using a requested clause)</span>
 <span class="sd">     * requested - The select_related() dictionary.</span>
+<span class="sd">     * load_fields - the set of fields to be loaded on this model</span>
 <span class="sd">     * reverse - boolean, True if we are checking a reverse select related</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">if</span> <span class="ow">not</span> <span class="n">field</span><span class="o">.</span><span class="n">rel</span><span class="p">:</span>
@@ -184,6 +202,14 @@
             <span class="k">return</span> <span class="bp">False</span>
     <span class="k">if</span> <span class="ow">not</span> <span class="n">restricted</span> <span class="ow">and</span> <span class="n">field</span><span class="o">.</span><span class="n">null</span><span class="p">:</span>
         <span class="k">return</span> <span class="bp">False</span>
+    <span class="k">if</span> <span class="n">load_fields</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">field</span><span class="o">.</span><span class="n">name</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">load_fields</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">restricted</span> <span class="ow">and</span> <span class="n">field</span><span class="o">.</span><span class="n">name</span> <span class="ow">in</span> <span class="n">requested</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">InvalidQuery</span><span class="p">(</span><span class="s">&quot;Field </span><span class="si">%s</span><span class="s">.</span><span class="si">%s</span><span class="s"> cannot be both deferred&quot;</span>
+                                   <span class="s">&quot; and traversed using select_related&quot;</span>
+                                   <span class="s">&quot; at the same time.&quot;</span> <span class="o">%</span>
+                                   <span class="p">(</span><span class="n">field</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">object_name</span><span class="p">,</span> <span class="n">field</span><span class="o">.</span><span class="n">name</span><span class="p">))</span>
+            <span class="k">return</span> <span class="bp">False</span>
     <span class="k">return</span> <span class="bp">True</span>
 
 <span class="c"># This function is needed because data descriptors must be defined on a class</span>
@@ -211,7 +237,7 @@
     <span class="n">overrides</span><span class="p">[</span><span class="s">&quot;Meta&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">Meta</span>
     <span class="n">overrides</span><span class="p">[</span><span class="s">&quot;__module__&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">__module__</span>
     <span class="n">overrides</span><span class="p">[</span><span class="s">&quot;_deferred&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">True</span>
-    <span class="k">return</span> <span class="nb">type</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="p">(</span><span class="n">model</span><span class="p">,),</span> <span class="n">overrides</span><span class="p">)</span>
+    <span class="k">return</span> <span class="nb">type</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">name</span><span class="p">),</span> <span class="p">(</span><span class="n">model</span><span class="p">,),</span> <span class="n">overrides</span><span class="p">)</span>
 
 <span class="c"># The above function is also used to unpickle model instances with deferred</span>
 <span class="c"># fields.</span></div>
@@ -230,7 +256,7 @@
 
     <div class="footer">
         &copy; Copyright 2012, HDKNR.COM.
-      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.2pre/3c28de26aac2.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2b1.
     </div>
   </body>
 </html>

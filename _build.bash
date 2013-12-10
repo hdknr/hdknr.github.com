@@ -2,7 +2,8 @@
 
 SCRIPT=`realpath -s $0`
 BASE=`dirname $SCRIPT`
-
+echo "@@@@",$BASE,$SCRIPT
+#
 if [ "$1" == "push" ] ; then
     pushd .
     cd $BASE
@@ -13,14 +14,15 @@ if [ "$1" == "push" ] ; then
     exit
 fi
 
+echo "$BASE/docs.html is being created."
 cat > $BASE/docs.html <<EOF
 <div id="sphinx-docs">
  <ul>
 EOF
-
+#####
 for i in $BASE/src/* ; do
     cd $i;
-    echo "Now buiding `pwd` for $BASE"
+    echo "Now buiding `pwd` for $BASE", $BASE
     make html; 
     cd ..;
     DOC=`basename $i`;
