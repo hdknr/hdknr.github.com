@@ -2,6 +2,16 @@
 
 BASE=`dirname $0`
 
+if [ "$1" == "push" ] ; then
+    pushd .
+    cd $BASE
+    cp -r docs/home/* .
+    git commit -a -m "Updates...."
+    git push 
+    popd
+    exit
+fi
+
 cat > $BASE/docs.html <<EOF
 <div id="sphinx-docs">
  <ul>
@@ -29,11 +39,3 @@ cat >> $BASE/docs.html <<EOF
 </div>
 EOF
 
-if [ "$1" == "push" ] ; then
-    pushd .
-    cd $BASE
-    cp -r docs/home/* .
-    git commit -a -m "Updates...."
-    git push 
-    popd
-fi
