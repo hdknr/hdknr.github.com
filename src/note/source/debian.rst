@@ -110,6 +110,15 @@ AWSインスタンス
     Generation complete.
 
 
+タイムゾーン
+-----------
+
+- 日本にしてみる
+
+.. code-block:: bash
+
+    $ tzselect
+    $ TZ='Asia/Tokyo'; export TZ
 
 その他
 =======

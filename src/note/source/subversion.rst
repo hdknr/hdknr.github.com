@@ -84,3 +84,12 @@ svn diff
 .. code-block:: bash
 
     $svn diff -r 1021:1022
+
+svn add
+--------
+
+- トラックされていないファイルを全て追加
+
+    .. code-block:: bash
+
+         $ svn status | grep "^?" | awk '{ print $2}' | while read f ; do svn add $f; done

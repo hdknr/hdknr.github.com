@@ -5,12 +5,16 @@ Active Directory
 .. contents:: AD
     :local:        
 
+- :doc:`windows`
+
 Install
 =========
 
 - `Windows Server 2008 R2 にインストール <http://note.harajuku-tech.org/windows-2008-active-directory>`_
 
+-  `Active Directory DSのインストールとDCへの昇格 <https://www.evernote.com/shard/s302/sh/bb818d0d-b0e5-4920-b5bf-6d69ba32d511/66a628ad1b32d3acfe74a9011f4880ec>`_
 
+- `メンバーサーバーとしてドメイン参加 <https://www.evernote.com/shard/s302/sh/dc85a41c-b4ba-4278-8ab1-458b401808eb/c796140ac8f73b202543dd944b35dfe0>`_
 
 
 Active Directory & Connect

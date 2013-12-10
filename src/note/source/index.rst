@@ -113,6 +113,7 @@ Windows:
 .. toctree::
     :maxdepth: 2
 
+    windows
     active_directory
     mssql
     entity_framework
@@ -121,6 +122,7 @@ Windows:
     jsonnet
     reflection
     iis
+ 
     
 Indices and tables
 ==================
