@@ -16,6 +16,8 @@ Contents:
     keys
     vundle
     neobundle
+    rc
+    colors
 
 
 Indices and tables
