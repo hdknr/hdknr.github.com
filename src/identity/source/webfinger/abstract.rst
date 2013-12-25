@@ -1,13 +1,12 @@
 Abstract
-=========================
+================
 
-This specification defines the WebFinger protocol, 
-which can be used to discover information about people 
-or other entities on the Internet using standard HTTP methods.
+This specification defines the WebFinger protocol, which can be used
+to discover information about **people** or other **entities** on the
+Internet using standard HTTP methods.  
+WebFinger discovers
+information for a URI that might not be usable as a locator
+otherwise, such as account or email URIs.
 
-.. note::
 
-    1. About People
-    2. About Objects
-
-(Internet Draft 08)
+(:rfc:`7033` )
