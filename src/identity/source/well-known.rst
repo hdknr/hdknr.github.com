@@ -6,11 +6,15 @@ Based on http://www.rfc-editor.org/rfc/rfc5785.txt
 
 .. note::
 
-    John Bradley suggest that :doc:`rfc5988` can be referred for Multiple Issuer at the same server .
+    - John Bradley suggest that :doc:`rfc5988` can be referred for Multiple Issuer at the same server .
 
         - http://hg.openid.net/connect/issue/513/basic-12-messages-814-discovery-31-32#comment-1072747
 
-.. contents:: TOC
+    - :doc:`webfinger` 
+    - :doc:`discovery`
+
+.. contents::
+    :local:
 
 Abstract
 ================================================================
@@ -68,10 +72,13 @@ references to other URIs that provide such metadata.
 3.  Well-Known URIs
 =============================================
 
+.. note::
+    - パスが /.well-known/ で始まる
+    - スキームが HTTP(S)
+
 A well-known URI is a URI [RFC3986] whose path component begins with
 the characters "/.well-known/", and whose scheme is "HTTP", "HTTPS",
-or another scheme that has explicitly been specified to use well-
-known URIs.
+or another scheme that has explicitly been specified to use well-known URIs.
 
 Applications that wish to mint new well-known URIs MUST register
 them, following the procedures in Section 5.1.

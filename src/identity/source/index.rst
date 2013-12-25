@@ -174,7 +174,7 @@ RFC
 .. toctree::
     :maxdepth: 1
 
-    rfc5785
+    well-known
     rfc5988
 
 Implementation
