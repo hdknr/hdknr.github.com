@@ -122,6 +122,7 @@ Windows:
     jsonnet
     reflection
     iis
+    powershell
  
     
 Indices and tables
