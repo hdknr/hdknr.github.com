@@ -91,6 +91,7 @@ Linux Commands:
     ssh
     user
     debian
+    centos
     sudo
     logging
     curl

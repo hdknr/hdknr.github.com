@@ -14,6 +14,13 @@ Install
     $ sudo aptitude install mysql-server -y
     $ sudo aptitude install libmysqlclient-dev -y
 
+:doc:`centos'
+
+.. code-block:: bash
+
+    $ sudo yum groupinstall "MySQL Database server"
+    $ sudo chkconfig mysqld on
+
 :doc:`python` binding
 
 .. code-block:: bash
@@ -191,6 +198,12 @@ Trouble
 
 Python
 =======
+
+:doc:`debian`:
+
+.. code-block::
+    
+    $ sudo aptitude install libmysqlclient-dev
 
 - `Django: MySQLのテーブルデータサイズなどの取得 <http://harajuku-tech.posterous.com/django-mysql>`_
 
