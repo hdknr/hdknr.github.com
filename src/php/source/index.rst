@@ -11,11 +11,15 @@ Contents:
 .. toctree::
     :maxdepth: 2
 
+    install
     cli
     string
     dict
     class
     i18n
+    regex
+    error
+    cake
     glossary
 
 
