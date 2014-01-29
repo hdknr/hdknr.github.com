@@ -14,6 +14,7 @@ Contents:
     mode
     replace 
     keys
+    help
     vundle
     neobundle
     rc
