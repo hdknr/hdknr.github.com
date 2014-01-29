@@ -108,6 +108,7 @@ Discovery
 
     webfinger
     swd
+    acct
 
 Related
 ---------------

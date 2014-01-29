@@ -6,5 +6,5 @@ User-Managed Access (UMA) Profile of OAuth 2.0
     :local:
 
 .. note::
-    - Based on http://tools.ietf.org/html/draft-hardjono-oauth-umacore-07
+    - Based on http://tools.ietf.org/html/draft-hardjono-oauth-umacore-08
 
