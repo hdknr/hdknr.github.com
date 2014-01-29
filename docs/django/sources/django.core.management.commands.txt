@@ -149,19 +149,6 @@ django.core.management.commands.makemessages
 .. automodule:: django.core.management.commands.makemessages
     :members:
 
-.. _django.core.management.commands.reset:
-
-django.core.management.commands.reset
-=====================================
-
-
-- `source <https://github.com/django/django/tree/master/django/core/management/commands/reset.py>`_ 
-
-.. include:: cheat/django.core.management.commands.reset.rst
-
-.. automodule:: django.core.management.commands.reset
-    :members:
-
 .. _django.core.management.commands.runfcgi:
 
 django.core.management.commands.runfcgi
@@ -290,19 +277,6 @@ django.core.management.commands.sqlinitialdata
 .. include:: cheat/django.core.management.commands.sqlinitialdata.rst
 
 .. automodule:: django.core.management.commands.sqlinitialdata
-    :members:
-
-.. _django.core.management.commands.sqlreset:
-
-django.core.management.commands.sqlreset
-========================================
-
-
-- `source <https://github.com/django/django/tree/master/django/core/management/commands/sqlreset.py>`_ 
-
-.. include:: cheat/django.core.management.commands.sqlreset.rst
-
-.. automodule:: django.core.management.commands.sqlreset
     :members:
 
 .. _django.core.management.commands.sqlsequencereset:

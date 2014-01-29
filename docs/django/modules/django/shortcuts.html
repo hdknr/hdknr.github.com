@@ -28,7 +28,7 @@
     <script type="text/javascript" src="../../static/doctools.js"></script>
     <script type="text/javascript" src="../../static/theme_extras.js"></script>
     <link rel="top" title="Django Cheat 1 documentation" href="../../index.html" />
-    <link rel="up" title="django" href="../django.html" /> 
+    <link rel="up" title="Module code" href="../index.html" /> 
   </head>
   <body>
       <div class="header"><h1 class="heading"><a href="../../index.html">
@@ -52,10 +52,12 @@
 <span class="sd">of MVC. In other words, these functions/classes introduce controlled coupling</span>
 <span class="sd">for convenience&#39;s sake.</span>
 <span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">import</span> <span class="nn">warnings</span>
 
 <span class="kn">from</span> <span class="nn">django.template</span> <span class="kn">import</span> <span class="n">loader</span><span class="p">,</span> <span class="n">RequestContext</span>
 <span class="kn">from</span> <span class="nn">django.http</span> <span class="kn">import</span> <span class="n">HttpResponse</span><span class="p">,</span> <span class="n">Http404</span>
 <span class="kn">from</span> <span class="nn">django.http</span> <span class="kn">import</span> <span class="n">HttpResponseRedirect</span><span class="p">,</span> <span class="n">HttpResponsePermanentRedirect</span>
+<span class="kn">from</span> <span class="nn">django.db.models.base</span> <span class="kn">import</span> <span class="n">ModelBase</span>
 <span class="kn">from</span> <span class="nn">django.db.models.manager</span> <span class="kn">import</span> <span class="n">Manager</span>
 <span class="kn">from</span> <span class="nn">django.db.models.query</span> <span class="kn">import</span> <span class="n">QuerySet</span>
 <span class="kn">from</span> <span class="nn">django.core</span> <span class="kn">import</span> <span class="n">urlresolvers</span>
@@ -65,7 +67,14 @@
 <span class="sd">    Returns a HttpResponse whose content is filled with the result of calling</span>
 <span class="sd">    django.template.loader.render_to_string() with the passed arguments.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="n">httpresponse_kwargs</span> <span class="o">=</span> <span class="p">{</span><span class="s">&#39;mimetype&#39;</span><span class="p">:</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s">&#39;mimetype&#39;</span><span class="p">,</span> <span class="bp">None</span><span class="p">)}</span>
+    <span class="n">httpresponse_kwargs</span> <span class="o">=</span> <span class="p">{</span><span class="s">&#39;content_type&#39;</span><span class="p">:</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s">&#39;content_type&#39;</span><span class="p">,</span> <span class="bp">None</span><span class="p">)}</span>
+
+    <span class="n">mimetype</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s">&#39;mimetype&#39;</span><span class="p">,</span> <span class="bp">None</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">mimetype</span><span class="p">:</span>
+        <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s">&quot;The mimetype keyword argument is deprecated, use &quot;</span>
+            <span class="s">&quot;content_type instead&quot;</span><span class="p">,</span> <span class="ne">PendingDeprecationWarning</span><span class="p">,</span> <span class="n">stacklevel</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+        <span class="n">httpresponse_kwargs</span><span class="p">[</span><span class="s">&#39;content_type&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">mimetype</span>
+
     <span class="k">return</span> <span class="n">HttpResponse</span><span class="p">(</span><span class="n">loader</span><span class="o">.</span><span class="n">render_to_string</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">),</span> <span class="o">**</span><span class="n">httpresponse_kwargs</span><span class="p">)</span>
 </div>
 <div class="viewcode-block" id="render"><a class="viewcode-back" href="../../django.shortcuts.html#django.shortcuts.render">[docs]</a><span class="k">def</span> <span class="nf">render</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
@@ -115,35 +124,26 @@
     <span class="k">else</span><span class="p">:</span>
         <span class="n">redirect_class</span> <span class="o">=</span> <span class="n">HttpResponseRedirect</span>
 
-    <span class="c"># If it&#39;s a model, use get_absolute_url()</span>
-    <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">to</span><span class="p">,</span> <span class="s">&#39;get_absolute_url&#39;</span><span class="p">):</span>
-        <span class="k">return</span> <span class="n">redirect_class</span><span class="p">(</span><span class="n">to</span><span class="o">.</span><span class="n">get_absolute_url</span><span class="p">())</span>
-
-    <span class="c"># Next try a reverse URL resolution.</span>
-    <span class="k">try</span><span class="p">:</span>
-        <span class="k">return</span> <span class="n">redirect_class</span><span class="p">(</span><span class="n">urlresolvers</span><span class="o">.</span><span class="n">reverse</span><span class="p">(</span><span class="n">to</span><span class="p">,</span> <span class="n">args</span><span class="o">=</span><span class="n">args</span><span class="p">,</span> <span class="n">kwargs</span><span class="o">=</span><span class="n">kwargs</span><span class="p">))</span>
-    <span class="k">except</span> <span class="n">urlresolvers</span><span class="o">.</span><span class="n">NoReverseMatch</span><span class="p">:</span>
-        <span class="c"># If this is a callable, re-raise.</span>
-        <span class="k">if</span> <span class="nb">callable</span><span class="p">(</span><span class="n">to</span><span class="p">):</span>
-            <span class="k">raise</span>
-        <span class="c"># If this doesn&#39;t &quot;feel&quot; like a URL, re-raise.</span>
-        <span class="k">if</span> <span class="s">&#39;/&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">to</span> <span class="ow">and</span> <span class="s">&#39;.&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">to</span><span class="p">:</span>
-            <span class="k">raise</span>
-
-    <span class="c"># Finally, fall back and assume it&#39;s a URL</span>
-    <span class="k">return</span> <span class="n">redirect_class</span><span class="p">(</span><span class="n">to</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">redirect_class</span><span class="p">(</span><span class="n">resolve_url</span><span class="p">(</span><span class="n">to</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">))</span>
 </div>
 <span class="k">def</span> <span class="nf">_get_queryset</span><span class="p">(</span><span class="n">klass</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Returns a QuerySet from a Model, Manager, or QuerySet. Created to make</span>
 <span class="sd">    get_object_or_404 and get_list_or_404 more DRY.</span>
+
+<span class="sd">    Raises a ValueError if klass is not a Model, Manager, or QuerySet.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">klass</span><span class="p">,</span> <span class="n">QuerySet</span><span class="p">):</span>
         <span class="k">return</span> <span class="n">klass</span>
     <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">klass</span><span class="p">,</span> <span class="n">Manager</span><span class="p">):</span>
         <span class="n">manager</span> <span class="o">=</span> <span class="n">klass</span>
-    <span class="k">else</span><span class="p">:</span>
+    <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">klass</span><span class="p">,</span> <span class="n">ModelBase</span><span class="p">):</span>
         <span class="n">manager</span> <span class="o">=</span> <span class="n">klass</span><span class="o">.</span><span class="n">_default_manager</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">klass__name</span> <span class="o">=</span> <span class="n">klass</span><span class="o">.</span><span class="n">__name__</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">klass</span><span class="p">,</span> <span class="nb">type</span><span class="p">)</span> \
+                      <span class="k">else</span> <span class="n">klass</span><span class="o">.</span><span class="n">__class__</span><span class="o">.</span><span class="n">__name__</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s">&quot;Object is of type &#39;</span><span class="si">%s</span><span class="s">&#39;, but must be a Django Model, &quot;</span>
+                         <span class="s">&quot;Manager, or QuerySet&quot;</span> <span class="o">%</span> <span class="n">klass__name</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">manager</span><span class="o">.</span><span class="n">all</span><span class="p">()</span>
 
 <div class="viewcode-block" id="get_object_or_404"><a class="viewcode-back" href="../../django.shortcuts.html#django.shortcuts.get_object_or_404">[docs]</a><span class="k">def</span> <span class="nf">get_object_or_404</span><span class="p">(</span><span class="n">klass</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
@@ -176,7 +176,39 @@
     <span class="k">if</span> <span class="ow">not</span> <span class="n">obj_list</span><span class="p">:</span>
         <span class="k">raise</span> <span class="n">Http404</span><span class="p">(</span><span class="s">&#39;No </span><span class="si">%s</span><span class="s"> matches the given query.&#39;</span> <span class="o">%</span> <span class="n">queryset</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">object_name</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">obj_list</span>
-</pre></div></div>
+</div>
+<div class="viewcode-block" id="resolve_url"><a class="viewcode-back" href="../../django.shortcuts.html#django.shortcuts.resolve_url">[docs]</a><span class="k">def</span> <span class="nf">resolve_url</span><span class="p">(</span><span class="n">to</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Return a URL appropriate for the arguments passed.</span>
+
+<span class="sd">    The arguments could be:</span>
+
+<span class="sd">        * A model: the model&#39;s `get_absolute_url()` function will be called.</span>
+
+<span class="sd">        * A view name, possibly with arguments: `urlresolvers.reverse()` will</span>
+<span class="sd">          be used to reverse-resolve the name.</span>
+
+<span class="sd">        * A URL, which will be returned as-is.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c"># If it&#39;s a model, use get_absolute_url()</span>
+    <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">to</span><span class="p">,</span> <span class="s">&#39;get_absolute_url&#39;</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">to</span><span class="o">.</span><span class="n">get_absolute_url</span><span class="p">()</span>
+
+    <span class="c"># Next try a reverse URL resolution.</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">urlresolvers</span><span class="o">.</span><span class="n">reverse</span><span class="p">(</span><span class="n">to</span><span class="p">,</span> <span class="n">args</span><span class="o">=</span><span class="n">args</span><span class="p">,</span> <span class="n">kwargs</span><span class="o">=</span><span class="n">kwargs</span><span class="p">)</span>
+    <span class="k">except</span> <span class="n">urlresolvers</span><span class="o">.</span><span class="n">NoReverseMatch</span><span class="p">:</span>
+        <span class="c"># If this is a callable, re-raise.</span>
+        <span class="k">if</span> <span class="nb">callable</span><span class="p">(</span><span class="n">to</span><span class="p">):</span>
+            <span class="k">raise</span>
+        <span class="c"># If this doesn&#39;t &quot;feel&quot; like a URL, re-raise.</span>
+        <span class="k">if</span> <span class="s">&#39;/&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">to</span> <span class="ow">and</span> <span class="s">&#39;.&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">to</span><span class="p">:</span>
+            <span class="k">raise</span>
+
+    <span class="c"># Finally, fall back and assume it&#39;s a URL</span>
+    <span class="k">return</span> <span class="n">to</span></div>
+</pre></div>
 
       </div>
       <div class="bottomnav">
@@ -190,7 +222,7 @@
 
     <div class="footer">
         &copy; Copyright 2012, HDKNR.COM.
-      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.2pre/3c28de26aac2.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2b1.
     </div>
   </body>
 </html>

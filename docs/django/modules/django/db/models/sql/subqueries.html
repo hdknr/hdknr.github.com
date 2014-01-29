@@ -52,13 +52,17 @@
 <span class="sd">&quot;&quot;&quot;</span>
 
 <span class="kn">from</span> <span class="nn">django.core.exceptions</span> <span class="kn">import</span> <span class="n">FieldError</span>
+<span class="kn">from</span> <span class="nn">django.db</span> <span class="kn">import</span> <span class="n">connections</span>
+<span class="kn">from</span> <span class="nn">django.db.models.constants</span> <span class="kn">import</span> <span class="n">LOOKUP_SEP</span>
 <span class="kn">from</span> <span class="nn">django.db.models.fields</span> <span class="kn">import</span> <span class="n">DateField</span><span class="p">,</span> <span class="n">FieldDoesNotExist</span>
 <span class="kn">from</span> <span class="nn">django.db.models.sql.constants</span> <span class="kn">import</span> <span class="o">*</span>
 <span class="kn">from</span> <span class="nn">django.db.models.sql.datastructures</span> <span class="kn">import</span> <span class="n">Date</span>
 <span class="kn">from</span> <span class="nn">django.db.models.sql.query</span> <span class="kn">import</span> <span class="n">Query</span>
 <span class="kn">from</span> <span class="nn">django.db.models.sql.where</span> <span class="kn">import</span> <span class="n">AND</span><span class="p">,</span> <span class="n">Constraint</span>
+<span class="kn">from</span> <span class="nn">django.utils.datastructures</span> <span class="kn">import</span> <span class="n">SortedDict</span>
 <span class="kn">from</span> <span class="nn">django.utils.functional</span> <span class="kn">import</span> <span class="n">Promise</span>
-<span class="kn">from</span> <span class="nn">django.utils.encoding</span> <span class="kn">import</span> <span class="n">force_unicode</span>
+<span class="kn">from</span> <span class="nn">django.utils.encoding</span> <span class="kn">import</span> <span class="n">force_text</span>
+<span class="kn">from</span> <span class="nn">django.utils</span> <span class="kn">import</span> <span class="n">six</span>
 
 
 <span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s">&#39;DeleteQuery&#39;</span><span class="p">,</span> <span class="s">&#39;UpdateQuery&#39;</span><span class="p">,</span> <span class="s">&#39;InsertQuery&#39;</span><span class="p">,</span> <span class="s">&#39;DateQuery&#39;</span><span class="p">,</span>
@@ -91,6 +95,43 @@
             <span class="n">where</span><span class="o">.</span><span class="n">add</span><span class="p">((</span><span class="n">Constraint</span><span class="p">(</span><span class="bp">None</span><span class="p">,</span> <span class="n">field</span><span class="o">.</span><span class="n">column</span><span class="p">,</span> <span class="n">field</span><span class="p">),</span> <span class="s">&#39;in&#39;</span><span class="p">,</span>
                     <span class="n">pk_list</span><span class="p">[</span><span class="n">offset</span><span class="p">:</span><span class="n">offset</span> <span class="o">+</span> <span class="n">GET_ITERATOR_CHUNK_SIZE</span><span class="p">]),</span> <span class="n">AND</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">do_query</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">db_table</span><span class="p">,</span> <span class="n">where</span><span class="p">,</span> <span class="n">using</span><span class="o">=</span><span class="n">using</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="DeleteQuery.delete_qs"><a class="viewcode-back" href="../../../../../django.db.models.sql.html#django.db.models.sql.subqueries.DeleteQuery.delete_qs">[docs]</a>    <span class="k">def</span> <span class="nf">delete_qs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">query</span><span class="p">,</span> <span class="n">using</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Delete the queryset in one SQL query (if possible). For simple queries</span>
+<span class="sd">        this is done by copying the query.query.where to self.query, for</span>
+<span class="sd">        complex queries by using subquery.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">innerq</span> <span class="o">=</span> <span class="n">query</span><span class="o">.</span><span class="n">query</span>
+        <span class="c"># Make sure the inner query has at least one table in use.</span>
+        <span class="n">innerq</span><span class="o">.</span><span class="n">get_initial_alias</span><span class="p">()</span>
+        <span class="c"># The same for our new query.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">get_initial_alias</span><span class="p">()</span>
+        <span class="n">innerq_used_tables</span> <span class="o">=</span> <span class="p">[</span><span class="n">t</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="n">innerq</span><span class="o">.</span><span class="n">tables</span>
+                              <span class="k">if</span> <span class="n">innerq</span><span class="o">.</span><span class="n">alias_refcount</span><span class="p">[</span><span class="n">t</span><span class="p">]]</span>
+        <span class="k">if</span> <span class="p">((</span><span class="ow">not</span> <span class="n">innerq_used_tables</span> <span class="ow">or</span> <span class="n">innerq_used_tables</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">tables</span><span class="p">)</span>
+            <span class="ow">and</span> <span class="ow">not</span> <span class="nb">len</span><span class="p">(</span><span class="n">innerq</span><span class="o">.</span><span class="n">having</span><span class="p">)):</span>
+            <span class="c"># There is only the base table in use in the query, and there are</span>
+            <span class="c"># no aggregate filtering going on.</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">where</span> <span class="o">=</span> <span class="n">innerq</span><span class="o">.</span><span class="n">where</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">pk</span> <span class="o">=</span> <span class="n">query</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">pk</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">connections</span><span class="p">[</span><span class="n">using</span><span class="p">]</span><span class="o">.</span><span class="n">features</span><span class="o">.</span><span class="n">update_can_self_select</span><span class="p">:</span>
+                <span class="c"># We can&#39;t do the delete using subquery.</span>
+                <span class="n">values</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">query</span><span class="o">.</span><span class="n">values_list</span><span class="p">(</span><span class="s">&#39;pk&#39;</span><span class="p">,</span> <span class="n">flat</span><span class="o">=</span><span class="bp">True</span><span class="p">))</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">values</span><span class="p">:</span>
+                    <span class="k">return</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">delete_batch</span><span class="p">(</span><span class="n">values</span><span class="p">,</span> <span class="n">using</span><span class="p">)</span>
+                <span class="k">return</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">innerq</span><span class="o">.</span><span class="n">clear_select_clause</span><span class="p">()</span>
+                <span class="n">innerq</span><span class="o">.</span><span class="n">select</span><span class="p">,</span> <span class="n">innerq</span><span class="o">.</span><span class="n">select_fields</span> <span class="o">=</span> <span class="p">[(</span><span class="bp">self</span><span class="o">.</span><span class="n">get_initial_alias</span><span class="p">(),</span> <span class="n">pk</span><span class="o">.</span><span class="n">column</span><span class="p">)],</span> <span class="p">[</span><span class="bp">None</span><span class="p">]</span>
+                <span class="n">values</span> <span class="o">=</span> <span class="n">innerq</span>
+            <span class="n">where</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">where_class</span><span class="p">()</span>
+            <span class="n">where</span><span class="o">.</span><span class="n">add</span><span class="p">((</span><span class="n">Constraint</span><span class="p">(</span><span class="bp">None</span><span class="p">,</span> <span class="n">pk</span><span class="o">.</span><span class="n">column</span><span class="p">,</span> <span class="n">pk</span><span class="p">),</span> <span class="s">&#39;in&#39;</span><span class="p">,</span> <span class="n">values</span><span class="p">),</span> <span class="n">AND</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">where</span> <span class="o">=</span> <span class="n">where</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">get_compiler</span><span class="p">(</span><span class="n">using</span><span class="p">)</span><span class="o">.</span><span class="n">execute_sql</span><span class="p">(</span><span class="bp">None</span><span class="p">)</span>
+
 </div></div>
 <div class="viewcode-block" id="UpdateQuery"><a class="viewcode-back" href="../../../../../django.db.models.sql.html#django.db.models.sql.subqueries.UpdateQuery">[docs]</a><span class="k">class</span> <span class="nc">UpdateQuery</span><span class="p">(</span><span class="n">Query</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
@@ -135,7 +176,7 @@
 <span class="sd">        querysets.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">values_seq</span> <span class="o">=</span> <span class="p">[]</span>
-        <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">val</span> <span class="ow">in</span> <span class="n">values</span><span class="o">.</span><span class="n">iteritems</span><span class="p">():</span>
+        <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">val</span> <span class="ow">in</span> <span class="n">six</span><span class="o">.</span><span class="n">iteritems</span><span class="p">(</span><span class="n">values</span><span class="p">):</span>
             <span class="n">field</span><span class="p">,</span> <span class="n">model</span><span class="p">,</span> <span class="n">direct</span><span class="p">,</span> <span class="n">m2m</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">get_field_by_name</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
             <span class="k">if</span> <span class="ow">not</span> <span class="n">direct</span> <span class="ow">or</span> <span class="n">m2m</span><span class="p">:</span>
                 <span class="k">raise</span> <span class="n">FieldError</span><span class="p">(</span><span class="s">&#39;Cannot update model field </span><span class="si">%r</span><span class="s"> (only non-relations and foreign keys permitted).&#39;</span> <span class="o">%</span> <span class="n">field</span><span class="p">)</span>
@@ -152,7 +193,7 @@
 <span class="sd">        saving models.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="c"># Check that no Promise object passes to the query. Refs #10498.</span>
-        <span class="n">values_seq</span> <span class="o">=</span> <span class="p">[(</span><span class="n">value</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">value</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">force_unicode</span><span class="p">(</span><span class="n">value</span><span class="p">[</span><span class="mi">2</span><span class="p">]))</span>
+        <span class="n">values_seq</span> <span class="o">=</span> <span class="p">[(</span><span class="n">value</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">value</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">force_text</span><span class="p">(</span><span class="n">value</span><span class="p">[</span><span class="mi">2</span><span class="p">]))</span>
                       <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span> <span class="n">Promise</span><span class="p">)</span> <span class="k">else</span> <span class="n">value</span>
                       <span class="k">for</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">values_seq</span><span class="p">]</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">values</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">values_seq</span><span class="p">)</span>
@@ -177,7 +218,7 @@
         <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">related_updates</span><span class="p">:</span>
             <span class="k">return</span> <span class="p">[]</span>
         <span class="n">result</span> <span class="o">=</span> <span class="p">[]</span>
-        <span class="k">for</span> <span class="n">model</span><span class="p">,</span> <span class="n">values</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">related_updates</span><span class="o">.</span><span class="n">iteritems</span><span class="p">():</span>
+        <span class="k">for</span> <span class="n">model</span><span class="p">,</span> <span class="n">values</span> <span class="ow">in</span> <span class="n">six</span><span class="o">.</span><span class="n">iteritems</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">related_updates</span><span class="p">):</span>
             <span class="n">query</span> <span class="o">=</span> <span class="n">UpdateQuery</span><span class="p">(</span><span class="n">model</span><span class="p">)</span>
             <span class="n">query</span><span class="o">.</span><span class="n">values</span> <span class="o">=</span> <span class="n">values</span>
             <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">related_ids</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
@@ -218,7 +259,7 @@
             <span class="k">for</span> <span class="n">obj</span> <span class="ow">in</span> <span class="n">objs</span><span class="p">:</span>
                 <span class="n">value</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">field</span><span class="o">.</span><span class="n">attname</span><span class="p">)</span>
                 <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">Promise</span><span class="p">):</span>
-                    <span class="nb">setattr</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">field</span><span class="o">.</span><span class="n">attname</span><span class="p">,</span> <span class="n">force_unicode</span><span class="p">(</span><span class="n">value</span><span class="p">))</span>
+                    <span class="nb">setattr</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">field</span><span class="o">.</span><span class="n">attname</span><span class="p">,</span> <span class="n">force_text</span><span class="p">(</span><span class="n">value</span><span class="p">))</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">objs</span> <span class="o">=</span> <span class="n">objs</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">raw</span> <span class="o">=</span> <span class="n">raw</span>
 
@@ -251,10 +292,8 @@
                 <span class="o">%</span> <span class="n">field</span><span class="o">.</span><span class="n">name</span>
         <span class="n">alias</span> <span class="o">=</span> <span class="n">result</span><span class="p">[</span><span class="mi">3</span><span class="p">][</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
         <span class="n">select</span> <span class="o">=</span> <span class="n">Date</span><span class="p">((</span><span class="n">alias</span><span class="p">,</span> <span class="n">field</span><span class="o">.</span><span class="n">column</span><span class="p">),</span> <span class="n">lookup_type</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">select</span> <span class="o">=</span> <span class="p">[</span><span class="n">select</span><span class="p">]</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">select_fields</span> <span class="o">=</span> <span class="p">[</span><span class="bp">None</span><span class="p">]</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">select_related</span> <span class="o">=</span> <span class="bp">False</span> <span class="c"># See #7097.</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">set_extra_mask</span><span class="p">([])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">clear_select_clause</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">select</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">select_fields</span> <span class="o">=</span> <span class="p">[</span><span class="n">select</span><span class="p">],</span> <span class="p">[</span><span class="bp">None</span><span class="p">]</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">distinct</span> <span class="o">=</span> <span class="bp">True</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">order_by</span> <span class="o">=</span> <span class="n">order</span> <span class="o">==</span> <span class="s">&#39;ASC&#39;</span> <span class="ow">and</span> <span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="ow">or</span> <span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
 
@@ -285,7 +324,7 @@
 
     <div class="footer">
         &copy; Copyright 2012, HDKNR.COM.
-      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.2pre/3c28de26aac2.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2b1.
     </div>
   </body>
 </html>

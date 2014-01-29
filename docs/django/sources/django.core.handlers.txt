@@ -32,32 +32,6 @@ django.core.handlers.base
 .. automodule:: django.core.handlers.base
     :members:
 
-.. _django.core.handlers.modpython:
-
-django.core.handlers.modpython
-==============================
-
-
-- `source <https://github.com/django/django/tree/master/django/core/handlers/modpython.py>`_ 
-
-.. include:: cheat/django.core.handlers.modpython.rst
-
-.. automodule:: django.core.handlers.modpython
-    :members:
-
-.. _django.core.handlers.profiler-hotshot:
-
-django.core.handlers.profiler-hotshot
-=====================================
-
-
-- `source <https://github.com/django/django/tree/master/django/core/handlers/profiler-hotshot.py>`_ 
-
-.. include:: cheat/django.core.handlers.profiler-hotshot.rst
-
-.. automodule:: django.core.handlers.profiler-hotshot
-    :members:
-
 .. _django.core.handlers.wsgi:
 
 django.core.handlers.wsgi

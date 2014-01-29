@@ -47,12 +47,17 @@
         
         
   <h1>Source code for django.contrib.auth.hashers</h1><div class="highlight"><pre>
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">unicode_literals</span>
+
+<span class="kn">import</span> <span class="nn">base64</span>
 <span class="kn">import</span> <span class="nn">hashlib</span>
 
+<span class="kn">from</span> <span class="nn">django.dispatch</span> <span class="kn">import</span> <span class="n">receiver</span>
 <span class="kn">from</span> <span class="nn">django.conf</span> <span class="kn">import</span> <span class="n">settings</span>
+<span class="kn">from</span> <span class="nn">django.test.signals</span> <span class="kn">import</span> <span class="n">setting_changed</span>
 <span class="kn">from</span> <span class="nn">django.utils</span> <span class="kn">import</span> <span class="n">importlib</span>
 <span class="kn">from</span> <span class="nn">django.utils.datastructures</span> <span class="kn">import</span> <span class="n">SortedDict</span>
-<span class="kn">from</span> <span class="nn">django.utils.encoding</span> <span class="kn">import</span> <span class="n">smart_str</span>
+<span class="kn">from</span> <span class="nn">django.utils.encoding</span> <span class="kn">import</span> <span class="n">force_bytes</span><span class="p">,</span> <span class="n">force_str</span>
 <span class="kn">from</span> <span class="nn">django.core.exceptions</span> <span class="kn">import</span> <span class="n">ImproperlyConfigured</span>
 <span class="kn">from</span> <span class="nn">django.utils.crypto</span> <span class="kn">import</span> <span class="p">(</span>
     <span class="n">pbkdf2</span><span class="p">,</span> <span class="n">constant_time_compare</span><span class="p">,</span> <span class="n">get_random_string</span><span class="p">)</span>
@@ -63,9 +68,22 @@
 <span class="n">HASHERS</span> <span class="o">=</span> <span class="bp">None</span>  <span class="c"># lazily loaded from PASSWORD_HASHERS</span>
 <span class="n">PREFERRED_HASHER</span> <span class="o">=</span> <span class="bp">None</span>  <span class="c"># defaults to first item in PASSWORD_HASHERS</span>
 
+<span class="nd">@receiver</span><span class="p">(</span><span class="n">setting_changed</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">reset_hashers</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">kwargs</span><span class="p">[</span><span class="s">&#39;setting&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="s">&#39;PASSWORD_HASHERS&#39;</span><span class="p">:</span>
+        <span class="k">global</span> <span class="n">HASHERS</span><span class="p">,</span> <span class="n">PREFERRED_HASHER</span>
+        <span class="n">HASHERS</span> <span class="o">=</span> <span class="bp">None</span>
+        <span class="n">PREFERRED_HASHER</span> <span class="o">=</span> <span class="bp">None</span>
+
 
 <span class="k">def</span> <span class="nf">is_password_usable</span><span class="p">(</span><span class="n">encoded</span><span class="p">):</span>
-    <span class="k">return</span> <span class="p">(</span><span class="n">encoded</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span> <span class="ow">and</span> <span class="n">encoded</span> <span class="o">!=</span> <span class="n">UNUSABLE_PASSWORD</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">encoded</span> <span class="ow">is</span> <span class="bp">None</span> <span class="ow">or</span> <span class="n">encoded</span> <span class="o">==</span> <span class="n">UNUSABLE_PASSWORD</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">False</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">hasher</span> <span class="o">=</span> <span class="n">identify_hasher</span><span class="p">(</span><span class="n">encoded</span><span class="p">)</span>
+    <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">False</span>
+    <span class="k">return</span> <span class="bp">True</span>
 
 
 <div class="viewcode-block" id="check_password"><a class="viewcode-back" href="../../../../django.contrib.auth.html#django.contrib.auth.hashers.check_password">[docs]</a><span class="k">def</span> <span class="nf">check_password</span><span class="p">(</span><span class="n">password</span><span class="p">,</span> <span class="n">encoded</span><span class="p">,</span> <span class="n">setter</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">preferred</span><span class="o">=</span><span class="s">&#39;default&#39;</span><span class="p">):</span>
@@ -80,20 +98,12 @@
         <span class="k">return</span> <span class="bp">False</span>
 
     <span class="n">preferred</span> <span class="o">=</span> <span class="n">get_hasher</span><span class="p">(</span><span class="n">preferred</span><span class="p">)</span>
-    <span class="n">raw_password</span> <span class="o">=</span> <span class="n">password</span>
-    <span class="n">password</span> <span class="o">=</span> <span class="n">smart_str</span><span class="p">(</span><span class="n">password</span><span class="p">)</span>
-    <span class="n">encoded</span> <span class="o">=</span> <span class="n">smart_str</span><span class="p">(</span><span class="n">encoded</span><span class="p">)</span>
-
-    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">encoded</span><span class="p">)</span> <span class="o">==</span> <span class="mi">32</span> <span class="ow">and</span> <span class="s">&#39;$&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">encoded</span><span class="p">:</span>
-        <span class="n">hasher</span> <span class="o">=</span> <span class="n">get_hasher</span><span class="p">(</span><span class="s">&#39;unsalted_md5&#39;</span><span class="p">)</span>
-    <span class="k">else</span><span class="p">:</span>
-        <span class="n">algorithm</span> <span class="o">=</span> <span class="n">encoded</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&#39;$&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
-        <span class="n">hasher</span> <span class="o">=</span> <span class="n">get_hasher</span><span class="p">(</span><span class="n">algorithm</span><span class="p">)</span>
+    <span class="n">hasher</span> <span class="o">=</span> <span class="n">identify_hasher</span><span class="p">(</span><span class="n">encoded</span><span class="p">)</span>
 
     <span class="n">must_update</span> <span class="o">=</span> <span class="n">hasher</span><span class="o">.</span><span class="n">algorithm</span> <span class="o">!=</span> <span class="n">preferred</span><span class="o">.</span><span class="n">algorithm</span>
     <span class="n">is_correct</span> <span class="o">=</span> <span class="n">hasher</span><span class="o">.</span><span class="n">verify</span><span class="p">(</span><span class="n">password</span><span class="p">,</span> <span class="n">encoded</span><span class="p">)</span>
     <span class="k">if</span> <span class="n">setter</span> <span class="ow">and</span> <span class="n">is_correct</span> <span class="ow">and</span> <span class="n">must_update</span><span class="p">:</span>
-        <span class="n">setter</span><span class="p">(</span><span class="n">raw_password</span><span class="p">)</span>
+        <span class="n">setter</span><span class="p">(</span><span class="n">password</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">is_correct</span>
 
 </div>
@@ -109,11 +119,9 @@
         <span class="k">return</span> <span class="n">UNUSABLE_PASSWORD</span>
 
     <span class="n">hasher</span> <span class="o">=</span> <span class="n">get_hasher</span><span class="p">(</span><span class="n">hasher</span><span class="p">)</span>
-    <span class="n">password</span> <span class="o">=</span> <span class="n">smart_str</span><span class="p">(</span><span class="n">password</span><span class="p">)</span>
 
     <span class="k">if</span> <span class="ow">not</span> <span class="n">salt</span><span class="p">:</span>
         <span class="n">salt</span> <span class="o">=</span> <span class="n">hasher</span><span class="o">.</span><span class="n">salt</span><span class="p">()</span>
-    <span class="n">salt</span> <span class="o">=</span> <span class="n">smart_str</span><span class="p">(</span><span class="n">salt</span><span class="p">)</span>
 
     <span class="k">return</span> <span class="n">hasher</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="n">password</span><span class="p">,</span> <span class="n">salt</span><span class="p">)</span>
 
@@ -163,6 +171,27 @@
                              <span class="s">&quot;Did you specify it in the PASSWORD_HASHERS &quot;</span>
                              <span class="s">&quot;setting?&quot;</span> <span class="o">%</span> <span class="n">algorithm</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">HASHERS</span><span class="p">[</span><span class="n">algorithm</span><span class="p">]</span>
+
+</div>
+<div class="viewcode-block" id="identify_hasher"><a class="viewcode-back" href="../../../../django.contrib.auth.html#django.contrib.auth.hashers.identify_hasher">[docs]</a><span class="k">def</span> <span class="nf">identify_hasher</span><span class="p">(</span><span class="n">encoded</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Returns an instance of a loaded password hasher.</span>
+
+<span class="sd">    Identifies hasher algorithm by examining encoded hash, and calls</span>
+<span class="sd">    get_hasher() to return hasher. Raises ValueError if</span>
+<span class="sd">    algorithm cannot be identified, or if hasher is not loaded.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c"># Ancient versions of Django created plain MD5 passwords and accepted</span>
+    <span class="c"># MD5 passwords with an empty salt.</span>
+    <span class="k">if</span> <span class="p">((</span><span class="nb">len</span><span class="p">(</span><span class="n">encoded</span><span class="p">)</span> <span class="o">==</span> <span class="mi">32</span> <span class="ow">and</span> <span class="s">&#39;$&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">encoded</span><span class="p">)</span> <span class="ow">or</span>
+            <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">encoded</span><span class="p">)</span> <span class="o">==</span> <span class="mi">37</span> <span class="ow">and</span> <span class="n">encoded</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s">&#39;md5$$&#39;</span><span class="p">))):</span>
+        <span class="n">algorithm</span> <span class="o">=</span> <span class="s">&#39;unsalted_md5&#39;</span>
+    <span class="c"># Ancient versions of Django accepted SHA1 passwords with an empty salt.</span>
+    <span class="k">elif</span> <span class="nb">len</span><span class="p">(</span><span class="n">encoded</span><span class="p">)</span> <span class="o">==</span> <span class="mi">46</span> <span class="ow">and</span> <span class="n">encoded</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s">&#39;sha1$$&#39;</span><span class="p">):</span>
+        <span class="n">algorithm</span> <span class="o">=</span> <span class="s">&#39;unsalted_sha1&#39;</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">algorithm</span> <span class="o">=</span> <span class="n">encoded</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&#39;$&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="k">return</span> <span class="n">get_hasher</span><span class="p">(</span><span class="n">algorithm</span><span class="p">)</span>
 
 </div>
 <div class="viewcode-block" id="mask_hash"><a class="viewcode-back" href="../../../../django.contrib.auth.html#django.contrib.auth.hashers.mask_hash">[docs]</a><span class="k">def</span> <span class="nf">mask_hash</span><span class="p">(</span><span class="nb">hash</span><span class="p">,</span> <span class="n">show</span><span class="o">=</span><span class="mi">6</span><span class="p">,</span> <span class="n">char</span><span class="o">=</span><span class="s">&quot;*&quot;</span><span class="p">):</span>
@@ -251,7 +280,7 @@
         <span class="k">if</span> <span class="ow">not</span> <span class="n">iterations</span><span class="p">:</span>
             <span class="n">iterations</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">iterations</span>
         <span class="nb">hash</span> <span class="o">=</span> <span class="n">pbkdf2</span><span class="p">(</span><span class="n">password</span><span class="p">,</span> <span class="n">salt</span><span class="p">,</span> <span class="n">iterations</span><span class="p">,</span> <span class="n">digest</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">digest</span><span class="p">)</span>
-        <span class="nb">hash</span> <span class="o">=</span> <span class="nb">hash</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s">&#39;base64&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+        <span class="nb">hash</span> <span class="o">=</span> <span class="n">base64</span><span class="o">.</span><span class="n">b64encode</span><span class="p">(</span><span class="nb">hash</span><span class="p">)</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s">&#39;ascii&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
         <span class="k">return</span> <span class="s">&quot;</span><span class="si">%s</span><span class="s">$</span><span class="si">%d</span><span class="s">$</span><span class="si">%s</span><span class="s">$</span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">algorithm</span><span class="p">,</span> <span class="n">iterations</span><span class="p">,</span> <span class="n">salt</span><span class="p">,</span> <span class="nb">hash</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">verify</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">password</span><span class="p">,</span> <span class="n">encoded</span><span class="p">):</span>
@@ -301,14 +330,16 @@
 
     <span class="k">def</span> <span class="nf">encode</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">password</span><span class="p">,</span> <span class="n">salt</span><span class="p">):</span>
         <span class="n">bcrypt</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_load_library</span><span class="p">()</span>
-        <span class="n">data</span> <span class="o">=</span> <span class="n">bcrypt</span><span class="o">.</span><span class="n">hashpw</span><span class="p">(</span><span class="n">password</span><span class="p">,</span> <span class="n">salt</span><span class="p">)</span>
+        <span class="c"># Need to reevaluate the force_bytes call once bcrypt is supported on</span>
+        <span class="c"># Python 3</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">bcrypt</span><span class="o">.</span><span class="n">hashpw</span><span class="p">(</span><span class="n">force_bytes</span><span class="p">(</span><span class="n">password</span><span class="p">),</span> <span class="n">salt</span><span class="p">)</span>
         <span class="k">return</span> <span class="s">&quot;</span><span class="si">%s</span><span class="s">$</span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">algorithm</span><span class="p">,</span> <span class="n">data</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">verify</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">password</span><span class="p">,</span> <span class="n">encoded</span><span class="p">):</span>
         <span class="n">algorithm</span><span class="p">,</span> <span class="n">data</span> <span class="o">=</span> <span class="n">encoded</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&#39;$&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
         <span class="k">assert</span> <span class="n">algorithm</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">algorithm</span>
         <span class="n">bcrypt</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_load_library</span><span class="p">()</span>
-        <span class="k">return</span> <span class="n">constant_time_compare</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">bcrypt</span><span class="o">.</span><span class="n">hashpw</span><span class="p">(</span><span class="n">password</span><span class="p">,</span> <span class="n">data</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">constant_time_compare</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">bcrypt</span><span class="o">.</span><span class="n">hashpw</span><span class="p">(</span><span class="n">force_bytes</span><span class="p">(</span><span class="n">password</span><span class="p">),</span> <span class="n">data</span><span class="p">))</span>
 
     <span class="k">def</span> <span class="nf">safe_summary</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">encoded</span><span class="p">):</span>
         <span class="n">algorithm</span><span class="p">,</span> <span class="n">empty</span><span class="p">,</span> <span class="n">algostr</span><span class="p">,</span> <span class="n">work_factor</span><span class="p">,</span> <span class="n">data</span> <span class="o">=</span> <span class="n">encoded</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&#39;$&#39;</span><span class="p">,</span> <span class="mi">4</span><span class="p">)</span>
@@ -331,7 +362,7 @@
     <span class="k">def</span> <span class="nf">encode</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">password</span><span class="p">,</span> <span class="n">salt</span><span class="p">):</span>
         <span class="k">assert</span> <span class="n">password</span>
         <span class="k">assert</span> <span class="n">salt</span> <span class="ow">and</span> <span class="s">&#39;$&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">salt</span>
-        <span class="nb">hash</span> <span class="o">=</span> <span class="n">hashlib</span><span class="o">.</span><span class="n">sha1</span><span class="p">(</span><span class="n">salt</span> <span class="o">+</span> <span class="n">password</span><span class="p">)</span><span class="o">.</span><span class="n">hexdigest</span><span class="p">()</span>
+        <span class="nb">hash</span> <span class="o">=</span> <span class="n">hashlib</span><span class="o">.</span><span class="n">sha1</span><span class="p">(</span><span class="n">force_bytes</span><span class="p">(</span><span class="n">salt</span> <span class="o">+</span> <span class="n">password</span><span class="p">))</span><span class="o">.</span><span class="n">hexdigest</span><span class="p">()</span>
         <span class="k">return</span> <span class="s">&quot;</span><span class="si">%s</span><span class="s">$</span><span class="si">%s</span><span class="s">$</span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">algorithm</span><span class="p">,</span> <span class="n">salt</span><span class="p">,</span> <span class="nb">hash</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">verify</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">password</span><span class="p">,</span> <span class="n">encoded</span><span class="p">):</span>
@@ -359,7 +390,7 @@
     <span class="k">def</span> <span class="nf">encode</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">password</span><span class="p">,</span> <span class="n">salt</span><span class="p">):</span>
         <span class="k">assert</span> <span class="n">password</span>
         <span class="k">assert</span> <span class="n">salt</span> <span class="ow">and</span> <span class="s">&#39;$&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">salt</span>
-        <span class="nb">hash</span> <span class="o">=</span> <span class="n">hashlib</span><span class="o">.</span><span class="n">md5</span><span class="p">(</span><span class="n">salt</span> <span class="o">+</span> <span class="n">password</span><span class="p">)</span><span class="o">.</span><span class="n">hexdigest</span><span class="p">()</span>
+        <span class="nb">hash</span> <span class="o">=</span> <span class="n">hashlib</span><span class="o">.</span><span class="n">md5</span><span class="p">(</span><span class="n">force_bytes</span><span class="p">(</span><span class="n">salt</span> <span class="o">+</span> <span class="n">password</span><span class="p">))</span><span class="o">.</span><span class="n">hexdigest</span><span class="p">()</span>
         <span class="k">return</span> <span class="s">&quot;</span><span class="si">%s</span><span class="s">$</span><span class="si">%s</span><span class="s">$</span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">algorithm</span><span class="p">,</span> <span class="n">salt</span><span class="p">,</span> <span class="nb">hash</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">verify</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">password</span><span class="p">,</span> <span class="n">encoded</span><span class="p">):</span>
@@ -378,14 +409,48 @@
         <span class="p">])</span>
 
 </div>
+<div class="viewcode-block" id="UnsaltedSHA1PasswordHasher"><a class="viewcode-back" href="../../../../django.contrib.auth.html#django.contrib.auth.hashers.UnsaltedSHA1PasswordHasher">[docs]</a><span class="k">class</span> <span class="nc">UnsaltedSHA1PasswordHasher</span><span class="p">(</span><span class="n">BasePasswordHasher</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Very insecure algorithm that you should *never* use; stores SHA1 hashes</span>
+<span class="sd">    with an empty salt.</span>
+
+<span class="sd">    This class is implemented because Django used to accept such password</span>
+<span class="sd">    hashes. Some older Django installs still have these values lingering</span>
+<span class="sd">    around so we need to handle and upgrade them properly.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">algorithm</span> <span class="o">=</span> <span class="s">&quot;unsalted_sha1&quot;</span>
+
+    <span class="k">def</span> <span class="nf">salt</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="s">&#39;&#39;</span>
+
+    <span class="k">def</span> <span class="nf">encode</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">password</span><span class="p">,</span> <span class="n">salt</span><span class="p">):</span>
+        <span class="k">assert</span> <span class="n">salt</span> <span class="o">==</span> <span class="s">&#39;&#39;</span>
+        <span class="nb">hash</span> <span class="o">=</span> <span class="n">hashlib</span><span class="o">.</span><span class="n">sha1</span><span class="p">(</span><span class="n">force_bytes</span><span class="p">(</span><span class="n">password</span><span class="p">))</span><span class="o">.</span><span class="n">hexdigest</span><span class="p">()</span>
+        <span class="k">return</span> <span class="s">&#39;sha1$$</span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="nb">hash</span>
+
+    <span class="k">def</span> <span class="nf">verify</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">password</span><span class="p">,</span> <span class="n">encoded</span><span class="p">):</span>
+        <span class="n">encoded_2</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="n">password</span><span class="p">,</span> <span class="s">&#39;&#39;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">constant_time_compare</span><span class="p">(</span><span class="n">encoded</span><span class="p">,</span> <span class="n">encoded_2</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">safe_summary</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">encoded</span><span class="p">):</span>
+        <span class="k">assert</span> <span class="n">encoded</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s">&#39;sha1$$&#39;</span><span class="p">)</span>
+        <span class="nb">hash</span> <span class="o">=</span> <span class="n">encoded</span><span class="p">[</span><span class="mi">6</span><span class="p">:]</span>
+        <span class="k">return</span> <span class="n">SortedDict</span><span class="p">([</span>
+            <span class="p">(</span><span class="n">_</span><span class="p">(</span><span class="s">&#39;algorithm&#39;</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">algorithm</span><span class="p">),</span>
+            <span class="p">(</span><span class="n">_</span><span class="p">(</span><span class="s">&#39;hash&#39;</span><span class="p">),</span> <span class="n">mask_hash</span><span class="p">(</span><span class="nb">hash</span><span class="p">)),</span>
+        <span class="p">])</span>
+
+</div>
 <div class="viewcode-block" id="UnsaltedMD5PasswordHasher"><a class="viewcode-back" href="../../../../django.contrib.auth.html#django.contrib.auth.hashers.UnsaltedMD5PasswordHasher">[docs]</a><span class="k">class</span> <span class="nc">UnsaltedMD5PasswordHasher</span><span class="p">(</span><span class="n">BasePasswordHasher</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    I am an incredibly insecure algorithm you should *never* use;</span>
-<span class="sd">    stores unsalted MD5 hashes without the algorithm prefix.</span>
+<span class="sd">    Incredibly insecure algorithm that you should *never* use; stores unsalted</span>
+<span class="sd">    MD5 hashes without the algorithm prefix, also accepts MD5 hashes with an</span>
+<span class="sd">    empty salt.</span>
 
-<span class="sd">    This class is implemented because Django used to store passwords</span>
-<span class="sd">    this way. Some older Django installs still have these values</span>
-<span class="sd">    lingering around so we need to handle and upgrade them properly.</span>
+<span class="sd">    This class is implemented because Django used to store passwords this way</span>
+<span class="sd">    and to accept such password hashes. Some older Django installs still have</span>
+<span class="sd">    these values lingering around so we need to handle and upgrade them</span>
+<span class="sd">    properly.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">algorithm</span> <span class="o">=</span> <span class="s">&quot;unsalted_md5&quot;</span>
 
@@ -393,9 +458,12 @@
         <span class="k">return</span> <span class="s">&#39;&#39;</span>
 
     <span class="k">def</span> <span class="nf">encode</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">password</span><span class="p">,</span> <span class="n">salt</span><span class="p">):</span>
-        <span class="k">return</span> <span class="n">hashlib</span><span class="o">.</span><span class="n">md5</span><span class="p">(</span><span class="n">password</span><span class="p">)</span><span class="o">.</span><span class="n">hexdigest</span><span class="p">()</span>
+        <span class="k">assert</span> <span class="n">salt</span> <span class="o">==</span> <span class="s">&#39;&#39;</span>
+        <span class="k">return</span> <span class="n">hashlib</span><span class="o">.</span><span class="n">md5</span><span class="p">(</span><span class="n">force_bytes</span><span class="p">(</span><span class="n">password</span><span class="p">))</span><span class="o">.</span><span class="n">hexdigest</span><span class="p">()</span>
 
     <span class="k">def</span> <span class="nf">verify</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">password</span><span class="p">,</span> <span class="n">encoded</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">encoded</span><span class="p">)</span> <span class="o">==</span> <span class="mi">37</span> <span class="ow">and</span> <span class="n">encoded</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s">&#39;md5$$&#39;</span><span class="p">):</span>
+            <span class="n">encoded</span> <span class="o">=</span> <span class="n">encoded</span><span class="p">[</span><span class="mi">5</span><span class="p">:]</span>
         <span class="n">encoded_2</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="n">password</span><span class="p">,</span> <span class="s">&#39;&#39;</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">constant_time_compare</span><span class="p">(</span><span class="n">encoded</span><span class="p">,</span> <span class="n">encoded_2</span><span class="p">)</span>
 
@@ -421,7 +489,7 @@
     <span class="k">def</span> <span class="nf">encode</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">password</span><span class="p">,</span> <span class="n">salt</span><span class="p">):</span>
         <span class="n">crypt</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_load_library</span><span class="p">()</span>
         <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">salt</span><span class="p">)</span> <span class="o">==</span> <span class="mi">2</span>
-        <span class="n">data</span> <span class="o">=</span> <span class="n">crypt</span><span class="o">.</span><span class="n">crypt</span><span class="p">(</span><span class="n">password</span><span class="p">,</span> <span class="n">salt</span><span class="p">)</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">crypt</span><span class="o">.</span><span class="n">crypt</span><span class="p">(</span><span class="n">force_str</span><span class="p">(</span><span class="n">password</span><span class="p">),</span> <span class="n">salt</span><span class="p">)</span>
         <span class="c"># we don&#39;t need to store the salt, but Django used to do this</span>
         <span class="k">return</span> <span class="s">&quot;</span><span class="si">%s</span><span class="s">$</span><span class="si">%s</span><span class="s">$</span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">algorithm</span><span class="p">,</span> <span class="s">&#39;&#39;</span><span class="p">,</span> <span class="n">data</span><span class="p">)</span>
 
@@ -429,7 +497,7 @@
         <span class="n">crypt</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_load_library</span><span class="p">()</span>
         <span class="n">algorithm</span><span class="p">,</span> <span class="n">salt</span><span class="p">,</span> <span class="n">data</span> <span class="o">=</span> <span class="n">encoded</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&#39;$&#39;</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
         <span class="k">assert</span> <span class="n">algorithm</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">algorithm</span>
-        <span class="k">return</span> <span class="n">constant_time_compare</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">crypt</span><span class="o">.</span><span class="n">crypt</span><span class="p">(</span><span class="n">password</span><span class="p">,</span> <span class="n">data</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">constant_time_compare</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">crypt</span><span class="o">.</span><span class="n">crypt</span><span class="p">(</span><span class="n">force_str</span><span class="p">(</span><span class="n">password</span><span class="p">),</span> <span class="n">data</span><span class="p">))</span>
 
     <span class="k">def</span> <span class="nf">safe_summary</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">encoded</span><span class="p">):</span>
         <span class="n">algorithm</span><span class="p">,</span> <span class="n">salt</span><span class="p">,</span> <span class="n">data</span> <span class="o">=</span> <span class="n">encoded</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&#39;$&#39;</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
@@ -453,7 +521,7 @@
 
     <div class="footer">
         &copy; Copyright 2012, HDKNR.COM.
-      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.2pre/3c28de26aac2.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2b1.
     </div>
   </body>
 </html>

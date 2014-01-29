@@ -28,7 +28,7 @@
     <script type="text/javascript" src="../../../static/doctools.js"></script>
     <script type="text/javascript" src="../../../static/theme_extras.js"></script>
     <link rel="top" title="Django Cheat 1 documentation" href="../../../index.html" />
-    <link rel="up" title="django" href="../../django.html" /> 
+    <link rel="up" title="Module code" href="../../index.html" /> 
   </head>
   <body>
       <div class="header"><h1 class="heading"><a href="../../../index.html">
@@ -50,16 +50,18 @@
 <span class="kn">from</span> <span class="nn">django.db.utils</span> <span class="kn">import</span> <span class="n">DatabaseError</span>
 
 <span class="k">try</span><span class="p">:</span>
-    <span class="kn">import</span> <span class="nn">thread</span>
+    <span class="kn">from</span> <span class="nn">django.utils.six.moves</span> <span class="kn">import</span> <span class="n">_thread</span> <span class="k">as</span> <span class="n">thread</span>
 <span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
-    <span class="kn">import</span> <span class="nn">dummy_thread</span> <span class="kn">as</span> <span class="nn">thread</span>
+    <span class="kn">from</span> <span class="nn">django.utils.six.moves</span> <span class="kn">import</span> <span class="n">_dummy_thread</span> <span class="k">as</span> <span class="n">thread</span>
 <span class="kn">from</span> <span class="nn">contextlib</span> <span class="kn">import</span> <span class="n">contextmanager</span>
 
 <span class="kn">from</span> <span class="nn">django.conf</span> <span class="kn">import</span> <span class="n">settings</span>
 <span class="kn">from</span> <span class="nn">django.db</span> <span class="kn">import</span> <span class="n">DEFAULT_DB_ALIAS</span>
 <span class="kn">from</span> <span class="nn">django.db.backends</span> <span class="kn">import</span> <span class="n">util</span>
 <span class="kn">from</span> <span class="nn">django.db.transaction</span> <span class="kn">import</span> <span class="n">TransactionManagementError</span>
+<span class="kn">from</span> <span class="nn">django.utils.functional</span> <span class="kn">import</span> <span class="n">cached_property</span>
 <span class="kn">from</span> <span class="nn">django.utils.importlib</span> <span class="kn">import</span> <span class="n">import_module</span>
+<span class="kn">from</span> <span class="nn">django.utils</span> <span class="kn">import</span> <span class="n">six</span>
 <span class="kn">from</span> <span class="nn">django.utils.timezone</span> <span class="kn">import</span> <span class="n">is_aware</span>
 
 
@@ -93,6 +95,9 @@
 
     <span class="k">def</span> <span class="nf">__ne__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
         <span class="k">return</span> <span class="ow">not</span> <span class="bp">self</span> <span class="o">==</span> <span class="n">other</span>
+
+    <span class="k">def</span> <span class="nf">__hash__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="nb">hash</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">alias</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">_commit</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">connection</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
@@ -132,6 +137,17 @@
             <span class="k">return</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">cursor</span><span class="p">()</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">savepoint_commit_sql</span><span class="p">(</span><span class="n">sid</span><span class="p">))</span>
 
+<div class="viewcode-block" id="BaseDatabaseWrapper.abort"><a class="viewcode-back" href="../../../django.db.backends.html#django.db.backends.BaseDatabaseWrapper.abort">[docs]</a>    <span class="k">def</span> <span class="nf">abort</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Roll back any ongoing transaction and clean the transaction state</span>
+<span class="sd">        stack.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_dirty</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_rollback</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_dirty</span> <span class="o">=</span> <span class="bp">False</span>
+        <span class="k">while</span> <span class="bp">self</span><span class="o">.</span><span class="n">transaction_state</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">leave_transaction_management</span><span class="p">()</span>
+</div>
 <div class="viewcode-block" id="BaseDatabaseWrapper.enter_transaction_management"><a class="viewcode-back" href="../../../django.db.backends.html#django.db.backends.BaseDatabaseWrapper.enter_transaction_management">[docs]</a>    <span class="k">def</span> <span class="nf">enter_transaction_management</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">managed</span><span class="o">=</span><span class="bp">True</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Enters transaction management for a running thread. It must be balanced with</span>
@@ -157,16 +173,18 @@
 <span class="sd">        over to the surrounding block, as a commit will commit all changes, even</span>
 <span class="sd">        those from outside. (Commits are on connection level.)</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_leave_transaction_management</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">is_managed</span><span class="p">())</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">transaction_state</span><span class="p">:</span>
             <span class="k">del</span> <span class="bp">self</span><span class="o">.</span><span class="n">transaction_state</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="n">TransactionManagementError</span><span class="p">(</span><span class="s">&quot;This code isn&#39;t under transaction &quot;</span>
-                <span class="s">&quot;management&quot;</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="n">TransactionManagementError</span><span class="p">(</span>
+                <span class="s">&quot;This code isn&#39;t under transaction management&quot;</span><span class="p">)</span>
+        <span class="c"># We will pass the next status (after leaving the previous state</span>
+        <span class="c"># behind) to subclass hook.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_leave_transaction_management</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">is_managed</span><span class="p">())</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_dirty</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">rollback</span><span class="p">()</span>
-            <span class="k">raise</span> <span class="n">TransactionManagementError</span><span class="p">(</span><span class="s">&quot;Transaction managed block ended with &quot;</span>
-                <span class="s">&quot;pending COMMIT/ROLLBACK&quot;</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="n">TransactionManagementError</span><span class="p">(</span>
+                <span class="s">&quot;Transaction managed block ended with pending COMMIT/ROLLBACK&quot;</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_dirty</span> <span class="o">=</span> <span class="bp">False</span>
 </div>
 <div class="viewcode-block" id="BaseDatabaseWrapper.validate_thread_sharing"><a class="viewcode-back" href="../../../django.db.backends.html#django.db.backends.BaseDatabaseWrapper.validate_thread_sharing">[docs]</a>    <span class="k">def</span> <span class="nf">validate_thread_sharing</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
@@ -359,6 +377,7 @@
 
     <span class="k">def</span> <span class="nf">make_debug_cursor</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cursor</span><span class="p">):</span>
         <span class="k">return</span> <span class="n">util</span><span class="o">.</span><span class="n">CursorDebugWrapper</span><span class="p">(</span><span class="n">cursor</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span>
+
 </div>
 <span class="k">class</span> <span class="nc">BaseDatabaseFeatures</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
     <span class="n">allows_group_by_pk</span> <span class="o">=</span> <span class="bp">False</span>
@@ -448,12 +467,13 @@
     <span class="c"># in the SQL standard.</span>
     <span class="n">supports_tablespaces</span> <span class="o">=</span> <span class="bp">False</span>
 
-    <span class="c"># Features that need to be confirmed at runtime</span>
-    <span class="c"># Cache whether the confirmation has been performed.</span>
-    <span class="n">_confirmed</span> <span class="o">=</span> <span class="bp">False</span>
-    <span class="n">supports_transactions</span> <span class="o">=</span> <span class="bp">None</span>
-    <span class="n">supports_stddev</span> <span class="o">=</span> <span class="bp">None</span>
-    <span class="n">can_introspect_foreign_keys</span> <span class="o">=</span> <span class="bp">None</span>
+    <span class="c"># Does the backend reset sequences between tests?</span>
+    <span class="n">supports_sequence_reset</span> <span class="o">=</span> <span class="bp">True</span>
+
+    <span class="c"># Confirm support for introspected foreign keys</span>
+    <span class="c"># Every database can do this reliably, except MySQL,</span>
+    <span class="c"># which can&#39;t do it for MyISAM tables</span>
+    <span class="n">can_introspect_foreign_keys</span> <span class="o">=</span> <span class="bp">True</span>
 
     <span class="c"># Support for the DISTINCT ON clause</span>
     <span class="n">can_distinct_on_fields</span> <span class="o">=</span> <span class="bp">False</span>
@@ -461,41 +481,40 @@
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">connection</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">connection</span> <span class="o">=</span> <span class="n">connection</span>
 
-    <span class="k">def</span> <span class="nf">confirm</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="s">&quot;Perform manual checks of any database features that might vary between installs&quot;</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_confirmed</span> <span class="o">=</span> <span class="bp">True</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">supports_transactions</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_supports_transactions</span><span class="p">()</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">supports_stddev</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_supports_stddev</span><span class="p">()</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">can_introspect_foreign_keys</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_can_introspect_foreign_keys</span><span class="p">()</span>
-
-    <span class="k">def</span> <span class="nf">_supports_transactions</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="nd">@cached_property</span>
+    <span class="k">def</span> <span class="nf">supports_transactions</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="s">&quot;Confirm support for transactions&quot;</span>
-        <span class="n">cursor</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">cursor</span><span class="p">()</span>
-        <span class="n">cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s">&#39;CREATE TABLE ROLLBACK_TEST (X INT)&#39;</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">_commit</span><span class="p">()</span>
-        <span class="n">cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s">&#39;INSERT INTO ROLLBACK_TEST (X) VALUES (8)&#39;</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">_rollback</span><span class="p">()</span>
-        <span class="n">cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s">&#39;SELECT COUNT(X) FROM ROLLBACK_TEST&#39;</span><span class="p">)</span>
-        <span class="n">count</span><span class="p">,</span> <span class="o">=</span> <span class="n">cursor</span><span class="o">.</span><span class="n">fetchone</span><span class="p">()</span>
-        <span class="n">cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s">&#39;DROP TABLE ROLLBACK_TEST&#39;</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">_commit</span><span class="p">()</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="c"># Make sure to run inside a managed transaction block,</span>
+            <span class="c"># otherwise autocommit will cause the confimation to</span>
+            <span class="c"># fail.</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">enter_transaction_management</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">managed</span><span class="p">(</span><span class="bp">True</span><span class="p">)</span>
+            <span class="n">cursor</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">cursor</span><span class="p">()</span>
+            <span class="n">cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s">&#39;CREATE TABLE ROLLBACK_TEST (X INT)&#39;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">_commit</span><span class="p">()</span>
+            <span class="n">cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s">&#39;INSERT INTO ROLLBACK_TEST (X) VALUES (8)&#39;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">_rollback</span><span class="p">()</span>
+            <span class="n">cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s">&#39;SELECT COUNT(X) FROM ROLLBACK_TEST&#39;</span><span class="p">)</span>
+            <span class="n">count</span><span class="p">,</span> <span class="o">=</span> <span class="n">cursor</span><span class="o">.</span><span class="n">fetchone</span><span class="p">()</span>
+            <span class="n">cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s">&#39;DROP TABLE ROLLBACK_TEST&#39;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">_commit</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">_dirty</span> <span class="o">=</span> <span class="bp">False</span>
+        <span class="k">finally</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">leave_transaction_management</span><span class="p">()</span>
         <span class="k">return</span> <span class="n">count</span> <span class="o">==</span> <span class="mi">0</span>
 
-    <span class="k">def</span> <span class="nf">_supports_stddev</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="nd">@cached_property</span>
+    <span class="k">def</span> <span class="nf">supports_stddev</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="s">&quot;Confirm support for STDDEV and related stats functions&quot;</span>
         <span class="k">class</span> <span class="nc">StdDevPop</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
             <span class="n">sql_function</span> <span class="o">=</span> <span class="s">&#39;STDDEV_POP&#39;</span>
 
         <span class="k">try</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">check_aggregate_support</span><span class="p">(</span><span class="n">StdDevPop</span><span class="p">())</span>
+            <span class="k">return</span> <span class="bp">True</span>
         <span class="k">except</span> <span class="ne">NotImplementedError</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">supports_stddev</span> <span class="o">=</span> <span class="bp">False</span>
-
-    <span class="k">def</span> <span class="nf">_can_introspect_foreign_keys</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="s">&quot;Confirm support for introspected foreign keys&quot;</span>
-        <span class="c"># Every database can do this reliably, except MySQL,</span>
-        <span class="c"># which can&#39;t do it for MyISAM tables</span>
-        <span class="k">return</span> <span class="bp">True</span>
+            <span class="k">return</span> <span class="bp">False</span>
 
 
 <div class="viewcode-block" id="BaseDatabaseOperations"><a class="viewcode-back" href="../../../django.db.backends.html#django.db.backends.BaseDatabaseOperations">[docs]</a><span class="k">class</span> <span class="nc">BaseDatabaseOperations</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
@@ -518,6 +537,24 @@
 <span class="sd">        This SQL is executed when a table is created.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="bp">None</span>
+</div>
+<div class="viewcode-block" id="BaseDatabaseOperations.bulk_batch_size"><a class="viewcode-back" href="../../../django.db.backends.html#django.db.backends.BaseDatabaseOperations.bulk_batch_size">[docs]</a>    <span class="k">def</span> <span class="nf">bulk_batch_size</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fields</span><span class="p">,</span> <span class="n">objs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns the maximum allowed batch size for the backend. The fields</span>
+<span class="sd">        are the fields going to be inserted in the batch, the objs contains</span>
+<span class="sd">        all the objects to be inserted.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="n">objs</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="BaseDatabaseOperations.cache_key_culling_sql"><a class="viewcode-back" href="../../../django.db.backends.html#django.db.backends.BaseDatabaseOperations.cache_key_culling_sql">[docs]</a>    <span class="k">def</span> <span class="nf">cache_key_culling_sql</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns a SQL query that retrieves the first cache key greater than the</span>
+<span class="sd">        n smallest.</span>
+
+<span class="sd">        This is used by the &#39;db&#39; cache backend to determine where to start</span>
+<span class="sd">        culling.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="s">&quot;SELECT cache_key FROM </span><span class="si">%s</span><span class="s"> ORDER BY cache_key LIMIT 1 OFFSET </span><span class="si">%%</span><span class="s">s&quot;</span>
 </div>
 <div class="viewcode-block" id="BaseDatabaseOperations.date_extract_sql"><a class="viewcode-back" href="../../../django.db.backends.html#django.db.backends.BaseDatabaseOperations.date_extract_sql">[docs]</a>    <span class="k">def</span> <span class="nf">date_extract_sql</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">lookup_type</span><span class="p">,</span> <span class="n">field_name</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
@@ -555,6 +592,17 @@
 <span class="sd">        during a CREATE TABLE statement.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="s">&#39;&#39;</span>
+</div>
+<div class="viewcode-block" id="BaseDatabaseOperations.distinct_sql"><a class="viewcode-back" href="../../../django.db.backends.html#django.db.backends.BaseDatabaseOperations.distinct_sql">[docs]</a>    <span class="k">def</span> <span class="nf">distinct_sql</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fields</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns an SQL DISTINCT clause which removes duplicate rows from the</span>
+<span class="sd">        result set. If any fields are given, only the given fields are being</span>
+<span class="sd">        checked for duplicates.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">fields</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s">&#39;DISTINCT ON fields is not supported by this database backend&#39;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="s">&#39;DISTINCT&#39;</span>
 </div>
 <div class="viewcode-block" id="BaseDatabaseOperations.drop_foreignkey_sql"><a class="viewcode-back" href="../../../django.db.backends.html#django.db.backends.BaseDatabaseOperations.drop_foreignkey_sql">[docs]</a>    <span class="k">def</span> <span class="nf">drop_foreignkey_sql</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
@@ -611,17 +659,6 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s">&#39;Full-text search is not implemented for this database backend&#39;</span><span class="p">)</span>
 </div>
-<div class="viewcode-block" id="BaseDatabaseOperations.distinct_sql"><a class="viewcode-back" href="../../../django.db.backends.html#django.db.backends.BaseDatabaseOperations.distinct_sql">[docs]</a>    <span class="k">def</span> <span class="nf">distinct_sql</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fields</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Returns an SQL DISTINCT clause which removes duplicate rows from the</span>
-<span class="sd">        result set. If any fields are given, only the given fields are being</span>
-<span class="sd">        checked for duplicates.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">if</span> <span class="n">fields</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s">&#39;DISTINCT ON fields is not supported by this database backend&#39;</span><span class="p">)</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="k">return</span> <span class="s">&#39;DISTINCT&#39;</span>
-</div>
 <div class="viewcode-block" id="BaseDatabaseOperations.last_executed_query"><a class="viewcode-back" href="../../../django.db.backends.html#django.db.backends.BaseDatabaseOperations.last_executed_query">[docs]</a>    <span class="k">def</span> <span class="nf">last_executed_query</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cursor</span><span class="p">,</span> <span class="n">sql</span><span class="p">,</span> <span class="n">params</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Returns a string of the query last executed by the given cursor, with</span>
@@ -632,16 +669,16 @@
 <span class="sd">        exists for database backends to provide a better implementation</span>
 <span class="sd">        according to their own quoting schemes.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="kn">from</span> <span class="nn">django.utils.encoding</span> <span class="kn">import</span> <span class="n">smart_unicode</span><span class="p">,</span> <span class="n">force_unicode</span>
+        <span class="kn">from</span> <span class="nn">django.utils.encoding</span> <span class="kn">import</span> <span class="n">force_text</span>
 
         <span class="c"># Convert params to contain Unicode values.</span>
-        <span class="n">to_unicode</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">s</span><span class="p">:</span> <span class="n">force_unicode</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">strings_only</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">errors</span><span class="o">=</span><span class="s">&#39;replace&#39;</span><span class="p">)</span>
+        <span class="n">to_unicode</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">s</span><span class="p">:</span> <span class="n">force_text</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">strings_only</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">errors</span><span class="o">=</span><span class="s">&#39;replace&#39;</span><span class="p">)</span>
         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="p">(</span><span class="nb">list</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">)):</span>
             <span class="n">u_params</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">([</span><span class="n">to_unicode</span><span class="p">(</span><span class="n">val</span><span class="p">)</span> <span class="k">for</span> <span class="n">val</span> <span class="ow">in</span> <span class="n">params</span><span class="p">])</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="n">u_params</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">([(</span><span class="n">to_unicode</span><span class="p">(</span><span class="n">k</span><span class="p">),</span> <span class="n">to_unicode</span><span class="p">(</span><span class="n">v</span><span class="p">))</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">params</span><span class="o">.</span><span class="n">items</span><span class="p">()])</span>
 
-        <span class="k">return</span> <span class="n">smart_unicode</span><span class="p">(</span><span class="n">sql</span><span class="p">)</span> <span class="o">%</span> <span class="n">u_params</span>
+        <span class="k">return</span> <span class="n">force_text</span><span class="p">(</span><span class="n">sql</span><span class="p">)</span> <span class="o">%</span> <span class="n">u_params</span>
 </div>
 <div class="viewcode-block" id="BaseDatabaseOperations.last_insert_id"><a class="viewcode-back" href="../../../django.db.backends.html#django.db.backends.BaseDatabaseOperations.last_insert_id">[docs]</a>    <span class="k">def</span> <span class="nf">last_insert_id</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cursor</span><span class="p">,</span> <span class="n">table_name</span><span class="p">,</span> <span class="n">pk_name</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
@@ -773,10 +810,23 @@
 <span class="sd">        the given database tables (without actually removing the tables</span>
 <span class="sd">        themselves).</span>
 
+<span class="sd">        The returned value also includes SQL statements required to reset DB</span>
+<span class="sd">        sequences passed in :param sequences:.</span>
+
 <span class="sd">        The `style` argument is a Style object as returned by either</span>
 <span class="sd">        color_style() or no_style() in django.core.management.color.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">()</span>
+</div>
+<div class="viewcode-block" id="BaseDatabaseOperations.sequence_reset_by_name_sql"><a class="viewcode-back" href="../../../django.db.backends.html#django.db.backends.BaseDatabaseOperations.sequence_reset_by_name_sql">[docs]</a>    <span class="k">def</span> <span class="nf">sequence_reset_by_name_sql</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">style</span><span class="p">,</span> <span class="n">sequences</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns a list of the SQL statements required to reset sequences</span>
+<span class="sd">        passed in :param sequences:.</span>
+
+<span class="sd">        The `style` argument is a Style object as returned by either</span>
+<span class="sd">        color_style() or no_style() in django.core.management.color.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="p">[]</span>
 </div>
 <div class="viewcode-block" id="BaseDatabaseOperations.sequence_reset_sql"><a class="viewcode-back" href="../../../django.db.backends.html#django.db.backends.BaseDatabaseOperations.sequence_reset_sql">[docs]</a>    <span class="k">def</span> <span class="nf">sequence_reset_sql</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">style</span><span class="p">,</span> <span class="n">model_list</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
@@ -786,7 +836,7 @@
 <span class="sd">        The `style` argument is a Style object as returned by either</span>
 <span class="sd">        color_style() or no_style() in django.core.management.color.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">return</span> <span class="p">[]</span> <span class="c"># No sequence reset required by default.</span>
+        <span class="k">return</span> <span class="p">[]</span>  <span class="c"># No sequence reset required by default.</span>
 </div>
 <div class="viewcode-block" id="BaseDatabaseOperations.start_transaction_sql"><a class="viewcode-back" href="../../../django.db.backends.html#django.db.backends.BaseDatabaseOperations.start_transaction_sql">[docs]</a>    <span class="k">def</span> <span class="nf">start_transaction_sql</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
@@ -812,13 +862,21 @@
 </div>
 <div class="viewcode-block" id="BaseDatabaseOperations.prep_for_like_query"><a class="viewcode-back" href="../../../django.db.backends.html#django.db.backends.BaseDatabaseOperations.prep_for_like_query">[docs]</a>    <span class="k">def</span> <span class="nf">prep_for_like_query</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Prepares a value for use in a LIKE query.&quot;&quot;&quot;</span>
-        <span class="kn">from</span> <span class="nn">django.utils.encoding</span> <span class="kn">import</span> <span class="n">smart_unicode</span>
-        <span class="k">return</span> <span class="n">smart_unicode</span><span class="p">(</span><span class="n">x</span><span class="p">)</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s">&quot;</span><span class="se">\\</span><span class="s">&quot;</span><span class="p">,</span> <span class="s">&quot;</span><span class="se">\\\\</span><span class="s">&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s">&quot;%&quot;</span><span class="p">,</span> <span class="s">&quot;\%&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s">&quot;_&quot;</span><span class="p">,</span> <span class="s">&quot;\_&quot;</span><span class="p">)</span>
+        <span class="kn">from</span> <span class="nn">django.utils.encoding</span> <span class="kn">import</span> <span class="n">force_text</span>
+        <span class="k">return</span> <span class="n">force_text</span><span class="p">(</span><span class="n">x</span><span class="p">)</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s">&quot;</span><span class="se">\\</span><span class="s">&quot;</span><span class="p">,</span> <span class="s">&quot;</span><span class="se">\\\\</span><span class="s">&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s">&quot;%&quot;</span><span class="p">,</span> <span class="s">&quot;\%&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s">&quot;_&quot;</span><span class="p">,</span> <span class="s">&quot;\_&quot;</span><span class="p">)</span>
 
     <span class="c"># Same as prep_for_like_query(), but called for &quot;iexact&quot; matches, which</span>
     <span class="c"># need not necessarily be implemented using &quot;LIKE&quot; in the backend.</span></div>
     <span class="n">prep_for_iexact_query</span> <span class="o">=</span> <span class="n">prep_for_like_query</span>
 
+<div class="viewcode-block" id="BaseDatabaseOperations.validate_autopk_value"><a class="viewcode-back" href="../../../django.db.backends.html#django.db.backends.BaseDatabaseOperations.validate_autopk_value">[docs]</a>    <span class="k">def</span> <span class="nf">validate_autopk_value</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Certain backends do not accept some values for &quot;serial&quot; fields</span>
+<span class="sd">        (for example zero in MySQL). This method will raise a ValueError</span>
+<span class="sd">        if the value is invalid, otherwise returns validated value.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">value</span>
+</div>
 <div class="viewcode-block" id="BaseDatabaseOperations.value_to_db_date"><a class="viewcode-back" href="../../../django.db.backends.html#django.db.backends.BaseDatabaseOperations.value_to_db_date">[docs]</a>    <span class="k">def</span> <span class="nf">value_to_db_date</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Transform a date value to an object compatible with what is expected</span>
@@ -826,7 +884,7 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="n">value</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
             <span class="k">return</span> <span class="bp">None</span>
-        <span class="k">return</span> <span class="nb">unicode</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">six</span><span class="o">.</span><span class="n">text_type</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
 </div>
 <div class="viewcode-block" id="BaseDatabaseOperations.value_to_db_datetime"><a class="viewcode-back" href="../../../django.db.backends.html#django.db.backends.BaseDatabaseOperations.value_to_db_datetime">[docs]</a>    <span class="k">def</span> <span class="nf">value_to_db_datetime</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
@@ -835,7 +893,7 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="n">value</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
             <span class="k">return</span> <span class="bp">None</span>
-        <span class="k">return</span> <span class="nb">unicode</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">six</span><span class="o">.</span><span class="n">text_type</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
 </div>
 <div class="viewcode-block" id="BaseDatabaseOperations.value_to_db_time"><a class="viewcode-back" href="../../../django.db.backends.html#django.db.backends.BaseDatabaseOperations.value_to_db_time">[docs]</a>    <span class="k">def</span> <span class="nf">value_to_db_time</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
@@ -846,7 +904,7 @@
             <span class="k">return</span> <span class="bp">None</span>
         <span class="k">if</span> <span class="n">is_aware</span><span class="p">(</span><span class="n">value</span><span class="p">):</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s">&quot;Django does not support timezone-aware times.&quot;</span><span class="p">)</span>
-        <span class="k">return</span> <span class="nb">unicode</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">six</span><span class="o">.</span><span class="n">text_type</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
 </div>
 <div class="viewcode-block" id="BaseDatabaseOperations.value_to_db_decimal"><a class="viewcode-back" href="../../../django.db.backends.html#django.db.backends.BaseDatabaseOperations.value_to_db_decimal">[docs]</a>    <span class="k">def</span> <span class="nf">value_to_db_decimal</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">max_digits</span><span class="p">,</span> <span class="n">decimal_places</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
@@ -882,19 +940,19 @@
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">year_lookup_bounds</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
 </div>
 <div class="viewcode-block" id="BaseDatabaseOperations.convert_values"><a class="viewcode-back" href="../../../django.db.backends.html#django.db.backends.BaseDatabaseOperations.convert_values">[docs]</a>    <span class="k">def</span> <span class="nf">convert_values</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">field</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Coerce the value returned by the database backend into a consistent type that</span>
-<span class="sd">        is compatible with the field type.</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Coerce the value returned by the database backend into a consistent type</span>
+<span class="sd">        that is compatible with the field type.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">value</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">value</span>
         <span class="n">internal_type</span> <span class="o">=</span> <span class="n">field</span><span class="o">.</span><span class="n">get_internal_type</span><span class="p">()</span>
-        <span class="k">if</span> <span class="n">internal_type</span> <span class="o">==</span> <span class="s">&#39;DecimalField&#39;</span><span class="p">:</span>
-            <span class="k">return</span> <span class="n">value</span>
-        <span class="k">elif</span> <span class="n">internal_type</span> <span class="ow">and</span> <span class="n">internal_type</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s">&#39;IntegerField&#39;</span><span class="p">)</span> <span class="ow">or</span> <span class="n">internal_type</span> <span class="o">==</span> <span class="s">&#39;AutoField&#39;</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">internal_type</span> <span class="o">==</span> <span class="s">&#39;FloatField&#39;</span><span class="p">:</span>
+            <span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="p">(</span><span class="n">internal_type</span> <span class="ow">and</span> <span class="p">(</span><span class="n">internal_type</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s">&#39;IntegerField&#39;</span><span class="p">)</span>
+                                 <span class="ow">or</span> <span class="n">internal_type</span> <span class="o">==</span> <span class="s">&#39;AutoField&#39;</span><span class="p">)):</span>
             <span class="k">return</span> <span class="nb">int</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
-        <span class="k">elif</span> <span class="n">internal_type</span> <span class="ow">in</span> <span class="p">(</span><span class="s">&#39;DateField&#39;</span><span class="p">,</span> <span class="s">&#39;DateTimeField&#39;</span><span class="p">,</span> <span class="s">&#39;TimeField&#39;</span><span class="p">):</span>
-            <span class="k">return</span> <span class="n">value</span>
-        <span class="c"># No field, or the field isn&#39;t known to be a decimal or integer</span>
-        <span class="c"># Default to a float</span>
-        <span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">value</span>
 </div>
 <div class="viewcode-block" id="BaseDatabaseOperations.check_aggregate_support"><a class="viewcode-back" href="../../../django.db.backends.html#django.db.backends.BaseDatabaseOperations.check_aggregate_support">[docs]</a>    <span class="k">def</span> <span class="nf">check_aggregate_support</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">aggregate_func</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Check that the backend supports the provided aggregate</span>
@@ -914,6 +972,12 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">conn</span> <span class="o">=</span> <span class="s">&#39; </span><span class="si">%s</span><span class="s"> &#39;</span> <span class="o">%</span> <span class="n">connector</span>
         <span class="k">return</span> <span class="n">conn</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">sub_expressions</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="BaseDatabaseOperations.modify_insert_params"><a class="viewcode-back" href="../../../django.db.backends.html#django.db.backends.BaseDatabaseOperations.modify_insert_params">[docs]</a>    <span class="k">def</span> <span class="nf">modify_insert_params</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">placeholders</span><span class="p">,</span> <span class="n">params</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Allow modification of insert parameters. Needed for Oracle Spatial</span>
+<span class="sd">        backend due to #10888.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">params</span>
 </div></div>
 <div class="viewcode-block" id="BaseDatabaseIntrospection"><a class="viewcode-back" href="../../../django.db.backends.html#django.db.backends.BaseDatabaseIntrospection">[docs]</a><span class="k">class</span> <span class="nc">BaseDatabaseIntrospection</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
@@ -939,10 +1003,23 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="n">name</span>
 </div>
-<div class="viewcode-block" id="BaseDatabaseIntrospection.table_names"><a class="viewcode-back" href="../../../django.db.backends.html#django.db.backends.BaseDatabaseIntrospection.table_names">[docs]</a>    <span class="k">def</span> <span class="nf">table_names</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="s">&quot;Returns a list of names of all tables that exist in the database.&quot;</span>
-        <span class="n">cursor</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">cursor</span><span class="p">()</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_table_list</span><span class="p">(</span><span class="n">cursor</span><span class="p">)</span>
+<div class="viewcode-block" id="BaseDatabaseIntrospection.table_names"><a class="viewcode-back" href="../../../django.db.backends.html#django.db.backends.BaseDatabaseIntrospection.table_names">[docs]</a>    <span class="k">def</span> <span class="nf">table_names</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cursor</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns a list of names of all tables that exist in the database.</span>
+<span class="sd">        The returned table list is sorted by Python&#39;s default sorting. We</span>
+<span class="sd">        do NOT use database&#39;s ORDER BY here to avoid subtle differences</span>
+<span class="sd">        in sorting order between databases.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">cursor</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="n">cursor</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">cursor</span><span class="p">()</span>
+        <span class="k">return</span> <span class="nb">sorted</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">get_table_list</span><span class="p">(</span><span class="n">cursor</span><span class="p">))</span>
+</div>
+<div class="viewcode-block" id="BaseDatabaseIntrospection.get_table_list"><a class="viewcode-back" href="../../../django.db.backends.html#django.db.backends.BaseDatabaseIntrospection.get_table_list">[docs]</a>    <span class="k">def</span> <span class="nf">get_table_list</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cursor</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns an unsorted list of names of all tables that exist in the</span>
+<span class="sd">        database.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span>
 </div>
 <div class="viewcode-block" id="BaseDatabaseIntrospection.django_table_names"><a class="viewcode-back" href="../../../django.db.backends.html#django.db.backends.BaseDatabaseIntrospection.django_table_names">[docs]</a>    <span class="k">def</span> <span class="nf">django_table_names</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">only_existing</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
@@ -980,7 +1057,7 @@
             <span class="k">for</span> <span class="n">model</span> <span class="ow">in</span> <span class="n">models</span><span class="o">.</span><span class="n">get_models</span><span class="p">(</span><span class="n">app</span><span class="p">):</span>
                 <span class="k">if</span> <span class="n">router</span><span class="o">.</span><span class="n">allow_syncdb</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">alias</span><span class="p">,</span> <span class="n">model</span><span class="p">):</span>
                     <span class="n">all_models</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">model</span><span class="p">)</span>
-        <span class="n">tables</span> <span class="o">=</span> <span class="nb">map</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">table_name_converter</span><span class="p">,</span> <span class="n">tables</span><span class="p">)</span>
+        <span class="n">tables</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">table_name_converter</span><span class="p">,</span> <span class="n">tables</span><span class="p">))</span>
         <span class="k">return</span> <span class="nb">set</span><span class="p">([</span>
             <span class="n">m</span> <span class="k">for</span> <span class="n">m</span> <span class="ow">in</span> <span class="n">all_models</span>
             <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">table_name_converter</span><span class="p">(</span><span class="n">m</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">db_table</span><span class="p">)</span> <span class="ow">in</span> <span class="n">tables</span>
@@ -997,12 +1074,14 @@
             <span class="k">for</span> <span class="n">model</span> <span class="ow">in</span> <span class="n">models</span><span class="o">.</span><span class="n">get_models</span><span class="p">(</span><span class="n">app</span><span class="p">):</span>
                 <span class="k">if</span> <span class="ow">not</span> <span class="n">model</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">managed</span><span class="p">:</span>
                     <span class="k">continue</span>
+                <span class="k">if</span> <span class="n">model</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">swapped</span><span class="p">:</span>
+                    <span class="k">continue</span>
                 <span class="k">if</span> <span class="ow">not</span> <span class="n">router</span><span class="o">.</span><span class="n">allow_syncdb</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">alias</span><span class="p">,</span> <span class="n">model</span><span class="p">):</span>
                     <span class="k">continue</span>
                 <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">model</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">local_fields</span><span class="p">:</span>
                     <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="n">models</span><span class="o">.</span><span class="n">AutoField</span><span class="p">):</span>
                         <span class="n">sequence_list</span><span class="o">.</span><span class="n">append</span><span class="p">({</span><span class="s">&#39;table&#39;</span><span class="p">:</span> <span class="n">model</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">db_table</span><span class="p">,</span> <span class="s">&#39;column&#39;</span><span class="p">:</span> <span class="n">f</span><span class="o">.</span><span class="n">column</span><span class="p">})</span>
-                        <span class="k">break</span> <span class="c"># Only one AutoField is allowed per model, so don&#39;t bother continuing.</span>
+                        <span class="k">break</span>  <span class="c"># Only one AutoField is allowed per model, so don&#39;t bother continuing.</span>
 
                 <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">model</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">local_many_to_many</span><span class="p">:</span>
                     <span class="c"># If this is an m2m using an intermediate table,</span>
@@ -1021,9 +1100,24 @@
 </div>
 <div class="viewcode-block" id="BaseDatabaseIntrospection.get_primary_key_column"><a class="viewcode-back" href="../../../django.db.backends.html#django.db.backends.BaseDatabaseIntrospection.get_primary_key_column">[docs]</a>    <span class="k">def</span> <span class="nf">get_primary_key_column</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cursor</span><span class="p">,</span> <span class="n">table_name</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Backends can override this to return the column name of the primary key for the given table.</span>
+<span class="sd">        Returns the name of the primary key column for the given table.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">column</span> <span class="ow">in</span> <span class="n">six</span><span class="o">.</span><span class="n">iteritems</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">get_indexes</span><span class="p">(</span><span class="n">cursor</span><span class="p">,</span> <span class="n">table_name</span><span class="p">)):</span>
+            <span class="k">if</span> <span class="n">column</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="s">&#39;primary_key&#39;</span><span class="p">]:</span>
+                <span class="k">return</span> <span class="n">column</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="k">return</span> <span class="bp">None</span>
+</div>
+<div class="viewcode-block" id="BaseDatabaseIntrospection.get_indexes"><a class="viewcode-back" href="../../../django.db.backends.html#django.db.backends.BaseDatabaseIntrospection.get_indexes">[docs]</a>    <span class="k">def</span> <span class="nf">get_indexes</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cursor</span><span class="p">,</span> <span class="n">table_name</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns a dictionary of indexed fieldname -&gt; infodict for the given</span>
+<span class="sd">        table, where each infodict is in the format:</span>
+<span class="sd">            {&#39;primary_key&#39;: boolean representing whether it&#39;s the primary key,</span>
+<span class="sd">             &#39;unique&#39;: boolean representing whether it&#39;s a unique index}</span>
+
+<span class="sd">        Only single-column indexes are introspected.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">raise</span> <span class="ne">NotImplementedError</span>
+
 </div></div>
 <div class="viewcode-block" id="BaseDatabaseClient"><a class="viewcode-back" href="../../../django.db.backends.html#django.db.backends.BaseDatabaseClient">[docs]</a><span class="k">class</span> <span class="nc">BaseDatabaseClient</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
@@ -1040,6 +1134,7 @@
 
     <span class="k">def</span> <span class="nf">runshell</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">()</span>
+
 </div>
 <div class="viewcode-block" id="BaseDatabaseValidation"><a class="viewcode-back" href="../../../django.db.backends.html#django.db.backends.BaseDatabaseValidation">[docs]</a><span class="k">class</span> <span class="nc">BaseDatabaseValidation</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
@@ -1065,7 +1160,7 @@
 
     <div class="footer">
         &copy; Copyright 2012, HDKNR.COM.
-      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.2pre/3c28de26aac2.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2b1.
     </div>
   </body>
 </html>

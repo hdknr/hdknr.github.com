@@ -28,7 +28,7 @@
     <script type="text/javascript" src="../../../static/doctools.js"></script>
     <script type="text/javascript" src="../../../static/theme_extras.js"></script>
     <link rel="top" title="Django Cheat 1 documentation" href="../../../index.html" />
-    <link rel="up" title="django" href="../../django.html" /> 
+    <link rel="up" title="Module code" href="../../index.html" /> 
   </head>
   <body>
       <div class="header"><h1 class="heading"><a href="../../../index.html">
@@ -48,16 +48,18 @@
         
   <h1>Source code for django.middleware.common</h1><div class="highlight"><pre>
 <span class="kn">import</span> <span class="nn">hashlib</span>
+<span class="kn">import</span> <span class="nn">logging</span>
 <span class="kn">import</span> <span class="nn">re</span>
 
 <span class="kn">from</span> <span class="nn">django.conf</span> <span class="kn">import</span> <span class="n">settings</span>
 <span class="kn">from</span> <span class="nn">django</span> <span class="kn">import</span> <span class="n">http</span>
 <span class="kn">from</span> <span class="nn">django.core.mail</span> <span class="kn">import</span> <span class="n">mail_managers</span>
 <span class="kn">from</span> <span class="nn">django.utils.http</span> <span class="kn">import</span> <span class="n">urlquote</span>
+<span class="kn">from</span> <span class="nn">django.utils</span> <span class="kn">import</span> <span class="n">six</span>
 <span class="kn">from</span> <span class="nn">django.core</span> <span class="kn">import</span> <span class="n">urlresolvers</span>
-<span class="kn">from</span> <span class="nn">django.utils.log</span> <span class="kn">import</span> <span class="n">getLogger</span>
 
-<span class="n">logger</span> <span class="o">=</span> <span class="n">getLogger</span><span class="p">(</span><span class="s">&#39;django.request&#39;</span><span class="p">)</span>
+
+<span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="s">&#39;django.request&#39;</span><span class="p">)</span>
 
 
 <div class="viewcode-block" id="CommonMiddleware"><a class="viewcode-back" href="../../../django.middleware.html#django.middleware.common.CommonMiddleware">[docs]</a><span class="k">class</span> <span class="nc">CommonMiddleware</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
@@ -135,7 +137,17 @@
         <span class="k">else</span><span class="p">:</span>
             <span class="n">newurl</span> <span class="o">=</span> <span class="n">urlquote</span><span class="p">(</span><span class="n">new_url</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
         <span class="k">if</span> <span class="n">request</span><span class="o">.</span><span class="n">META</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;QUERY_STRING&#39;</span><span class="p">,</span> <span class="s">&#39;&#39;</span><span class="p">):</span>
-            <span class="n">newurl</span> <span class="o">+=</span> <span class="s">&#39;?&#39;</span> <span class="o">+</span> <span class="n">request</span><span class="o">.</span><span class="n">META</span><span class="p">[</span><span class="s">&#39;QUERY_STRING&#39;</span><span class="p">]</span>
+            <span class="k">if</span> <span class="n">six</span><span class="o">.</span><span class="n">PY3</span><span class="p">:</span>
+                <span class="n">newurl</span> <span class="o">+=</span> <span class="s">&#39;?&#39;</span> <span class="o">+</span> <span class="n">request</span><span class="o">.</span><span class="n">META</span><span class="p">[</span><span class="s">&#39;QUERY_STRING&#39;</span><span class="p">]</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="c"># `query_string` is a bytestring. Appending it to the unicode</span>
+                <span class="c"># string `newurl` will fail if it isn&#39;t ASCII-only. This isn&#39;t</span>
+                <span class="c"># allowed; only broken software generates such query strings.</span>
+                <span class="c"># Better drop the invalid query string than crash (#15152).</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="n">newurl</span> <span class="o">+=</span> <span class="s">&#39;?&#39;</span> <span class="o">+</span> <span class="n">request</span><span class="o">.</span><span class="n">META</span><span class="p">[</span><span class="s">&#39;QUERY_STRING&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">decode</span><span class="p">()</span>
+                <span class="k">except</span> <span class="ne">UnicodeDecodeError</span><span class="p">:</span>
+                    <span class="k">pass</span>
         <span class="k">return</span> <span class="n">http</span><span class="o">.</span><span class="n">HttpResponsePermanentRedirect</span><span class="p">(</span><span class="n">newurl</span><span class="p">)</span>
 </div>
 <div class="viewcode-block" id="CommonMiddleware.process_response"><a class="viewcode-back" href="../../../django.middleware.html#django.middleware.common.CommonMiddleware.process_response">[docs]</a>    <span class="k">def</span> <span class="nf">process_response</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">request</span><span class="p">,</span> <span class="n">response</span><span class="p">):</span>
@@ -161,14 +173,18 @@
         <span class="k">if</span> <span class="n">settings</span><span class="o">.</span><span class="n">USE_ETAGS</span><span class="p">:</span>
             <span class="k">if</span> <span class="n">response</span><span class="o">.</span><span class="n">has_header</span><span class="p">(</span><span class="s">&#39;ETag&#39;</span><span class="p">):</span>
                 <span class="n">etag</span> <span class="o">=</span> <span class="n">response</span><span class="p">[</span><span class="s">&#39;ETag&#39;</span><span class="p">]</span>
+            <span class="k">elif</span> <span class="n">response</span><span class="o">.</span><span class="n">streaming</span><span class="p">:</span>
+                <span class="n">etag</span> <span class="o">=</span> <span class="bp">None</span>
             <span class="k">else</span><span class="p">:</span>
                 <span class="n">etag</span> <span class="o">=</span> <span class="s">&#39;&quot;</span><span class="si">%s</span><span class="s">&quot;&#39;</span> <span class="o">%</span> <span class="n">hashlib</span><span class="o">.</span><span class="n">md5</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">content</span><span class="p">)</span><span class="o">.</span><span class="n">hexdigest</span><span class="p">()</span>
-            <span class="k">if</span> <span class="n">response</span><span class="o">.</span><span class="n">status_code</span> <span class="o">&gt;=</span> <span class="mi">200</span> <span class="ow">and</span> <span class="n">response</span><span class="o">.</span><span class="n">status_code</span> <span class="o">&lt;</span> <span class="mi">300</span> <span class="ow">and</span> <span class="n">request</span><span class="o">.</span><span class="n">META</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;HTTP_IF_NONE_MATCH&#39;</span><span class="p">)</span> <span class="o">==</span> <span class="n">etag</span><span class="p">:</span>
-                <span class="n">cookies</span> <span class="o">=</span> <span class="n">response</span><span class="o">.</span><span class="n">cookies</span>
-                <span class="n">response</span> <span class="o">=</span> <span class="n">http</span><span class="o">.</span><span class="n">HttpResponseNotModified</span><span class="p">()</span>
-                <span class="n">response</span><span class="o">.</span><span class="n">cookies</span> <span class="o">=</span> <span class="n">cookies</span>
-            <span class="k">else</span><span class="p">:</span>
-                <span class="n">response</span><span class="p">[</span><span class="s">&#39;ETag&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">etag</span>
+            <span class="k">if</span> <span class="n">etag</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+                <span class="k">if</span> <span class="p">(</span><span class="mi">200</span> <span class="o">&lt;=</span> <span class="n">response</span><span class="o">.</span><span class="n">status_code</span> <span class="o">&lt;</span> <span class="mi">300</span>
+                    <span class="ow">and</span> <span class="n">request</span><span class="o">.</span><span class="n">META</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;HTTP_IF_NONE_MATCH&#39;</span><span class="p">)</span> <span class="o">==</span> <span class="n">etag</span><span class="p">):</span>
+                    <span class="n">cookies</span> <span class="o">=</span> <span class="n">response</span><span class="o">.</span><span class="n">cookies</span>
+                    <span class="n">response</span> <span class="o">=</span> <span class="n">http</span><span class="o">.</span><span class="n">HttpResponseNotModified</span><span class="p">()</span>
+                    <span class="n">response</span><span class="o">.</span><span class="n">cookies</span> <span class="o">=</span> <span class="n">cookies</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">response</span><span class="p">[</span><span class="s">&#39;ETag&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">etag</span>
 
         <span class="k">return</span> <span class="n">response</span>
 </div></div>
@@ -179,16 +195,14 @@
     <span class="k">if</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">settings</span><span class="p">,</span> <span class="s">&#39;IGNORABLE_404_STARTS&#39;</span><span class="p">,</span> <span class="p">()):</span>
         <span class="kn">import</span> <span class="nn">warnings</span>
         <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s">&#39;The IGNORABLE_404_STARTS setting has been deprecated &#39;</span>
-                      <span class="s">&#39;in favor of IGNORABLE_404_URLS.&#39;</span><span class="p">,</span>
-                      <span class="ne">PendingDeprecationWarning</span><span class="p">)</span>
+                      <span class="s">&#39;in favor of IGNORABLE_404_URLS.&#39;</span><span class="p">,</span> <span class="ne">DeprecationWarning</span><span class="p">)</span>
         <span class="k">for</span> <span class="n">start</span> <span class="ow">in</span> <span class="n">settings</span><span class="o">.</span><span class="n">IGNORABLE_404_STARTS</span><span class="p">:</span>
             <span class="k">if</span> <span class="n">uri</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="n">start</span><span class="p">):</span>
                 <span class="k">return</span> <span class="bp">True</span>
     <span class="k">if</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">settings</span><span class="p">,</span> <span class="s">&#39;IGNORABLE_404_ENDS&#39;</span><span class="p">,</span> <span class="p">()):</span>
         <span class="kn">import</span> <span class="nn">warnings</span>
         <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s">&#39;The IGNORABLE_404_ENDS setting has been deprecated &#39;</span>
-                      <span class="s">&#39;in favor of IGNORABLE_404_URLS.&#39;</span><span class="p">,</span>
-                      <span class="ne">PendingDeprecationWarning</span><span class="p">)</span>
+                      <span class="s">&#39;in favor of IGNORABLE_404_URLS.&#39;</span><span class="p">,</span> <span class="ne">DeprecationWarning</span><span class="p">)</span>
         <span class="k">for</span> <span class="n">end</span> <span class="ow">in</span> <span class="n">settings</span><span class="o">.</span><span class="n">IGNORABLE_404_ENDS</span><span class="p">:</span>
             <span class="k">if</span> <span class="n">uri</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="n">end</span><span class="p">):</span>
                 <span class="k">return</span> <span class="bp">True</span>
@@ -214,7 +228,7 @@
 
     <div class="footer">
         &copy; Copyright 2012, HDKNR.COM.
-      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.2pre/3c28de26aac2.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2b1.
     </div>
   </body>
 </html>

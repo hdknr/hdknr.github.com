@@ -28,7 +28,7 @@
     <script type="text/javascript" src="../../../static/doctools.js"></script>
     <script type="text/javascript" src="../../../static/theme_extras.js"></script>
     <link rel="top" title="Django Cheat 1 documentation" href="../../../index.html" />
-    <link rel="up" title="django" href="../../django.html" /> 
+    <link rel="up" title="Module code" href="../../index.html" /> 
   </head>
   <body>
       <div class="header"><h1 class="heading"><a href="../../../index.html">
@@ -47,16 +47,19 @@
         
         
   <h1>Source code for django.test.testcases</h1><div class="highlight"><pre>
-<span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">with_statement</span>
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">unicode_literals</span>
 
 <span class="kn">import</span> <span class="nn">difflib</span>
+<span class="kn">import</span> <span class="nn">json</span>
 <span class="kn">import</span> <span class="nn">os</span>
 <span class="kn">import</span> <span class="nn">re</span>
 <span class="kn">import</span> <span class="nn">sys</span>
 <span class="kn">from</span> <span class="nn">copy</span> <span class="kn">import</span> <span class="n">copy</span>
 <span class="kn">from</span> <span class="nn">functools</span> <span class="kn">import</span> <span class="n">wraps</span>
-<span class="kn">from</span> <span class="nn">urlparse</span> <span class="kn">import</span> <span class="n">urlsplit</span><span class="p">,</span> <span class="n">urlunsplit</span>
-<span class="kn">from</span> <span class="nn">xml.dom.minidom</span> <span class="kn">import</span> <span class="n">parseString</span><span class="p">,</span> <span class="n">Node</span>
+<span class="k">try</span><span class="p">:</span>
+    <span class="kn">from</span> <span class="nn">urllib.parse</span> <span class="kn">import</span> <span class="n">urlsplit</span><span class="p">,</span> <span class="n">urlunsplit</span>
+<span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>     <span class="c"># Python 2</span>
+    <span class="kn">from</span> <span class="nn">urlparse</span> <span class="kn">import</span> <span class="n">urlsplit</span><span class="p">,</span> <span class="n">urlunsplit</span>
 <span class="kn">import</span> <span class="nn">select</span>
 <span class="kn">import</span> <span class="nn">socket</span>
 <span class="kn">import</span> <span class="nn">threading</span>
@@ -68,6 +71,7 @@
 <span class="kn">from</span> <span class="nn">django.core.exceptions</span> <span class="kn">import</span> <span class="n">ValidationError</span><span class="p">,</span> <span class="n">ImproperlyConfigured</span>
 <span class="kn">from</span> <span class="nn">django.core.handlers.wsgi</span> <span class="kn">import</span> <span class="n">WSGIHandler</span>
 <span class="kn">from</span> <span class="nn">django.core.management</span> <span class="kn">import</span> <span class="n">call_command</span>
+<span class="kn">from</span> <span class="nn">django.core.management.color</span> <span class="kn">import</span> <span class="n">no_style</span>
 <span class="kn">from</span> <span class="nn">django.core.signals</span> <span class="kn">import</span> <span class="n">request_started</span>
 <span class="kn">from</span> <span class="nn">django.core.servers.basehttp</span> <span class="kn">import</span> <span class="p">(</span><span class="n">WSGIRequestHandler</span><span class="p">,</span> <span class="n">WSGIServer</span><span class="p">,</span>
     <span class="n">WSGIServerException</span><span class="p">)</span>
@@ -82,11 +86,13 @@
 <span class="kn">from</span> <span class="nn">django.test.html</span> <span class="kn">import</span> <span class="n">HTMLParseError</span><span class="p">,</span> <span class="n">parse_html</span>
 <span class="kn">from</span> <span class="nn">django.test.signals</span> <span class="kn">import</span> <span class="n">template_rendered</span>
 <span class="kn">from</span> <span class="nn">django.test.utils</span> <span class="kn">import</span> <span class="p">(</span><span class="n">get_warnings_state</span><span class="p">,</span> <span class="n">restore_warnings_state</span><span class="p">,</span>
-    <span class="n">override_settings</span><span class="p">)</span>
+    <span class="n">override_settings</span><span class="p">,</span> <span class="n">compare_xml</span><span class="p">,</span> <span class="n">strip_quotes</span><span class="p">)</span>
 <span class="kn">from</span> <span class="nn">django.test.utils</span> <span class="kn">import</span> <span class="n">ContextList</span>
-<span class="kn">from</span> <span class="nn">django.utils</span> <span class="kn">import</span> <span class="n">simplejson</span><span class="p">,</span> <span class="n">unittest</span> <span class="k">as</span> <span class="n">ut2</span>
-<span class="kn">from</span> <span class="nn">django.utils.encoding</span> <span class="kn">import</span> <span class="n">smart_str</span><span class="p">,</span> <span class="n">force_unicode</span>
+<span class="kn">from</span> <span class="nn">django.utils</span> <span class="kn">import</span> <span class="n">unittest</span> <span class="k">as</span> <span class="n">ut2</span>
+<span class="kn">from</span> <span class="nn">django.utils.encoding</span> <span class="kn">import</span> <span class="n">force_text</span>
+<span class="kn">from</span> <span class="nn">django.utils</span> <span class="kn">import</span> <span class="n">six</span>
 <span class="kn">from</span> <span class="nn">django.utils.unittest.util</span> <span class="kn">import</span> <span class="n">safe_repr</span>
+<span class="kn">from</span> <span class="nn">django.utils.unittest</span> <span class="kn">import</span> <span class="n">skipIf</span>
 <span class="kn">from</span> <span class="nn">django.views.static</span> <span class="kn">import</span> <span class="n">serve</span>
 
 <span class="n">__all__</span> <span class="o">=</span> <span class="p">(</span><span class="s">&#39;DocTestRunner&#39;</span><span class="p">,</span> <span class="s">&#39;OutputChecker&#39;</span><span class="p">,</span> <span class="s">&#39;TestCase&#39;</span><span class="p">,</span> <span class="s">&#39;TransactionTestCase&#39;</span><span class="p">,</span>
@@ -95,6 +101,7 @@
 <span class="n">normalize_long_ints</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">s</span><span class="p">:</span> <span class="n">re</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="s">r&#39;(?&lt;![\w])(\d+)L(?![\w])&#39;</span><span class="p">,</span> <span class="s">&#39;</span><span class="se">\\</span><span class="s">1&#39;</span><span class="p">,</span> <span class="n">s</span><span class="p">)</span>
 <span class="n">normalize_decimals</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">s</span><span class="p">:</span> <span class="n">re</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="s">r&quot;Decimal\(&#39;(\d+(\.\d*)?)&#39;\)&quot;</span><span class="p">,</span>
                                 <span class="k">lambda</span> <span class="n">m</span><span class="p">:</span> <span class="s">&quot;Decimal(</span><span class="se">\&quot;</span><span class="si">%s</span><span class="se">\&quot;</span><span class="s">)&quot;</span> <span class="o">%</span> <span class="n">m</span><span class="o">.</span><span class="n">groups</span><span class="p">()[</span><span class="mi">0</span><span class="p">],</span> <span class="n">s</span><span class="p">)</span>
+
 
 <span class="k">def</span> <span class="nf">to_list</span><span class="p">(</span><span class="n">value</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
@@ -112,6 +119,7 @@
 <span class="n">real_enter_transaction_management</span> <span class="o">=</span> <span class="n">transaction</span><span class="o">.</span><span class="n">enter_transaction_management</span>
 <span class="n">real_leave_transaction_management</span> <span class="o">=</span> <span class="n">transaction</span><span class="o">.</span><span class="n">leave_transaction_management</span>
 <span class="n">real_managed</span> <span class="o">=</span> <span class="n">transaction</span><span class="o">.</span><span class="n">managed</span>
+<span class="n">real_abort</span> <span class="o">=</span> <span class="n">transaction</span><span class="o">.</span><span class="n">abort</span>
 
 <span class="k">def</span> <span class="nf">nop</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
     <span class="k">return</span>
@@ -122,6 +130,7 @@
     <span class="n">transaction</span><span class="o">.</span><span class="n">enter_transaction_management</span> <span class="o">=</span> <span class="n">nop</span>
     <span class="n">transaction</span><span class="o">.</span><span class="n">leave_transaction_management</span> <span class="o">=</span> <span class="n">nop</span>
     <span class="n">transaction</span><span class="o">.</span><span class="n">managed</span> <span class="o">=</span> <span class="n">nop</span>
+    <span class="n">transaction</span><span class="o">.</span><span class="n">abort</span> <span class="o">=</span> <span class="n">nop</span>
 
 <span class="k">def</span> <span class="nf">restore_transaction_methods</span><span class="p">():</span>
     <span class="n">transaction</span><span class="o">.</span><span class="n">commit</span> <span class="o">=</span> <span class="n">real_commit</span>
@@ -129,13 +138,14 @@
     <span class="n">transaction</span><span class="o">.</span><span class="n">enter_transaction_management</span> <span class="o">=</span> <span class="n">real_enter_transaction_management</span>
     <span class="n">transaction</span><span class="o">.</span><span class="n">leave_transaction_management</span> <span class="o">=</span> <span class="n">real_leave_transaction_management</span>
     <span class="n">transaction</span><span class="o">.</span><span class="n">managed</span> <span class="o">=</span> <span class="n">real_managed</span>
+    <span class="n">transaction</span><span class="o">.</span><span class="n">abort</span> <span class="o">=</span> <span class="n">real_abort</span>
 
 
 <span class="k">def</span> <span class="nf">assert_and_parse_html</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">html</span><span class="p">,</span> <span class="n">user_msg</span><span class="p">,</span> <span class="n">msg</span><span class="p">):</span>
     <span class="k">try</span><span class="p">:</span>
         <span class="n">dom</span> <span class="o">=</span> <span class="n">parse_html</span><span class="p">(</span><span class="n">html</span><span class="p">)</span>
-    <span class="k">except</span> <span class="n">HTMLParseError</span><span class="p">,</span> <span class="n">e</span><span class="p">:</span>
-        <span class="n">standardMsg</span> <span class="o">=</span> <span class="s">u&#39;</span><span class="si">%s</span><span class="se">\n</span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">msg</span><span class="p">,</span> <span class="n">e</span><span class="o">.</span><span class="n">msg</span><span class="p">)</span>
+    <span class="k">except</span> <span class="n">HTMLParseError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="n">standardMsg</span> <span class="o">=</span> <span class="s">&#39;</span><span class="si">%s</span><span class="se">\n</span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">msg</span><span class="p">,</span> <span class="n">e</span><span class="o">.</span><span class="n">msg</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">fail</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_formatMessage</span><span class="p">(</span><span class="n">user_msg</span><span class="p">,</span> <span class="n">standardMsg</span><span class="p">))</span>
     <span class="k">return</span> <span class="n">dom</span>
 
@@ -175,111 +185,22 @@
             <span class="n">optionflags</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">check_output_xml</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">want</span><span class="p">,</span> <span class="n">got</span><span class="p">,</span> <span class="n">optionsflags</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Tries to do a &#39;xml-comparision&#39; of want and got.  Plain string</span>
-<span class="sd">        comparision doesn&#39;t always work because, for example, attribute</span>
-<span class="sd">        ordering should not be important.</span>
-
-<span class="sd">        Based on http://codespeak.net/svn/lxml/trunk/src/lxml/doctestcompare.py</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">_norm_whitespace_re</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="s">r&#39;[ \t\n][ \t\n]+&#39;</span><span class="p">)</span>
-        <span class="k">def</span> <span class="nf">norm_whitespace</span><span class="p">(</span><span class="n">v</span><span class="p">):</span>
-            <span class="k">return</span> <span class="n">_norm_whitespace_re</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="s">&#39; &#39;</span><span class="p">,</span> <span class="n">v</span><span class="p">)</span>
-
-        <span class="k">def</span> <span class="nf">child_text</span><span class="p">(</span><span class="n">element</span><span class="p">):</span>
-            <span class="k">return</span> <span class="s">&#39;&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="n">c</span><span class="o">.</span><span class="n">data</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">element</span><span class="o">.</span><span class="n">childNodes</span>
-                            <span class="k">if</span> <span class="n">c</span><span class="o">.</span><span class="n">nodeType</span> <span class="o">==</span> <span class="n">Node</span><span class="o">.</span><span class="n">TEXT_NODE</span><span class="p">])</span>
-
-        <span class="k">def</span> <span class="nf">children</span><span class="p">(</span><span class="n">element</span><span class="p">):</span>
-            <span class="k">return</span> <span class="p">[</span><span class="n">c</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">element</span><span class="o">.</span><span class="n">childNodes</span>
-                    <span class="k">if</span> <span class="n">c</span><span class="o">.</span><span class="n">nodeType</span> <span class="o">==</span> <span class="n">Node</span><span class="o">.</span><span class="n">ELEMENT_NODE</span><span class="p">]</span>
-
-        <span class="k">def</span> <span class="nf">norm_child_text</span><span class="p">(</span><span class="n">element</span><span class="p">):</span>
-            <span class="k">return</span> <span class="n">norm_whitespace</span><span class="p">(</span><span class="n">child_text</span><span class="p">(</span><span class="n">element</span><span class="p">))</span>
-
-        <span class="k">def</span> <span class="nf">attrs_dict</span><span class="p">(</span><span class="n">element</span><span class="p">):</span>
-            <span class="k">return</span> <span class="nb">dict</span><span class="p">(</span><span class="n">element</span><span class="o">.</span><span class="n">attributes</span><span class="o">.</span><span class="n">items</span><span class="p">())</span>
-
-        <span class="k">def</span> <span class="nf">check_element</span><span class="p">(</span><span class="n">want_element</span><span class="p">,</span> <span class="n">got_element</span><span class="p">):</span>
-            <span class="k">if</span> <span class="n">want_element</span><span class="o">.</span><span class="n">tagName</span> <span class="o">!=</span> <span class="n">got_element</span><span class="o">.</span><span class="n">tagName</span><span class="p">:</span>
-                <span class="k">return</span> <span class="bp">False</span>
-            <span class="k">if</span> <span class="n">norm_child_text</span><span class="p">(</span><span class="n">want_element</span><span class="p">)</span> <span class="o">!=</span> <span class="n">norm_child_text</span><span class="p">(</span><span class="n">got_element</span><span class="p">):</span>
-                <span class="k">return</span> <span class="bp">False</span>
-            <span class="k">if</span> <span class="n">attrs_dict</span><span class="p">(</span><span class="n">want_element</span><span class="p">)</span> <span class="o">!=</span> <span class="n">attrs_dict</span><span class="p">(</span><span class="n">got_element</span><span class="p">):</span>
-                <span class="k">return</span> <span class="bp">False</span>
-            <span class="n">want_children</span> <span class="o">=</span> <span class="n">children</span><span class="p">(</span><span class="n">want_element</span><span class="p">)</span>
-            <span class="n">got_children</span> <span class="o">=</span> <span class="n">children</span><span class="p">(</span><span class="n">got_element</span><span class="p">)</span>
-            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">want_children</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="n">got_children</span><span class="p">):</span>
-                <span class="k">return</span> <span class="bp">False</span>
-            <span class="k">for</span> <span class="n">want</span><span class="p">,</span> <span class="n">got</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">want_children</span><span class="p">,</span> <span class="n">got_children</span><span class="p">):</span>
-                <span class="k">if</span> <span class="ow">not</span> <span class="n">check_element</span><span class="p">(</span><span class="n">want</span><span class="p">,</span> <span class="n">got</span><span class="p">):</span>
-                    <span class="k">return</span> <span class="bp">False</span>
-            <span class="k">return</span> <span class="bp">True</span>
-
-        <span class="n">want</span><span class="p">,</span> <span class="n">got</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_strip_quotes</span><span class="p">(</span><span class="n">want</span><span class="p">,</span> <span class="n">got</span><span class="p">)</span>
-        <span class="n">want</span> <span class="o">=</span> <span class="n">want</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s">&#39;</span><span class="se">\\</span><span class="s">n&#39;</span><span class="p">,</span><span class="s">&#39;</span><span class="se">\n</span><span class="s">&#39;</span><span class="p">)</span>
-        <span class="n">got</span> <span class="o">=</span> <span class="n">got</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s">&#39;</span><span class="se">\\</span><span class="s">n&#39;</span><span class="p">,</span><span class="s">&#39;</span><span class="se">\n</span><span class="s">&#39;</span><span class="p">)</span>
-
-        <span class="c"># If the string is not a complete xml document, we may need to add a</span>
-        <span class="c"># root element. This allow us to compare fragments, like &quot;&lt;foo/&gt;&lt;bar/&gt;&quot;</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">want</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s">&#39;&lt;?xml&#39;</span><span class="p">):</span>
-            <span class="n">wrapper</span> <span class="o">=</span> <span class="s">&#39;&lt;root&gt;</span><span class="si">%s</span><span class="s">&lt;/root&gt;&#39;</span>
-            <span class="n">want</span> <span class="o">=</span> <span class="n">wrapper</span> <span class="o">%</span> <span class="n">want</span>
-            <span class="n">got</span> <span class="o">=</span> <span class="n">wrapper</span> <span class="o">%</span> <span class="n">got</span>
-
-        <span class="c"># Parse the want and got strings, and compare the parsings.</span>
         <span class="k">try</span><span class="p">:</span>
-            <span class="n">want_root</span> <span class="o">=</span> <span class="n">parseString</span><span class="p">(</span><span class="n">want</span><span class="p">)</span><span class="o">.</span><span class="n">firstChild</span>
-            <span class="n">got_root</span> <span class="o">=</span> <span class="n">parseString</span><span class="p">(</span><span class="n">got</span><span class="p">)</span><span class="o">.</span><span class="n">firstChild</span>
+            <span class="k">return</span> <span class="n">compare_xml</span><span class="p">(</span><span class="n">want</span><span class="p">,</span> <span class="n">got</span><span class="p">)</span>
         <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
             <span class="k">return</span> <span class="bp">False</span>
-        <span class="k">return</span> <span class="n">check_element</span><span class="p">(</span><span class="n">want_root</span><span class="p">,</span> <span class="n">got_root</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">check_output_json</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">want</span><span class="p">,</span> <span class="n">got</span><span class="p">,</span> <span class="n">optionsflags</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Tries to compare want and got as if they were JSON-encoded data</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">want</span><span class="p">,</span> <span class="n">got</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_strip_quotes</span><span class="p">(</span><span class="n">want</span><span class="p">,</span> <span class="n">got</span><span class="p">)</span>
+        <span class="n">want</span><span class="p">,</span> <span class="n">got</span> <span class="o">=</span> <span class="n">strip_quotes</span><span class="p">(</span><span class="n">want</span><span class="p">,</span> <span class="n">got</span><span class="p">)</span>
         <span class="k">try</span><span class="p">:</span>
-            <span class="n">want_json</span> <span class="o">=</span> <span class="n">simplejson</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">want</span><span class="p">)</span>
-            <span class="n">got_json</span> <span class="o">=</span> <span class="n">simplejson</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">got</span><span class="p">)</span>
+            <span class="n">want_json</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">want</span><span class="p">)</span>
+            <span class="n">got_json</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">got</span><span class="p">)</span>
         <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
             <span class="k">return</span> <span class="bp">False</span>
         <span class="k">return</span> <span class="n">want_json</span> <span class="o">==</span> <span class="n">got_json</span>
-
-    <span class="k">def</span> <span class="nf">_strip_quotes</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">want</span><span class="p">,</span> <span class="n">got</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Strip quotes of doctests output values:</span>
-
-<span class="sd">        &gt;&gt;&gt; o = OutputChecker()</span>
-<span class="sd">        &gt;&gt;&gt; o._strip_quotes(&quot;&#39;foo&#39;&quot;)</span>
-<span class="sd">        &quot;foo&quot;</span>
-<span class="sd">        &gt;&gt;&gt; o._strip_quotes(&#39;&quot;foo&quot;&#39;)</span>
-<span class="sd">        &quot;foo&quot;</span>
-<span class="sd">        &gt;&gt;&gt; o._strip_quotes(&quot;u&#39;foo&#39;&quot;)</span>
-<span class="sd">        &quot;foo&quot;</span>
-<span class="sd">        &gt;&gt;&gt; o._strip_quotes(&#39;u&quot;foo&quot;&#39;)</span>
-<span class="sd">        &quot;foo&quot;</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">def</span> <span class="nf">is_quoted_string</span><span class="p">(</span><span class="n">s</span><span class="p">):</span>
-            <span class="n">s</span> <span class="o">=</span> <span class="n">s</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
-            <span class="k">return</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">s</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="mi">2</span>
-                    <span class="ow">and</span> <span class="n">s</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="n">s</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
-                    <span class="ow">and</span> <span class="n">s</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="ow">in</span> <span class="p">(</span><span class="s">&#39;&quot;&#39;</span><span class="p">,</span> <span class="s">&quot;&#39;&quot;</span><span class="p">))</span>
-
-        <span class="k">def</span> <span class="nf">is_quoted_unicode</span><span class="p">(</span><span class="n">s</span><span class="p">):</span>
-            <span class="n">s</span> <span class="o">=</span> <span class="n">s</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
-            <span class="k">return</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">s</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="mi">3</span>
-                    <span class="ow">and</span> <span class="n">s</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="s">&#39;u&#39;</span>
-                    <span class="ow">and</span> <span class="n">s</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="n">s</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
-                    <span class="ow">and</span> <span class="n">s</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="ow">in</span> <span class="p">(</span><span class="s">&#39;&quot;&#39;</span><span class="p">,</span> <span class="s">&quot;&#39;&quot;</span><span class="p">))</span>
-
-        <span class="k">if</span> <span class="n">is_quoted_string</span><span class="p">(</span><span class="n">want</span><span class="p">)</span> <span class="ow">and</span> <span class="n">is_quoted_string</span><span class="p">(</span><span class="n">got</span><span class="p">):</span>
-            <span class="n">want</span> <span class="o">=</span> <span class="n">want</span><span class="o">.</span><span class="n">strip</span><span class="p">()[</span><span class="mi">1</span><span class="p">:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
-            <span class="n">got</span> <span class="o">=</span> <span class="n">got</span><span class="o">.</span><span class="n">strip</span><span class="p">()[</span><span class="mi">1</span><span class="p">:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
-        <span class="k">elif</span> <span class="n">is_quoted_unicode</span><span class="p">(</span><span class="n">want</span><span class="p">)</span> <span class="ow">and</span> <span class="n">is_quoted_unicode</span><span class="p">(</span><span class="n">got</span><span class="p">):</span>
-            <span class="n">want</span> <span class="o">=</span> <span class="n">want</span><span class="o">.</span><span class="n">strip</span><span class="p">()[</span><span class="mi">2</span><span class="p">:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
-            <span class="n">got</span> <span class="o">=</span> <span class="n">got</span><span class="o">.</span><span class="n">strip</span><span class="p">()[</span><span class="mi">2</span><span class="p">:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
-        <span class="k">return</span> <span class="n">want</span><span class="p">,</span> <span class="n">got</span>
 
 
 <span class="k">class</span> <span class="nc">DocTestRunner</span><span class="p">(</span><span class="n">doctest</span><span class="o">.</span><span class="n">DocTestRunner</span><span class="p">):</span>
@@ -342,7 +263,7 @@
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">template_name</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">rendered_template_names</span>
 
     <span class="k">def</span> <span class="nf">message</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="k">return</span> <span class="s">u&#39;</span><span class="si">%s</span><span class="s"> was not rendered.&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">template_name</span>
+        <span class="k">return</span> <span class="s">&#39;</span><span class="si">%s</span><span class="s"> was not rendered.&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">template_name</span>
 
     <span class="k">def</span> <span class="nf">__enter__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="n">template_rendered</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">on_template_render</span><span class="p">)</span>
@@ -356,9 +277,9 @@
         <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">test</span><span class="p">():</span>
             <span class="n">message</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">message</span><span class="p">()</span>
             <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rendered_templates</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
-                <span class="n">message</span> <span class="o">+=</span> <span class="s">u&#39; No template was rendered.&#39;</span>
+                <span class="n">message</span> <span class="o">+=</span> <span class="s">&#39; No template was rendered.&#39;</span>
             <span class="k">else</span><span class="p">:</span>
-                <span class="n">message</span> <span class="o">+=</span> <span class="s">u&#39; Following templates were rendered: </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="p">(</span>
+                <span class="n">message</span> <span class="o">+=</span> <span class="s">&#39; Following templates were rendered: </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="p">(</span>
                     <span class="s">&#39;, &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rendered_template_names</span><span class="p">))</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">test_case</span><span class="o">.</span><span class="n">fail</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
 
@@ -368,10 +289,44 @@
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">template_name</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">rendered_template_names</span>
 
     <span class="k">def</span> <span class="nf">message</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="k">return</span> <span class="s">u&#39;</span><span class="si">%s</span><span class="s"> was rendered.&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">template_name</span>
+        <span class="k">return</span> <span class="s">&#39;</span><span class="si">%s</span><span class="s"> was rendered.&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">template_name</span>
 
 
 <span class="k">class</span> <span class="nc">SimpleTestCase</span><span class="p">(</span><span class="n">ut2</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">result</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Wrapper around default __call__ method to perform common Django test</span>
+<span class="sd">        set up. This means that user-defined Test Cases aren&#39;t required to</span>
+<span class="sd">        include a call to super().setUp().</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">testMethod</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_testMethodName</span><span class="p">)</span>
+        <span class="n">skipped</span> <span class="o">=</span> <span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="p">,</span> <span class="s">&quot;__unittest_skip__&quot;</span><span class="p">,</span> <span class="bp">False</span><span class="p">)</span> <span class="ow">or</span>
+            <span class="nb">getattr</span><span class="p">(</span><span class="n">testMethod</span><span class="p">,</span> <span class="s">&quot;__unittest_skip__&quot;</span><span class="p">,</span> <span class="bp">False</span><span class="p">))</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">skipped</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_pre_setup</span><span class="p">()</span>
+            <span class="k">except</span> <span class="p">(</span><span class="ne">KeyboardInterrupt</span><span class="p">,</span> <span class="ne">SystemExit</span><span class="p">):</span>
+                <span class="k">raise</span>
+            <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+                <span class="n">result</span><span class="o">.</span><span class="n">addError</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sys</span><span class="o">.</span><span class="n">exc_info</span><span class="p">())</span>
+                <span class="k">return</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">SimpleTestCase</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__call__</span><span class="p">(</span><span class="n">result</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">skipped</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_post_teardown</span><span class="p">()</span>
+            <span class="k">except</span> <span class="p">(</span><span class="ne">KeyboardInterrupt</span><span class="p">,</span> <span class="ne">SystemExit</span><span class="p">):</span>
+                <span class="k">raise</span>
+            <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+                <span class="n">result</span><span class="o">.</span><span class="n">addError</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sys</span><span class="o">.</span><span class="n">exc_info</span><span class="p">())</span>
+                <span class="k">return</span>
+
+    <span class="k">def</span> <span class="nf">_pre_setup</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">pass</span>
+
+    <span class="k">def</span> <span class="nf">_post_teardown</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">pass</span>
+
     <span class="k">def</span> <span class="nf">save_warnings_state</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Saves the state of the warnings module</span>
@@ -405,11 +360,11 @@
 <span class="sd">            args: Extra args.</span>
 <span class="sd">            kwargs: Extra kwargs.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaisesRegexp</span><span class="p">(</span><span class="n">expected_exception</span><span class="p">,</span>
+        <span class="k">return</span> <span class="n">six</span><span class="o">.</span><span class="n">assertRaisesRegex</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">expected_exception</span><span class="p">,</span>
                 <span class="n">re</span><span class="o">.</span><span class="n">escape</span><span class="p">(</span><span class="n">expected_message</span><span class="p">),</span> <span class="n">callable_obj</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">assertFieldOutput</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fieldclass</span><span class="p">,</span> <span class="n">valid</span><span class="p">,</span> <span class="n">invalid</span><span class="p">,</span> <span class="n">field_args</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
-            <span class="n">field_kwargs</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">empty_value</span><span class="o">=</span><span class="s">u&#39;&#39;</span><span class="p">):</span>
+            <span class="n">field_kwargs</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">empty_value</span><span class="o">=</span><span class="s">&#39;&#39;</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Asserts that a form field behaves correctly with various inputs.</span>
 
@@ -445,7 +400,7 @@
                 <span class="n">optional</span><span class="o">.</span><span class="n">clean</span><span class="p">(</span><span class="nb">input</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">context_manager</span><span class="o">.</span><span class="n">exception</span><span class="o">.</span><span class="n">messages</span><span class="p">,</span> <span class="n">errors</span><span class="p">)</span>
         <span class="c"># test required inputs</span>
-        <span class="n">error_required</span> <span class="o">=</span> <span class="p">[</span><span class="n">force_unicode</span><span class="p">(</span><span class="n">required</span><span class="o">.</span><span class="n">error_messages</span><span class="p">[</span><span class="s">&#39;required&#39;</span><span class="p">])]</span>
+        <span class="n">error_required</span> <span class="o">=</span> <span class="p">[</span><span class="n">force_text</span><span class="p">(</span><span class="n">required</span><span class="o">.</span><span class="n">error_messages</span><span class="p">[</span><span class="s">&#39;required&#39;</span><span class="p">])]</span>
         <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">EMPTY_VALUES</span><span class="p">:</span>
             <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="n">ValidationError</span><span class="p">)</span> <span class="k">as</span> <span class="n">context_manager</span><span class="p">:</span>
                 <span class="n">required</span><span class="o">.</span><span class="n">clean</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
@@ -465,36 +420,99 @@
 <span class="sd">        significant. The passed-in arguments must be valid HTML.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">dom1</span> <span class="o">=</span> <span class="n">assert_and_parse_html</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">html1</span><span class="p">,</span> <span class="n">msg</span><span class="p">,</span>
-            <span class="s">u&#39;First argument is not valid HTML:&#39;</span><span class="p">)</span>
+            <span class="s">&#39;First argument is not valid HTML:&#39;</span><span class="p">)</span>
         <span class="n">dom2</span> <span class="o">=</span> <span class="n">assert_and_parse_html</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">html2</span><span class="p">,</span> <span class="n">msg</span><span class="p">,</span>
-            <span class="s">u&#39;Second argument is not valid HTML:&#39;</span><span class="p">)</span>
+            <span class="s">&#39;Second argument is not valid HTML:&#39;</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="n">dom1</span> <span class="o">!=</span> <span class="n">dom2</span><span class="p">:</span>
             <span class="n">standardMsg</span> <span class="o">=</span> <span class="s">&#39;</span><span class="si">%s</span><span class="s"> != </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="p">(</span>
                 <span class="n">safe_repr</span><span class="p">(</span><span class="n">dom1</span><span class="p">,</span> <span class="bp">True</span><span class="p">),</span> <span class="n">safe_repr</span><span class="p">(</span><span class="n">dom2</span><span class="p">,</span> <span class="bp">True</span><span class="p">))</span>
             <span class="n">diff</span> <span class="o">=</span> <span class="p">(</span><span class="s">&#39;</span><span class="se">\n</span><span class="s">&#39;</span> <span class="o">+</span> <span class="s">&#39;</span><span class="se">\n</span><span class="s">&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">difflib</span><span class="o">.</span><span class="n">ndiff</span><span class="p">(</span>
-                           <span class="nb">unicode</span><span class="p">(</span><span class="n">dom1</span><span class="p">)</span><span class="o">.</span><span class="n">splitlines</span><span class="p">(),</span>
-                           <span class="nb">unicode</span><span class="p">(</span><span class="n">dom2</span><span class="p">)</span><span class="o">.</span><span class="n">splitlines</span><span class="p">())))</span>
+                           <span class="n">six</span><span class="o">.</span><span class="n">text_type</span><span class="p">(</span><span class="n">dom1</span><span class="p">)</span><span class="o">.</span><span class="n">splitlines</span><span class="p">(),</span>
+                           <span class="n">six</span><span class="o">.</span><span class="n">text_type</span><span class="p">(</span><span class="n">dom2</span><span class="p">)</span><span class="o">.</span><span class="n">splitlines</span><span class="p">())))</span>
             <span class="n">standardMsg</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_truncateMessage</span><span class="p">(</span><span class="n">standardMsg</span><span class="p">,</span> <span class="n">diff</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">fail</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_formatMessage</span><span class="p">(</span><span class="n">msg</span><span class="p">,</span> <span class="n">standardMsg</span><span class="p">))</span>
 
     <span class="k">def</span> <span class="nf">assertHTMLNotEqual</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">html1</span><span class="p">,</span> <span class="n">html2</span><span class="p">,</span> <span class="n">msg</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Asserts that two HTML snippets are not semantically equivalent.&quot;&quot;&quot;</span>
         <span class="n">dom1</span> <span class="o">=</span> <span class="n">assert_and_parse_html</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">html1</span><span class="p">,</span> <span class="n">msg</span><span class="p">,</span>
-            <span class="s">u&#39;First argument is not valid HTML:&#39;</span><span class="p">)</span>
+            <span class="s">&#39;First argument is not valid HTML:&#39;</span><span class="p">)</span>
         <span class="n">dom2</span> <span class="o">=</span> <span class="n">assert_and_parse_html</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">html2</span><span class="p">,</span> <span class="n">msg</span><span class="p">,</span>
-            <span class="s">u&#39;Second argument is not valid HTML:&#39;</span><span class="p">)</span>
+            <span class="s">&#39;Second argument is not valid HTML:&#39;</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="n">dom1</span> <span class="o">==</span> <span class="n">dom2</span><span class="p">:</span>
             <span class="n">standardMsg</span> <span class="o">=</span> <span class="s">&#39;</span><span class="si">%s</span><span class="s"> == </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="p">(</span>
                 <span class="n">safe_repr</span><span class="p">(</span><span class="n">dom1</span><span class="p">,</span> <span class="bp">True</span><span class="p">),</span> <span class="n">safe_repr</span><span class="p">(</span><span class="n">dom2</span><span class="p">,</span> <span class="bp">True</span><span class="p">))</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">fail</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_formatMessage</span><span class="p">(</span><span class="n">msg</span><span class="p">,</span> <span class="n">standardMsg</span><span class="p">))</span>
 
+    <span class="k">def</span> <span class="nf">assertInHTML</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">needle</span><span class="p">,</span> <span class="n">haystack</span><span class="p">,</span> <span class="n">count</span> <span class="o">=</span> <span class="bp">None</span><span class="p">,</span> <span class="n">msg_prefix</span><span class="o">=</span><span class="s">&#39;&#39;</span><span class="p">):</span>
+        <span class="n">needle</span> <span class="o">=</span> <span class="n">assert_and_parse_html</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">needle</span><span class="p">,</span> <span class="bp">None</span><span class="p">,</span>
+            <span class="s">&#39;First argument is not valid HTML:&#39;</span><span class="p">)</span>
+        <span class="n">haystack</span> <span class="o">=</span> <span class="n">assert_and_parse_html</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">haystack</span><span class="p">,</span> <span class="bp">None</span><span class="p">,</span>
+            <span class="s">&#39;Second argument is not valid HTML:&#39;</span><span class="p">)</span>
+        <span class="n">real_count</span> <span class="o">=</span> <span class="n">haystack</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="n">needle</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">count</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">real_count</span><span class="p">,</span> <span class="n">count</span><span class="p">,</span>
+                <span class="n">msg_prefix</span> <span class="o">+</span> <span class="s">&quot;Found </span><span class="si">%d</span><span class="s"> instances of &#39;</span><span class="si">%s</span><span class="s">&#39; in response&quot;</span>
+                <span class="s">&quot; (expected </span><span class="si">%d</span><span class="s">)&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">real_count</span><span class="p">,</span> <span class="n">needle</span><span class="p">,</span> <span class="n">count</span><span class="p">))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="n">real_count</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">,</span>
+                <span class="n">msg_prefix</span> <span class="o">+</span> <span class="s">&quot;Couldn&#39;t find &#39;</span><span class="si">%s</span><span class="s">&#39; in response&quot;</span> <span class="o">%</span> <span class="n">needle</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">assertJSONEqual</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">raw</span><span class="p">,</span> <span class="n">expected_data</span><span class="p">,</span> <span class="n">msg</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">data</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">raw</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">fail</span><span class="p">(</span><span class="s">&quot;First argument is not valid JSON: </span><span class="si">%r</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">raw</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">expected_data</span><span class="p">,</span> <span class="n">six</span><span class="o">.</span><span class="n">string_types</span><span class="p">):</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">expected_data</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">expected_data</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">fail</span><span class="p">(</span><span class="s">&quot;Second argument is not valid JSON: </span><span class="si">%r</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">expected_data</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">expected_data</span><span class="p">,</span> <span class="n">msg</span><span class="o">=</span><span class="n">msg</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">assertXMLEqual</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">xml1</span><span class="p">,</span> <span class="n">xml2</span><span class="p">,</span> <span class="n">msg</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Asserts that two XML snippets are semantically the same.</span>
+<span class="sd">        Whitespace in most cases is ignored, and attribute ordering is not</span>
+<span class="sd">        significant. The passed-in arguments must be valid XML.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">result</span> <span class="o">=</span> <span class="n">compare_xml</span><span class="p">(</span><span class="n">xml1</span><span class="p">,</span> <span class="n">xml2</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">standardMsg</span> <span class="o">=</span> <span class="s">&#39;First or second argument is not valid XML</span><span class="se">\n</span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">e</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">fail</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_formatMessage</span><span class="p">(</span><span class="n">msg</span><span class="p">,</span> <span class="n">standardMsg</span><span class="p">))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">result</span><span class="p">:</span>
+                <span class="n">standardMsg</span> <span class="o">=</span> <span class="s">&#39;</span><span class="si">%s</span><span class="s"> != </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">safe_repr</span><span class="p">(</span><span class="n">xml1</span><span class="p">,</span> <span class="bp">True</span><span class="p">),</span> <span class="n">safe_repr</span><span class="p">(</span><span class="n">xml2</span><span class="p">,</span> <span class="bp">True</span><span class="p">))</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">fail</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_formatMessage</span><span class="p">(</span><span class="n">msg</span><span class="p">,</span> <span class="n">standardMsg</span><span class="p">))</span>
+
+    <span class="k">def</span> <span class="nf">assertXMLNotEqual</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">xml1</span><span class="p">,</span> <span class="n">xml2</span><span class="p">,</span> <span class="n">msg</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Asserts that two XML snippets are not semantically equivalent.</span>
+<span class="sd">        Whitespace in most cases is ignored, and attribute ordering is not</span>
+<span class="sd">        significant. The passed-in arguments must be valid XML.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">result</span> <span class="o">=</span> <span class="n">compare_xml</span><span class="p">(</span><span class="n">xml1</span><span class="p">,</span> <span class="n">xml2</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">standardMsg</span> <span class="o">=</span> <span class="s">&#39;First or second argument is not valid XML</span><span class="se">\n</span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">e</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">fail</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_formatMessage</span><span class="p">(</span><span class="n">msg</span><span class="p">,</span> <span class="n">standardMsg</span><span class="p">))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">result</span><span class="p">:</span>
+                <span class="n">standardMsg</span> <span class="o">=</span> <span class="s">&#39;</span><span class="si">%s</span><span class="s"> == </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">safe_repr</span><span class="p">(</span><span class="n">xml1</span><span class="p">,</span> <span class="bp">True</span><span class="p">),</span> <span class="n">safe_repr</span><span class="p">(</span><span class="n">xml2</span><span class="p">,</span> <span class="bp">True</span><span class="p">))</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">fail</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_formatMessage</span><span class="p">(</span><span class="n">msg</span><span class="p">,</span> <span class="n">standardMsg</span><span class="p">))</span>
+
 
 <span class="k">class</span> <span class="nc">TransactionTestCase</span><span class="p">(</span><span class="n">SimpleTestCase</span><span class="p">):</span>
+
     <span class="c"># The class we&#39;ll use for the test client self.client.</span>
     <span class="c"># Can be overridden in derived classes.</span>
     <span class="n">client_class</span> <span class="o">=</span> <span class="n">Client</span>
+
+    <span class="c"># Subclasses can ask for resetting of auto increment sequence before each</span>
+    <span class="c"># test case</span>
+    <span class="n">reset_sequences</span> <span class="o">=</span> <span class="bp">False</span>
 
     <span class="k">def</span> <span class="nf">_pre_setup</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Performs any pre-test setup. This includes:</span>
@@ -506,60 +524,53 @@
 <span class="sd">              ROOT_URLCONF with it.</span>
 <span class="sd">            * Clearing the mail test outbox.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">client</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">client_class</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_fixture_setup</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_urlconf_setup</span><span class="p">()</span>
         <span class="n">mail</span><span class="o">.</span><span class="n">outbox</span> <span class="o">=</span> <span class="p">[]</span>
 
-    <span class="k">def</span> <span class="nf">_fixture_setup</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="c"># If the test case has a multi_db=True flag, flush all databases.</span>
-        <span class="c"># Otherwise, just flush default.</span>
+    <span class="k">def</span> <span class="nf">_databases_names</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">include_mirrors</span><span class="o">=</span><span class="bp">True</span><span class="p">):</span>
+        <span class="c"># If the test case has a multi_db=True flag, act on all databases,</span>
+        <span class="c"># including mirrors or not. Otherwise, just on the default DB.</span>
         <span class="k">if</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s">&#39;multi_db&#39;</span><span class="p">,</span> <span class="bp">False</span><span class="p">):</span>
-            <span class="n">databases</span> <span class="o">=</span> <span class="n">connections</span>
+            <span class="k">return</span> <span class="p">[</span><span class="n">alias</span> <span class="k">for</span> <span class="n">alias</span> <span class="ow">in</span> <span class="n">connections</span>
+                    <span class="k">if</span> <span class="n">include_mirrors</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">connections</span><span class="p">[</span><span class="n">alias</span><span class="p">]</span><span class="o">.</span><span class="n">settings_dict</span><span class="p">[</span><span class="s">&#39;TEST_MIRROR&#39;</span><span class="p">]]</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="n">databases</span> <span class="o">=</span> <span class="p">[</span><span class="n">DEFAULT_DB_ALIAS</span><span class="p">]</span>
-        <span class="k">for</span> <span class="n">db</span> <span class="ow">in</span> <span class="n">databases</span><span class="p">:</span>
-            <span class="n">call_command</span><span class="p">(</span><span class="s">&#39;flush&#39;</span><span class="p">,</span> <span class="n">verbosity</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">interactive</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">database</span><span class="o">=</span><span class="n">db</span><span class="p">)</span>
+            <span class="k">return</span> <span class="p">[</span><span class="n">DEFAULT_DB_ALIAS</span><span class="p">]</span>
+
+    <span class="k">def</span> <span class="nf">_reset_sequences</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">db_name</span><span class="p">):</span>
+        <span class="n">conn</span> <span class="o">=</span> <span class="n">connections</span><span class="p">[</span><span class="n">db_name</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">conn</span><span class="o">.</span><span class="n">features</span><span class="o">.</span><span class="n">supports_sequence_reset</span><span class="p">:</span>
+            <span class="n">sql_list</span> <span class="o">=</span> \
+                <span class="n">conn</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">sequence_reset_by_name_sql</span><span class="p">(</span><span class="n">no_style</span><span class="p">(),</span>
+                                                    <span class="n">conn</span><span class="o">.</span><span class="n">introspection</span><span class="o">.</span><span class="n">sequence_list</span><span class="p">())</span>
+            <span class="k">if</span> <span class="n">sql_list</span><span class="p">:</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="n">cursor</span> <span class="o">=</span> <span class="n">conn</span><span class="o">.</span><span class="n">cursor</span><span class="p">()</span>
+                    <span class="k">for</span> <span class="n">sql</span> <span class="ow">in</span> <span class="n">sql_list</span><span class="p">:</span>
+                        <span class="n">cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">sql</span><span class="p">)</span>
+                <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+                    <span class="n">transaction</span><span class="o">.</span><span class="n">rollback_unless_managed</span><span class="p">(</span><span class="n">using</span><span class="o">=</span><span class="n">db_name</span><span class="p">)</span>
+                    <span class="k">raise</span>
+                <span class="n">transaction</span><span class="o">.</span><span class="n">commit_unless_managed</span><span class="p">(</span><span class="n">using</span><span class="o">=</span><span class="n">db_name</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_fixture_setup</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">db_name</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_databases_names</span><span class="p">(</span><span class="n">include_mirrors</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+            <span class="c"># Reset sequences</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">reset_sequences</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_reset_sequences</span><span class="p">(</span><span class="n">db_name</span><span class="p">)</span>
 
             <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s">&#39;fixtures&#39;</span><span class="p">):</span>
                 <span class="c"># We have to use this slightly awkward syntax due to the fact</span>
                 <span class="c"># that we&#39;re using *args and **kwargs together.</span>
                 <span class="n">call_command</span><span class="p">(</span><span class="s">&#39;loaddata&#39;</span><span class="p">,</span> <span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">fixtures</span><span class="p">,</span>
-                             <span class="o">**</span><span class="p">{</span><span class="s">&#39;verbosity&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span> <span class="s">&#39;database&#39;</span><span class="p">:</span> <span class="n">db</span><span class="p">})</span>
+                             <span class="o">**</span><span class="p">{</span><span class="s">&#39;verbosity&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span> <span class="s">&#39;database&#39;</span><span class="p">:</span> <span class="n">db_name</span><span class="p">,</span> <span class="s">&#39;skip_validation&#39;</span><span class="p">:</span> <span class="bp">True</span><span class="p">})</span>
 
     <span class="k">def</span> <span class="nf">_urlconf_setup</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s">&#39;urls&#39;</span><span class="p">):</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_old_root_urlconf</span> <span class="o">=</span> <span class="n">settings</span><span class="o">.</span><span class="n">ROOT_URLCONF</span>
             <span class="n">settings</span><span class="o">.</span><span class="n">ROOT_URLCONF</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">urls</span>
             <span class="n">clear_url_caches</span><span class="p">()</span>
-
-    <span class="k">def</span> <span class="nf">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">result</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Wrapper around default __call__ method to perform common Django test</span>
-<span class="sd">        set up. This means that user-defined Test Cases aren&#39;t required to</span>
-<span class="sd">        include a call to super().setUp().</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">testMethod</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_testMethodName</span><span class="p">)</span>
-        <span class="n">skipped</span> <span class="o">=</span> <span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="p">,</span> <span class="s">&quot;__unittest_skip__&quot;</span><span class="p">,</span> <span class="bp">False</span><span class="p">)</span> <span class="ow">or</span>
-            <span class="nb">getattr</span><span class="p">(</span><span class="n">testMethod</span><span class="p">,</span> <span class="s">&quot;__unittest_skip__&quot;</span><span class="p">,</span> <span class="bp">False</span><span class="p">))</span>
-
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">skipped</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">client</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">client_class</span><span class="p">()</span>
-            <span class="k">try</span><span class="p">:</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">_pre_setup</span><span class="p">()</span>
-            <span class="k">except</span> <span class="p">(</span><span class="ne">KeyboardInterrupt</span><span class="p">,</span> <span class="ne">SystemExit</span><span class="p">):</span>
-                <span class="k">raise</span>
-            <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
-                <span class="n">result</span><span class="o">.</span><span class="n">addError</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sys</span><span class="o">.</span><span class="n">exc_info</span><span class="p">())</span>
-                <span class="k">return</span>
-        <span class="nb">super</span><span class="p">(</span><span class="n">TransactionTestCase</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__call__</span><span class="p">(</span><span class="n">result</span><span class="p">)</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">skipped</span><span class="p">:</span>
-            <span class="k">try</span><span class="p">:</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">_post_teardown</span><span class="p">()</span>
-            <span class="k">except</span> <span class="p">(</span><span class="ne">KeyboardInterrupt</span><span class="p">,</span> <span class="ne">SystemExit</span><span class="p">):</span>
-                <span class="k">raise</span>
-            <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
-                <span class="n">result</span><span class="o">.</span><span class="n">addError</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sys</span><span class="o">.</span><span class="n">exc_info</span><span class="p">())</span>
-                <span class="k">return</span>
 
     <span class="k">def</span> <span class="nf">_post_teardown</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot; Performs any post-test things. This includes:</span>
@@ -581,7 +592,14 @@
             <span class="n">conn</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
 
     <span class="k">def</span> <span class="nf">_fixture_teardown</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="k">pass</span>
+        <span class="c"># Roll back any pending transactions in order to avoid a deadlock</span>
+        <span class="c"># during flush when TEST_MIRROR is used (#18984).</span>
+        <span class="k">for</span> <span class="n">conn</span> <span class="ow">in</span> <span class="n">connections</span><span class="o">.</span><span class="n">all</span><span class="p">():</span>
+            <span class="n">conn</span><span class="o">.</span><span class="n">rollback_unless_managed</span><span class="p">()</span>
+
+        <span class="k">for</span> <span class="n">db</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_databases_names</span><span class="p">(</span><span class="n">include_mirrors</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+            <span class="n">call_command</span><span class="p">(</span><span class="s">&#39;flush&#39;</span><span class="p">,</span> <span class="n">verbosity</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">interactive</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">database</span><span class="o">=</span><span class="n">db</span><span class="p">,</span>
+                         <span class="n">skip_validation</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">reset_sequences</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">_urlconf_teardown</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s">&#39;_old_root_urlconf&#39;</span><span class="p">):</span>
@@ -669,13 +687,17 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">status_code</span><span class="p">,</span> <span class="n">status_code</span><span class="p">,</span>
             <span class="n">msg_prefix</span> <span class="o">+</span> <span class="s">&quot;Couldn&#39;t retrieve content: Response code was </span><span class="si">%d</span><span class="s">&quot;</span>
             <span class="s">&quot; (expected </span><span class="si">%d</span><span class="s">)&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">status_code</span><span class="p">,</span> <span class="n">status_code</span><span class="p">))</span>
-        <span class="n">text</span> <span class="o">=</span> <span class="n">smart_str</span><span class="p">(</span><span class="n">text</span><span class="p">,</span> <span class="n">response</span><span class="o">.</span><span class="n">_charset</span><span class="p">)</span>
-        <span class="n">content</span> <span class="o">=</span> <span class="n">response</span><span class="o">.</span><span class="n">content</span>
+        <span class="n">text</span> <span class="o">=</span> <span class="n">force_text</span><span class="p">(</span><span class="n">text</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="n">response</span><span class="o">.</span><span class="n">_charset</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">response</span><span class="o">.</span><span class="n">streaming</span><span class="p">:</span>
+            <span class="n">content</span> <span class="o">=</span> <span class="n">b</span><span class="s">&#39;&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">streaming_content</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">content</span> <span class="o">=</span> <span class="n">response</span><span class="o">.</span><span class="n">content</span>
+        <span class="n">content</span> <span class="o">=</span> <span class="n">content</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">_charset</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">html</span><span class="p">:</span>
             <span class="n">content</span> <span class="o">=</span> <span class="n">assert_and_parse_html</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">content</span><span class="p">,</span> <span class="bp">None</span><span class="p">,</span>
-                <span class="s">u&quot;Response&#39;s content is not valid HTML:&quot;</span><span class="p">)</span>
+                <span class="s">&quot;Response&#39;s content is not valid HTML:&quot;</span><span class="p">)</span>
             <span class="n">text</span> <span class="o">=</span> <span class="n">assert_and_parse_html</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">text</span><span class="p">,</span> <span class="bp">None</span><span class="p">,</span>
-                <span class="s">u&quot;Second argument is not valid HTML:&quot;</span><span class="p">)</span>
+                <span class="s">&quot;Second argument is not valid HTML:&quot;</span><span class="p">)</span>
         <span class="n">real_count</span> <span class="o">=</span> <span class="n">content</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="n">text</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">count</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">real_count</span><span class="p">,</span> <span class="n">count</span><span class="p">,</span>
@@ -705,13 +727,13 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">status_code</span><span class="p">,</span> <span class="n">status_code</span><span class="p">,</span>
             <span class="n">msg_prefix</span> <span class="o">+</span> <span class="s">&quot;Couldn&#39;t retrieve content: Response code was </span><span class="si">%d</span><span class="s">&quot;</span>
             <span class="s">&quot; (expected </span><span class="si">%d</span><span class="s">)&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">status_code</span><span class="p">,</span> <span class="n">status_code</span><span class="p">))</span>
-        <span class="n">text</span> <span class="o">=</span> <span class="n">smart_str</span><span class="p">(</span><span class="n">text</span><span class="p">,</span> <span class="n">response</span><span class="o">.</span><span class="n">_charset</span><span class="p">)</span>
-        <span class="n">content</span> <span class="o">=</span> <span class="n">response</span><span class="o">.</span><span class="n">content</span>
+        <span class="n">text</span> <span class="o">=</span> <span class="n">force_text</span><span class="p">(</span><span class="n">text</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="n">response</span><span class="o">.</span><span class="n">_charset</span><span class="p">)</span>
+        <span class="n">content</span> <span class="o">=</span> <span class="n">response</span><span class="o">.</span><span class="n">content</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">_charset</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">html</span><span class="p">:</span>
             <span class="n">content</span> <span class="o">=</span> <span class="n">assert_and_parse_html</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">content</span><span class="p">,</span> <span class="bp">None</span><span class="p">,</span>
-                <span class="s">u&#39;Response</span><span class="se">\&#39;</span><span class="s">s content is not valid HTML:&#39;</span><span class="p">)</span>
+                <span class="s">&#39;Response</span><span class="se">\&#39;</span><span class="s">s content is not valid HTML:&#39;</span><span class="p">)</span>
             <span class="n">text</span> <span class="o">=</span> <span class="n">assert_and_parse_html</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">text</span><span class="p">,</span> <span class="bp">None</span><span class="p">,</span>
-                <span class="s">u&#39;Second argument is not valid HTML:&#39;</span><span class="p">)</span>
+                <span class="s">&#39;Second argument is not valid HTML:&#39;</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">content</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="n">text</span><span class="p">),</span> <span class="mi">0</span><span class="p">,</span>
             <span class="n">msg_prefix</span> <span class="o">+</span> <span class="s">&quot;Response should not contain &#39;</span><span class="si">%s</span><span class="s">&#39;&quot;</span> <span class="o">%</span> <span class="n">text</span><span class="p">)</span>
 
@@ -772,7 +794,7 @@
 <span class="sd">        the response. Also usable as context manager.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="n">response</span> <span class="ow">is</span> <span class="bp">None</span> <span class="ow">and</span> <span class="n">template_name</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s">u&#39;response and/or template_name argument must be provided&#39;</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s">&#39;response and/or template_name argument must be provided&#39;</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="n">msg_prefix</span><span class="p">:</span>
             <span class="n">msg_prefix</span> <span class="o">+=</span> <span class="s">&quot;: &quot;</span>
@@ -791,7 +813,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="n">template_name</span> <span class="ow">in</span> <span class="n">template_names</span><span class="p">,</span>
             <span class="n">msg_prefix</span> <span class="o">+</span> <span class="s">&quot;Template &#39;</span><span class="si">%s</span><span class="s">&#39; was not a template used to render&quot;</span>
             <span class="s">&quot; the response. Actual template(s) used: </span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span>
-                <span class="p">(</span><span class="n">template_name</span><span class="p">,</span> <span class="s">u&#39;, &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">template_names</span><span class="p">)))</span>
+                <span class="p">(</span><span class="n">template_name</span><span class="p">,</span> <span class="s">&#39;, &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">template_names</span><span class="p">)))</span>
 
     <span class="k">def</span> <span class="nf">assertTemplateNotUsed</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">response</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">template_name</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">msg_prefix</span><span class="o">=</span><span class="s">&#39;&#39;</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
@@ -799,7 +821,7 @@
 <span class="sd">        rendering the response. Also usable as context manager.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="n">response</span> <span class="ow">is</span> <span class="bp">None</span> <span class="ow">and</span> <span class="n">template_name</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s">u&#39;response and/or template_name argument must be provided&#39;</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s">&#39;response and/or template_name argument must be provided&#39;</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="n">msg_prefix</span><span class="p">:</span>
             <span class="n">msg_prefix</span> <span class="o">+=</span> <span class="s">&quot;: &quot;</span>
@@ -818,9 +840,10 @@
             <span class="s">&quot; the response&quot;</span> <span class="o">%</span> <span class="n">template_name</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">assertQuerysetEqual</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">qs</span><span class="p">,</span> <span class="n">values</span><span class="p">,</span> <span class="n">transform</span><span class="o">=</span><span class="nb">repr</span><span class="p">,</span> <span class="n">ordered</span><span class="o">=</span><span class="bp">True</span><span class="p">):</span>
+        <span class="n">items</span> <span class="o">=</span> <span class="n">six</span><span class="o">.</span><span class="n">moves</span><span class="o">.</span><span class="n">map</span><span class="p">(</span><span class="n">transform</span><span class="p">,</span> <span class="n">qs</span><span class="p">)</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="n">ordered</span><span class="p">:</span>
-            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="n">transform</span><span class="p">,</span> <span class="n">qs</span><span class="p">)),</span> <span class="nb">set</span><span class="p">(</span><span class="n">values</span><span class="p">))</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="n">transform</span><span class="p">,</span> <span class="n">qs</span><span class="p">),</span> <span class="n">values</span><span class="p">)</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">items</span><span class="p">),</span> <span class="nb">set</span><span class="p">(</span><span class="n">values</span><span class="p">))</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">items</span><span class="p">),</span> <span class="n">values</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">assertNumQueries</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">num</span><span class="p">,</span> <span class="n">func</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
         <span class="n">using</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s">&quot;using&quot;</span><span class="p">,</span> <span class="n">DEFAULT_DB_ALIAS</span><span class="p">)</span>
@@ -855,43 +878,32 @@
         <span class="k">if</span> <span class="ow">not</span> <span class="n">connections_support_transactions</span><span class="p">():</span>
             <span class="k">return</span> <span class="nb">super</span><span class="p">(</span><span class="n">TestCase</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">_fixture_setup</span><span class="p">()</span>
 
-        <span class="c"># If the test case has a multi_db=True flag, setup all databases.</span>
-        <span class="c"># Otherwise, just use default.</span>
-        <span class="k">if</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s">&#39;multi_db&#39;</span><span class="p">,</span> <span class="bp">False</span><span class="p">):</span>
-            <span class="n">databases</span> <span class="o">=</span> <span class="n">connections</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="n">databases</span> <span class="o">=</span> <span class="p">[</span><span class="n">DEFAULT_DB_ALIAS</span><span class="p">]</span>
+        <span class="k">assert</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">reset_sequences</span><span class="p">,</span> <span class="s">&#39;reset_sequences cannot be used on TestCase instances&#39;</span>
 
-        <span class="k">for</span> <span class="n">db</span> <span class="ow">in</span> <span class="n">databases</span><span class="p">:</span>
-            <span class="n">transaction</span><span class="o">.</span><span class="n">enter_transaction_management</span><span class="p">(</span><span class="n">using</span><span class="o">=</span><span class="n">db</span><span class="p">)</span>
-            <span class="n">transaction</span><span class="o">.</span><span class="n">managed</span><span class="p">(</span><span class="bp">True</span><span class="p">,</span> <span class="n">using</span><span class="o">=</span><span class="n">db</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">db_name</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_databases_names</span><span class="p">():</span>
+            <span class="n">transaction</span><span class="o">.</span><span class="n">enter_transaction_management</span><span class="p">(</span><span class="n">using</span><span class="o">=</span><span class="n">db_name</span><span class="p">)</span>
+            <span class="n">transaction</span><span class="o">.</span><span class="n">managed</span><span class="p">(</span><span class="bp">True</span><span class="p">,</span> <span class="n">using</span><span class="o">=</span><span class="n">db_name</span><span class="p">)</span>
         <span class="n">disable_transaction_methods</span><span class="p">()</span>
 
         <span class="kn">from</span> <span class="nn">django.contrib.sites.models</span> <span class="kn">import</span> <span class="n">Site</span>
         <span class="n">Site</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">clear_cache</span><span class="p">()</span>
 
-        <span class="k">for</span> <span class="n">db</span> <span class="ow">in</span> <span class="n">databases</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">db</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_databases_names</span><span class="p">(</span><span class="n">include_mirrors</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
             <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s">&#39;fixtures&#39;</span><span class="p">):</span>
                 <span class="n">call_command</span><span class="p">(</span><span class="s">&#39;loaddata&#39;</span><span class="p">,</span> <span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">fixtures</span><span class="p">,</span>
                              <span class="o">**</span><span class="p">{</span>
                                 <span class="s">&#39;verbosity&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
                                 <span class="s">&#39;commit&#39;</span><span class="p">:</span> <span class="bp">False</span><span class="p">,</span>
-                                <span class="s">&#39;database&#39;</span><span class="p">:</span> <span class="n">db</span>
+                                <span class="s">&#39;database&#39;</span><span class="p">:</span> <span class="n">db</span><span class="p">,</span>
+                                <span class="s">&#39;skip_validation&#39;</span><span class="p">:</span> <span class="bp">True</span><span class="p">,</span>
                              <span class="p">})</span>
 
     <span class="k">def</span> <span class="nf">_fixture_teardown</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="n">connections_support_transactions</span><span class="p">():</span>
             <span class="k">return</span> <span class="nb">super</span><span class="p">(</span><span class="n">TestCase</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">_fixture_teardown</span><span class="p">()</span>
 
-        <span class="c"># If the test case has a multi_db=True flag, teardown all databases.</span>
-        <span class="c"># Otherwise, just teardown default.</span>
-        <span class="k">if</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s">&#39;multi_db&#39;</span><span class="p">,</span> <span class="bp">False</span><span class="p">):</span>
-            <span class="n">databases</span> <span class="o">=</span> <span class="n">connections</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="n">databases</span> <span class="o">=</span> <span class="p">[</span><span class="n">DEFAULT_DB_ALIAS</span><span class="p">]</span>
-
         <span class="n">restore_transaction_methods</span><span class="p">()</span>
-        <span class="k">for</span> <span class="n">db</span> <span class="ow">in</span> <span class="n">databases</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">db</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_databases_names</span><span class="p">():</span>
             <span class="n">transaction</span><span class="o">.</span><span class="n">rollback</span><span class="p">(</span><span class="n">using</span><span class="o">=</span><span class="n">db</span><span class="p">)</span>
             <span class="n">transaction</span><span class="o">.</span><span class="n">leave_transaction_management</span><span class="p">(</span><span class="n">using</span><span class="o">=</span><span class="n">db</span><span class="p">)</span>
 
@@ -940,23 +952,28 @@
         <span class="k">pass</span>
 
 
-<span class="k">class</span> <span class="nc">_ImprovedEvent</span><span class="p">(</span><span class="n">threading</span><span class="o">.</span><span class="n">_Event</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Does the same as `threading.Event` except it overrides the wait() method</span>
-<span class="sd">    with some code borrowed from Python 2.7 to return the set state of the</span>
-<span class="sd">    event (see: http://hg.python.org/cpython/rev/b5aa8aa78c0f/). This allows</span>
-<span class="sd">    to know whether the wait() method exited normally or because of the</span>
-<span class="sd">    timeout. This class can be removed when Django supports only Python &gt;= 2.7.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="k">if</span> <span class="n">sys</span><span class="o">.</span><span class="n">version_info</span> <span class="o">&gt;=</span> <span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">0</span><span class="p">):</span>
+    <span class="n">_ImprovedEvent</span> <span class="o">=</span> <span class="n">threading</span><span class="o">.</span><span class="n">Event</span>
+<span class="k">elif</span> <span class="n">sys</span><span class="o">.</span><span class="n">version_info</span> <span class="o">&gt;=</span> <span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">7</span><span class="p">,</span> <span class="mi">0</span><span class="p">):</span>
+    <span class="n">_ImprovedEvent</span> <span class="o">=</span> <span class="n">threading</span><span class="o">.</span><span class="n">_Event</span>
+<span class="k">else</span><span class="p">:</span>
+    <span class="k">class</span> <span class="nc">_ImprovedEvent</span><span class="p">(</span><span class="n">threading</span><span class="o">.</span><span class="n">_Event</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Does the same as `threading.Event` except it overrides the wait() method</span>
+<span class="sd">        with some code borrowed from Python 2.7 to return the set state of the</span>
+<span class="sd">        event (see: http://hg.python.org/cpython/rev/b5aa8aa78c0f/). This allows</span>
+<span class="sd">        to know whether the wait() method exited normally or because of the</span>
+<span class="sd">        timeout. This class can be removed when Django supports only Python &gt;= 2.7.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
 
-    <span class="k">def</span> <span class="nf">wait</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_Event__cond</span><span class="o">.</span><span class="n">acquire</span><span class="p">()</span>
-        <span class="k">try</span><span class="p">:</span>
-            <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_Event__flag</span><span class="p">:</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">_Event__cond</span><span class="o">.</span><span class="n">wait</span><span class="p">(</span><span class="n">timeout</span><span class="p">)</span>
-            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_Event__flag</span>
-        <span class="k">finally</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_Event__cond</span><span class="o">.</span><span class="n">release</span><span class="p">()</span>
+        <span class="k">def</span> <span class="nf">wait</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_Event__cond</span><span class="o">.</span><span class="n">acquire</span><span class="p">()</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_Event__flag</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_Event__cond</span><span class="o">.</span><span class="n">wait</span><span class="p">(</span><span class="n">timeout</span><span class="p">)</span>
+                <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_Event__flag</span>
+            <span class="k">finally</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_Event__cond</span><span class="o">.</span><span class="n">release</span><span class="p">()</span>
 
 
 <span class="k">class</span> <span class="nc">StoppableWSGIServer</span><span class="p">(</span><span class="n">WSGIServer</span><span class="p">):</span>
@@ -1085,13 +1102,10 @@
                 <span class="k">try</span><span class="p">:</span>
                     <span class="bp">self</span><span class="o">.</span><span class="n">httpd</span> <span class="o">=</span> <span class="n">StoppableWSGIServer</span><span class="p">(</span>
                         <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">host</span><span class="p">,</span> <span class="n">port</span><span class="p">),</span> <span class="n">QuietWSGIRequestHandler</span><span class="p">)</span>
-                <span class="k">except</span> <span class="n">WSGIServerException</span><span class="p">,</span> <span class="n">e</span><span class="p">:</span>
-                    <span class="k">if</span> <span class="n">sys</span><span class="o">.</span><span class="n">version_info</span> <span class="o">&lt;</span> <span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">6</span><span class="p">):</span>
-                        <span class="n">error_code</span> <span class="o">=</span> <span class="n">e</span><span class="o">.</span><span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
-                    <span class="k">else</span><span class="p">:</span>
-                        <span class="n">error_code</span> <span class="o">=</span> <span class="n">e</span><span class="o">.</span><span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">errno</span>
+                <span class="k">except</span> <span class="n">WSGIServerException</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
                     <span class="k">if</span> <span class="p">(</span><span class="n">index</span> <span class="o">+</span> <span class="mi">1</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">possible_ports</span><span class="p">)</span> <span class="ow">and</span>
-                        <span class="n">error_code</span> <span class="o">==</span> <span class="n">errno</span><span class="o">.</span><span class="n">EADDRINUSE</span><span class="p">):</span>
+                        <span class="nb">hasattr</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="s">&#39;errno&#39;</span><span class="p">)</span> <span class="ow">and</span>
+                        <span class="n">e</span><span class="o">.</span><span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">errno</span> <span class="o">==</span> <span class="n">errno</span><span class="o">.</span><span class="n">EADDRINUSE</span><span class="p">):</span>
                         <span class="c"># This port is already in use, so we go on and try with</span>
                         <span class="c"># the next one in the list.</span>
                         <span class="k">continue</span>
@@ -1108,7 +1122,7 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">httpd</span><span class="o">.</span><span class="n">set_app</span><span class="p">(</span><span class="n">handler</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">is_ready</span><span class="o">.</span><span class="n">set</span><span class="p">()</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">httpd</span><span class="o">.</span><span class="n">serve_forever</span><span class="p">()</span>
-        <span class="k">except</span> <span class="ne">Exception</span><span class="p">,</span> <span class="n">e</span><span class="p">:</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">error</span> <span class="o">=</span> <span class="n">e</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">is_ready</span><span class="o">.</span><span class="n">set</span><span class="p">()</span>
 
@@ -1143,7 +1157,7 @@
         <span class="k">for</span> <span class="n">conn</span> <span class="ow">in</span> <span class="n">connections</span><span class="o">.</span><span class="n">all</span><span class="p">():</span>
             <span class="c"># If using in-memory sqlite databases, pass the connections to</span>
             <span class="c"># the server thread.</span>
-            <span class="k">if</span> <span class="p">(</span><span class="n">conn</span><span class="o">.</span><span class="n">settings_dict</span><span class="p">[</span><span class="s">&#39;ENGINE&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="s">&#39;django.db.backends.sqlite3&#39;</span>
+            <span class="k">if</span> <span class="p">(</span><span class="n">conn</span><span class="o">.</span><span class="n">settings_dict</span><span class="p">[</span><span class="s">&#39;ENGINE&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">rsplit</span><span class="p">(</span><span class="s">&#39;.&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="ow">in</span> <span class="p">(</span><span class="s">&#39;sqlite3&#39;</span><span class="p">,</span> <span class="s">&#39;spatialite&#39;</span><span class="p">)</span>
                 <span class="ow">and</span> <span class="n">conn</span><span class="o">.</span><span class="n">settings_dict</span><span class="p">[</span><span class="s">&#39;NAME&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="s">&#39;:memory:&#39;</span><span class="p">):</span>
                 <span class="c"># Explicitly enable thread-shareability for this connection</span>
                 <span class="n">conn</span><span class="o">.</span><span class="n">allow_thread_sharing</span> <span class="o">=</span> <span class="bp">True</span>
@@ -1161,7 +1175,7 @@
             <span class="n">host</span><span class="p">,</span> <span class="n">port_ranges</span> <span class="o">=</span> <span class="n">specified_address</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&#39;:&#39;</span><span class="p">)</span>
             <span class="k">for</span> <span class="n">port_range</span> <span class="ow">in</span> <span class="n">port_ranges</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&#39;,&#39;</span><span class="p">):</span>
                 <span class="c"># A port range can be of either form: &#39;8000&#39; or &#39;8000-8010&#39;.</span>
-                <span class="n">extremes</span> <span class="o">=</span> <span class="nb">map</span><span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="n">port_range</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&#39;-&#39;</span><span class="p">))</span>
+                <span class="n">extremes</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="n">port_range</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&#39;-&#39;</span><span class="p">)))</span>
                 <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">extremes</span><span class="p">)</span> <span class="ow">in</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">]</span>
                 <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">extremes</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
                     <span class="c"># Port range of the form &#39;8000&#39;</span>
@@ -1192,6 +1206,13 @@
         <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="s">&#39;server_thread&#39;</span><span class="p">):</span>
             <span class="c"># Terminate the live server&#39;s thread</span>
             <span class="n">cls</span><span class="o">.</span><span class="n">server_thread</span><span class="o">.</span><span class="n">join</span><span class="p">()</span>
+
+        <span class="c"># Restore sqlite connections&#39; non-sharability</span>
+        <span class="k">for</span> <span class="n">conn</span> <span class="ow">in</span> <span class="n">connections</span><span class="o">.</span><span class="n">all</span><span class="p">():</span>
+            <span class="k">if</span> <span class="p">(</span><span class="n">conn</span><span class="o">.</span><span class="n">settings_dict</span><span class="p">[</span><span class="s">&#39;ENGINE&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">rsplit</span><span class="p">(</span><span class="s">&#39;.&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="ow">in</span> <span class="p">(</span><span class="s">&#39;sqlite3&#39;</span><span class="p">,</span> <span class="s">&#39;spatialite&#39;</span><span class="p">)</span>
+                <span class="ow">and</span> <span class="n">conn</span><span class="o">.</span><span class="n">settings_dict</span><span class="p">[</span><span class="s">&#39;NAME&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="s">&#39;:memory:&#39;</span><span class="p">):</span>
+                <span class="n">conn</span><span class="o">.</span><span class="n">allow_thread_sharing</span> <span class="o">=</span> <span class="bp">False</span>
+
         <span class="nb">super</span><span class="p">(</span><span class="n">LiveServerTestCase</span><span class="p">,</span> <span class="n">cls</span><span class="p">)</span><span class="o">.</span><span class="n">tearDownClass</span><span class="p">()</span>
 </pre></div>
 
@@ -1207,7 +1228,7 @@
 
     <div class="footer">
         &copy; Copyright 2012, HDKNR.COM.
-      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.2pre/3c28de26aac2.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2b1.
     </div>
   </body>
 </html>

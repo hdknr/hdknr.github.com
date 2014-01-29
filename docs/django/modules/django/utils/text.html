@@ -28,7 +28,7 @@
     <script type="text/javascript" src="../../../static/doctools.js"></script>
     <script type="text/javascript" src="../../../static/theme_extras.js"></script>
     <link rel="top" title="Django Cheat 1 documentation" href="../../../index.html" />
-    <link rel="up" title="django" href="../../django.html" /> 
+    <link rel="up" title="Module code" href="../../index.html" /> 
   </head>
   <body>
       <div class="header"><h1 class="heading"><a href="../../../index.html">
@@ -47,24 +47,29 @@
         
         
   <h1>Source code for django.utils.text</h1><div class="highlight"><pre>
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">unicode_literals</span>
+
 <span class="kn">import</span> <span class="nn">re</span>
 <span class="kn">import</span> <span class="nn">unicodedata</span>
 <span class="kn">import</span> <span class="nn">warnings</span>
 <span class="kn">from</span> <span class="nn">gzip</span> <span class="kn">import</span> <span class="n">GzipFile</span>
-<span class="kn">from</span> <span class="nn">htmlentitydefs</span> <span class="kn">import</span> <span class="n">name2codepoint</span>
+<span class="kn">from</span> <span class="nn">io</span> <span class="kn">import</span> <span class="n">BytesIO</span>
 
-<span class="k">try</span><span class="p">:</span>
-    <span class="kn">from</span> <span class="nn">cStringIO</span> <span class="kn">import</span> <span class="n">StringIO</span>
-<span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
-    <span class="kn">from</span> <span class="nn">StringIO</span> <span class="kn">import</span> <span class="n">StringIO</span>
-
-<span class="kn">from</span> <span class="nn">django.utils.encoding</span> <span class="kn">import</span> <span class="n">force_unicode</span>
+<span class="kn">from</span> <span class="nn">django.utils.encoding</span> <span class="kn">import</span> <span class="n">force_text</span>
 <span class="kn">from</span> <span class="nn">django.utils.functional</span> <span class="kn">import</span> <span class="n">allow_lazy</span><span class="p">,</span> <span class="n">SimpleLazyObject</span>
+<span class="kn">from</span> <span class="nn">django.utils</span> <span class="kn">import</span> <span class="n">six</span>
+<span class="kn">from</span> <span class="nn">django.utils.six.moves</span> <span class="kn">import</span> <span class="n">html_entities</span>
 <span class="kn">from</span> <span class="nn">django.utils.translation</span> <span class="kn">import</span> <span class="n">ugettext_lazy</span><span class="p">,</span> <span class="n">ugettext</span> <span class="k">as</span> <span class="n">_</span><span class="p">,</span> <span class="n">pgettext</span>
+<span class="kn">from</span> <span class="nn">django.utils.safestring</span> <span class="kn">import</span> <span class="n">mark_safe</span>
+
+<span class="k">if</span> <span class="ow">not</span> <span class="n">six</span><span class="o">.</span><span class="n">PY3</span><span class="p">:</span>
+    <span class="c"># Import force_unicode even though this module doesn&#39;t use it, because some</span>
+    <span class="c"># people rely on it being here.</span>
+    <span class="kn">from</span> <span class="nn">django.utils.encoding</span> <span class="kn">import</span> <span class="n">force_unicode</span>
 
 <span class="c"># Capitalizes the first letter of a string.</span>
-<span class="n">capfirst</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span> <span class="ow">and</span> <span class="n">force_unicode</span><span class="p">(</span><span class="n">x</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">upper</span><span class="p">()</span> <span class="o">+</span> <span class="n">force_unicode</span><span class="p">(</span><span class="n">x</span><span class="p">)[</span><span class="mi">1</span><span class="p">:]</span>
-<span class="n">capfirst</span> <span class="o">=</span> <span class="n">allow_lazy</span><span class="p">(</span><span class="n">capfirst</span><span class="p">,</span> <span class="nb">unicode</span><span class="p">)</span>
+<span class="n">capfirst</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span> <span class="ow">and</span> <span class="n">force_text</span><span class="p">(</span><span class="n">x</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">upper</span><span class="p">()</span> <span class="o">+</span> <span class="n">force_text</span><span class="p">(</span><span class="n">x</span><span class="p">)[</span><span class="mi">1</span><span class="p">:]</span>
+<span class="n">capfirst</span> <span class="o">=</span> <span class="n">allow_lazy</span><span class="p">(</span><span class="n">capfirst</span><span class="p">,</span> <span class="n">six</span><span class="o">.</span><span class="n">text_type</span><span class="p">)</span>
 
 <span class="c"># Set up regular expressions</span>
 <span class="n">re_words</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="s">r&#39;&amp;.*?;|&lt;.*?&gt;|(\w[\w-]*)&#39;</span><span class="p">,</span> <span class="n">re</span><span class="o">.</span><span class="n">U</span><span class="o">|</span><span class="n">re</span><span class="o">.</span><span class="n">S</span><span class="p">)</span>
@@ -76,10 +81,10 @@
 <span class="sd">    A word-wrap function that preserves existing line breaks and most spaces in</span>
 <span class="sd">    the text. Expects that existing line breaks are posix newlines.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="n">text</span> <span class="o">=</span> <span class="n">force_unicode</span><span class="p">(</span><span class="n">text</span><span class="p">)</span>
+    <span class="n">text</span> <span class="o">=</span> <span class="n">force_text</span><span class="p">(</span><span class="n">text</span><span class="p">)</span>
     <span class="k">def</span> <span class="nf">_generator</span><span class="p">():</span>
         <span class="n">it</span> <span class="o">=</span> <span class="nb">iter</span><span class="p">(</span><span class="n">text</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&#39; &#39;</span><span class="p">))</span>
-        <span class="n">word</span> <span class="o">=</span> <span class="n">it</span><span class="o">.</span><span class="n">next</span><span class="p">()</span>
+        <span class="n">word</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="n">it</span><span class="p">)</span>
         <span class="k">yield</span> <span class="n">word</span>
         <span class="n">pos</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">word</span><span class="p">)</span> <span class="o">-</span> <span class="n">word</span><span class="o">.</span><span class="n">rfind</span><span class="p">(</span><span class="s">&#39;</span><span class="se">\n</span><span class="s">&#39;</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span>
         <span class="k">for</span> <span class="n">word</span> <span class="ow">in</span> <span class="n">it</span><span class="p">:</span>
@@ -96,8 +101,8 @@
                 <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">lines</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
                     <span class="n">pos</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">lines</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
             <span class="k">yield</span> <span class="n">word</span>
-    <span class="k">return</span> <span class="s">u&#39;&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">_generator</span><span class="p">())</span></div>
-<span class="n">wrap</span> <span class="o">=</span> <span class="n">allow_lazy</span><span class="p">(</span><span class="n">wrap</span><span class="p">,</span> <span class="nb">unicode</span><span class="p">)</span>
+    <span class="k">return</span> <span class="s">&#39;&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">_generator</span><span class="p">())</span></div>
+<span class="n">wrap</span> <span class="o">=</span> <span class="n">allow_lazy</span><span class="p">(</span><span class="n">wrap</span><span class="p">,</span> <span class="n">six</span><span class="o">.</span><span class="n">text_type</span><span class="p">)</span>
 
 
 <div class="viewcode-block" id="Truncator"><a class="viewcode-back" href="../../../django.utils.html#django.utils.text.Truncator">[docs]</a><span class="k">class</span> <span class="nc">Truncator</span><span class="p">(</span><span class="n">SimpleLazyObject</span><span class="p">):</span>
@@ -105,14 +110,14 @@
 <span class="sd">    An object used to truncate text, either by characters or words.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">text</span><span class="p">):</span>
-        <span class="nb">super</span><span class="p">(</span><span class="n">Truncator</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="k">lambda</span><span class="p">:</span> <span class="n">force_unicode</span><span class="p">(</span><span class="n">text</span><span class="p">))</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">Truncator</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="k">lambda</span><span class="p">:</span> <span class="n">force_text</span><span class="p">(</span><span class="n">text</span><span class="p">))</span>
 
     <span class="k">def</span> <span class="nf">add_truncation_text</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">text</span><span class="p">,</span> <span class="n">truncate</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
         <span class="k">if</span> <span class="n">truncate</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
             <span class="n">truncate</span> <span class="o">=</span> <span class="n">pgettext</span><span class="p">(</span>
                 <span class="s">&#39;String to return when truncating text&#39;</span><span class="p">,</span>
-                <span class="s">u&#39;</span><span class="si">%(truncated_text)s</span><span class="s">...&#39;</span><span class="p">)</span>
-        <span class="n">truncate</span> <span class="o">=</span> <span class="n">force_unicode</span><span class="p">(</span><span class="n">truncate</span><span class="p">)</span>
+                <span class="s">&#39;</span><span class="si">%(truncated_text)s</span><span class="s">...&#39;</span><span class="p">)</span>
+        <span class="n">truncate</span> <span class="o">=</span> <span class="n">force_text</span><span class="p">(</span><span class="n">truncate</span><span class="p">)</span>
         <span class="k">if</span> <span class="s">&#39;</span><span class="si">%(truncated_text)s</span><span class="s">&#39;</span> <span class="ow">in</span> <span class="n">truncate</span><span class="p">:</span>
             <span class="k">return</span> <span class="n">truncate</span> <span class="o">%</span> <span class="p">{</span><span class="s">&#39;truncated_text&#39;</span><span class="p">:</span> <span class="n">text</span><span class="p">}</span>
         <span class="c"># The truncation text didn&#39;t contain the %(truncated_text)s string</span>
@@ -183,8 +188,8 @@
         <span class="n">words</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_wrapped</span><span class="o">.</span><span class="n">split</span><span class="p">()</span>
         <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">words</span><span class="p">)</span> <span class="o">&gt;</span> <span class="n">length</span><span class="p">:</span>
             <span class="n">words</span> <span class="o">=</span> <span class="n">words</span><span class="p">[:</span><span class="n">length</span><span class="p">]</span>
-            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">add_truncation_text</span><span class="p">(</span><span class="s">u&#39; &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">words</span><span class="p">),</span> <span class="n">truncate</span><span class="p">)</span>
-        <span class="k">return</span> <span class="s">u&#39; &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">words</span><span class="p">)</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">add_truncation_text</span><span class="p">(</span><span class="s">&#39; &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">words</span><span class="p">),</span> <span class="n">truncate</span><span class="p">)</span>
+        <span class="k">return</span> <span class="s">&#39; &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">words</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">_html_words</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">length</span><span class="p">,</span> <span class="n">truncate</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
@@ -195,7 +200,7 @@
 <span class="sd">        Newlines in the HTML are preserved.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="n">length</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">:</span>
-            <span class="k">return</span> <span class="s">u&#39;&#39;</span>
+            <span class="k">return</span> <span class="s">&#39;&#39;</span>
         <span class="n">html4_singlets</span> <span class="o">=</span> <span class="p">(</span>
             <span class="s">&#39;br&#39;</span><span class="p">,</span> <span class="s">&#39;col&#39;</span><span class="p">,</span> <span class="s">&#39;link&#39;</span><span class="p">,</span> <span class="s">&#39;base&#39;</span><span class="p">,</span> <span class="s">&#39;img&#39;</span><span class="p">,</span>
             <span class="s">&#39;param&#39;</span><span class="p">,</span> <span class="s">&#39;area&#39;</span><span class="p">,</span> <span class="s">&#39;hr&#39;</span><span class="p">,</span> <span class="s">&#39;input&#39;</span>
@@ -255,17 +260,17 @@
 </div>
 <span class="k">def</span> <span class="nf">truncate_words</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">num</span><span class="p">,</span> <span class="n">end_text</span><span class="o">=</span><span class="s">&#39;...&#39;</span><span class="p">):</span>
     <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s">&#39;This function has been deprecated. Use the Truncator class &#39;</span>
-        <span class="s">&#39;in django.utils.text instead.&#39;</span><span class="p">,</span> <span class="n">category</span><span class="o">=</span><span class="ne">PendingDeprecationWarning</span><span class="p">)</span>
+        <span class="s">&#39;in django.utils.text instead.&#39;</span><span class="p">,</span> <span class="n">category</span><span class="o">=</span><span class="ne">DeprecationWarning</span><span class="p">)</span>
     <span class="n">truncate</span> <span class="o">=</span> <span class="n">end_text</span> <span class="ow">and</span> <span class="s">&#39; </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">end_text</span> <span class="ow">or</span> <span class="s">&#39;&#39;</span>
     <span class="k">return</span> <span class="n">Truncator</span><span class="p">(</span><span class="n">s</span><span class="p">)</span><span class="o">.</span><span class="n">words</span><span class="p">(</span><span class="n">num</span><span class="p">,</span> <span class="n">truncate</span><span class="o">=</span><span class="n">truncate</span><span class="p">)</span>
-<span class="n">truncate_words</span> <span class="o">=</span> <span class="n">allow_lazy</span><span class="p">(</span><span class="n">truncate_words</span><span class="p">,</span> <span class="nb">unicode</span><span class="p">)</span>
+<span class="n">truncate_words</span> <span class="o">=</span> <span class="n">allow_lazy</span><span class="p">(</span><span class="n">truncate_words</span><span class="p">,</span> <span class="n">six</span><span class="o">.</span><span class="n">text_type</span><span class="p">)</span>
 
 <span class="k">def</span> <span class="nf">truncate_html_words</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">num</span><span class="p">,</span> <span class="n">end_text</span><span class="o">=</span><span class="s">&#39;...&#39;</span><span class="p">):</span>
     <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s">&#39;This function has been deprecated. Use the Truncator class &#39;</span>
-        <span class="s">&#39;in django.utils.text instead.&#39;</span><span class="p">,</span> <span class="n">category</span><span class="o">=</span><span class="ne">PendingDeprecationWarning</span><span class="p">)</span>
+        <span class="s">&#39;in django.utils.text instead.&#39;</span><span class="p">,</span> <span class="n">category</span><span class="o">=</span><span class="ne">DeprecationWarning</span><span class="p">)</span>
     <span class="n">truncate</span> <span class="o">=</span> <span class="n">end_text</span> <span class="ow">and</span> <span class="s">&#39; </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">end_text</span> <span class="ow">or</span> <span class="s">&#39;&#39;</span>
     <span class="k">return</span> <span class="n">Truncator</span><span class="p">(</span><span class="n">s</span><span class="p">)</span><span class="o">.</span><span class="n">words</span><span class="p">(</span><span class="n">num</span><span class="p">,</span> <span class="n">truncate</span><span class="o">=</span><span class="n">truncate</span><span class="p">,</span> <span class="n">html</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
-<span class="n">truncate_html_words</span> <span class="o">=</span> <span class="n">allow_lazy</span><span class="p">(</span><span class="n">truncate_html_words</span><span class="p">,</span> <span class="nb">unicode</span><span class="p">)</span>
+<span class="n">truncate_html_words</span> <span class="o">=</span> <span class="n">allow_lazy</span><span class="p">(</span><span class="n">truncate_html_words</span><span class="p">,</span> <span class="n">six</span><span class="o">.</span><span class="n">text_type</span><span class="p">)</span>
 
 <div class="viewcode-block" id="get_valid_filename"><a class="viewcode-back" href="../../../django.utils.html#django.utils.text.get_valid_filename">[docs]</a><span class="k">def</span> <span class="nf">get_valid_filename</span><span class="p">(</span><span class="n">s</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
@@ -274,40 +279,40 @@
 <span class="sd">    spaces are converted to underscores; and anything that is not a unicode</span>
 <span class="sd">    alphanumeric, dash, underscore, or dot, is removed.</span>
 <span class="sd">    &gt;&gt;&gt; get_valid_filename(&quot;john&#39;s portrait in 2004.jpg&quot;)</span>
-<span class="sd">    u&#39;johns_portrait_in_2004.jpg&#39;</span>
+<span class="sd">    &#39;johns_portrait_in_2004.jpg&#39;</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="n">s</span> <span class="o">=</span> <span class="n">force_unicode</span><span class="p">(</span><span class="n">s</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s">&#39; &#39;</span><span class="p">,</span> <span class="s">&#39;_&#39;</span><span class="p">)</span>
+    <span class="n">s</span> <span class="o">=</span> <span class="n">force_text</span><span class="p">(</span><span class="n">s</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s">&#39; &#39;</span><span class="p">,</span> <span class="s">&#39;_&#39;</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">re</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="s">r&#39;(?u)[^-\w.]&#39;</span><span class="p">,</span> <span class="s">&#39;&#39;</span><span class="p">,</span> <span class="n">s</span><span class="p">)</span></div>
-<span class="n">get_valid_filename</span> <span class="o">=</span> <span class="n">allow_lazy</span><span class="p">(</span><span class="n">get_valid_filename</span><span class="p">,</span> <span class="nb">unicode</span><span class="p">)</span>
+<span class="n">get_valid_filename</span> <span class="o">=</span> <span class="n">allow_lazy</span><span class="p">(</span><span class="n">get_valid_filename</span><span class="p">,</span> <span class="n">six</span><span class="o">.</span><span class="n">text_type</span><span class="p">)</span>
 
-<div class="viewcode-block" id="get_text_list"><a class="viewcode-back" href="../../../django.utils.html#django.utils.text.get_text_list">[docs]</a><span class="k">def</span> <span class="nf">get_text_list</span><span class="p">(</span><span class="n">list_</span><span class="p">,</span> <span class="n">last_word</span><span class="o">=</span><span class="n">ugettext_lazy</span><span class="p">(</span><span class="s">u&#39;or&#39;</span><span class="p">)):</span>
+<div class="viewcode-block" id="get_text_list"><a class="viewcode-back" href="../../../django.utils.html#django.utils.text.get_text_list">[docs]</a><span class="k">def</span> <span class="nf">get_text_list</span><span class="p">(</span><span class="n">list_</span><span class="p">,</span> <span class="n">last_word</span><span class="o">=</span><span class="n">ugettext_lazy</span><span class="p">(</span><span class="s">&#39;or&#39;</span><span class="p">)):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    &gt;&gt;&gt; get_text_list([&#39;a&#39;, &#39;b&#39;, &#39;c&#39;, &#39;d&#39;])</span>
-<span class="sd">    u&#39;a, b, c or d&#39;</span>
+<span class="sd">    &#39;a, b, c or d&#39;</span>
 <span class="sd">    &gt;&gt;&gt; get_text_list([&#39;a&#39;, &#39;b&#39;, &#39;c&#39;], &#39;and&#39;)</span>
-<span class="sd">    u&#39;a, b and c&#39;</span>
+<span class="sd">    &#39;a, b and c&#39;</span>
 <span class="sd">    &gt;&gt;&gt; get_text_list([&#39;a&#39;, &#39;b&#39;], &#39;and&#39;)</span>
-<span class="sd">    u&#39;a and b&#39;</span>
+<span class="sd">    &#39;a and b&#39;</span>
 <span class="sd">    &gt;&gt;&gt; get_text_list([&#39;a&#39;])</span>
-<span class="sd">    u&#39;a&#39;</span>
+<span class="sd">    &#39;a&#39;</span>
 <span class="sd">    &gt;&gt;&gt; get_text_list([])</span>
-<span class="sd">    u&#39;&#39;</span>
+<span class="sd">    &#39;&#39;</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">list_</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span> <span class="k">return</span> <span class="s">u&#39;&#39;</span>
-    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">list_</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span> <span class="k">return</span> <span class="n">force_unicode</span><span class="p">(</span><span class="n">list_</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
-    <span class="k">return</span> <span class="s">u&#39;</span><span class="si">%s</span><span class="s"> </span><span class="si">%s</span><span class="s"> </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="p">(</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">list_</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span> <span class="k">return</span> <span class="s">&#39;&#39;</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">list_</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span> <span class="k">return</span> <span class="n">force_text</span><span class="p">(</span><span class="n">list_</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+    <span class="k">return</span> <span class="s">&#39;</span><span class="si">%s</span><span class="s"> </span><span class="si">%s</span><span class="s"> </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="p">(</span>
         <span class="c"># Translators: This string is used as a separator between list elements</span>
-        <span class="n">_</span><span class="p">(</span><span class="s">&#39;, &#39;</span><span class="p">)</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="n">force_unicode</span><span class="p">(</span><span class="n">i</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">list_</span><span class="p">][:</span><span class="o">-</span><span class="mi">1</span><span class="p">]),</span>
-        <span class="n">force_unicode</span><span class="p">(</span><span class="n">last_word</span><span class="p">),</span> <span class="n">force_unicode</span><span class="p">(</span><span class="n">list_</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]))</span></div>
-<span class="n">get_text_list</span> <span class="o">=</span> <span class="n">allow_lazy</span><span class="p">(</span><span class="n">get_text_list</span><span class="p">,</span> <span class="nb">unicode</span><span class="p">)</span>
+        <span class="n">_</span><span class="p">(</span><span class="s">&#39;, &#39;</span><span class="p">)</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="n">force_text</span><span class="p">(</span><span class="n">i</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">list_</span><span class="p">][:</span><span class="o">-</span><span class="mi">1</span><span class="p">]),</span>
+        <span class="n">force_text</span><span class="p">(</span><span class="n">last_word</span><span class="p">),</span> <span class="n">force_text</span><span class="p">(</span><span class="n">list_</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]))</span></div>
+<span class="n">get_text_list</span> <span class="o">=</span> <span class="n">allow_lazy</span><span class="p">(</span><span class="n">get_text_list</span><span class="p">,</span> <span class="n">six</span><span class="o">.</span><span class="n">text_type</span><span class="p">)</span>
 
 <span class="k">def</span> <span class="nf">normalize_newlines</span><span class="p">(</span><span class="n">text</span><span class="p">):</span>
-    <span class="k">return</span> <span class="n">force_unicode</span><span class="p">(</span><span class="n">re</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="s">r&#39;\r\n|\r|\n&#39;</span><span class="p">,</span> <span class="s">&#39;</span><span class="se">\n</span><span class="s">&#39;</span><span class="p">,</span> <span class="n">text</span><span class="p">))</span>
-<span class="n">normalize_newlines</span> <span class="o">=</span> <span class="n">allow_lazy</span><span class="p">(</span><span class="n">normalize_newlines</span><span class="p">,</span> <span class="nb">unicode</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">force_text</span><span class="p">(</span><span class="n">re</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="s">r&#39;\r\n|\r|\n&#39;</span><span class="p">,</span> <span class="s">&#39;</span><span class="se">\n</span><span class="s">&#39;</span><span class="p">,</span> <span class="n">text</span><span class="p">))</span>
+<span class="n">normalize_newlines</span> <span class="o">=</span> <span class="n">allow_lazy</span><span class="p">(</span><span class="n">normalize_newlines</span><span class="p">,</span> <span class="n">six</span><span class="o">.</span><span class="n">text_type</span><span class="p">)</span>
 
 <div class="viewcode-block" id="recapitalize"><a class="viewcode-back" href="../../../django.utils.html#django.utils.text.recapitalize">[docs]</a><span class="k">def</span> <span class="nf">recapitalize</span><span class="p">(</span><span class="n">text</span><span class="p">):</span>
     <span class="s">&quot;Recapitalizes text, placing caps after end-of-sentence punctuation.&quot;</span>
-    <span class="n">text</span> <span class="o">=</span> <span class="n">force_unicode</span><span class="p">(</span><span class="n">text</span><span class="p">)</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
+    <span class="n">text</span> <span class="o">=</span> <span class="n">force_text</span><span class="p">(</span><span class="n">text</span><span class="p">)</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
     <span class="n">capsRE</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="s">r&#39;(?:^|(?&lt;=[\.\?\!] ))([a-z])&#39;</span><span class="p">)</span>
     <span class="n">text</span> <span class="o">=</span> <span class="n">capsRE</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">upper</span><span class="p">(),</span> <span class="n">text</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">text</span></div>
@@ -315,34 +320,64 @@
 
 <div class="viewcode-block" id="phone2numeric"><a class="viewcode-back" href="../../../django.utils.html#django.utils.text.phone2numeric">[docs]</a><span class="k">def</span> <span class="nf">phone2numeric</span><span class="p">(</span><span class="n">phone</span><span class="p">):</span>
     <span class="s">&quot;Converts a phone number with letters into its numeric equivalent.&quot;</span>
-    <span class="n">letters</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="s">r&#39;[A-Z]&#39;</span><span class="p">,</span> <span class="n">re</span><span class="o">.</span><span class="n">I</span><span class="p">)</span>
-    <span class="n">char2number</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">m</span><span class="p">:</span> <span class="p">{</span><span class="s">&#39;a&#39;</span><span class="p">:</span> <span class="s">&#39;2&#39;</span><span class="p">,</span> <span class="s">&#39;b&#39;</span><span class="p">:</span> <span class="s">&#39;2&#39;</span><span class="p">,</span> <span class="s">&#39;c&#39;</span><span class="p">:</span> <span class="s">&#39;2&#39;</span><span class="p">,</span> <span class="s">&#39;d&#39;</span><span class="p">:</span> <span class="s">&#39;3&#39;</span><span class="p">,</span> <span class="s">&#39;e&#39;</span><span class="p">:</span> <span class="s">&#39;3&#39;</span><span class="p">,</span>
-         <span class="s">&#39;f&#39;</span><span class="p">:</span> <span class="s">&#39;3&#39;</span><span class="p">,</span> <span class="s">&#39;g&#39;</span><span class="p">:</span> <span class="s">&#39;4&#39;</span><span class="p">,</span> <span class="s">&#39;h&#39;</span><span class="p">:</span> <span class="s">&#39;4&#39;</span><span class="p">,</span> <span class="s">&#39;i&#39;</span><span class="p">:</span> <span class="s">&#39;4&#39;</span><span class="p">,</span> <span class="s">&#39;j&#39;</span><span class="p">:</span> <span class="s">&#39;5&#39;</span><span class="p">,</span> <span class="s">&#39;k&#39;</span><span class="p">:</span> <span class="s">&#39;5&#39;</span><span class="p">,</span> <span class="s">&#39;l&#39;</span><span class="p">:</span> <span class="s">&#39;5&#39;</span><span class="p">,</span>
-         <span class="s">&#39;m&#39;</span><span class="p">:</span> <span class="s">&#39;6&#39;</span><span class="p">,</span> <span class="s">&#39;n&#39;</span><span class="p">:</span> <span class="s">&#39;6&#39;</span><span class="p">,</span> <span class="s">&#39;o&#39;</span><span class="p">:</span> <span class="s">&#39;6&#39;</span><span class="p">,</span> <span class="s">&#39;p&#39;</span><span class="p">:</span> <span class="s">&#39;7&#39;</span><span class="p">,</span> <span class="s">&#39;q&#39;</span><span class="p">:</span> <span class="s">&#39;7&#39;</span><span class="p">,</span> <span class="s">&#39;r&#39;</span><span class="p">:</span> <span class="s">&#39;7&#39;</span><span class="p">,</span> <span class="s">&#39;s&#39;</span><span class="p">:</span> <span class="s">&#39;7&#39;</span><span class="p">,</span>
-         <span class="s">&#39;t&#39;</span><span class="p">:</span> <span class="s">&#39;8&#39;</span><span class="p">,</span> <span class="s">&#39;u&#39;</span><span class="p">:</span> <span class="s">&#39;8&#39;</span><span class="p">,</span> <span class="s">&#39;v&#39;</span><span class="p">:</span> <span class="s">&#39;8&#39;</span><span class="p">,</span> <span class="s">&#39;w&#39;</span><span class="p">:</span> <span class="s">&#39;9&#39;</span><span class="p">,</span> <span class="s">&#39;x&#39;</span><span class="p">:</span> <span class="s">&#39;9&#39;</span><span class="p">,</span> <span class="s">&#39;y&#39;</span><span class="p">:</span> <span class="s">&#39;9&#39;</span><span class="p">,</span> <span class="s">&#39;z&#39;</span><span class="p">:</span> <span class="s">&#39;9&#39;</span><span class="p">,</span>
-        <span class="p">}</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">m</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">lower</span><span class="p">())</span>
-    <span class="k">return</span> <span class="n">letters</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="n">char2number</span><span class="p">,</span> <span class="n">phone</span><span class="p">)</span></div>
+    <span class="n">char2number</span> <span class="o">=</span> <span class="p">{</span><span class="s">&#39;a&#39;</span><span class="p">:</span> <span class="s">&#39;2&#39;</span><span class="p">,</span> <span class="s">&#39;b&#39;</span><span class="p">:</span> <span class="s">&#39;2&#39;</span><span class="p">,</span> <span class="s">&#39;c&#39;</span><span class="p">:</span> <span class="s">&#39;2&#39;</span><span class="p">,</span> <span class="s">&#39;d&#39;</span><span class="p">:</span> <span class="s">&#39;3&#39;</span><span class="p">,</span> <span class="s">&#39;e&#39;</span><span class="p">:</span> <span class="s">&#39;3&#39;</span><span class="p">,</span> <span class="s">&#39;f&#39;</span><span class="p">:</span> <span class="s">&#39;3&#39;</span><span class="p">,</span>
+         <span class="s">&#39;g&#39;</span><span class="p">:</span> <span class="s">&#39;4&#39;</span><span class="p">,</span> <span class="s">&#39;h&#39;</span><span class="p">:</span> <span class="s">&#39;4&#39;</span><span class="p">,</span> <span class="s">&#39;i&#39;</span><span class="p">:</span> <span class="s">&#39;4&#39;</span><span class="p">,</span> <span class="s">&#39;j&#39;</span><span class="p">:</span> <span class="s">&#39;5&#39;</span><span class="p">,</span> <span class="s">&#39;k&#39;</span><span class="p">:</span> <span class="s">&#39;5&#39;</span><span class="p">,</span> <span class="s">&#39;l&#39;</span><span class="p">:</span> <span class="s">&#39;5&#39;</span><span class="p">,</span> <span class="s">&#39;m&#39;</span><span class="p">:</span> <span class="s">&#39;6&#39;</span><span class="p">,</span>
+         <span class="s">&#39;n&#39;</span><span class="p">:</span> <span class="s">&#39;6&#39;</span><span class="p">,</span> <span class="s">&#39;o&#39;</span><span class="p">:</span> <span class="s">&#39;6&#39;</span><span class="p">,</span> <span class="s">&#39;p&#39;</span><span class="p">:</span> <span class="s">&#39;7&#39;</span><span class="p">,</span> <span class="s">&#39;q&#39;</span><span class="p">:</span> <span class="s">&#39;7&#39;</span><span class="p">,</span> <span class="s">&#39;r&#39;</span><span class="p">:</span> <span class="s">&#39;7&#39;</span><span class="p">,</span> <span class="s">&#39;s&#39;</span><span class="p">:</span> <span class="s">&#39;7&#39;</span><span class="p">,</span> <span class="s">&#39;t&#39;</span><span class="p">:</span> <span class="s">&#39;8&#39;</span><span class="p">,</span>
+         <span class="s">&#39;u&#39;</span><span class="p">:</span> <span class="s">&#39;8&#39;</span><span class="p">,</span> <span class="s">&#39;v&#39;</span><span class="p">:</span> <span class="s">&#39;8&#39;</span><span class="p">,</span> <span class="s">&#39;w&#39;</span><span class="p">:</span> <span class="s">&#39;9&#39;</span><span class="p">,</span> <span class="s">&#39;x&#39;</span><span class="p">:</span> <span class="s">&#39;9&#39;</span><span class="p">,</span> <span class="s">&#39;y&#39;</span><span class="p">:</span> <span class="s">&#39;9&#39;</span><span class="p">,</span> <span class="s">&#39;z&#39;</span><span class="p">:</span> <span class="s">&#39;9&#39;</span><span class="p">,</span>
+        <span class="p">}</span>
+    <span class="k">return</span> <span class="s">&#39;&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">char2number</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">c</span><span class="p">,</span> <span class="n">c</span><span class="p">)</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">phone</span><span class="o">.</span><span class="n">lower</span><span class="p">())</span></div>
 <span class="n">phone2numeric</span> <span class="o">=</span> <span class="n">allow_lazy</span><span class="p">(</span><span class="n">phone2numeric</span><span class="p">)</span>
 
 <span class="c"># From http://www.xhaus.com/alan/python/httpcomp.html#gzip</span>
 <span class="c"># Used with permission.</span>
 <span class="k">def</span> <span class="nf">compress_string</span><span class="p">(</span><span class="n">s</span><span class="p">):</span>
-    <span class="n">zbuf</span> <span class="o">=</span> <span class="n">StringIO</span><span class="p">()</span>
+    <span class="n">zbuf</span> <span class="o">=</span> <span class="n">BytesIO</span><span class="p">()</span>
     <span class="n">zfile</span> <span class="o">=</span> <span class="n">GzipFile</span><span class="p">(</span><span class="n">mode</span><span class="o">=</span><span class="s">&#39;wb&#39;</span><span class="p">,</span> <span class="n">compresslevel</span><span class="o">=</span><span class="mi">6</span><span class="p">,</span> <span class="n">fileobj</span><span class="o">=</span><span class="n">zbuf</span><span class="p">)</span>
     <span class="n">zfile</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">s</span><span class="p">)</span>
     <span class="n">zfile</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
     <span class="k">return</span> <span class="n">zbuf</span><span class="o">.</span><span class="n">getvalue</span><span class="p">()</span>
 
-<span class="n">ustring_re</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="s">u&quot;([</span><span class="se">\u0080</span><span class="s">-</span><span class="se">\uffff</span><span class="s">])&quot;</span><span class="p">)</span>
+<span class="k">class</span> <span class="nc">StreamingBuffer</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">vals</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="k">def</span> <span class="nf">write</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">val</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">vals</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">val</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">read</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">ret</span> <span class="o">=</span> <span class="n">b</span><span class="s">&#39;&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">vals</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">vals</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">return</span> <span class="n">ret</span>
+
+    <span class="k">def</span> <span class="nf">flush</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span>
+
+    <span class="k">def</span> <span class="nf">close</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span>
+
+<span class="c"># Like compress_string, but for iterators of strings.</span>
+<span class="k">def</span> <span class="nf">compress_sequence</span><span class="p">(</span><span class="n">sequence</span><span class="p">):</span>
+    <span class="n">buf</span> <span class="o">=</span> <span class="n">StreamingBuffer</span><span class="p">()</span>
+    <span class="n">zfile</span> <span class="o">=</span> <span class="n">GzipFile</span><span class="p">(</span><span class="n">mode</span><span class="o">=</span><span class="s">&#39;wb&#39;</span><span class="p">,</span> <span class="n">compresslevel</span><span class="o">=</span><span class="mi">6</span><span class="p">,</span> <span class="n">fileobj</span><span class="o">=</span><span class="n">buf</span><span class="p">)</span>
+    <span class="c"># Output headers...</span>
+    <span class="k">yield</span> <span class="n">buf</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
+    <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">sequence</span><span class="p">:</span>
+        <span class="n">zfile</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">item</span><span class="p">)</span>
+        <span class="n">zfile</span><span class="o">.</span><span class="n">flush</span><span class="p">()</span>
+        <span class="k">yield</span> <span class="n">buf</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
+    <span class="n">zfile</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+    <span class="k">yield</span> <span class="n">buf</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
+
+<span class="n">ustring_re</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="s">&quot;([</span><span class="se">\u0080</span><span class="s">-</span><span class="se">\uffff</span><span class="s">])&quot;</span><span class="p">)</span>
 
 <span class="k">def</span> <span class="nf">javascript_quote</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">quote_double_quotes</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
 
     <span class="k">def</span> <span class="nf">fix</span><span class="p">(</span><span class="n">match</span><span class="p">):</span>
-        <span class="k">return</span> <span class="s">r&quot;\u</span><span class="si">%04x</span><span class="s">&quot;</span> <span class="o">%</span> <span class="nb">ord</span><span class="p">(</span><span class="n">match</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">1</span><span class="p">))</span>
+        <span class="k">return</span> <span class="s">&quot;</span><span class="se">\\</span><span class="s">u</span><span class="si">%04x</span><span class="s">&quot;</span> <span class="o">%</span> <span class="nb">ord</span><span class="p">(</span><span class="n">match</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">1</span><span class="p">))</span>
 
-    <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">s</span><span class="p">)</span> <span class="o">==</span> <span class="nb">str</span><span class="p">:</span>
+    <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">s</span><span class="p">)</span> <span class="o">==</span> <span class="nb">bytes</span><span class="p">:</span>
         <span class="n">s</span> <span class="o">=</span> <span class="n">s</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s">&#39;utf-8&#39;</span><span class="p">)</span>
-    <span class="k">elif</span> <span class="nb">type</span><span class="p">(</span><span class="n">s</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">unicode</span><span class="p">:</span>
+    <span class="k">elif</span> <span class="nb">type</span><span class="p">(</span><span class="n">s</span><span class="p">)</span> <span class="o">!=</span> <span class="n">six</span><span class="o">.</span><span class="n">text_type</span><span class="p">:</span>
         <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="n">s</span><span class="p">)</span>
     <span class="n">s</span> <span class="o">=</span> <span class="n">s</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s">&#39;</span><span class="se">\\</span><span class="s">&#39;</span><span class="p">,</span> <span class="s">&#39;</span><span class="se">\\\\</span><span class="s">&#39;</span><span class="p">)</span>
     <span class="n">s</span> <span class="o">=</span> <span class="n">s</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s">&#39;</span><span class="se">\r</span><span class="s">&#39;</span><span class="p">,</span> <span class="s">&#39;</span><span class="se">\\</span><span class="s">r&#39;</span><span class="p">)</span>
@@ -352,7 +387,7 @@
     <span class="k">if</span> <span class="n">quote_double_quotes</span><span class="p">:</span>
         <span class="n">s</span> <span class="o">=</span> <span class="n">s</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s">&#39;&quot;&#39;</span><span class="p">,</span> <span class="s">&#39;&amp;quot;&#39;</span><span class="p">)</span>
     <span class="k">return</span> <span class="nb">str</span><span class="p">(</span><span class="n">ustring_re</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="n">fix</span><span class="p">,</span> <span class="n">s</span><span class="p">))</span>
-<span class="n">javascript_quote</span> <span class="o">=</span> <span class="n">allow_lazy</span><span class="p">(</span><span class="n">javascript_quote</span><span class="p">,</span> <span class="nb">unicode</span><span class="p">)</span>
+<span class="n">javascript_quote</span> <span class="o">=</span> <span class="n">allow_lazy</span><span class="p">(</span><span class="n">javascript_quote</span><span class="p">,</span> <span class="n">six</span><span class="o">.</span><span class="n">text_type</span><span class="p">)</span>
 
 <span class="c"># Expression to match some_token and some_token=&quot;with spaces&quot; (and similarly</span>
 <span class="c"># for single-quoted strings).</span>
@@ -375,23 +410,23 @@
 <span class="sd">    be further processed with unescape_string_literal()).</span>
 
 <span class="sd">    &gt;&gt;&gt; list(smart_split(r&#39;This is &quot;a person\&#39;s&quot; test.&#39;))</span>
-<span class="sd">    [u&#39;This&#39;, u&#39;is&#39;, u&#39;&quot;a person\\\&#39;s&quot;&#39;, u&#39;test.&#39;]</span>
+<span class="sd">    [&#39;This&#39;, &#39;is&#39;, &#39;&quot;a person\\\&#39;s&quot;&#39;, &#39;test.&#39;]</span>
 <span class="sd">    &gt;&gt;&gt; list(smart_split(r&quot;Another &#39;person\&#39;s&#39; test.&quot;))</span>
-<span class="sd">    [u&#39;Another&#39;, u&quot;&#39;person\\&#39;s&#39;&quot;, u&#39;test.&#39;]</span>
+<span class="sd">    [&#39;Another&#39;, &quot;&#39;person\\&#39;s&#39;&quot;, &#39;test.&#39;]</span>
 <span class="sd">    &gt;&gt;&gt; list(smart_split(r&#39;A &quot;\&quot;funky\&quot; style&quot; test.&#39;))</span>
-<span class="sd">    [u&#39;A&#39;, u&#39;&quot;\\&quot;funky\\&quot; style&quot;&#39;, u&#39;test.&#39;]</span>
+<span class="sd">    [&#39;A&#39;, &#39;&quot;\\&quot;funky\\&quot; style&quot;&#39;, &#39;test.&#39;]</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="n">text</span> <span class="o">=</span> <span class="n">force_unicode</span><span class="p">(</span><span class="n">text</span><span class="p">)</span>
+    <span class="n">text</span> <span class="o">=</span> <span class="n">force_text</span><span class="p">(</span><span class="n">text</span><span class="p">)</span>
     <span class="k">for</span> <span class="n">bit</span> <span class="ow">in</span> <span class="n">smart_split_re</span><span class="o">.</span><span class="n">finditer</span><span class="p">(</span><span class="n">text</span><span class="p">):</span>
         <span class="k">yield</span> <span class="n">bit</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span></div>
-<span class="n">smart_split</span> <span class="o">=</span> <span class="n">allow_lazy</span><span class="p">(</span><span class="n">smart_split</span><span class="p">,</span> <span class="nb">unicode</span><span class="p">)</span>
+<span class="n">smart_split</span> <span class="o">=</span> <span class="n">allow_lazy</span><span class="p">(</span><span class="n">smart_split</span><span class="p">,</span> <span class="n">six</span><span class="o">.</span><span class="n">text_type</span><span class="p">)</span>
 
 <span class="k">def</span> <span class="nf">_replace_entity</span><span class="p">(</span><span class="n">match</span><span class="p">):</span>
     <span class="n">text</span> <span class="o">=</span> <span class="n">match</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
-    <span class="k">if</span> <span class="n">text</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="s">u&#39;#&#39;</span><span class="p">:</span>
+    <span class="k">if</span> <span class="n">text</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="s">&#39;#&#39;</span><span class="p">:</span>
         <span class="n">text</span> <span class="o">=</span> <span class="n">text</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span>
         <span class="k">try</span><span class="p">:</span>
-            <span class="k">if</span> <span class="n">text</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="ow">in</span> <span class="s">u&#39;xX&#39;</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">text</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="ow">in</span> <span class="s">&#39;xX&#39;</span><span class="p">:</span>
                 <span class="n">c</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">text</span><span class="p">[</span><span class="mi">1</span><span class="p">:],</span> <span class="mi">16</span><span class="p">)</span>
             <span class="k">else</span><span class="p">:</span>
                 <span class="n">c</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">text</span><span class="p">)</span>
@@ -400,7 +435,7 @@
             <span class="k">return</span> <span class="n">match</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
     <span class="k">else</span><span class="p">:</span>
         <span class="k">try</span><span class="p">:</span>
-            <span class="k">return</span> <span class="nb">unichr</span><span class="p">(</span><span class="n">name2codepoint</span><span class="p">[</span><span class="n">text</span><span class="p">])</span>
+            <span class="k">return</span> <span class="nb">unichr</span><span class="p">(</span><span class="n">html_entities</span><span class="o">.</span><span class="n">name2codepoint</span><span class="p">[</span><span class="n">text</span><span class="p">])</span>
         <span class="k">except</span> <span class="p">(</span><span class="ne">ValueError</span><span class="p">,</span> <span class="ne">KeyError</span><span class="p">):</span>
             <span class="k">return</span> <span class="n">match</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
 
@@ -408,7 +443,7 @@
 
 <span class="k">def</span> <span class="nf">unescape_entities</span><span class="p">(</span><span class="n">text</span><span class="p">):</span>
     <span class="k">return</span> <span class="n">_entity_re</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="n">_replace_entity</span><span class="p">,</span> <span class="n">text</span><span class="p">)</span>
-<span class="n">unescape_entities</span> <span class="o">=</span> <span class="n">allow_lazy</span><span class="p">(</span><span class="n">unescape_entities</span><span class="p">,</span> <span class="nb">unicode</span><span class="p">)</span>
+<span class="n">unescape_entities</span> <span class="o">=</span> <span class="n">allow_lazy</span><span class="p">(</span><span class="n">unescape_entities</span><span class="p">,</span> <span class="n">six</span><span class="o">.</span><span class="n">text_type</span><span class="p">)</span>
 
 <div class="viewcode-block" id="unescape_string_literal"><a class="viewcode-back" href="../../../django.utils.html#django.utils.text.unescape_string_literal">[docs]</a><span class="k">def</span> <span class="nf">unescape_string_literal</span><span class="p">(</span><span class="n">s</span><span class="p">):</span>
     <span class="sd">r&quot;&quot;&quot;</span>
@@ -429,6 +464,17 @@
     <span class="n">quote</span> <span class="o">=</span> <span class="n">s</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
     <span class="k">return</span> <span class="n">s</span><span class="p">[</span><span class="mi">1</span><span class="p">:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s">r&#39;\</span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">quote</span><span class="p">,</span> <span class="n">quote</span><span class="p">)</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s">r&#39;</span><span class="se">\\</span><span class="s">&#39;</span><span class="p">,</span> <span class="s">&#39;</span><span class="se">\\</span><span class="s">&#39;</span><span class="p">)</span></div>
 <span class="n">unescape_string_literal</span> <span class="o">=</span> <span class="n">allow_lazy</span><span class="p">(</span><span class="n">unescape_string_literal</span><span class="p">)</span>
+
+<div class="viewcode-block" id="slugify"><a class="viewcode-back" href="../../../django.utils.html#django.utils.text.slugify">[docs]</a><span class="k">def</span> <span class="nf">slugify</span><span class="p">(</span><span class="n">value</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Converts to lowercase, removes non-word characters (alphanumerics and</span>
+<span class="sd">    underscores) and converts spaces to hyphens. Also strips leading and</span>
+<span class="sd">    trailing whitespace.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">value</span> <span class="o">=</span> <span class="n">unicodedata</span><span class="o">.</span><span class="n">normalize</span><span class="p">(</span><span class="s">&#39;NFKD&#39;</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s">&#39;ascii&#39;</span><span class="p">,</span> <span class="s">&#39;ignore&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s">&#39;ascii&#39;</span><span class="p">)</span>
+    <span class="n">value</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="s">&#39;[^\w\s-]&#39;</span><span class="p">,</span> <span class="s">&#39;&#39;</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">mark_safe</span><span class="p">(</span><span class="n">re</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="s">&#39;[-\s]+&#39;</span><span class="p">,</span> <span class="s">&#39;-&#39;</span><span class="p">,</span> <span class="n">value</span><span class="p">))</span></div>
+<span class="n">slugify</span> <span class="o">=</span> <span class="n">allow_lazy</span><span class="p">(</span><span class="n">slugify</span><span class="p">,</span> <span class="n">six</span><span class="o">.</span><span class="n">text_type</span><span class="p">)</span>
 </pre></div>
 
       </div>
@@ -443,7 +489,7 @@
 
     <div class="footer">
         &copy; Copyright 2012, HDKNR.COM.
-      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.2pre/3c28de26aac2.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2b1.
     </div>
   </body>
 </html>

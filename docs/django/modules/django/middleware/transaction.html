@@ -28,7 +28,7 @@
     <script type="text/javascript" src="../../../static/doctools.js"></script>
     <script type="text/javascript" src="../../../static/theme_extras.js"></script>
     <link rel="top" title="Django Cheat 1 documentation" href="../../../index.html" />
-    <link rel="up" title="django" href="../../django.html" /> 
+    <link rel="up" title="Module code" href="../../index.html" /> 
   </head>
   <body>
       <div class="header"><h1 class="heading"><a href="../../../index.html">
@@ -64,6 +64,10 @@
 <div class="viewcode-block" id="TransactionMiddleware.process_exception"><a class="viewcode-back" href="../../../django.middleware.html#django.middleware.transaction.TransactionMiddleware.process_exception">[docs]</a>    <span class="k">def</span> <span class="nf">process_exception</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">request</span><span class="p">,</span> <span class="n">exception</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Rolls back the database and leaves transaction management&quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="n">transaction</span><span class="o">.</span><span class="n">is_dirty</span><span class="p">():</span>
+            <span class="c"># This rollback might fail because of network failure for example.</span>
+            <span class="c"># If rollback isn&#39;t possible it is impossible to clean the</span>
+            <span class="c"># connection&#39;s state. So leave the connection in dirty state and</span>
+            <span class="c"># let request_finished signal deal with cleaning the connection.</span>
             <span class="n">transaction</span><span class="o">.</span><span class="n">rollback</span><span class="p">()</span>
         <span class="n">transaction</span><span class="o">.</span><span class="n">leave_transaction_management</span><span class="p">()</span>
 </div>
@@ -71,7 +75,22 @@
         <span class="sd">&quot;&quot;&quot;Commits and leaves transaction management.&quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="n">transaction</span><span class="o">.</span><span class="n">is_managed</span><span class="p">():</span>
             <span class="k">if</span> <span class="n">transaction</span><span class="o">.</span><span class="n">is_dirty</span><span class="p">():</span>
-                <span class="n">transaction</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
+                <span class="c"># Note: it is possible that the commit fails. If the reason is</span>
+                <span class="c"># closed connection or some similar reason, then there is</span>
+                <span class="c"># little hope to proceed nicely. However, in some cases (</span>
+                <span class="c"># deferred foreign key checks for exampl) it is still possible</span>
+                <span class="c"># to rollback().</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="n">transaction</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
+                <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+                    <span class="c"># If the rollback fails, the transaction state will be</span>
+                    <span class="c"># messed up. It doesn&#39;t matter, the connection will be set</span>
+                    <span class="c"># to clean state after the request finishes. And, we can&#39;t</span>
+                    <span class="c"># clean the state here properly even if we wanted to, the</span>
+                    <span class="c"># connection is in transaction but we can&#39;t rollback...</span>
+                    <span class="n">transaction</span><span class="o">.</span><span class="n">rollback</span><span class="p">()</span>
+                    <span class="n">transaction</span><span class="o">.</span><span class="n">leave_transaction_management</span><span class="p">()</span>
+                    <span class="k">raise</span>
             <span class="n">transaction</span><span class="o">.</span><span class="n">leave_transaction_management</span><span class="p">()</span>
         <span class="k">return</span> <span class="n">response</span></div></div>
 </pre></div>
@@ -88,7 +107,7 @@
 
     <div class="footer">
         &copy; Copyright 2012, HDKNR.COM.
-      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.2pre/3c28de26aac2.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2b1.
     </div>
   </body>
 </html>

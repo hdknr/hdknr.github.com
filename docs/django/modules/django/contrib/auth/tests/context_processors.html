@@ -51,12 +51,73 @@
 
 <span class="kn">from</span> <span class="nn">django.conf</span> <span class="kn">import</span> <span class="n">global_settings</span>
 <span class="kn">from</span> <span class="nn">django.contrib.auth</span> <span class="kn">import</span> <span class="n">authenticate</span>
+<span class="kn">from</span> <span class="nn">django.contrib.auth.tests.utils</span> <span class="kn">import</span> <span class="n">skipIfCustomUser</span>
+<span class="kn">from</span> <span class="nn">django.contrib.auth.models</span> <span class="kn">import</span> <span class="n">User</span><span class="p">,</span> <span class="n">Permission</span>
+<span class="kn">from</span> <span class="nn">django.contrib.contenttypes.models</span> <span class="kn">import</span> <span class="n">ContentType</span>
+<span class="kn">from</span> <span class="nn">django.contrib.auth.context_processors</span> <span class="kn">import</span> <span class="n">PermWrapper</span><span class="p">,</span> <span class="n">PermLookupDict</span>
 <span class="kn">from</span> <span class="nn">django.db.models</span> <span class="kn">import</span> <span class="n">Q</span>
-<span class="kn">from</span> <span class="nn">django.template</span> <span class="kn">import</span> <span class="n">context</span>
 <span class="kn">from</span> <span class="nn">django.test</span> <span class="kn">import</span> <span class="n">TestCase</span>
 <span class="kn">from</span> <span class="nn">django.test.utils</span> <span class="kn">import</span> <span class="n">override_settings</span>
+<span class="kn">from</span> <span class="nn">django.utils._os</span> <span class="kn">import</span> <span class="n">upath</span>
 
 
+<span class="k">class</span> <span class="nc">MockUser</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">has_module_perms</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">perm</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">perm</span> <span class="o">==</span> <span class="s">&#39;mockapp&#39;</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">True</span>
+        <span class="k">return</span> <span class="bp">False</span>
+
+    <span class="k">def</span> <span class="nf">has_perm</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">perm</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">perm</span> <span class="o">==</span> <span class="s">&#39;mockapp.someperm&#39;</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">True</span>
+        <span class="k">return</span> <span class="bp">False</span>
+
+
+<div class="viewcode-block" id="PermWrapperTests"><a class="viewcode-back" href="../../../../../django.contrib.auth.tests.html#django.contrib.auth.tests.context_processors.PermWrapperTests">[docs]</a><span class="k">class</span> <span class="nc">PermWrapperTests</span><span class="p">(</span><span class="n">TestCase</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Test some details of the PermWrapper implementation.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+<div class="viewcode-block" id="PermWrapperTests.EQLimiterObject"><a class="viewcode-back" href="../../../../../django.contrib.auth.tests.html#django.contrib.auth.tests.context_processors.PermWrapperTests.EQLimiterObject">[docs]</a>    <span class="k">class</span> <span class="nc">EQLimiterObject</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        This object makes sure __eq__ will not be called endlessly.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">eq_calls</span> <span class="o">=</span> <span class="mi">0</span>
+
+        <span class="k">def</span> <span class="nf">__eq__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">eq_calls</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">return</span> <span class="bp">True</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">eq_calls</span> <span class="o">+=</span> <span class="mi">1</span>
+            <span class="k">return</span> <span class="bp">False</span>
+</div>
+<div class="viewcode-block" id="PermWrapperTests.test_permwrapper_in"><a class="viewcode-back" href="../../../../../django.contrib.auth.tests.html#django.contrib.auth.tests.context_processors.PermWrapperTests.test_permwrapper_in">[docs]</a>    <span class="k">def</span> <span class="nf">test_permwrapper_in</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Test that &#39;something&#39; in PermWrapper works as expected.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">perms</span> <span class="o">=</span> <span class="n">PermWrapper</span><span class="p">(</span><span class="n">MockUser</span><span class="p">())</span>
+        <span class="c"># Works for modules and full permissions.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="s">&#39;mockapp&#39;</span> <span class="ow">in</span> <span class="n">perms</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertFalse</span><span class="p">(</span><span class="s">&#39;nonexisting&#39;</span> <span class="ow">in</span> <span class="n">perms</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="s">&#39;mockapp.someperm&#39;</span> <span class="ow">in</span> <span class="n">perms</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertFalse</span><span class="p">(</span><span class="s">&#39;mockapp.nonexisting&#39;</span> <span class="ow">in</span> <span class="n">perms</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="PermWrapperTests.test_permlookupdict_in"><a class="viewcode-back" href="../../../../../django.contrib.auth.tests.html#django.contrib.auth.tests.context_processors.PermWrapperTests.test_permlookupdict_in">[docs]</a>    <span class="k">def</span> <span class="nf">test_permlookupdict_in</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        No endless loops if accessed with &#39;in&#39; - refs #18979.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">pldict</span> <span class="o">=</span> <span class="n">PermLookupDict</span><span class="p">(</span><span class="n">MockUser</span><span class="p">(),</span> <span class="s">&#39;mockapp&#39;</span><span class="p">)</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">TypeError</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">EQLimiterObject</span><span class="p">()</span> <span class="ow">in</span> <span class="n">pldict</span>
+
+</div></div>
+<span class="nd">@skipIfCustomUser</span>
+<span class="nd">@override_settings</span><span class="p">(</span>
+    <span class="n">TEMPLATE_DIRS</span><span class="o">=</span><span class="p">(</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">upath</span><span class="p">(</span><span class="n">__file__</span><span class="p">)),</span> <span class="s">&#39;templates&#39;</span><span class="p">),</span>
+        <span class="p">),</span>
+    <span class="n">USE_TZ</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span>                           <span class="c"># required for loading the fixture</span>
+    <span class="n">PASSWORD_HASHERS</span><span class="o">=</span><span class="p">(</span><span class="s">&#39;django.contrib.auth.hashers.SHA1PasswordHasher&#39;</span><span class="p">,),</span>
+<span class="p">)</span>
 <div class="viewcode-block" id="AuthContextProcessorTests"><a class="viewcode-back" href="../../../../../django.contrib.auth.tests.html#django.contrib.auth.tests.context_processors.AuthContextProcessorTests">[docs]</a><span class="k">class</span> <span class="nc">AuthContextProcessorTests</span><span class="p">(</span><span class="n">TestCase</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Tests for the ``django.contrib.auth.context_processors.auth`` processor</span>
@@ -73,12 +134,8 @@
 <span class="sd">        Tests that the session is not accessed simply by including</span>
 <span class="sd">        the auth context processor</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">context</span><span class="o">.</span><span class="n">_standard_context_processors</span> <span class="o">=</span> <span class="bp">None</span>
-
         <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;/auth_processor_no_attr_access/&#39;</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">assertContains</span><span class="p">(</span><span class="n">response</span><span class="p">,</span> <span class="s">&quot;Session not accessed&quot;</span><span class="p">)</span>
-
-        <span class="n">context</span><span class="o">.</span><span class="n">_standard_context_processors</span> <span class="o">=</span> <span class="bp">None</span>
 </div>
     <span class="nd">@override_settings</span><span class="p">(</span>
         <span class="n">MIDDLEWARE_CLASSES</span><span class="o">=</span><span class="n">global_settings</span><span class="o">.</span><span class="n">MIDDLEWARE_CLASSES</span><span class="p">,</span>
@@ -89,17 +146,32 @@
 <span class="sd">        Tests that the session is accessed if the auth context processor</span>
 <span class="sd">        is used and relevant attributes accessed.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">context</span><span class="o">.</span><span class="n">_standard_context_processors</span> <span class="o">=</span> <span class="bp">None</span>
-
         <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;/auth_processor_attr_access/&#39;</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">assertContains</span><span class="p">(</span><span class="n">response</span><span class="p">,</span> <span class="s">&quot;Session accessed&quot;</span><span class="p">)</span>
-
-        <span class="n">context</span><span class="o">.</span><span class="n">_standard_context_processors</span> <span class="o">=</span> <span class="bp">None</span>
 </div>
     <span class="k">def</span> <span class="nf">test_perms_attrs</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">login</span><span class="p">(</span><span class="n">username</span><span class="o">=</span><span class="s">&#39;super&#39;</span><span class="p">,</span> <span class="n">password</span><span class="o">=</span><span class="s">&#39;secret&#39;</span><span class="p">)</span>
+        <span class="n">u</span> <span class="o">=</span> <span class="n">User</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">create_user</span><span class="p">(</span><span class="n">username</span><span class="o">=</span><span class="s">&#39;normal&#39;</span><span class="p">,</span> <span class="n">password</span><span class="o">=</span><span class="s">&#39;secret&#39;</span><span class="p">)</span>
+        <span class="n">u</span><span class="o">.</span><span class="n">user_permissions</span><span class="o">.</span><span class="n">add</span><span class="p">(</span>
+            <span class="n">Permission</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
+                <span class="n">content_type</span><span class="o">=</span><span class="n">ContentType</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">get_for_model</span><span class="p">(</span><span class="n">Permission</span><span class="p">),</span>
+                <span class="n">codename</span><span class="o">=</span><span class="s">&#39;add_permission&#39;</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">login</span><span class="p">(</span><span class="n">username</span><span class="o">=</span><span class="s">&#39;normal&#39;</span><span class="p">,</span> <span class="n">password</span><span class="o">=</span><span class="s">&#39;secret&#39;</span><span class="p">)</span>
         <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;/auth_processor_perms/&#39;</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">assertContains</span><span class="p">(</span><span class="n">response</span><span class="p">,</span> <span class="s">&quot;Has auth permissions&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertContains</span><span class="p">(</span><span class="n">response</span><span class="p">,</span> <span class="s">&quot;Has auth.add_permission permissions&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertNotContains</span><span class="p">(</span><span class="n">response</span><span class="p">,</span> <span class="s">&quot;nonexisting&quot;</span><span class="p">)</span>
+    
+    <span class="k">def</span> <span class="nf">test_perm_in_perms_attrs</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">u</span> <span class="o">=</span> <span class="n">User</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">create_user</span><span class="p">(</span><span class="n">username</span><span class="o">=</span><span class="s">&#39;normal&#39;</span><span class="p">,</span> <span class="n">password</span><span class="o">=</span><span class="s">&#39;secret&#39;</span><span class="p">)</span>
+        <span class="n">u</span><span class="o">.</span><span class="n">user_permissions</span><span class="o">.</span><span class="n">add</span><span class="p">(</span>
+            <span class="n">Permission</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
+                <span class="n">content_type</span><span class="o">=</span><span class="n">ContentType</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">get_for_model</span><span class="p">(</span><span class="n">Permission</span><span class="p">),</span>
+                <span class="n">codename</span><span class="o">=</span><span class="s">&#39;add_permission&#39;</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">login</span><span class="p">(</span><span class="n">username</span><span class="o">=</span><span class="s">&#39;normal&#39;</span><span class="p">,</span> <span class="n">password</span><span class="o">=</span><span class="s">&#39;secret&#39;</span><span class="p">)</span>
+        <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;/auth_processor_perm_in_perms/&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertContains</span><span class="p">(</span><span class="n">response</span><span class="p">,</span> <span class="s">&quot;Has auth permissions&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertContains</span><span class="p">(</span><span class="n">response</span><span class="p">,</span> <span class="s">&quot;Has auth.add_permission permissions&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertNotContains</span><span class="p">(</span><span class="n">response</span><span class="p">,</span> <span class="s">&quot;nonexisting&quot;</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">test_message_attrs</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">login</span><span class="p">(</span><span class="n">username</span><span class="o">=</span><span class="s">&#39;super&#39;</span><span class="p">,</span> <span class="n">password</span><span class="o">=</span><span class="s">&#39;secret&#39;</span><span class="p">)</span>
@@ -143,14 +215,7 @@
         <span class="c"># equality in a non-duck-typing way</span>
         <span class="c"># See bug #12060</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">context</span><span class="p">[</span><span class="s">&#39;user&#39;</span><span class="p">],</span> <span class="n">user</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">user</span><span class="p">,</span> <span class="n">response</span><span class="o">.</span><span class="n">context</span><span class="p">[</span><span class="s">&#39;user&#39;</span><span class="p">])</span>
-</div></div>
-<span class="n">AuthContextProcessorTests</span> <span class="o">=</span> <span class="n">override_settings</span><span class="p">(</span>
-    <span class="n">TEMPLATE_DIRS</span><span class="o">=</span><span class="p">(</span>
-            <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">__file__</span><span class="p">),</span> <span class="s">&#39;templates&#39;</span><span class="p">),</span>
-        <span class="p">),</span>
-    <span class="n">USE_TZ</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span>                           <span class="c"># required for loading the fixture</span>
-<span class="p">)(</span><span class="n">AuthContextProcessorTests</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">user</span><span class="p">,</span> <span class="n">response</span><span class="o">.</span><span class="n">context</span><span class="p">[</span><span class="s">&#39;user&#39;</span><span class="p">])</span></div></div>
 </pre></div>
 
       </div>
@@ -165,7 +230,7 @@
 
     <div class="footer">
         &copy; Copyright 2012, HDKNR.COM.
-      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.2pre/3c28de26aac2.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2b1.
     </div>
   </body>
 </html>

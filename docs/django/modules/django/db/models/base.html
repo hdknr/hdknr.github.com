@@ -47,12 +47,14 @@
         
         
   <h1>Source code for django.db.models.base</h1><div class="highlight"><pre>
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">unicode_literals</span>
+
 <span class="kn">import</span> <span class="nn">copy</span>
 <span class="kn">import</span> <span class="nn">sys</span>
 <span class="kn">from</span> <span class="nn">functools</span> <span class="kn">import</span> <span class="n">update_wrapper</span>
-<span class="kn">from</span> <span class="nn">itertools</span> <span class="kn">import</span> <span class="n">izip</span>
+<span class="kn">from</span> <span class="nn">django.utils.six.moves</span> <span class="kn">import</span> <span class="nb">zip</span>
 
-<span class="kn">import</span> <span class="nn">django.db.models.manager</span>     <span class="c"># Imported to register signal handler.</span>
+<span class="kn">import</span> <span class="nn">django.db.models.manager</span>  <span class="c"># Imported to register signal handler.</span>
 <span class="kn">from</span> <span class="nn">django.conf</span> <span class="kn">import</span> <span class="n">settings</span>
 <span class="kn">from</span> <span class="nn">django.core.exceptions</span> <span class="kn">import</span> <span class="p">(</span><span class="n">ObjectDoesNotExist</span><span class="p">,</span>
     <span class="n">MultipleObjectsReturned</span><span class="p">,</span> <span class="n">FieldError</span><span class="p">,</span> <span class="n">ValidationError</span><span class="p">,</span> <span class="n">NON_FIELD_ERRORS</span><span class="p">)</span>
@@ -60,29 +62,66 @@
 <span class="kn">from</span> <span class="nn">django.db.models.fields</span> <span class="kn">import</span> <span class="n">AutoField</span><span class="p">,</span> <span class="n">FieldDoesNotExist</span>
 <span class="kn">from</span> <span class="nn">django.db.models.fields.related</span> <span class="kn">import</span> <span class="p">(</span><span class="n">ManyToOneRel</span><span class="p">,</span>
     <span class="n">OneToOneField</span><span class="p">,</span> <span class="n">add_lazy_relation</span><span class="p">)</span>
-<span class="kn">from</span> <span class="nn">django.db</span> <span class="kn">import</span> <span class="p">(</span><span class="n">connections</span><span class="p">,</span> <span class="n">router</span><span class="p">,</span> <span class="n">transaction</span><span class="p">,</span> <span class="n">DatabaseError</span><span class="p">,</span>
+<span class="kn">from</span> <span class="nn">django.db</span> <span class="kn">import</span> <span class="p">(</span><span class="n">router</span><span class="p">,</span> <span class="n">transaction</span><span class="p">,</span> <span class="n">DatabaseError</span><span class="p">,</span>
     <span class="n">DEFAULT_DB_ALIAS</span><span class="p">)</span>
 <span class="kn">from</span> <span class="nn">django.db.models.query</span> <span class="kn">import</span> <span class="n">Q</span>
-<span class="kn">from</span> <span class="nn">django.db.models.query_utils</span> <span class="kn">import</span> <span class="n">DeferredAttribute</span>
+<span class="kn">from</span> <span class="nn">django.db.models.query_utils</span> <span class="kn">import</span> <span class="n">DeferredAttribute</span><span class="p">,</span> <span class="n">deferred_class_factory</span>
 <span class="kn">from</span> <span class="nn">django.db.models.deletion</span> <span class="kn">import</span> <span class="n">Collector</span>
 <span class="kn">from</span> <span class="nn">django.db.models.options</span> <span class="kn">import</span> <span class="n">Options</span>
 <span class="kn">from</span> <span class="nn">django.db.models</span> <span class="kn">import</span> <span class="n">signals</span>
 <span class="kn">from</span> <span class="nn">django.db.models.loading</span> <span class="kn">import</span> <span class="n">register_models</span><span class="p">,</span> <span class="n">get_model</span>
 <span class="kn">from</span> <span class="nn">django.utils.translation</span> <span class="kn">import</span> <span class="n">ugettext_lazy</span> <span class="k">as</span> <span class="n">_</span>
 <span class="kn">from</span> <span class="nn">django.utils.functional</span> <span class="kn">import</span> <span class="n">curry</span>
-<span class="kn">from</span> <span class="nn">django.utils.encoding</span> <span class="kn">import</span> <span class="n">smart_str</span><span class="p">,</span> <span class="n">force_unicode</span>
+<span class="kn">from</span> <span class="nn">django.utils.encoding</span> <span class="kn">import</span> <span class="n">force_str</span><span class="p">,</span> <span class="n">force_text</span>
+<span class="kn">from</span> <span class="nn">django.utils</span> <span class="kn">import</span> <span class="n">six</span>
 <span class="kn">from</span> <span class="nn">django.utils.text</span> <span class="kn">import</span> <span class="n">get_text_list</span><span class="p">,</span> <span class="n">capfirst</span>
 
 
+<div class="viewcode-block" id="subclass_exception"><a class="viewcode-back" href="../../../../django.db.models.html#django.db.models.base.subclass_exception">[docs]</a><span class="k">def</span> <span class="nf">subclass_exception</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">parents</span><span class="p">,</span> <span class="n">module</span><span class="p">,</span> <span class="n">attached_to</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Create exception subclass. Used by ModelBase below.</span>
+
+<span class="sd">    If &#39;attached_to&#39; is supplied, the exception will be created in a way that</span>
+<span class="sd">    allows it to be pickled, assuming the returned exception class will be added</span>
+<span class="sd">    as an attribute to the &#39;attached_to&#39; class.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">class_dict</span> <span class="o">=</span> <span class="p">{</span><span class="s">&#39;__module__&#39;</span><span class="p">:</span> <span class="n">module</span><span class="p">}</span>
+    <span class="k">if</span> <span class="n">attached_to</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+        <span class="k">def</span> <span class="nf">__reduce__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+            <span class="c"># Exceptions are special - they&#39;ve got state that isn&#39;t</span>
+            <span class="c"># in self.__dict__. We assume it is all in self.args.</span>
+            <span class="k">return</span> <span class="p">(</span><span class="n">unpickle_inner_exception</span><span class="p">,</span> <span class="p">(</span><span class="n">attached_to</span><span class="p">,</span> <span class="n">name</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="p">)</span>
+
+        <span class="k">def</span> <span class="nf">__setstate__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">args</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">args</span> <span class="o">=</span> <span class="n">args</span>
+
+        <span class="n">class_dict</span><span class="p">[</span><span class="s">&#39;__reduce__&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">__reduce__</span>
+        <span class="n">class_dict</span><span class="p">[</span><span class="s">&#39;__setstate__&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">__setstate__</span>
+
+    <span class="k">return</span> <span class="nb">type</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">parents</span><span class="p">,</span> <span class="n">class_dict</span><span class="p">)</span>
+
+</div>
 <div class="viewcode-block" id="ModelBase"><a class="viewcode-back" href="../../../../django.db.models.html#django.db.models.base.ModelBase">[docs]</a><span class="k">class</span> <span class="nc">ModelBase</span><span class="p">(</span><span class="nb">type</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Metaclass for all models.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">def</span> <span class="nf">__new__</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">bases</span><span class="p">,</span> <span class="n">attrs</span><span class="p">):</span>
         <span class="n">super_new</span> <span class="o">=</span> <span class="nb">super</span><span class="p">(</span><span class="n">ModelBase</span><span class="p">,</span> <span class="n">cls</span><span class="p">)</span><span class="o">.</span><span class="n">__new__</span>
-        <span class="n">parents</span> <span class="o">=</span> <span class="p">[</span><span class="n">b</span> <span class="k">for</span> <span class="n">b</span> <span class="ow">in</span> <span class="n">bases</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">b</span><span class="p">,</span> <span class="n">ModelBase</span><span class="p">)]</span>
+
+        <span class="c"># six.with_metaclass() inserts an extra class called &#39;NewBase&#39; in the</span>
+        <span class="c"># inheritance tree: Model -&gt; NewBase -&gt; object. But the initialization</span>
+        <span class="c"># should be executed only once for a given model class.</span>
+
+        <span class="c"># attrs will never be empty for classes declared in the standard way</span>
+        <span class="c"># (ie. with the `class` keyword). This is quite robust.</span>
+        <span class="k">if</span> <span class="n">name</span> <span class="o">==</span> <span class="s">&#39;NewBase&#39;</span> <span class="ow">and</span> <span class="n">attrs</span> <span class="o">==</span> <span class="p">{}:</span>
+            <span class="k">return</span> <span class="n">super_new</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">bases</span><span class="p">,</span> <span class="n">attrs</span><span class="p">)</span>
+
+        <span class="c"># Also ensure initialization is only performed for subclasses of Model</span>
+        <span class="c"># (excluding Model class itself).</span>
+        <span class="n">parents</span> <span class="o">=</span> <span class="p">[</span><span class="n">b</span> <span class="k">for</span> <span class="n">b</span> <span class="ow">in</span> <span class="n">bases</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">b</span><span class="p">,</span> <span class="n">ModelBase</span><span class="p">)</span> <span class="ow">and</span>
+                <span class="ow">not</span> <span class="p">(</span><span class="n">b</span><span class="o">.</span><span class="n">__name__</span> <span class="o">==</span> <span class="s">&#39;NewBase&#39;</span> <span class="ow">and</span> <span class="n">b</span><span class="o">.</span><span class="n">__mro__</span> <span class="o">==</span> <span class="p">(</span><span class="n">b</span><span class="p">,</span> <span class="nb">object</span><span class="p">))]</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="n">parents</span><span class="p">:</span>
-            <span class="c"># If this isn&#39;t a subclass of Model, don&#39;t do anything special.</span>
             <span class="k">return</span> <span class="n">super_new</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">bases</span><span class="p">,</span> <span class="n">attrs</span><span class="p">)</span>
 
         <span class="c"># Create the class.</span>
@@ -106,14 +145,16 @@
 
         <span class="n">new_class</span><span class="o">.</span><span class="n">add_to_class</span><span class="p">(</span><span class="s">&#39;_meta&#39;</span><span class="p">,</span> <span class="n">Options</span><span class="p">(</span><span class="n">meta</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">))</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="n">abstract</span><span class="p">:</span>
-            <span class="n">new_class</span><span class="o">.</span><span class="n">add_to_class</span><span class="p">(</span><span class="s">&#39;DoesNotExist&#39;</span><span class="p">,</span> <span class="n">subclass_exception</span><span class="p">(</span><span class="s">&#39;DoesNotExist&#39;</span><span class="p">,</span>
+            <span class="n">new_class</span><span class="o">.</span><span class="n">add_to_class</span><span class="p">(</span><span class="s">&#39;DoesNotExist&#39;</span><span class="p">,</span> <span class="n">subclass_exception</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="s">&#39;DoesNotExist&#39;</span><span class="p">),</span>
                     <span class="nb">tuple</span><span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">DoesNotExist</span>
-                            <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">parents</span> <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="s">&#39;_meta&#39;</span><span class="p">)</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">x</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">abstract</span><span class="p">)</span>
-                                    <span class="ow">or</span> <span class="p">(</span><span class="n">ObjectDoesNotExist</span><span class="p">,),</span> <span class="n">module</span><span class="p">))</span>
-            <span class="n">new_class</span><span class="o">.</span><span class="n">add_to_class</span><span class="p">(</span><span class="s">&#39;MultipleObjectsReturned&#39;</span><span class="p">,</span> <span class="n">subclass_exception</span><span class="p">(</span><span class="s">&#39;MultipleObjectsReturned&#39;</span><span class="p">,</span>
+                          <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">parents</span> <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="s">&#39;_meta&#39;</span><span class="p">)</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">x</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">abstract</span><span class="p">)</span>
+                    <span class="ow">or</span> <span class="p">(</span><span class="n">ObjectDoesNotExist</span><span class="p">,),</span>
+                    <span class="n">module</span><span class="p">,</span> <span class="n">attached_to</span><span class="o">=</span><span class="n">new_class</span><span class="p">))</span>
+            <span class="n">new_class</span><span class="o">.</span><span class="n">add_to_class</span><span class="p">(</span><span class="s">&#39;MultipleObjectsReturned&#39;</span><span class="p">,</span> <span class="n">subclass_exception</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="s">&#39;MultipleObjectsReturned&#39;</span><span class="p">),</span>
                     <span class="nb">tuple</span><span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">MultipleObjectsReturned</span>
-                            <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">parents</span> <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="s">&#39;_meta&#39;</span><span class="p">)</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">x</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">abstract</span><span class="p">)</span>
-                                    <span class="ow">or</span> <span class="p">(</span><span class="n">MultipleObjectsReturned</span><span class="p">,),</span> <span class="n">module</span><span class="p">))</span>
+                          <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">parents</span> <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="s">&#39;_meta&#39;</span><span class="p">)</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">x</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">abstract</span><span class="p">)</span>
+                    <span class="ow">or</span> <span class="p">(</span><span class="n">MultipleObjectsReturned</span><span class="p">,),</span>
+                    <span class="n">module</span><span class="p">,</span> <span class="n">attached_to</span><span class="o">=</span><span class="n">new_class</span><span class="p">))</span>
             <span class="k">if</span> <span class="n">base_meta</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">base_meta</span><span class="o">.</span><span class="n">abstract</span><span class="p">:</span>
                 <span class="c"># Non-abstract child classes inherit some attributes from their</span>
                 <span class="c"># non-abstract parent (unless an ABC comes before it in the</span>
@@ -124,6 +165,11 @@
                     <span class="n">new_class</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">get_latest_by</span> <span class="o">=</span> <span class="n">base_meta</span><span class="o">.</span><span class="n">get_latest_by</span>
 
         <span class="n">is_proxy</span> <span class="o">=</span> <span class="n">new_class</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">proxy</span>
+
+        <span class="c"># If the model is a proxy, ensure that the base class</span>
+        <span class="c"># hasn&#39;t been swapped out.</span>
+        <span class="k">if</span> <span class="n">is_proxy</span> <span class="ow">and</span> <span class="n">base_meta</span> <span class="ow">and</span> <span class="n">base_meta</span><span class="o">.</span><span class="n">swapped</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s">&quot;</span><span class="si">%s</span><span class="s"> cannot proxy the swapped model &#39;</span><span class="si">%s</span><span class="s">&#39;.&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">base_meta</span><span class="o">.</span><span class="n">swapped</span><span class="p">))</span>
 
         <span class="k">if</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">new_class</span><span class="p">,</span> <span class="s">&#39;_default_manager&#39;</span><span class="p">,</span> <span class="bp">None</span><span class="p">):</span>
             <span class="k">if</span> <span class="ow">not</span> <span class="n">is_proxy</span><span class="p">:</span>
@@ -279,6 +325,7 @@
         <span class="k">if</span> <span class="n">opts</span><span class="o">.</span><span class="n">order_with_respect_to</span><span class="p">:</span>
             <span class="n">cls</span><span class="o">.</span><span class="n">get_next_in_order</span> <span class="o">=</span> <span class="n">curry</span><span class="p">(</span><span class="n">cls</span><span class="o">.</span><span class="n">_get_next_or_previous_in_order</span><span class="p">,</span> <span class="n">is_next</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
             <span class="n">cls</span><span class="o">.</span><span class="n">get_previous_in_order</span> <span class="o">=</span> <span class="n">curry</span><span class="p">(</span><span class="n">cls</span><span class="o">.</span><span class="n">_get_next_or_previous_in_order</span><span class="p">,</span> <span class="n">is_next</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span>
+
             <span class="c"># defer creating accessors on the foreign class until we are</span>
             <span class="c"># certain it has been created</span>
             <span class="k">def</span> <span class="nf">make_foreign_order_accessors</span><span class="p">(</span><span class="n">field</span><span class="p">,</span> <span class="n">model</span><span class="p">,</span> <span class="n">cls</span><span class="p">):</span>
@@ -308,6 +355,7 @@
                                                   <span class="n">cls</span><span class="o">.</span><span class="n">get_absolute_url</span><span class="p">)</span>
 
         <span class="n">signals</span><span class="o">.</span><span class="n">class_prepared</span><span class="o">.</span><span class="n">send</span><span class="p">(</span><span class="n">sender</span><span class="o">=</span><span class="n">cls</span><span class="p">)</span>
+
 </div>
 <div class="viewcode-block" id="ModelState"><a class="viewcode-back" href="../../../../django.db.models.html#django.db.models.base.ModelState">[docs]</a><span class="k">class</span> <span class="nc">ModelState</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
@@ -319,9 +367,9 @@
         <span class="c"># Necessary for correct validation of new instances of objects with explicit (non-auto) PKs.</span>
         <span class="c"># This impacts validation only; it has no effect on the actual save.</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">adding</span> <span class="o">=</span> <span class="bp">True</span>
+
 </div>
-<span class="k">class</span> <span class="nc">Model</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
-    <span class="n">__metaclass__</span> <span class="o">=</span> <span class="n">ModelBase</span>
+<span class="k">class</span> <span class="nc">Model</span><span class="p">(</span><span class="n">six</span><span class="o">.</span><span class="n">with_metaclass</span><span class="p">(</span><span class="n">ModelBase</span><span class="p">)):</span>
     <span class="n">_deferred</span> <span class="o">=</span> <span class="bp">False</span>
 
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
@@ -341,15 +389,15 @@
 
         <span class="n">fields_iter</span> <span class="o">=</span> <span class="nb">iter</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">fields</span><span class="p">)</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="n">kwargs</span><span class="p">:</span>
-            <span class="c"># The ordering of the izip calls matter - izip throws StopIteration</span>
+            <span class="c"># The ordering of the zip calls matter - zip throws StopIteration</span>
             <span class="c"># when an iter throws it. So if the first iter throws it, the second</span>
             <span class="c"># is *not* consumed. We rely on this, so don&#39;t change the order</span>
             <span class="c"># without changing the logic.</span>
-            <span class="k">for</span> <span class="n">val</span><span class="p">,</span> <span class="n">field</span> <span class="ow">in</span> <span class="n">izip</span><span class="p">(</span><span class="n">args</span><span class="p">,</span> <span class="n">fields_iter</span><span class="p">):</span>
+            <span class="k">for</span> <span class="n">val</span><span class="p">,</span> <span class="n">field</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">args</span><span class="p">,</span> <span class="n">fields_iter</span><span class="p">):</span>
                 <span class="nb">setattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">field</span><span class="o">.</span><span class="n">attname</span><span class="p">,</span> <span class="n">val</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="c"># Slower, kwargs-ready version.</span>
-            <span class="k">for</span> <span class="n">val</span><span class="p">,</span> <span class="n">field</span> <span class="ow">in</span> <span class="n">izip</span><span class="p">(</span><span class="n">args</span><span class="p">,</span> <span class="n">fields_iter</span><span class="p">):</span>
+            <span class="k">for</span> <span class="n">val</span><span class="p">,</span> <span class="n">field</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">args</span><span class="p">,</span> <span class="n">fields_iter</span><span class="p">):</span>
                 <span class="nb">setattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">field</span><span class="o">.</span><span class="n">attname</span><span class="p">,</span> <span class="n">val</span><span class="p">)</span>
                 <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="n">field</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="bp">None</span><span class="p">)</span>
                 <span class="c"># Maintain compatibility with existing calls.</span>
@@ -406,27 +454,32 @@
                 <span class="nb">setattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">field</span><span class="o">.</span><span class="n">attname</span><span class="p">,</span> <span class="n">val</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="n">kwargs</span><span class="p">:</span>
-            <span class="k">for</span> <span class="n">prop</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+            <span class="k">for</span> <span class="n">prop</span> <span class="ow">in</span> <span class="nb">list</span><span class="p">(</span><span class="n">kwargs</span><span class="p">):</span>
                 <span class="k">try</span><span class="p">:</span>
                     <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="p">,</span> <span class="n">prop</span><span class="p">),</span> <span class="nb">property</span><span class="p">):</span>
                         <span class="nb">setattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">prop</span><span class="p">,</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="n">prop</span><span class="p">))</span>
                 <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>
                     <span class="k">pass</span>
             <span class="k">if</span> <span class="n">kwargs</span><span class="p">:</span>
-                <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s">&quot;&#39;</span><span class="si">%s</span><span class="s">&#39; is an invalid keyword argument for this function&quot;</span> <span class="o">%</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">keys</span><span class="p">()[</span><span class="mi">0</span><span class="p">])</span>
+                <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s">&quot;&#39;</span><span class="si">%s</span><span class="s">&#39; is an invalid keyword argument for this function&quot;</span> <span class="o">%</span> <span class="nb">list</span><span class="p">(</span><span class="n">kwargs</span><span class="p">)[</span><span class="mi">0</span><span class="p">])</span>
         <span class="nb">super</span><span class="p">(</span><span class="n">Model</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__init__</span><span class="p">()</span>
         <span class="n">signals</span><span class="o">.</span><span class="n">post_init</span><span class="o">.</span><span class="n">send</span><span class="p">(</span><span class="n">sender</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="p">,</span> <span class="n">instance</span><span class="o">=</span><span class="bp">self</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">try</span><span class="p">:</span>
-            <span class="n">u</span> <span class="o">=</span> <span class="nb">unicode</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+            <span class="n">u</span> <span class="o">=</span> <span class="n">six</span><span class="o">.</span><span class="n">text_type</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
         <span class="k">except</span> <span class="p">(</span><span class="ne">UnicodeEncodeError</span><span class="p">,</span> <span class="ne">UnicodeDecodeError</span><span class="p">):</span>
             <span class="n">u</span> <span class="o">=</span> <span class="s">&#39;[Bad Unicode data]&#39;</span>
-        <span class="k">return</span> <span class="n">smart_str</span><span class="p">(</span><span class="s">u&#39;&lt;</span><span class="si">%s</span><span class="s">: </span><span class="si">%s</span><span class="s">&gt;&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="o">.</span><span class="n">__name__</span><span class="p">,</span> <span class="n">u</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">force_str</span><span class="p">(</span><span class="s">&#39;&lt;</span><span class="si">%s</span><span class="s">: </span><span class="si">%s</span><span class="s">&gt;&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="o">.</span><span class="n">__name__</span><span class="p">,</span> <span class="n">u</span><span class="p">))</span>
 
     <span class="k">def</span> <span class="nf">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s">&#39;__unicode__&#39;</span><span class="p">):</span>
-            <span class="k">return</span> <span class="n">force_unicode</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s">&#39;utf-8&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">six</span><span class="o">.</span><span class="n">PY3</span> <span class="ow">and</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s">&#39;__unicode__&#39;</span><span class="p">):</span>
+            <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__unicode__</span> <span class="o">==</span> <span class="n">Model</span><span class="o">.</span><span class="n">__str__</span><span class="p">:</span>
+                <span class="n">klass_name</span> <span class="o">=</span> <span class="nb">type</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__name__</span>
+                <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s">&quot;</span><span class="si">%s</span><span class="s">.__unicode__ is aliased to __str__. Did&quot;</span>
+                                   <span class="s">&quot; you apply @python_2_unicode_compatible&quot;</span>
+                                   <span class="s">&quot; without defining __str__?&quot;</span> <span class="o">%</span> <span class="n">klass_name</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">force_text</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s">&#39;utf-8&#39;</span><span class="p">)</span>
         <span class="k">return</span> <span class="s">&#39;</span><span class="si">%s</span><span class="s"> object&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="o">.</span><span class="n">__name__</span>
 
     <span class="k">def</span> <span class="nf">__eq__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
@@ -445,31 +498,16 @@
 <span class="sd">        need to do things manually, as they&#39;re dynamically created classes and</span>
 <span class="sd">        only module-level classes can be pickled by the default path.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_deferred</span><span class="p">:</span>
+            <span class="k">return</span> <span class="nb">super</span><span class="p">(</span><span class="n">Model</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__reduce__</span><span class="p">()</span>
         <span class="n">data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__dict__</span>
-        <span class="n">model</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__class__</span>
-        <span class="c"># The obvious thing to do here is to invoke super().__reduce__()</span>
-        <span class="c"># for the non-deferred case. Don&#39;t do that.</span>
-        <span class="c"># On Python 2.4, there is something weird with __reduce__,</span>
-        <span class="c"># and as a result, the super call will cause an infinite recursion.</span>
-        <span class="c"># See #10547 and #12121.</span>
         <span class="n">defers</span> <span class="o">=</span> <span class="p">[]</span>
-        <span class="n">pk_val</span> <span class="o">=</span> <span class="bp">None</span>
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_deferred</span><span class="p">:</span>
-            <span class="kn">from</span> <span class="nn">django.db.models.query_utils</span> <span class="kn">import</span> <span class="n">deferred_class_factory</span>
-            <span class="n">factory</span> <span class="o">=</span> <span class="n">deferred_class_factory</span>
-            <span class="k">for</span> <span class="n">field</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">fields</span><span class="p">:</span>
-                <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="o">.</span><span class="n">__dict__</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">field</span><span class="o">.</span><span class="n">attname</span><span class="p">),</span>
-                        <span class="n">DeferredAttribute</span><span class="p">):</span>
-                    <span class="n">defers</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">field</span><span class="o">.</span><span class="n">attname</span><span class="p">)</span>
-                    <span class="k">if</span> <span class="n">pk_val</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
-                        <span class="c"># The pk_val and model values are the same for all</span>
-                        <span class="c"># DeferredAttribute classes, so we only need to do this</span>
-                        <span class="c"># once.</span>
-                        <span class="n">obj</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="o">.</span><span class="n">__dict__</span><span class="p">[</span><span class="n">field</span><span class="o">.</span><span class="n">attname</span><span class="p">]</span>
-                        <span class="n">model</span> <span class="o">=</span> <span class="n">obj</span><span class="o">.</span><span class="n">model_ref</span><span class="p">()</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="n">factory</span> <span class="o">=</span> <span class="n">simple_class_factory</span>
-        <span class="k">return</span> <span class="p">(</span><span class="n">model_unpickle</span><span class="p">,</span> <span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">defers</span><span class="p">,</span> <span class="n">factory</span><span class="p">),</span> <span class="n">data</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">field</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">fields</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="o">.</span><span class="n">__dict__</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">field</span><span class="o">.</span><span class="n">attname</span><span class="p">),</span>
+                    <span class="n">DeferredAttribute</span><span class="p">):</span>
+                <span class="n">defers</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">field</span><span class="o">.</span><span class="n">attname</span><span class="p">)</span>
+        <span class="n">model</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">proxy_for_model</span>
+        <span class="k">return</span> <span class="p">(</span><span class="n">model_unpickle</span><span class="p">,</span> <span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">defers</span><span class="p">),</span> <span class="n">data</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">_get_pk_val</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">meta</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="n">meta</span><span class="p">:</span>
@@ -498,7 +536,8 @@
             <span class="k">return</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">field_name</span><span class="p">)</span>
         <span class="k">return</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">field</span><span class="o">.</span><span class="n">attname</span><span class="p">)</span>
 
-    <span class="k">def</span> <span class="nf">save</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">force_insert</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">force_update</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">using</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">save</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">force_insert</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">force_update</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">using</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+             <span class="n">update_fields</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Saves the current instance. Override this in a subclass if you want to</span>
 <span class="sd">        control the saving process.</span>
@@ -507,14 +546,57 @@
 <span class="sd">        that the &quot;save&quot; must be an SQL insert or update (or equivalent for</span>
 <span class="sd">        non-SQL backends), respectively. Normally, they should not be set.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">if</span> <span class="n">force_insert</span> <span class="ow">and</span> <span class="n">force_update</span><span class="p">:</span>
+        <span class="n">using</span> <span class="o">=</span> <span class="n">using</span> <span class="ow">or</span> <span class="n">router</span><span class="o">.</span><span class="n">db_for_write</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="p">,</span> <span class="n">instance</span><span class="o">=</span><span class="bp">self</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">force_insert</span> <span class="ow">and</span> <span class="p">(</span><span class="n">force_update</span> <span class="ow">or</span> <span class="n">update_fields</span><span class="p">):</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s">&quot;Cannot force both insert and updating in model saving.&quot;</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">save_base</span><span class="p">(</span><span class="n">using</span><span class="o">=</span><span class="n">using</span><span class="p">,</span> <span class="n">force_insert</span><span class="o">=</span><span class="n">force_insert</span><span class="p">,</span> <span class="n">force_update</span><span class="o">=</span><span class="n">force_update</span><span class="p">)</span>
 
+        <span class="k">if</span> <span class="n">update_fields</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="c"># If update_fields is empty, skip the save. We do also check for</span>
+            <span class="c"># no-op saves later on for inheritance cases. This bailout is</span>
+            <span class="c"># still needed for skipping signal sending.</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">update_fields</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">return</span>
+
+            <span class="n">update_fields</span> <span class="o">=</span> <span class="nb">frozenset</span><span class="p">(</span><span class="n">update_fields</span><span class="p">)</span>
+            <span class="n">field_names</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+
+            <span class="k">for</span> <span class="n">field</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">fields</span><span class="p">:</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">field</span><span class="o">.</span><span class="n">primary_key</span><span class="p">:</span>
+                    <span class="n">field_names</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">field</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+
+                    <span class="k">if</span> <span class="n">field</span><span class="o">.</span><span class="n">name</span> <span class="o">!=</span> <span class="n">field</span><span class="o">.</span><span class="n">attname</span><span class="p">:</span>
+                        <span class="n">field_names</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">field</span><span class="o">.</span><span class="n">attname</span><span class="p">)</span>
+
+            <span class="n">non_model_fields</span> <span class="o">=</span> <span class="n">update_fields</span><span class="o">.</span><span class="n">difference</span><span class="p">(</span><span class="n">field_names</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">non_model_fields</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s">&quot;The following fields do not exist in this &quot;</span>
+                                 <span class="s">&quot;model or are m2m fields: </span><span class="si">%s</span><span class="s">&quot;</span>
+                                 <span class="o">%</span> <span class="s">&#39;, &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">non_model_fields</span><span class="p">))</span>
+
+        <span class="c"># If saving to the same database, and this model is deferred, then</span>
+        <span class="c"># automatically do a &quot;update_fields&quot; save on the loaded fields.</span>
+        <span class="k">elif</span> <span class="ow">not</span> <span class="n">force_insert</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_deferred</span> <span class="ow">and</span> <span class="n">using</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">_state</span><span class="o">.</span><span class="n">db</span><span class="p">:</span>
+            <span class="n">field_names</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+            <span class="k">for</span> <span class="n">field</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">fields</span><span class="p">:</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">field</span><span class="o">.</span><span class="n">primary_key</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">field</span><span class="p">,</span> <span class="s">&#39;through&#39;</span><span class="p">):</span>
+                    <span class="n">field_names</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">field</span><span class="o">.</span><span class="n">attname</span><span class="p">)</span>
+            <span class="n">deferred_fields</span> <span class="o">=</span> <span class="p">[</span>
+                <span class="n">f</span><span class="o">.</span><span class="n">attname</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">fields</span>
+                <span class="k">if</span> <span class="n">f</span><span class="o">.</span><span class="n">attname</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">__dict__</span>
+                   <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="o">.</span><span class="n">__dict__</span><span class="p">[</span><span class="n">f</span><span class="o">.</span><span class="n">attname</span><span class="p">],</span>
+                                  <span class="n">DeferredAttribute</span><span class="p">)]</span>
+
+            <span class="n">loaded_fields</span> <span class="o">=</span> <span class="n">field_names</span><span class="o">.</span><span class="n">difference</span><span class="p">(</span><span class="n">deferred_fields</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">loaded_fields</span><span class="p">:</span>
+                <span class="n">update_fields</span> <span class="o">=</span> <span class="nb">frozenset</span><span class="p">(</span><span class="n">loaded_fields</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">save_base</span><span class="p">(</span><span class="n">using</span><span class="o">=</span><span class="n">using</span><span class="p">,</span> <span class="n">force_insert</span><span class="o">=</span><span class="n">force_insert</span><span class="p">,</span>
+                       <span class="n">force_update</span><span class="o">=</span><span class="n">force_update</span><span class="p">,</span> <span class="n">update_fields</span><span class="o">=</span><span class="n">update_fields</span><span class="p">)</span>
     <span class="n">save</span><span class="o">.</span><span class="n">alters_data</span> <span class="o">=</span> <span class="bp">True</span>
 
     <span class="k">def</span> <span class="nf">save_base</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">raw</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">cls</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">origin</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">force_insert</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span>
-            <span class="n">force_update</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">using</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+                  <span class="n">force_update</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">using</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">update_fields</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Does the heavy-lifting involved in saving. Subclasses shouldn&#39;t need to</span>
 <span class="sd">        override this method. It&#39;s separate from save() in order to hide the</span>
@@ -522,7 +604,8 @@
 <span class="sd">        (&#39;raw&#39;, &#39;cls&#39;, and &#39;origin&#39;).</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">using</span> <span class="o">=</span> <span class="n">using</span> <span class="ow">or</span> <span class="n">router</span><span class="o">.</span><span class="n">db_for_write</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="p">,</span> <span class="n">instance</span><span class="o">=</span><span class="bp">self</span><span class="p">)</span>
-        <span class="k">assert</span> <span class="ow">not</span> <span class="p">(</span><span class="n">force_insert</span> <span class="ow">and</span> <span class="n">force_update</span><span class="p">)</span>
+        <span class="k">assert</span> <span class="ow">not</span> <span class="p">(</span><span class="n">force_insert</span> <span class="ow">and</span> <span class="p">(</span><span class="n">force_update</span> <span class="ow">or</span> <span class="n">update_fields</span><span class="p">))</span>
+        <span class="k">assert</span> <span class="n">update_fields</span> <span class="ow">is</span> <span class="bp">None</span> <span class="ow">or</span> <span class="nb">len</span><span class="p">(</span><span class="n">update_fields</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span>
         <span class="k">if</span> <span class="n">cls</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
             <span class="n">cls</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__class__</span>
             <span class="n">meta</span> <span class="o">=</span> <span class="n">cls</span><span class="o">.</span><span class="n">_meta</span>
@@ -532,7 +615,8 @@
             <span class="n">meta</span> <span class="o">=</span> <span class="n">cls</span><span class="o">.</span><span class="n">_meta</span>
 
         <span class="k">if</span> <span class="n">origin</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">meta</span><span class="o">.</span><span class="n">auto_created</span><span class="p">:</span>
-            <span class="n">signals</span><span class="o">.</span><span class="n">pre_save</span><span class="o">.</span><span class="n">send</span><span class="p">(</span><span class="n">sender</span><span class="o">=</span><span class="n">origin</span><span class="p">,</span> <span class="n">instance</span><span class="o">=</span><span class="bp">self</span><span class="p">,</span> <span class="n">raw</span><span class="o">=</span><span class="n">raw</span><span class="p">,</span> <span class="n">using</span><span class="o">=</span><span class="n">using</span><span class="p">)</span>
+            <span class="n">signals</span><span class="o">.</span><span class="n">pre_save</span><span class="o">.</span><span class="n">send</span><span class="p">(</span><span class="n">sender</span><span class="o">=</span><span class="n">origin</span><span class="p">,</span> <span class="n">instance</span><span class="o">=</span><span class="bp">self</span><span class="p">,</span> <span class="n">raw</span><span class="o">=</span><span class="n">raw</span><span class="p">,</span> <span class="n">using</span><span class="o">=</span><span class="n">using</span><span class="p">,</span>
+                                  <span class="n">update_fields</span><span class="o">=</span><span class="n">update_fields</span><span class="p">)</span>
 
         <span class="c"># If we are in a raw save, save the object exactly as presented.</span>
         <span class="c"># That means that we don&#39;t try to be smart about saving attributes</span>
@@ -552,15 +636,28 @@
                 <span class="k">if</span> <span class="n">field</span> <span class="ow">and</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">parent</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">pk</span><span class="o">.</span><span class="n">attname</span><span class="p">)</span> <span class="ow">is</span> <span class="bp">None</span> <span class="ow">and</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">field</span><span class="o">.</span><span class="n">attname</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
                     <span class="nb">setattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">parent</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">pk</span><span class="o">.</span><span class="n">attname</span><span class="p">,</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">field</span><span class="o">.</span><span class="n">attname</span><span class="p">))</span>
 
-                <span class="bp">self</span><span class="o">.</span><span class="n">save_base</span><span class="p">(</span><span class="n">cls</span><span class="o">=</span><span class="n">parent</span><span class="p">,</span> <span class="n">origin</span><span class="o">=</span><span class="n">org</span><span class="p">,</span> <span class="n">using</span><span class="o">=</span><span class="n">using</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">save_base</span><span class="p">(</span><span class="n">cls</span><span class="o">=</span><span class="n">parent</span><span class="p">,</span> <span class="n">origin</span><span class="o">=</span><span class="n">org</span><span class="p">,</span> <span class="n">using</span><span class="o">=</span><span class="n">using</span><span class="p">,</span>
+                               <span class="n">update_fields</span><span class="o">=</span><span class="n">update_fields</span><span class="p">)</span>
 
                 <span class="k">if</span> <span class="n">field</span><span class="p">:</span>
                     <span class="nb">setattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">field</span><span class="o">.</span><span class="n">attname</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_pk_val</span><span class="p">(</span><span class="n">parent</span><span class="o">.</span><span class="n">_meta</span><span class="p">))</span>
+                    <span class="c"># Since we didn&#39;t have an instance of the parent handy, we</span>
+                    <span class="c"># set attname directly, bypassing the descriptor.</span>
+                    <span class="c"># Invalidate the related object cache, in case it&#39;s been</span>
+                    <span class="c"># accidentally populated. A fresh instance will be</span>
+                    <span class="c"># re-built from the database if necessary.</span>
+                    <span class="n">cache_name</span> <span class="o">=</span> <span class="n">field</span><span class="o">.</span><span class="n">get_cache_name</span><span class="p">()</span>
+                    <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cache_name</span><span class="p">):</span>
+                        <span class="nb">delattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cache_name</span><span class="p">)</span>
+
             <span class="k">if</span> <span class="n">meta</span><span class="o">.</span><span class="n">proxy</span><span class="p">:</span>
                 <span class="k">return</span>
 
         <span class="k">if</span> <span class="ow">not</span> <span class="n">meta</span><span class="o">.</span><span class="n">proxy</span><span class="p">:</span>
             <span class="n">non_pks</span> <span class="o">=</span> <span class="p">[</span><span class="n">f</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">meta</span><span class="o">.</span><span class="n">local_fields</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">f</span><span class="o">.</span><span class="n">primary_key</span><span class="p">]</span>
+
+            <span class="k">if</span> <span class="n">update_fields</span><span class="p">:</span>
+                <span class="n">non_pks</span> <span class="o">=</span> <span class="p">[</span><span class="n">f</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">non_pks</span> <span class="k">if</span> <span class="n">f</span><span class="o">.</span><span class="n">name</span> <span class="ow">in</span> <span class="n">update_fields</span> <span class="ow">or</span> <span class="n">f</span><span class="o">.</span><span class="n">attname</span> <span class="ow">in</span> <span class="n">update_fields</span><span class="p">]</span>
 
             <span class="c"># First, try an UPDATE. If that doesn&#39;t update anything, do an INSERT.</span>
             <span class="n">pk_val</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_pk_val</span><span class="p">(</span><span class="n">meta</span><span class="p">)</span>
@@ -568,16 +665,18 @@
             <span class="n">record_exists</span> <span class="o">=</span> <span class="bp">True</span>
             <span class="n">manager</span> <span class="o">=</span> <span class="n">cls</span><span class="o">.</span><span class="n">_base_manager</span>
             <span class="k">if</span> <span class="n">pk_set</span><span class="p">:</span>
-                <span class="c"># Determine whether a record with the primary key already exists.</span>
-                <span class="k">if</span> <span class="p">(</span><span class="n">force_update</span> <span class="ow">or</span> <span class="p">(</span><span class="ow">not</span> <span class="n">force_insert</span> <span class="ow">and</span>
+                <span class="c"># Determine if we should do an update (pk already exists, forced update,</span>
+                <span class="c"># no force_insert)</span>
+                <span class="k">if</span> <span class="p">((</span><span class="n">force_update</span> <span class="ow">or</span> <span class="n">update_fields</span><span class="p">)</span> <span class="ow">or</span> <span class="p">(</span><span class="ow">not</span> <span class="n">force_insert</span> <span class="ow">and</span>
                         <span class="n">manager</span><span class="o">.</span><span class="n">using</span><span class="p">(</span><span class="n">using</span><span class="p">)</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">pk</span><span class="o">=</span><span class="n">pk_val</span><span class="p">)</span><span class="o">.</span><span class="n">exists</span><span class="p">())):</span>
-                    <span class="c"># It does already exist, so do an UPDATE.</span>
                     <span class="k">if</span> <span class="n">force_update</span> <span class="ow">or</span> <span class="n">non_pks</span><span class="p">:</span>
                         <span class="n">values</span> <span class="o">=</span> <span class="p">[(</span><span class="n">f</span><span class="p">,</span> <span class="bp">None</span><span class="p">,</span> <span class="p">(</span><span class="n">raw</span> <span class="ow">and</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">f</span><span class="o">.</span><span class="n">attname</span><span class="p">)</span> <span class="ow">or</span> <span class="n">f</span><span class="o">.</span><span class="n">pre_save</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="bp">False</span><span class="p">)))</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">non_pks</span><span class="p">]</span>
                         <span class="k">if</span> <span class="n">values</span><span class="p">:</span>
                             <span class="n">rows</span> <span class="o">=</span> <span class="n">manager</span><span class="o">.</span><span class="n">using</span><span class="p">(</span><span class="n">using</span><span class="p">)</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">pk</span><span class="o">=</span><span class="n">pk_val</span><span class="p">)</span><span class="o">.</span><span class="n">_update</span><span class="p">(</span><span class="n">values</span><span class="p">)</span>
                             <span class="k">if</span> <span class="n">force_update</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">rows</span><span class="p">:</span>
                                 <span class="k">raise</span> <span class="n">DatabaseError</span><span class="p">(</span><span class="s">&quot;Forced update did not affect any rows.&quot;</span><span class="p">)</span>
+                            <span class="k">if</span> <span class="n">update_fields</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">rows</span><span class="p">:</span>
+                                <span class="k">raise</span> <span class="n">DatabaseError</span><span class="p">(</span><span class="s">&quot;Save with update_fields did not affect any rows.&quot;</span><span class="p">)</span>
                 <span class="k">else</span><span class="p">:</span>
                     <span class="n">record_exists</span> <span class="o">=</span> <span class="bp">False</span>
             <span class="k">if</span> <span class="ow">not</span> <span class="n">pk_set</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">record_exists</span><span class="p">:</span>
@@ -590,7 +689,7 @@
 
                 <span class="n">fields</span> <span class="o">=</span> <span class="n">meta</span><span class="o">.</span><span class="n">local_fields</span>
                 <span class="k">if</span> <span class="ow">not</span> <span class="n">pk_set</span><span class="p">:</span>
-                    <span class="k">if</span> <span class="n">force_update</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="n">force_update</span> <span class="ow">or</span> <span class="n">update_fields</span><span class="p">:</span>
                         <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s">&quot;Cannot force an update in save() with no primary key.&quot;</span><span class="p">)</span>
                     <span class="n">fields</span> <span class="o">=</span> <span class="p">[</span><span class="n">f</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">fields</span> <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="n">AutoField</span><span class="p">)]</span>
 
@@ -610,9 +709,8 @@
 
         <span class="c"># Signal that the save is complete</span>
         <span class="k">if</span> <span class="n">origin</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">meta</span><span class="o">.</span><span class="n">auto_created</span><span class="p">:</span>
-            <span class="n">signals</span><span class="o">.</span><span class="n">post_save</span><span class="o">.</span><span class="n">send</span><span class="p">(</span><span class="n">sender</span><span class="o">=</span><span class="n">origin</span><span class="p">,</span> <span class="n">instance</span><span class="o">=</span><span class="bp">self</span><span class="p">,</span>
-                <span class="n">created</span><span class="o">=</span><span class="p">(</span><span class="ow">not</span> <span class="n">record_exists</span><span class="p">),</span> <span class="n">raw</span><span class="o">=</span><span class="n">raw</span><span class="p">,</span> <span class="n">using</span><span class="o">=</span><span class="n">using</span><span class="p">)</span>
-
+            <span class="n">signals</span><span class="o">.</span><span class="n">post_save</span><span class="o">.</span><span class="n">send</span><span class="p">(</span><span class="n">sender</span><span class="o">=</span><span class="n">origin</span><span class="p">,</span> <span class="n">instance</span><span class="o">=</span><span class="bp">self</span><span class="p">,</span> <span class="n">created</span><span class="o">=</span><span class="p">(</span><span class="ow">not</span> <span class="n">record_exists</span><span class="p">),</span>
+                                   <span class="n">update_fields</span><span class="o">=</span><span class="n">update_fields</span><span class="p">,</span> <span class="n">raw</span><span class="o">=</span><span class="n">raw</span><span class="p">,</span> <span class="n">using</span><span class="o">=</span><span class="n">using</span><span class="p">)</span>
 
     <span class="n">save_base</span><span class="o">.</span><span class="n">alters_data</span> <span class="o">=</span> <span class="bp">True</span>
 
@@ -628,16 +726,16 @@
 
     <span class="k">def</span> <span class="nf">_get_FIELD_display</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">field</span><span class="p">):</span>
         <span class="n">value</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">field</span><span class="o">.</span><span class="n">attname</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">force_unicode</span><span class="p">(</span><span class="nb">dict</span><span class="p">(</span><span class="n">field</span><span class="o">.</span><span class="n">flatchoices</span><span class="p">)</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">value</span><span class="p">),</span> <span class="n">strings_only</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">force_text</span><span class="p">(</span><span class="nb">dict</span><span class="p">(</span><span class="n">field</span><span class="o">.</span><span class="n">flatchoices</span><span class="p">)</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">value</span><span class="p">),</span> <span class="n">strings_only</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">_get_next_or_previous_by_FIELD</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">field</span><span class="p">,</span> <span class="n">is_next</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">pk</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s">&quot;get_next/get_previous cannot be used on unsaved objects.&quot;</span><span class="p">)</span>
         <span class="n">op</span> <span class="o">=</span> <span class="n">is_next</span> <span class="ow">and</span> <span class="s">&#39;gt&#39;</span> <span class="ow">or</span> <span class="s">&#39;lt&#39;</span>
         <span class="n">order</span> <span class="o">=</span> <span class="ow">not</span> <span class="n">is_next</span> <span class="ow">and</span> <span class="s">&#39;-&#39;</span> <span class="ow">or</span> <span class="s">&#39;&#39;</span>
-        <span class="n">param</span> <span class="o">=</span> <span class="n">smart_str</span><span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">field</span><span class="o">.</span><span class="n">attname</span><span class="p">))</span>
+        <span class="n">param</span> <span class="o">=</span> <span class="n">force_text</span><span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">field</span><span class="o">.</span><span class="n">attname</span><span class="p">))</span>
         <span class="n">q</span> <span class="o">=</span> <span class="n">Q</span><span class="p">(</span><span class="o">**</span><span class="p">{</span><span class="s">&#39;</span><span class="si">%s</span><span class="s">__</span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">field</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">op</span><span class="p">):</span> <span class="n">param</span><span class="p">})</span>
-        <span class="n">q</span> <span class="o">=</span> <span class="n">q</span><span class="o">|</span><span class="n">Q</span><span class="p">(</span><span class="o">**</span><span class="p">{</span><span class="n">field</span><span class="o">.</span><span class="n">name</span><span class="p">:</span> <span class="n">param</span><span class="p">,</span> <span class="s">&#39;pk__</span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">op</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">pk</span><span class="p">})</span>
+        <span class="n">q</span> <span class="o">=</span> <span class="n">q</span> <span class="o">|</span> <span class="n">Q</span><span class="p">(</span><span class="o">**</span><span class="p">{</span><span class="n">field</span><span class="o">.</span><span class="n">name</span><span class="p">:</span> <span class="n">param</span><span class="p">,</span> <span class="s">&#39;pk__</span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">op</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">pk</span><span class="p">})</span>
         <span class="n">qs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="o">.</span><span class="n">_default_manager</span><span class="o">.</span><span class="n">using</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_state</span><span class="o">.</span><span class="n">db</span><span class="p">)</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">q</span><span class="p">)</span><span class="o">.</span><span class="n">order_by</span><span class="p">(</span><span class="s">&#39;</span><span class="si">%s%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">order</span><span class="p">,</span> <span class="n">field</span><span class="o">.</span><span class="n">name</span><span class="p">),</span> <span class="s">&#39;</span><span class="si">%s</span><span class="s">pk&#39;</span> <span class="o">%</span> <span class="n">order</span><span class="p">)</span>
         <span class="k">try</span><span class="p">:</span>
             <span class="k">return</span> <span class="n">qs</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
@@ -760,16 +858,20 @@
                 <span class="n">lookup_kwargs</span><span class="p">[</span><span class="nb">str</span><span class="p">(</span><span class="n">field_name</span><span class="p">)]</span> <span class="o">=</span> <span class="n">lookup_value</span>
 
             <span class="c"># some fields were skipped, no reason to do the check</span>
-            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">unique_check</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="n">lookup_kwargs</span><span class="o">.</span><span class="n">keys</span><span class="p">()):</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">unique_check</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="n">lookup_kwargs</span><span class="p">):</span>
                 <span class="k">continue</span>
 
             <span class="n">qs</span> <span class="o">=</span> <span class="n">model_class</span><span class="o">.</span><span class="n">_default_manager</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="o">**</span><span class="n">lookup_kwargs</span><span class="p">)</span>
 
             <span class="c"># Exclude the current object from the query if we are editing an</span>
             <span class="c"># instance (as opposed to creating a new one)</span>
-            <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_state</span><span class="o">.</span><span class="n">adding</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">pk</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
-                <span class="n">qs</span> <span class="o">=</span> <span class="n">qs</span><span class="o">.</span><span class="n">exclude</span><span class="p">(</span><span class="n">pk</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">pk</span><span class="p">)</span>
-
+            <span class="c"># Note that we need to use the pk as defined by model_class, not</span>
+            <span class="c"># self.pk. These can be different fields because model inheritance</span>
+            <span class="c"># allows single model to have effectively multiple primary keys.</span>
+            <span class="c"># Refs #17615.</span>
+            <span class="n">model_class_pk</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_pk_val</span><span class="p">(</span><span class="n">model_class</span><span class="o">.</span><span class="n">_meta</span><span class="p">)</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_state</span><span class="o">.</span><span class="n">adding</span> <span class="ow">and</span> <span class="n">model_class_pk</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+                <span class="n">qs</span> <span class="o">=</span> <span class="n">qs</span><span class="o">.</span><span class="n">exclude</span><span class="p">(</span><span class="n">pk</span><span class="o">=</span><span class="n">model_class_pk</span><span class="p">)</span>
             <span class="k">if</span> <span class="n">qs</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
                 <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">unique_check</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
                     <span class="n">key</span> <span class="o">=</span> <span class="n">unique_check</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
@@ -810,9 +912,9 @@
 
     <span class="k">def</span> <span class="nf">date_error_message</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">lookup_type</span><span class="p">,</span> <span class="n">field</span><span class="p">,</span> <span class="n">unique_for</span><span class="p">):</span>
         <span class="n">opts</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_meta</span>
-        <span class="k">return</span> <span class="n">_</span><span class="p">(</span><span class="s">u&quot;</span><span class="si">%(field_name)s</span><span class="s"> must be unique for </span><span class="si">%(date_field)s</span><span class="s"> </span><span class="si">%(lookup)s</span><span class="s">.&quot;</span><span class="p">)</span> <span class="o">%</span> <span class="p">{</span>
-            <span class="s">&#39;field_name&#39;</span><span class="p">:</span> <span class="nb">unicode</span><span class="p">(</span><span class="n">capfirst</span><span class="p">(</span><span class="n">opts</span><span class="o">.</span><span class="n">get_field</span><span class="p">(</span><span class="n">field</span><span class="p">)</span><span class="o">.</span><span class="n">verbose_name</span><span class="p">)),</span>
-            <span class="s">&#39;date_field&#39;</span><span class="p">:</span> <span class="nb">unicode</span><span class="p">(</span><span class="n">capfirst</span><span class="p">(</span><span class="n">opts</span><span class="o">.</span><span class="n">get_field</span><span class="p">(</span><span class="n">unique_for</span><span class="p">)</span><span class="o">.</span><span class="n">verbose_name</span><span class="p">)),</span>
+        <span class="k">return</span> <span class="n">_</span><span class="p">(</span><span class="s">&quot;</span><span class="si">%(field_name)s</span><span class="s"> must be unique for </span><span class="si">%(date_field)s</span><span class="s"> </span><span class="si">%(lookup)s</span><span class="s">.&quot;</span><span class="p">)</span> <span class="o">%</span> <span class="p">{</span>
+            <span class="s">&#39;field_name&#39;</span><span class="p">:</span> <span class="n">six</span><span class="o">.</span><span class="n">text_type</span><span class="p">(</span><span class="n">capfirst</span><span class="p">(</span><span class="n">opts</span><span class="o">.</span><span class="n">get_field</span><span class="p">(</span><span class="n">field</span><span class="p">)</span><span class="o">.</span><span class="n">verbose_name</span><span class="p">)),</span>
+            <span class="s">&#39;date_field&#39;</span><span class="p">:</span> <span class="n">six</span><span class="o">.</span><span class="n">text_type</span><span class="p">(</span><span class="n">capfirst</span><span class="p">(</span><span class="n">opts</span><span class="o">.</span><span class="n">get_field</span><span class="p">(</span><span class="n">unique_for</span><span class="p">)</span><span class="o">.</span><span class="n">verbose_name</span><span class="p">)),</span>
             <span class="s">&#39;lookup&#39;</span><span class="p">:</span> <span class="n">lookup_type</span><span class="p">,</span>
         <span class="p">}</span>
 
@@ -826,17 +928,17 @@
             <span class="n">field</span> <span class="o">=</span> <span class="n">opts</span><span class="o">.</span><span class="n">get_field</span><span class="p">(</span><span class="n">field_name</span><span class="p">)</span>
             <span class="n">field_label</span> <span class="o">=</span> <span class="n">capfirst</span><span class="p">(</span><span class="n">field</span><span class="o">.</span><span class="n">verbose_name</span><span class="p">)</span>
             <span class="c"># Insert the error into the error dict, very sneaky</span>
-            <span class="k">return</span> <span class="n">field</span><span class="o">.</span><span class="n">error_messages</span><span class="p">[</span><span class="s">&#39;unique&#39;</span><span class="p">]</span> <span class="o">%</span>  <span class="p">{</span>
-                <span class="s">&#39;model_name&#39;</span><span class="p">:</span> <span class="nb">unicode</span><span class="p">(</span><span class="n">model_name</span><span class="p">),</span>
-                <span class="s">&#39;field_label&#39;</span><span class="p">:</span> <span class="nb">unicode</span><span class="p">(</span><span class="n">field_label</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">field</span><span class="o">.</span><span class="n">error_messages</span><span class="p">[</span><span class="s">&#39;unique&#39;</span><span class="p">]</span> <span class="o">%</span> <span class="p">{</span>
+                <span class="s">&#39;model_name&#39;</span><span class="p">:</span> <span class="n">six</span><span class="o">.</span><span class="n">text_type</span><span class="p">(</span><span class="n">model_name</span><span class="p">),</span>
+                <span class="s">&#39;field_label&#39;</span><span class="p">:</span> <span class="n">six</span><span class="o">.</span><span class="n">text_type</span><span class="p">(</span><span class="n">field_label</span><span class="p">)</span>
             <span class="p">}</span>
         <span class="c"># unique_together</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="n">field_labels</span> <span class="o">=</span> <span class="nb">map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">f</span><span class="p">:</span> <span class="n">capfirst</span><span class="p">(</span><span class="n">opts</span><span class="o">.</span><span class="n">get_field</span><span class="p">(</span><span class="n">f</span><span class="p">)</span><span class="o">.</span><span class="n">verbose_name</span><span class="p">),</span> <span class="n">unique_check</span><span class="p">)</span>
+            <span class="n">field_labels</span> <span class="o">=</span> <span class="p">[</span><span class="n">capfirst</span><span class="p">(</span><span class="n">opts</span><span class="o">.</span><span class="n">get_field</span><span class="p">(</span><span class="n">f</span><span class="p">)</span><span class="o">.</span><span class="n">verbose_name</span><span class="p">)</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">unique_check</span><span class="p">]</span>
             <span class="n">field_labels</span> <span class="o">=</span> <span class="n">get_text_list</span><span class="p">(</span><span class="n">field_labels</span><span class="p">,</span> <span class="n">_</span><span class="p">(</span><span class="s">&#39;and&#39;</span><span class="p">))</span>
-            <span class="k">return</span> <span class="n">_</span><span class="p">(</span><span class="s">u&quot;</span><span class="si">%(model_name)s</span><span class="s"> with this </span><span class="si">%(field_label)s</span><span class="s"> already exists.&quot;</span><span class="p">)</span> <span class="o">%</span>  <span class="p">{</span>
-                <span class="s">&#39;model_name&#39;</span><span class="p">:</span> <span class="nb">unicode</span><span class="p">(</span><span class="n">model_name</span><span class="p">),</span>
-                <span class="s">&#39;field_label&#39;</span><span class="p">:</span> <span class="nb">unicode</span><span class="p">(</span><span class="n">field_labels</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">_</span><span class="p">(</span><span class="s">&quot;</span><span class="si">%(model_name)s</span><span class="s"> with this </span><span class="si">%(field_label)s</span><span class="s"> already exists.&quot;</span><span class="p">)</span> <span class="o">%</span> <span class="p">{</span>
+                <span class="s">&#39;model_name&#39;</span><span class="p">:</span> <span class="n">six</span><span class="o">.</span><span class="n">text_type</span><span class="p">(</span><span class="n">model_name</span><span class="p">),</span>
+                <span class="s">&#39;field_label&#39;</span><span class="p">:</span> <span class="n">six</span><span class="o">.</span><span class="n">text_type</span><span class="p">(</span><span class="n">field_labels</span><span class="p">)</span>
             <span class="p">}</span>
 
     <span class="k">def</span> <span class="nf">full_clean</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">exclude</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
@@ -850,14 +952,14 @@
 
         <span class="k">try</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">clean_fields</span><span class="p">(</span><span class="n">exclude</span><span class="o">=</span><span class="n">exclude</span><span class="p">)</span>
-        <span class="k">except</span> <span class="n">ValidationError</span><span class="p">,</span> <span class="n">e</span><span class="p">:</span>
+        <span class="k">except</span> <span class="n">ValidationError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
             <span class="n">errors</span> <span class="o">=</span> <span class="n">e</span><span class="o">.</span><span class="n">update_error_dict</span><span class="p">(</span><span class="n">errors</span><span class="p">)</span>
 
         <span class="c"># Form.clean() is run even if other validation fails, so do the</span>
         <span class="c"># same with Model.clean() for consistency.</span>
         <span class="k">try</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">clean</span><span class="p">()</span>
-        <span class="k">except</span> <span class="n">ValidationError</span><span class="p">,</span> <span class="n">e</span><span class="p">:</span>
+        <span class="k">except</span> <span class="n">ValidationError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
             <span class="n">errors</span> <span class="o">=</span> <span class="n">e</span><span class="o">.</span><span class="n">update_error_dict</span><span class="p">(</span><span class="n">errors</span><span class="p">)</span>
 
         <span class="c"># Run unique checks, but only for fields that passed validation.</span>
@@ -866,7 +968,7 @@
                 <span class="n">exclude</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
         <span class="k">try</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">validate_unique</span><span class="p">(</span><span class="n">exclude</span><span class="o">=</span><span class="n">exclude</span><span class="p">)</span>
-        <span class="k">except</span> <span class="n">ValidationError</span><span class="p">,</span> <span class="n">e</span><span class="p">:</span>
+        <span class="k">except</span> <span class="n">ValidationError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
             <span class="n">errors</span> <span class="o">=</span> <span class="n">e</span><span class="o">.</span><span class="n">update_error_dict</span><span class="p">(</span><span class="n">errors</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="n">errors</span><span class="p">:</span>
@@ -891,7 +993,7 @@
                 <span class="k">continue</span>
             <span class="k">try</span><span class="p">:</span>
                 <span class="nb">setattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">f</span><span class="o">.</span><span class="n">attname</span><span class="p">,</span> <span class="n">f</span><span class="o">.</span><span class="n">clean</span><span class="p">(</span><span class="n">raw_value</span><span class="p">,</span> <span class="bp">self</span><span class="p">))</span>
-            <span class="k">except</span> <span class="n">ValidationError</span><span class="p">,</span> <span class="n">e</span><span class="p">:</span>
+            <span class="k">except</span> <span class="n">ValidationError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
                 <span class="n">errors</span><span class="p">[</span><span class="n">f</span><span class="o">.</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">e</span><span class="o">.</span><span class="n">messages</span>
 
         <span class="k">if</span> <span class="n">errors</span><span class="p">:</span>
@@ -939,25 +1041,20 @@
 <span class="k">class</span> <span class="nc">Empty</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
     <span class="k">pass</span>
 
-<div class="viewcode-block" id="simple_class_factory"><a class="viewcode-back" href="../../../../django.db.models.html#django.db.models.base.simple_class_factory">[docs]</a><span class="k">def</span> <span class="nf">simple_class_factory</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">attrs</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;Used to unpickle Models without deferred fields.</span>
 
-<span class="sd">    We need to do this the hard way, rather than just using</span>
-<span class="sd">    the default __reduce__ implementation, because of a</span>
-<span class="sd">    __deepcopy__ problem in Python 2.4</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">return</span> <span class="n">model</span>
-</div>
-<div class="viewcode-block" id="model_unpickle"><a class="viewcode-back" href="../../../../django.db.models.html#django.db.models.base.model_unpickle">[docs]</a><span class="k">def</span> <span class="nf">model_unpickle</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">attrs</span><span class="p">,</span> <span class="n">factory</span><span class="p">):</span>
+<div class="viewcode-block" id="model_unpickle"><a class="viewcode-back" href="../../../../django.db.models.html#django.db.models.base.model_unpickle">[docs]</a><span class="k">def</span> <span class="nf">model_unpickle</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">attrs</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Used to unpickle Model subclasses with deferred fields.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="n">cls</span> <span class="o">=</span> <span class="n">factory</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">attrs</span><span class="p">)</span>
+    <span class="n">cls</span> <span class="o">=</span> <span class="n">deferred_class_factory</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">attrs</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">cls</span><span class="o">.</span><span class="n">__new__</span><span class="p">(</span><span class="n">cls</span><span class="p">)</span></div>
 <span class="n">model_unpickle</span><span class="o">.</span><span class="n">__safe_for_unpickle__</span> <span class="o">=</span> <span class="bp">True</span>
 
-<span class="k">def</span> <span class="nf">subclass_exception</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">parents</span><span class="p">,</span> <span class="n">module</span><span class="p">):</span>
-    <span class="k">return</span> <span class="nb">type</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">parents</span><span class="p">,</span> <span class="p">{</span><span class="s">&#39;__module__&#39;</span><span class="p">:</span> <span class="n">module</span><span class="p">})</span>
+
+<span class="k">def</span> <span class="nf">unpickle_inner_exception</span><span class="p">(</span><span class="n">klass</span><span class="p">,</span> <span class="n">exception_name</span><span class="p">):</span>
+    <span class="c"># Get the exception class from the class it is attached to:</span>
+    <span class="n">exception</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">klass</span><span class="p">,</span> <span class="n">exception_name</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">exception</span><span class="o">.</span><span class="n">__new__</span><span class="p">(</span><span class="n">exception</span><span class="p">)</span>
 </pre></div>
 
       </div>
@@ -972,7 +1069,7 @@
 
     <div class="footer">
         &copy; Copyright 2012, HDKNR.COM.
-      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.2pre/3c28de26aac2.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2b1.
     </div>
   </body>
 </html>

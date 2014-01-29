@@ -19,16 +19,16 @@ django.contrib.auth.handlers
     :members:
 
 
-.. _django.contrib.auth.handlers.modpython:
+.. _django.contrib.auth.handlers.modwsgi:
 
-django.contrib.auth.handlers.modpython
-======================================
+django.contrib.auth.handlers.modwsgi
+====================================
 
 
-- `source <https://github.com/django/django/tree/master/django/contrib/auth/handlers/modpython.py>`_ 
+- `source <https://github.com/django/django/tree/master/django/contrib/auth/handlers/modwsgi.py>`_ 
 
-.. include:: cheat/django.contrib.auth.handlers.modpython.rst
+.. include:: cheat/django.contrib.auth.handlers.modwsgi.rst
 
-.. automodule:: django.contrib.auth.handlers.modpython
+.. automodule:: django.contrib.auth.handlers.modwsgi
     :members:
 

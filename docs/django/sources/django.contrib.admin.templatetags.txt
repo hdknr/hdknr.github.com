@@ -71,19 +71,6 @@ django.contrib.admin.templatetags.admin_urls
 .. automodule:: django.contrib.admin.templatetags.admin_urls
     :members:
 
-.. _django.contrib.admin.templatetags.adminmedia:
-
-django.contrib.admin.templatetags.adminmedia
-============================================
-
-
-- `source <https://github.com/django/django/tree/master/django/contrib/admin/templatetags/adminmedia.py>`_ 
-
-.. include:: cheat/django.contrib.admin.templatetags.adminmedia.rst
-
-.. automodule:: django.contrib.admin.templatetags.adminmedia
-    :members:
-
 .. _django.contrib.admin.templatetags.log:
 
 django.contrib.admin.templatetags.log

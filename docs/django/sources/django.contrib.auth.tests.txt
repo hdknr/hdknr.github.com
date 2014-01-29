@@ -58,6 +58,19 @@ django.contrib.auth.tests.context_processors
 .. automodule:: django.contrib.auth.tests.context_processors
     :members:
 
+.. _django.contrib.auth.tests.custom_user:
+
+django.contrib.auth.tests.custom_user
+=====================================
+
+
+- `source <https://github.com/django/django/tree/master/django/contrib/auth/tests/custom_user.py>`_ 
+
+.. include:: cheat/django.contrib.auth.tests.custom_user.rst
+
+.. automodule:: django.contrib.auth.tests.custom_user
+    :members:
+
 .. _django.contrib.auth.tests.decorators:
 
 django.contrib.auth.tests.decorators
@@ -82,6 +95,19 @@ django.contrib.auth.tests.forms
 .. include:: cheat/django.contrib.auth.tests.forms.rst
 
 .. automodule:: django.contrib.auth.tests.forms
+    :members:
+
+.. _django.contrib.auth.tests.handlers:
+
+django.contrib.auth.tests.handlers
+==================================
+
+
+- `source <https://github.com/django/django/tree/master/django/contrib/auth/tests/handlers.py>`_ 
+
+.. include:: cheat/django.contrib.auth.tests.handlers.rst
+
+.. automodule:: django.contrib.auth.tests.handlers
     :members:
 
 .. _django.contrib.auth.tests.hashers:
@@ -173,6 +199,32 @@ django.contrib.auth.tests.urls
 .. include:: cheat/django.contrib.auth.tests.urls.rst
 
 .. automodule:: django.contrib.auth.tests.urls
+    :members:
+
+.. _django.contrib.auth.tests.urls_admin:
+
+django.contrib.auth.tests.urls_admin
+====================================
+
+
+- `source <https://github.com/django/django/tree/master/django/contrib/auth/tests/urls_admin.py>`_ 
+
+.. include:: cheat/django.contrib.auth.tests.urls_admin.rst
+
+.. automodule:: django.contrib.auth.tests.urls_admin
+    :members:
+
+.. _django.contrib.auth.tests.utils:
+
+django.contrib.auth.tests.utils
+===============================
+
+
+- `source <https://github.com/django/django/tree/master/django/contrib/auth/tests/utils.py>`_ 
+
+.. include:: cheat/django.contrib.auth.tests.utils.rst
+
+.. automodule:: django.contrib.auth.tests.utils
     :members:
 
 .. _django.contrib.auth.tests.views:

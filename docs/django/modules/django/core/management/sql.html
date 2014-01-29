@@ -47,6 +47,9 @@
         
         
   <h1>Source code for django.core.management.sql</h1><div class="highlight"><pre>
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">unicode_literals</span>
+
+<span class="kn">import</span> <span class="nn">codecs</span>
 <span class="kn">import</span> <span class="nn">os</span>
 <span class="kn">import</span> <span class="nn">re</span>
 
@@ -54,6 +57,8 @@
 <span class="kn">from</span> <span class="nn">django.core.management.base</span> <span class="kn">import</span> <span class="n">CommandError</span>
 <span class="kn">from</span> <span class="nn">django.db</span> <span class="kn">import</span> <span class="n">models</span>
 <span class="kn">from</span> <span class="nn">django.db.models</span> <span class="kn">import</span> <span class="n">get_models</span>
+<span class="kn">from</span> <span class="nn">django.utils._os</span> <span class="kn">import</span> <span class="n">upath</span>
+
 
 <div class="viewcode-block" id="sql_create"><a class="viewcode-back" href="../../../../django.core.management.html#django.core.management.sql.sql_create">[docs]</a><span class="k">def</span> <span class="nf">sql_create</span><span class="p">(</span><span class="n">app</span><span class="p">,</span> <span class="n">style</span><span class="p">,</span> <span class="n">connection</span><span class="p">):</span>
     <span class="s">&quot;Returns a list of the CREATE TABLE SQL statements for the given app.&quot;</span>
@@ -62,9 +67,8 @@
         <span class="c"># This must be the &quot;dummy&quot; database backend, which means the user</span>
         <span class="c"># hasn&#39;t set ENGINE for the database.</span>
         <span class="k">raise</span> <span class="n">CommandError</span><span class="p">(</span><span class="s">&quot;Django doesn&#39;t know which syntax to use for your SQL statements,</span><span class="se">\n</span><span class="s">&quot;</span> <span class="o">+</span>
-            <span class="s">&quot;because you haven&#39;t specified the ENGINE setting for the database.</span><span class="se">\n</span><span class="s">&quot;</span> <span class="o">+</span>
-            <span class="s">&quot;Edit your settings file and change DATBASES[&#39;default&#39;][&#39;ENGINE&#39;] to something like</span><span class="se">\n</span><span class="s">&quot;</span> <span class="o">+</span>
-            <span class="s">&quot;&#39;django.db.backends.postgresql&#39; or &#39;django.db.backends.mysql&#39;.&quot;</span><span class="p">)</span>
+            <span class="s">&quot;because you haven&#39;t properly specified the ENGINE setting for the database.</span><span class="se">\n</span><span class="s">&quot;</span> <span class="o">+</span>
+            <span class="s">&quot;see: https://docs.djangoproject.com/en/dev/ref/settings/#databases&quot;</span><span class="p">)</span>
 
     <span class="c"># Get installed models, so we generate REFERENCES right.</span>
     <span class="c"># We trim models from the current app so that the sqlreset command does not</span>
@@ -100,6 +104,7 @@
             <span class="n">final_output</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">alter_sql</span><span class="p">)</span>
 
     <span class="k">return</span> <span class="n">final_output</span>
+
 </div>
 <div class="viewcode-block" id="sql_delete"><a class="viewcode-back" href="../../../../django.core.management.html#django.core.management.sql.sql_delete">[docs]</a><span class="k">def</span> <span class="nf">sql_delete</span><span class="p">(</span><span class="n">app</span><span class="p">,</span> <span class="n">style</span><span class="p">,</span> <span class="n">connection</span><span class="p">):</span>
     <span class="s">&quot;Returns a list of the DROP TABLE SQL statements for the given app.&quot;</span>
@@ -112,7 +117,7 @@
 
     <span class="c"># Figure out which tables already exist</span>
     <span class="k">if</span> <span class="n">cursor</span><span class="p">:</span>
-        <span class="n">table_names</span> <span class="o">=</span> <span class="n">connection</span><span class="o">.</span><span class="n">introspection</span><span class="o">.</span><span class="n">get_table_list</span><span class="p">(</span><span class="n">cursor</span><span class="p">)</span>
+        <span class="n">table_names</span> <span class="o">=</span> <span class="n">connection</span><span class="o">.</span><span class="n">introspection</span><span class="o">.</span><span class="n">table_names</span><span class="p">(</span><span class="n">cursor</span><span class="p">)</span>
     <span class="k">else</span><span class="p">:</span>
         <span class="n">table_names</span> <span class="o">=</span> <span class="p">[]</span>
 
@@ -129,7 +134,7 @@
             <span class="n">opts</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">_meta</span>
             <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">opts</span><span class="o">.</span><span class="n">local_fields</span><span class="p">:</span>
                 <span class="k">if</span> <span class="n">f</span><span class="o">.</span><span class="n">rel</span> <span class="ow">and</span> <span class="n">f</span><span class="o">.</span><span class="n">rel</span><span class="o">.</span><span class="n">to</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">to_delete</span><span class="p">:</span>
-                    <span class="n">references_to_delete</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">rel</span><span class="o">.</span><span class="n">to</span><span class="p">,</span> <span class="p">[])</span><span class="o">.</span><span class="n">append</span><span class="p">(</span> <span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">f</span><span class="p">)</span> <span class="p">)</span>
+                    <span class="n">references_to_delete</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">rel</span><span class="o">.</span><span class="n">to</span><span class="p">,</span> <span class="p">[])</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">model</span><span class="p">,</span> <span class="n">f</span><span class="p">))</span>
 
             <span class="n">to_delete</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">model</span><span class="p">)</span>
 
@@ -143,19 +148,10 @@
         <span class="n">cursor</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
         <span class="n">connection</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
 
-    <span class="k">return</span> <span class="n">output</span><span class="p">[::</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="c"># Reverse it, to deal with table dependencies.</span>
+    <span class="k">return</span> <span class="n">output</span><span class="p">[::</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>  <span class="c"># Reverse it, to deal with table dependencies.</span>
+
 </div>
-<div class="viewcode-block" id="sql_reset"><a class="viewcode-back" href="../../../../django.core.management.html#django.core.management.sql.sql_reset">[docs]</a><span class="k">def</span> <span class="nf">sql_reset</span><span class="p">(</span><span class="n">app</span><span class="p">,</span> <span class="n">style</span><span class="p">,</span> <span class="n">connection</span><span class="p">):</span>
-    <span class="s">&quot;Returns a list of the DROP TABLE SQL, then the CREATE TABLE SQL, for the given module.&quot;</span>
-    <span class="c"># This command breaks a lot and should be deprecated</span>
-    <span class="kn">import</span> <span class="nn">warnings</span>
-    <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
-        <span class="s">&#39;This command has been deprecated. The command ``sqlflush`` can be used to delete everything. You can also use ALTER TABLE or DROP TABLE statements manually.&#39;</span><span class="p">,</span>
-        <span class="ne">DeprecationWarning</span>
-    <span class="p">)</span>
-    <span class="k">return</span> <span class="n">sql_delete</span><span class="p">(</span><span class="n">app</span><span class="p">,</span> <span class="n">style</span><span class="p">,</span> <span class="n">connection</span><span class="p">)</span> <span class="o">+</span> <span class="n">sql_all</span><span class="p">(</span><span class="n">app</span><span class="p">,</span> <span class="n">style</span><span class="p">,</span> <span class="n">connection</span><span class="p">)</span>
-</div>
-<div class="viewcode-block" id="sql_flush"><a class="viewcode-back" href="../../../../django.core.management.html#django.core.management.sql.sql_flush">[docs]</a><span class="k">def</span> <span class="nf">sql_flush</span><span class="p">(</span><span class="n">style</span><span class="p">,</span> <span class="n">connection</span><span class="p">,</span> <span class="n">only_django</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+<div class="viewcode-block" id="sql_flush"><a class="viewcode-back" href="../../../../django.core.management.html#django.core.management.sql.sql_flush">[docs]</a><span class="k">def</span> <span class="nf">sql_flush</span><span class="p">(</span><span class="n">style</span><span class="p">,</span> <span class="n">connection</span><span class="p">,</span> <span class="n">only_django</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">reset_sequences</span><span class="o">=</span><span class="bp">True</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Returns a list of the SQL statements used to flush the database.</span>
 
@@ -166,10 +162,10 @@
         <span class="n">tables</span> <span class="o">=</span> <span class="n">connection</span><span class="o">.</span><span class="n">introspection</span><span class="o">.</span><span class="n">django_table_names</span><span class="p">(</span><span class="n">only_existing</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
     <span class="k">else</span><span class="p">:</span>
         <span class="n">tables</span> <span class="o">=</span> <span class="n">connection</span><span class="o">.</span><span class="n">introspection</span><span class="o">.</span><span class="n">table_names</span><span class="p">()</span>
-    <span class="n">statements</span> <span class="o">=</span> <span class="n">connection</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">sql_flush</span><span class="p">(</span>
-        <span class="n">style</span><span class="p">,</span> <span class="n">tables</span><span class="p">,</span> <span class="n">connection</span><span class="o">.</span><span class="n">introspection</span><span class="o">.</span><span class="n">sequence_list</span><span class="p">()</span>
-    <span class="p">)</span>
+    <span class="n">seqs</span> <span class="o">=</span> <span class="n">connection</span><span class="o">.</span><span class="n">introspection</span><span class="o">.</span><span class="n">sequence_list</span><span class="p">()</span> <span class="k">if</span> <span class="n">reset_sequences</span> <span class="k">else</span> <span class="p">()</span>
+    <span class="n">statements</span> <span class="o">=</span> <span class="n">connection</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">sql_flush</span><span class="p">(</span><span class="n">style</span><span class="p">,</span> <span class="n">tables</span><span class="p">,</span> <span class="n">seqs</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">statements</span>
+
 </div>
 <div class="viewcode-block" id="sql_custom"><a class="viewcode-back" href="../../../../django.core.management.html#django.core.management.sql.sql_custom">[docs]</a><span class="k">def</span> <span class="nf">sql_custom</span><span class="p">(</span><span class="n">app</span><span class="p">,</span> <span class="n">style</span><span class="p">,</span> <span class="n">connection</span><span class="p">):</span>
     <span class="s">&quot;Returns a list of the custom table modifying SQL statements for the given app.&quot;</span>
@@ -181,6 +177,7 @@
         <span class="n">output</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">custom_sql_for_model</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">style</span><span class="p">,</span> <span class="n">connection</span><span class="p">))</span>
 
     <span class="k">return</span> <span class="n">output</span>
+
 </div>
 <div class="viewcode-block" id="sql_indexes"><a class="viewcode-back" href="../../../../django.core.management.html#django.core.management.sql.sql_indexes">[docs]</a><span class="k">def</span> <span class="nf">sql_indexes</span><span class="p">(</span><span class="n">app</span><span class="p">,</span> <span class="n">style</span><span class="p">,</span> <span class="n">connection</span><span class="p">):</span>
     <span class="s">&quot;Returns a list of the CREATE INDEX SQL statements for all models in the given app.&quot;</span>
@@ -188,14 +185,31 @@
     <span class="k">for</span> <span class="n">model</span> <span class="ow">in</span> <span class="n">models</span><span class="o">.</span><span class="n">get_models</span><span class="p">(</span><span class="n">app</span><span class="p">):</span>
         <span class="n">output</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">connection</span><span class="o">.</span><span class="n">creation</span><span class="o">.</span><span class="n">sql_indexes_for_model</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">style</span><span class="p">))</span>
     <span class="k">return</span> <span class="n">output</span>
+
 </div>
 <div class="viewcode-block" id="sql_all"><a class="viewcode-back" href="../../../../django.core.management.html#django.core.management.sql.sql_all">[docs]</a><span class="k">def</span> <span class="nf">sql_all</span><span class="p">(</span><span class="n">app</span><span class="p">,</span> <span class="n">style</span><span class="p">,</span> <span class="n">connection</span><span class="p">):</span>
     <span class="s">&quot;Returns a list of CREATE TABLE SQL, initial-data inserts, and CREATE INDEX SQL for the given module.&quot;</span>
     <span class="k">return</span> <span class="n">sql_create</span><span class="p">(</span><span class="n">app</span><span class="p">,</span> <span class="n">style</span><span class="p">,</span> <span class="n">connection</span><span class="p">)</span> <span class="o">+</span> <span class="n">sql_custom</span><span class="p">(</span><span class="n">app</span><span class="p">,</span> <span class="n">style</span><span class="p">,</span> <span class="n">connection</span><span class="p">)</span> <span class="o">+</span> <span class="n">sql_indexes</span><span class="p">(</span><span class="n">app</span><span class="p">,</span> <span class="n">style</span><span class="p">,</span> <span class="n">connection</span><span class="p">)</span>
+
 </div>
+<span class="k">def</span> <span class="nf">_split_statements</span><span class="p">(</span><span class="n">content</span><span class="p">):</span>
+    <span class="n">comment_re</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="s">r&quot;^((?:&#39;[^&#39;]*&#39;|[^&#39;])*?)--.*$&quot;</span><span class="p">)</span>
+    <span class="n">statements</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">statement</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">content</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&quot;</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">):</span>
+        <span class="n">cleaned_line</span> <span class="o">=</span> <span class="n">comment_re</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="s">r&quot;\1&quot;</span><span class="p">,</span> <span class="n">line</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">cleaned_line</span><span class="p">:</span>
+            <span class="k">continue</span>
+        <span class="n">statement</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">cleaned_line</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">cleaned_line</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s">&quot;;&quot;</span><span class="p">):</span>
+            <span class="n">statements</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s">&quot; &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">statement</span><span class="p">))</span>
+            <span class="n">statement</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">return</span> <span class="n">statements</span>
+
+
 <span class="k">def</span> <span class="nf">custom_sql_for_model</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">style</span><span class="p">,</span> <span class="n">connection</span><span class="p">):</span>
     <span class="n">opts</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">_meta</span>
-    <span class="n">app_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">normpath</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">models</span><span class="o">.</span><span class="n">get_app</span><span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">app_label</span><span class="p">)</span><span class="o">.</span><span class="n">__file__</span><span class="p">),</span> <span class="s">&#39;sql&#39;</span><span class="p">))</span>
+    <span class="n">app_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">normpath</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">upath</span><span class="p">(</span><span class="n">models</span><span class="o">.</span><span class="n">get_app</span><span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">app_label</span><span class="p">)</span><span class="o">.</span><span class="n">__file__</span><span class="p">)),</span> <span class="s">&#39;sql&#39;</span><span class="p">))</span>
     <span class="n">output</span> <span class="o">=</span> <span class="p">[]</span>
 
     <span class="c"># Post-creation SQL should come before any initial SQL data is loaded.</span>
@@ -206,24 +220,16 @@
         <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">post_sql_fields</span><span class="p">:</span>
             <span class="n">output</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">post_create_sql</span><span class="p">(</span><span class="n">style</span><span class="p">,</span> <span class="n">model</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">db_table</span><span class="p">))</span>
 
-    <span class="c"># Some backends can&#39;t execute more than one SQL statement at a time,</span>
-    <span class="c"># so split into separate statements.</span>
-    <span class="n">statements</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="s">r&quot;;[ \t]*$&quot;</span><span class="p">,</span> <span class="n">re</span><span class="o">.</span><span class="n">M</span><span class="p">)</span>
-
     <span class="c"># Find custom SQL, if it&#39;s available.</span>
     <span class="n">backend_name</span> <span class="o">=</span> <span class="n">connection</span><span class="o">.</span><span class="n">settings_dict</span><span class="p">[</span><span class="s">&#39;ENGINE&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&#39;.&#39;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
     <span class="n">sql_files</span> <span class="o">=</span> <span class="p">[</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">app_dir</span><span class="p">,</span> <span class="s">&quot;</span><span class="si">%s</span><span class="s">.</span><span class="si">%s</span><span class="s">.sql&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">opts</span><span class="o">.</span><span class="n">object_name</span><span class="o">.</span><span class="n">lower</span><span class="p">(),</span> <span class="n">backend_name</span><span class="p">)),</span>
                  <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">app_dir</span><span class="p">,</span> <span class="s">&quot;</span><span class="si">%s</span><span class="s">.sql&quot;</span> <span class="o">%</span> <span class="n">opts</span><span class="o">.</span><span class="n">object_name</span><span class="o">.</span><span class="n">lower</span><span class="p">())]</span>
     <span class="k">for</span> <span class="n">sql_file</span> <span class="ow">in</span> <span class="n">sql_files</span><span class="p">:</span>
         <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">sql_file</span><span class="p">):</span>
-            <span class="n">fp</span> <span class="o">=</span> <span class="nb">open</span><span class="p">(</span><span class="n">sql_file</span><span class="p">,</span> <span class="s">&#39;U&#39;</span><span class="p">)</span>
-            <span class="k">for</span> <span class="n">statement</span> <span class="ow">in</span> <span class="n">statements</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">fp</span><span class="o">.</span><span class="n">read</span><span class="p">()</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="n">settings</span><span class="o">.</span><span class="n">FILE_CHARSET</span><span class="p">)):</span>
-                <span class="c"># Remove any comments from the file</span>
-                <span class="n">statement</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="s">ur&quot;--.*([\n\Z]|$)&quot;</span><span class="p">,</span> <span class="s">&quot;&quot;</span><span class="p">,</span> <span class="n">statement</span><span class="p">)</span>
-                <span class="k">if</span> <span class="n">statement</span><span class="o">.</span><span class="n">strip</span><span class="p">():</span>
-                    <span class="n">output</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">statement</span> <span class="o">+</span> <span class="s">u&quot;;&quot;</span><span class="p">)</span>
-            <span class="n">fp</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
-
+            <span class="k">with</span> <span class="n">codecs</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">sql_file</span><span class="p">,</span> <span class="s">&#39;U&#39;</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="n">settings</span><span class="o">.</span><span class="n">FILE_CHARSET</span><span class="p">)</span> <span class="k">as</span> <span class="n">fp</span><span class="p">:</span>
+                <span class="c"># Some backends can&#39;t execute more than one SQL statement at a time,</span>
+                <span class="c"># so split into separate statements.</span>
+                <span class="n">output</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">_split_statements</span><span class="p">(</span><span class="n">fp</span><span class="o">.</span><span class="n">read</span><span class="p">()))</span>
     <span class="k">return</span> <span class="n">output</span>
 
 
@@ -232,7 +238,7 @@
     <span class="k">for</span> <span class="n">app</span> <span class="ow">in</span> <span class="n">models</span><span class="o">.</span><span class="n">get_apps</span><span class="p">():</span>
         <span class="n">app_name</span> <span class="o">=</span> <span class="n">app</span><span class="o">.</span><span class="n">__name__</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&#39;.&#39;</span><span class="p">)[</span><span class="o">-</span><span class="mi">2</span><span class="p">]</span>
         <span class="k">if</span> <span class="n">verbosity</span> <span class="o">&gt;=</span> <span class="mi">2</span><span class="p">:</span>
-            <span class="k">print</span> <span class="s">&quot;Running post-sync handlers for application&quot;</span><span class="p">,</span> <span class="n">app_name</span>
+            <span class="k">print</span><span class="p">(</span><span class="s">&quot;Running post-sync handlers for application </span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">app_name</span><span class="p">)</span>
         <span class="n">models</span><span class="o">.</span><span class="n">signals</span><span class="o">.</span><span class="n">post_syncdb</span><span class="o">.</span><span class="n">send</span><span class="p">(</span><span class="n">sender</span><span class="o">=</span><span class="n">app</span><span class="p">,</span> <span class="n">app</span><span class="o">=</span><span class="n">app</span><span class="p">,</span>
             <span class="n">created_models</span><span class="o">=</span><span class="n">created_models</span><span class="p">,</span> <span class="n">verbosity</span><span class="o">=</span><span class="n">verbosity</span><span class="p">,</span>
             <span class="n">interactive</span><span class="o">=</span><span class="n">interactive</span><span class="p">,</span> <span class="n">db</span><span class="o">=</span><span class="n">db</span><span class="p">)</span>
@@ -250,7 +256,7 @@
 
     <div class="footer">
         &copy; Copyright 2012, HDKNR.COM.
-      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.2pre/3c28de26aac2.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2b1.
     </div>
   </body>
 </html>

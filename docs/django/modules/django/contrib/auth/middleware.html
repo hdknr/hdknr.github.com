@@ -48,6 +48,8 @@
         
   <h1>Source code for django.contrib.auth.middleware</h1><div class="highlight"><pre>
 <span class="kn">from</span> <span class="nn">django.contrib</span> <span class="kn">import</span> <span class="n">auth</span>
+<span class="kn">from</span> <span class="nn">django.contrib.auth</span> <span class="kn">import</span> <span class="n">load_backend</span>
+<span class="kn">from</span> <span class="nn">django.contrib.auth.backends</span> <span class="kn">import</span> <span class="n">RemoteUserBackend</span>
 <span class="kn">from</span> <span class="nn">django.core.exceptions</span> <span class="kn">import</span> <span class="n">ImproperlyConfigured</span>
 <span class="kn">from</span> <span class="nn">django.utils.functional</span> <span class="kn">import</span> <span class="n">SimpleLazyObject</span>
 
@@ -96,15 +98,24 @@
         <span class="k">try</span><span class="p">:</span>
             <span class="n">username</span> <span class="o">=</span> <span class="n">request</span><span class="o">.</span><span class="n">META</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">header</span><span class="p">]</span>
         <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
-            <span class="c"># If specified header doesn&#39;t exist then return (leaving</span>
-            <span class="c"># request.user set to AnonymousUser by the</span>
-            <span class="c"># AuthenticationMiddleware).</span>
+            <span class="c"># If specified header doesn&#39;t exist then remove any existing</span>
+            <span class="c"># authenticated remote-user, or return (leaving request.user set to</span>
+            <span class="c"># AnonymousUser by the AuthenticationMiddleware).</span>
+            <span class="k">if</span> <span class="n">request</span><span class="o">.</span><span class="n">user</span><span class="o">.</span><span class="n">is_authenticated</span><span class="p">():</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="n">stored_backend</span> <span class="o">=</span> <span class="n">load_backend</span><span class="p">(</span><span class="n">request</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
+                        <span class="n">auth</span><span class="o">.</span><span class="n">BACKEND_SESSION_KEY</span><span class="p">,</span> <span class="s">&#39;&#39;</span><span class="p">))</span>
+                    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">stored_backend</span><span class="p">,</span> <span class="n">RemoteUserBackend</span><span class="p">):</span>
+                        <span class="n">auth</span><span class="o">.</span><span class="n">logout</span><span class="p">(</span><span class="n">request</span><span class="p">)</span>
+                <span class="k">except</span> <span class="n">ImproperlyConfigured</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                    <span class="c"># backend failed to load</span>
+                    <span class="n">auth</span><span class="o">.</span><span class="n">logout</span><span class="p">(</span><span class="n">request</span><span class="p">)</span>
             <span class="k">return</span>
         <span class="c"># If the user is already authenticated and that user is the user we are</span>
         <span class="c"># getting passed in the headers, then the correct user is already</span>
         <span class="c"># persisted in the session and we don&#39;t need to continue.</span>
         <span class="k">if</span> <span class="n">request</span><span class="o">.</span><span class="n">user</span><span class="o">.</span><span class="n">is_authenticated</span><span class="p">():</span>
-            <span class="k">if</span> <span class="n">request</span><span class="o">.</span><span class="n">user</span><span class="o">.</span><span class="n">username</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">clean_username</span><span class="p">(</span><span class="n">username</span><span class="p">,</span> <span class="n">request</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">request</span><span class="o">.</span><span class="n">user</span><span class="o">.</span><span class="n">get_username</span><span class="p">()</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">clean_username</span><span class="p">(</span><span class="n">username</span><span class="p">,</span> <span class="n">request</span><span class="p">):</span>
                 <span class="k">return</span>
         <span class="c"># We are seeing this user for the first time in this session, attempt</span>
         <span class="c"># to authenticate the user.</span>
@@ -124,7 +135,7 @@
         <span class="n">backend</span> <span class="o">=</span> <span class="n">auth</span><span class="o">.</span><span class="n">load_backend</span><span class="p">(</span><span class="n">backend_str</span><span class="p">)</span>
         <span class="k">try</span><span class="p">:</span>
             <span class="n">username</span> <span class="o">=</span> <span class="n">backend</span><span class="o">.</span><span class="n">clean_username</span><span class="p">(</span><span class="n">username</span><span class="p">)</span>
-        <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span> <span class="c"># Backend has no clean_username method.</span>
+        <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>  <span class="c"># Backend has no clean_username method.</span>
             <span class="k">pass</span>
         <span class="k">return</span> <span class="n">username</span></div></div>
 </pre></div>
@@ -141,7 +152,7 @@
 
     <div class="footer">
         &copy; Copyright 2012, HDKNR.COM.
-      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.2pre/3c28de26aac2.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2b1.
     </div>
   </body>
 </html>

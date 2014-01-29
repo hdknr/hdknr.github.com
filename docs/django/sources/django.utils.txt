@@ -22,7 +22,7 @@ django.utils
 Sub
 ====
 
-- :doc:`django.utils.simplejson`
+- :doc:`django.utils.2to3_fixes`
 
 - :doc:`django.utils.translation`
 
@@ -455,6 +455,32 @@ django.utils.safestring
 .. include:: cheat/django.utils.safestring.rst
 
 .. automodule:: django.utils.safestring
+    :members:
+
+.. _django.utils.simplejson:
+
+django.utils.simplejson
+=======================
+
+
+- `source <https://github.com/django/django/tree/master/django/utils/simplejson.py>`_ 
+
+.. include:: cheat/django.utils.simplejson.rst
+
+.. automodule:: django.utils.simplejson
+    :members:
+
+.. _django.utils.six:
+
+django.utils.six
+================
+
+
+- `source <https://github.com/django/django/tree/master/django/utils/six.py>`_ 
+
+.. include:: cheat/django.utils.six.rst
+
+.. automodule:: django.utils.six
     :members:
 
 .. _django.utils.synch:

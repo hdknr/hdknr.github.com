@@ -28,7 +28,7 @@
     <script type="text/javascript" src="../../static/doctools.js"></script>
     <script type="text/javascript" src="../../static/theme_extras.js"></script>
     <link rel="top" title="Django Cheat 1 documentation" href="../../index.html" />
-    <link rel="up" title="django" href="../django.html" /> 
+    <link rel="up" title="Module code" href="../index.html" /> 
   </head>
   <body>
       <div class="header"><h1 class="heading"><a href="../../index.html">
@@ -55,14 +55,17 @@
 <span class="sd">a list of all possible variables.</span>
 <span class="sd">&quot;&quot;&quot;</span>
 
+<span class="kn">import</span> <span class="nn">logging</span>
 <span class="kn">import</span> <span class="nn">os</span>
-<span class="kn">import</span> <span class="nn">re</span>
+<span class="kn">import</span> <span class="nn">sys</span>
 <span class="kn">import</span> <span class="nn">time</span>     <span class="c"># Needed for Windows</span>
 <span class="kn">import</span> <span class="nn">warnings</span>
 
 <span class="kn">from</span> <span class="nn">django.conf</span> <span class="kn">import</span> <span class="n">global_settings</span>
+<span class="kn">from</span> <span class="nn">django.core.exceptions</span> <span class="kn">import</span> <span class="n">ImproperlyConfigured</span>
 <span class="kn">from</span> <span class="nn">django.utils.functional</span> <span class="kn">import</span> <span class="n">LazyObject</span><span class="p">,</span> <span class="n">empty</span>
 <span class="kn">from</span> <span class="nn">django.utils</span> <span class="kn">import</span> <span class="n">importlib</span>
+<span class="kn">from</span> <span class="nn">django.utils</span> <span class="kn">import</span> <span class="n">six</span>
 
 <span class="n">ENVIRONMENT_VARIABLE</span> <span class="o">=</span> <span class="s">&quot;DJANGO_SETTINGS_MODULE&quot;</span>
 
@@ -73,7 +76,7 @@
 <span class="sd">    The user can manually configure settings prior to using them. Otherwise,</span>
 <span class="sd">    Django uses the settings module pointed to by DJANGO_SETTINGS_MODULE.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">def</span> <span class="nf">_setup</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">_setup</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Load the settings module pointed to by the environment variable. This</span>
 <span class="sd">        is used the first time we need any settings at all, if the user has not</span>
@@ -84,11 +87,50 @@
             <span class="k">if</span> <span class="ow">not</span> <span class="n">settings_module</span><span class="p">:</span> <span class="c"># If it&#39;s set but is an empty string.</span>
                 <span class="k">raise</span> <span class="ne">KeyError</span>
         <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
-            <span class="c"># NOTE: This is arguably an EnvironmentError, but that causes</span>
-            <span class="c"># problems with Python&#39;s interactive help.</span>
-            <span class="k">raise</span> <span class="ne">ImportError</span><span class="p">(</span><span class="s">&quot;Settings cannot be imported, because environment variable </span><span class="si">%s</span><span class="s"> is undefined.&quot;</span> <span class="o">%</span> <span class="n">ENVIRONMENT_VARIABLE</span><span class="p">)</span>
+            <span class="n">desc</span> <span class="o">=</span> <span class="p">(</span><span class="s">&quot;setting </span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">name</span><span class="p">)</span> <span class="k">if</span> <span class="n">name</span> <span class="k">else</span> <span class="s">&quot;settings&quot;</span>
+            <span class="k">raise</span> <span class="n">ImproperlyConfigured</span><span class="p">(</span>
+                <span class="s">&quot;Requested </span><span class="si">%s</span><span class="s">, but settings are not configured. &quot;</span>
+                <span class="s">&quot;You must either define the environment variable </span><span class="si">%s</span><span class="s"> &quot;</span>
+                <span class="s">&quot;or call settings.configure() before accessing settings.&quot;</span>
+                <span class="o">%</span> <span class="p">(</span><span class="n">desc</span><span class="p">,</span> <span class="n">ENVIRONMENT_VARIABLE</span><span class="p">))</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">_wrapped</span> <span class="o">=</span> <span class="n">Settings</span><span class="p">(</span><span class="n">settings_module</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_configure_logging</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">__getattr__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_wrapped</span> <span class="ow">is</span> <span class="n">empty</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_setup</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+        <span class="k">return</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_wrapped</span><span class="p">,</span> <span class="n">name</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_configure_logging</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Setup logging from LOGGING_CONFIG and LOGGING settings.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">sys</span><span class="o">.</span><span class="n">warnoptions</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="c"># Route warnings through python logging</span>
+                <span class="n">logging</span><span class="o">.</span><span class="n">captureWarnings</span><span class="p">(</span><span class="bp">True</span><span class="p">)</span>
+                <span class="c"># Allow DeprecationWarnings through the warnings filters</span>
+                <span class="n">warnings</span><span class="o">.</span><span class="n">simplefilter</span><span class="p">(</span><span class="s">&quot;default&quot;</span><span class="p">,</span> <span class="ne">DeprecationWarning</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>
+                <span class="c"># No captureWarnings on Python 2.6, DeprecationWarnings are on anyway</span>
+                <span class="k">pass</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">LOGGING_CONFIG</span><span class="p">:</span>
+            <span class="kn">from</span> <span class="nn">django.utils.log</span> <span class="kn">import</span> <span class="n">DEFAULT_LOGGING</span>
+            <span class="c"># First find the logging configuration function ...</span>
+            <span class="n">logging_config_path</span><span class="p">,</span> <span class="n">logging_config_func_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">LOGGING_CONFIG</span><span class="o">.</span><span class="n">rsplit</span><span class="p">(</span><span class="s">&#39;.&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+            <span class="n">logging_config_module</span> <span class="o">=</span> <span class="n">importlib</span><span class="o">.</span><span class="n">import_module</span><span class="p">(</span><span class="n">logging_config_path</span><span class="p">)</span>
+            <span class="n">logging_config_func</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">logging_config_module</span><span class="p">,</span> <span class="n">logging_config_func_name</span><span class="p">)</span>
+
+            <span class="n">logging_config_func</span><span class="p">(</span><span class="n">DEFAULT_LOGGING</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">LOGGING</span><span class="p">:</span>
+                <span class="c"># Backwards-compatibility shim for #16288 fix</span>
+                <span class="n">compat_patch_logging_config</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">LOGGING</span><span class="p">)</span>
+
+                <span class="c"># ... then invoke it with the logging settings</span>
+                <span class="n">logging_config_func</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">LOGGING</span><span class="p">)</span>
 
 <div class="viewcode-block" id="LazySettings.configure"><a class="viewcode-back" href="../../django.conf.html#django.conf.LazySettings.configure">[docs]</a>    <span class="k">def</span> <span class="nf">configure</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">default_settings</span><span class="o">=</span><span class="n">global_settings</span><span class="p">,</span> <span class="o">**</span><span class="n">options</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
@@ -102,6 +144,7 @@
         <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">options</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
             <span class="nb">setattr</span><span class="p">(</span><span class="n">holder</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_wrapped</span> <span class="o">=</span> <span class="n">holder</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_configure_logging</span><span class="p">()</span>
 </div>
     <span class="nd">@property</span>
 <div class="viewcode-block" id="LazySettings.configured"><a class="viewcode-back" href="../../django.conf.html#django.conf.LazySettings.configured">[docs]</a>    <span class="k">def</span> <span class="nf">configured</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
@@ -117,12 +160,8 @@
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">def</span> <span class="nf">__setattr__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
         <span class="k">if</span> <span class="n">name</span> <span class="ow">in</span> <span class="p">(</span><span class="s">&quot;MEDIA_URL&quot;</span><span class="p">,</span> <span class="s">&quot;STATIC_URL&quot;</span><span class="p">)</span> <span class="ow">and</span> <span class="n">value</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">value</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s">&#39;/&#39;</span><span class="p">):</span>
-            <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s">&quot;If set, </span><span class="si">%s</span><span class="s"> must end with a slash&quot;</span> <span class="o">%</span> <span class="n">name</span><span class="p">,</span>
-                          <span class="ne">DeprecationWarning</span><span class="p">)</span>
-        <span class="k">elif</span> <span class="n">name</span> <span class="o">==</span> <span class="s">&quot;ADMIN_MEDIA_PREFIX&quot;</span><span class="p">:</span>
-            <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s">&quot;The ADMIN_MEDIA_PREFIX setting has been removed; &quot;</span>
-                          <span class="s">&quot;use STATIC_URL instead.&quot;</span><span class="p">,</span> <span class="ne">DeprecationWarning</span><span class="p">)</span>
-        <span class="k">elif</span> <span class="n">name</span> <span class="o">==</span> <span class="s">&quot;ALLOWED_INCLUDE_ROOTS&quot;</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">basestring</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="n">ImproperlyConfigured</span><span class="p">(</span><span class="s">&quot;If set, </span><span class="si">%s</span><span class="s"> must end with a slash&quot;</span> <span class="o">%</span> <span class="n">name</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">name</span> <span class="o">==</span> <span class="s">&quot;ALLOWED_INCLUDE_ROOTS&quot;</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">six</span><span class="o">.</span><span class="n">string_types</span><span class="p">):</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s">&quot;The ALLOWED_INCLUDE_ROOTS setting must be set &quot;</span>
                 <span class="s">&quot;to a tuple, not a string.&quot;</span><span class="p">)</span>
         <span class="nb">object</span><span class="o">.</span><span class="n">__setattr__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
@@ -140,7 +179,7 @@
 
         <span class="k">try</span><span class="p">:</span>
             <span class="n">mod</span> <span class="o">=</span> <span class="n">importlib</span><span class="o">.</span><span class="n">import_module</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">SETTINGS_MODULE</span><span class="p">)</span>
-        <span class="k">except</span> <span class="ne">ImportError</span><span class="p">,</span> <span class="n">e</span><span class="p">:</span>
+        <span class="k">except</span> <span class="ne">ImportError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">ImportError</span><span class="p">(</span><span class="s">&quot;Could not import settings &#39;</span><span class="si">%s</span><span class="s">&#39; (Is it on sys.path?): </span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">SETTINGS_MODULE</span><span class="p">,</span> <span class="n">e</span><span class="p">))</span>
 
         <span class="c"># Settings that should be converted into tuples if they&#39;re mistakenly entered</span>
@@ -151,12 +190,15 @@
             <span class="k">if</span> <span class="n">setting</span> <span class="o">==</span> <span class="n">setting</span><span class="o">.</span><span class="n">upper</span><span class="p">():</span>
                 <span class="n">setting_value</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">mod</span><span class="p">,</span> <span class="n">setting</span><span class="p">)</span>
                 <span class="k">if</span> <span class="n">setting</span> <span class="ow">in</span> <span class="n">tuple_settings</span> <span class="ow">and</span> \
-                        <span class="nb">isinstance</span><span class="p">(</span><span class="n">setting_value</span><span class="p">,</span> <span class="nb">basestring</span><span class="p">):</span>
+                        <span class="nb">isinstance</span><span class="p">(</span><span class="n">setting_value</span><span class="p">,</span> <span class="n">six</span><span class="o">.</span><span class="n">string_types</span><span class="p">):</span>
+                    <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s">&quot;The </span><span class="si">%s</span><span class="s"> setting must be a tuple. Please fix your &quot;</span>
+                                  <span class="s">&quot;settings, as auto-correction is now deprecated.&quot;</span> <span class="o">%</span> <span class="n">setting</span><span class="p">,</span>
+                        <span class="ne">PendingDeprecationWarning</span><span class="p">)</span>
                     <span class="n">setting_value</span> <span class="o">=</span> <span class="p">(</span><span class="n">setting_value</span><span class="p">,)</span> <span class="c"># In case the user forgot the comma.</span>
                 <span class="nb">setattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">setting</span><span class="p">,</span> <span class="n">setting_value</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">SECRET_KEY</span><span class="p">:</span>
-            <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s">&quot;The SECRET_KEY setting must not be empty.&quot;</span><span class="p">,</span> <span class="ne">DeprecationWarning</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="n">ImproperlyConfigured</span><span class="p">(</span><span class="s">&quot;The SECRET_KEY setting must not be empty.&quot;</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">time</span><span class="p">,</span> <span class="s">&#39;tzset&#39;</span><span class="p">)</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">TIME_ZONE</span><span class="p">:</span>
             <span class="c"># When we can, attempt to validate the timezone. If we can&#39;t find</span>
@@ -169,19 +211,6 @@
             <span class="c"># we don&#39;t do this unconditionally (breaks Windows).</span>
             <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s">&#39;TZ&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">TIME_ZONE</span>
             <span class="n">time</span><span class="o">.</span><span class="n">tzset</span><span class="p">()</span>
-
-        <span class="c"># Settings are configured, so we can set up the logger if required</span>
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">LOGGING_CONFIG</span><span class="p">:</span>
-            <span class="c"># First find the logging configuration function ...</span>
-            <span class="n">logging_config_path</span><span class="p">,</span> <span class="n">logging_config_func_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">LOGGING_CONFIG</span><span class="o">.</span><span class="n">rsplit</span><span class="p">(</span><span class="s">&#39;.&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
-            <span class="n">logging_config_module</span> <span class="o">=</span> <span class="n">importlib</span><span class="o">.</span><span class="n">import_module</span><span class="p">(</span><span class="n">logging_config_path</span><span class="p">)</span>
-            <span class="n">logging_config_func</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">logging_config_module</span><span class="p">,</span> <span class="n">logging_config_func_name</span><span class="p">)</span>
-
-            <span class="c"># Backwards-compatibility shim for #16288 fix</span>
-            <span class="n">compat_patch_logging_config</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">LOGGING</span><span class="p">)</span>
-
-            <span class="c"># ... then invoke it with the logging settings</span>
-            <span class="n">logging_config_func</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">LOGGING</span><span class="p">)</span>
 
 
 <div class="viewcode-block" id="UserSettingsHolder"><a class="viewcode-back" href="../../django.conf.html#django.conf.UserSettingsHolder">[docs]</a><span class="k">class</span> <span class="nc">UserSettingsHolder</span><span class="p">(</span><span class="n">BaseSettings</span><span class="p">):</span>
@@ -197,16 +226,24 @@
 <span class="sd">        Requests for configuration variables not in this class are satisfied</span>
 <span class="sd">        from the module specified in default_settings (if possible).</span>
 <span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__dict__</span><span class="p">[</span><span class="s">&#39;_deleted&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">default_settings</span> <span class="o">=</span> <span class="n">default_settings</span>
 
     <span class="k">def</span> <span class="nf">__getattr__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">name</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_deleted</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">AttributeError</span>
         <span class="k">return</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">default_settings</span><span class="p">,</span> <span class="n">name</span><span class="p">)</span>
 
-    <span class="k">def</span> <span class="nf">__dir__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">__dict__</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span> <span class="o">+</span> <span class="nb">dir</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">default_settings</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">__setattr__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_deleted</span><span class="o">.</span><span class="n">discard</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+        <span class="k">return</span> <span class="nb">super</span><span class="p">(</span><span class="n">UserSettingsHolder</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__setattr__</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
 
-    <span class="c"># For Python &lt; 2.6:</span>
-    <span class="n">__members__</span> <span class="o">=</span> <span class="nb">property</span><span class="p">(</span><span class="k">lambda</span> <span class="bp">self</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">__dir__</span><span class="p">())</span>
+    <span class="k">def</span> <span class="nf">__delattr__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_deleted</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+        <span class="k">return</span> <span class="nb">super</span><span class="p">(</span><span class="n">UserSettingsHolder</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__delattr__</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__dir__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__dict__</span><span class="p">)</span> <span class="o">+</span> <span class="nb">dir</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">default_settings</span><span class="p">)</span>
 </div>
 <span class="n">settings</span> <span class="o">=</span> <span class="n">LazySettings</span><span class="p">()</span>
 
@@ -230,7 +267,7 @@
             <span class="s">&quot;handler: adding implicit debug-false-only filter. &quot;</span>
             <span class="s">&quot;See http://docs.djangoproject.com/en/dev/releases/1.4/&quot;</span>
             <span class="s">&quot;#request-exceptions-are-now-always-logged&quot;</span><span class="p">,</span>
-            <span class="ne">PendingDeprecationWarning</span><span class="p">)</span>
+            <span class="ne">DeprecationWarning</span><span class="p">)</span>
 
         <span class="n">filter_name</span> <span class="o">=</span> <span class="s">&quot;require_debug_false&quot;</span>
 
@@ -257,7 +294,7 @@
 
     <div class="footer">
         &copy; Copyright 2012, HDKNR.COM.
-      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.2pre/3c28de26aac2.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2b1.
     </div>
   </body>
 </html>
