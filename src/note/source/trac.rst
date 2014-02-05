@@ -125,3 +125,24 @@ post-commit
 - {{ basedir }}/{{ cname }}/prj/svn/hooks/post-commit から sync.bashを呼びます。
 
 .. include:: trac/post-commit.bash
+
+
+設定
+=====
+
+添付ファイル
+--------------------
+
+- 最大ファイルサイズの上限を変える
+
+    ::
+
+        [attachment]
+        max_size = 3000000          ; 最大ファイルサイズ
+
+- プレビューもできるように
+
+    ::
+
+        [mimeviewer]
+        max_preview_size = 3000000  ; 最大のプレビューファイルサイズ

@@ -41,12 +41,6 @@
 
 
 
-.. _reg.2.1.1:
-    
-.. include:: reg/2.1.1.rst
-
-
-
 .. _reg.3:
     
 .. include:: reg/3.rst
@@ -74,6 +68,30 @@
 .. _reg.4:
     
 .. include:: reg/4.rst
+
+
+
+.. _reg.4.1:
+    
+.. include:: reg/4.1.rst
+
+
+
+.. _reg.4.2:
+    
+.. include:: reg/4.2.rst
+
+
+
+.. _reg.4.3:
+    
+.. include:: reg/4.3.rst
+
+
+
+.. _reg.4.4:
+    
+.. include:: reg/4.4.rst
 
 
 

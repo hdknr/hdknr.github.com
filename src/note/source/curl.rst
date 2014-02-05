@@ -54,3 +54,14 @@ curl -o $filename $URL でファイル名を指定してダウンロード
     Cache-Control: post-check=0, pre-check=0
     Vary: Accept-Encoding
     Content-Type: text/html; charset=EUC-JP
+
+.curlrc
+=========
+
+例えば、 --insecure をデフォルトにする
+
+.. code-block:: bash
+
+    $ echo insecure >> ~/.curlrc
+    $ curl http
+    

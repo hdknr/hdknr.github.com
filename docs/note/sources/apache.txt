@@ -97,6 +97,33 @@ HostNameLookupをOffにする
   - defaultではoffのようです。
 
 
+DocumentRoot does not exist ? あるのに
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+アクセス権的にもOK:
+
+::
+
+    # sudo /etc/init.d/httpd restart
+    Stopping httpd:                                            [FAILED]
+    Starting httpd: Warning: DocumentRoot [/var/eccube/www] does not exist
+
+SELinux! :
+
+    # getenforce
+    Enforcing
+
+無効:
+
+    # setenforce 0
+    # getenforce
+    Permissive
+
+リブート時に無効にさせる:
+
+    # vi /etc/sysconfig/selinux
+    SELINUX=disabled
+
 .. _apache.mod_rewrite:
 
 mod_rewrite : URL リライト

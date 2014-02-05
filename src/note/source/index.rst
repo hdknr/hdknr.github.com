@@ -88,6 +88,7 @@ Linux Commands:
     bash
     bash_complete
     diff
+    find
     ssh
     user
     debian
