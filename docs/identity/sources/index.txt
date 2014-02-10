@@ -65,13 +65,21 @@ OpenID/Connect
 
     openid_connect
 
+    core
+    reg
+    discovery
+    session
+
+Depreciated
+^^^^^^^^^^^^^^^^^^^
+
+.. toctree::
+    :maxdepth: 1
+
     basic
     implicit
     standard
     messages
-    reg
-    discovery
-    session
 
 
 UMA

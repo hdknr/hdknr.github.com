@@ -19,6 +19,7 @@ Tools:
     :maxdepth: 2
 
     tools/pyenv
+    tools/sentry
 
 
 
