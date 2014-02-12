@@ -1,5 +1,5 @@
 ==========================================
-JSON Web Algorithms (JWA)
+JSON Web Algorithms (JWA) : draft20
 ==========================================
 
 .. contents::
