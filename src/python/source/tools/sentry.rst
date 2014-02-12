@@ -9,7 +9,7 @@ General
 =========
 
 - リアルタイムエラートラッカー
-- 
+- https://github.com/getsentry/sentry 
 
 
 インストール
