@@ -34,4 +34,4 @@ display purposes only.)
        ]
      }
 
-( http://tools.ietf.org/html/draft-ietf-jose-json-web-key-11#appendix-A.1 )
+( http://tools.ietf.org/html/draft-ietf-jose-json-web-key-20#appendix-A.1 )

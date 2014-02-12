@@ -53,4 +53,4 @@ key values.  (Line breaks are for display purposes only.)
        ]
      }
 
-( http://tools.ietf.org/html/draft-ietf-jose-json-web-key-11#appendix-A.2 )
+( http://tools.ietf.org/html/draft-ietf-jose-json-web-key-20#appendix-A.2 )
