@@ -98,12 +98,13 @@ JOSE and JWT
     :maxdepth: 1
 
     jose
+    jwa
+
     jwt
     jws
     jws_hok
     jwe
     jwk
-    jwa
     jws_js
     jwe_js
     jose_usecase
