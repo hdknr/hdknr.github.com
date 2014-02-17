@@ -111,23 +111,6 @@ Mac:
     xcode
 
 
-Windows:
-
-.. toctree::
-    :maxdepth: 2
-
-    windows
-    active_directory
-    mssql
-    entity_framework
-    viewengine
-    moq
-    jsonnet
-    reflection
-    iis
-    powershell
- 
-    
 Indices and tables
 ==================
 

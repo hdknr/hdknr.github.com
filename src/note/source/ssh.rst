@@ -45,3 +45,17 @@ RSAキー作成
 ::
 
     $ ssh-keygen -t rsa -b 2048
+
+ファイル名指定 
+
+.. code-block:: bash
+
+    $ ssh-keygen -t rsa -b 2048 -f mykey
+
+WindowsのPuttyでつかうには？
+----------------------------
+
+- puttygenで"Load"で拡張子を問わずにExplorerからロード
+- PPKに保存する
+
+
