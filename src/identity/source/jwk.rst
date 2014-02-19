@@ -89,81 +89,15 @@
 
 
 
-.. _jwk.4.2:
-    
-.. include:: jwk/4.2.rst
-
-
-
-.. _jwk.4.2.1:
-    
-.. include:: jwk/4.2.1.rst
-
-
-
-.. _jwk.4.2.2:
-    
-.. include:: jwk/4.2.2.rst
-
-
-
-.. _jwk.4.3:
-    
-.. include:: jwk/4.3.rst
-
-
-
 .. _jwk.5:
     
 .. include:: jwk/5.rst
 
 
 
-.. _jwk.5.1:
-    
-.. include:: jwk/5.1.rst
-
-
-
 .. _jwk.6:
     
 .. include:: jwk/6.rst
-
-
-
-.. _jwk.6.1:
-    
-.. include:: jwk/6.1.rst
-
-
-
-.. _jwk.6.1.1:
-    
-.. include:: jwk/6.1.1.rst
-
-
-
-.. _jwk.6.1.2:
-    
-.. include:: jwk/6.1.2.rst
-
-
-
-.. _jwk.6.2:
-    
-.. include:: jwk/6.2.rst
-
-
-
-.. _jwk.6.2.1:
-    
-.. include:: jwk/6.2.1.rst
-
-
-
-.. _jwk.6.2.2:
-    
-.. include:: jwk/6.2.2.rst
 
 
 
@@ -260,18 +194,6 @@
 .. _jwk.8:
     
 .. include:: jwk/8.rst
-
-
-
-.. _jwk.8.1:
-    
-.. include:: jwk/8.1.rst
-
-
-
-.. _jwk.8.2:
-    
-.. include:: jwk/8.2.rst
 
 
 
