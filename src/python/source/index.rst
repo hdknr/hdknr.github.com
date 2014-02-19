@@ -12,6 +12,8 @@ Contents:
     :maxdepth: 2
 
     tutorial/index
+    library/index
+
 
 Tools:
 
@@ -20,6 +22,8 @@ Tools:
 
     tools/pyenv
     tools/sentry
+    tools/enum
+    tools/recipe
 
 
 

@@ -354,7 +354,10 @@ import sphinx_bootstrap_theme
 html_theme = 'bootstrap'                  #:
 html_theme_path = sphinx_bootstrap_theme.get_html_theme_path()
 #
-intersphinx_mapping.update({
-})
+intersphinx_mapping = {
+   'sphinx': ('http://sphinx-users.jp/doc11', None),
+   'py': ('http://docs.python.jp/2/', None),
+   'py34': ('http://docs.python.org/3.4/',None),
+}
 exclude_patterns=[]
 
