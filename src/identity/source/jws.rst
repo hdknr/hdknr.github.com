@@ -161,9 +161,9 @@
 
 
 
-.. _jws.7.1.1:
+.. _jws.7.2:
     
-.. include:: jws/7.1.1.rst
+.. include:: jws/7.2.rst
 
 
 
@@ -296,6 +296,12 @@
 .. _jws.appendix.a.3.3:
     
 .. include:: jws/appendix.a.3.3.rst
+
+
+
+.. _jws.appendix.a.6:
+    
+.. include:: jws/appendix.a.6.rst
 
 
 
