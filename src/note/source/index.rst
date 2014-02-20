@@ -86,6 +86,8 @@ Linux Commands:
 .. toctree::
     :maxdepth: 2
 
+    commands/index
+
     bash
     bash_complete
     diff
@@ -98,7 +100,6 @@ Linux Commands:
     logging
     curl
     upstart
-    cron
 
     memo
 

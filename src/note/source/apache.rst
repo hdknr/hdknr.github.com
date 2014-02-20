@@ -80,6 +80,14 @@ SSL
 ログ
 -----
 
+graceful で再起動した？
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+::
+
+    [Thu Feb 20 10:40:43 2014] [notice] Graceful restart requested, doing restart
+
+
 パーサー
 ^^^^^^^^
 
