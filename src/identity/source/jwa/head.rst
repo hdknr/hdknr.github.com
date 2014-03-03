@@ -2,9 +2,6 @@
 JSON Web Algorithms (JWA) : draft21
 ==========================================
 
-.. contents::
-    :local:
-
 .. note::
     - Draft 21 : https://tools.ietf.org/html/draft-ietf-jose-json-web-algorithms-21
     - :ref:`jwa.4.8` が修正
@@ -18,4 +15,7 @@ JSON Web Algorithms (JWA) : draft21
     - 暗号化キーの取り扱い(暗号化とか,alg)  :ref:`Section.4 <jwa.4>` 
     - コンテンツ暗号化(enc) :ref:`Section.5 <jwa.5>` 
     - キー(kty ...) :ref:`Section.6 <jwa.6>` 
+
+.. contents::
+    :local:
 

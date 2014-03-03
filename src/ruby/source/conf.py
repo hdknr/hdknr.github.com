@@ -332,8 +332,10 @@ intersphinx_mapping = {'http://docs.python.org/': None}
 #
 todo_include_todos = True
 extensions.append('sphinxtogithub')  #:GITHUB by HDKNR
-html_theme = 'mybasic'  #  HDKNR
-html_theme_path = ['../../../themes',] #HDKNR
+import sphinx_bootstrap_theme
+html_theme = 'bootstrap'                  #:  
+html_theme_path = sphinx_bootstrap_theme.get_html_theme_path()
+#
 #
 intersphinx_mapping.update({
 })

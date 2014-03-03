@@ -1,18 +1,18 @@
 Abstract
 ==========
 
-OpenID Connect 1.0 is a simple identity layer on top of the :term:`OAuth 2.0` protocol. 
-It allows :term:`Clients` to verify the identity of the :term:`End-User` 
+OpenID Connect 1.0 is a simple identity layer 
+on top of the :doc:`OAuth 2.0 <oauth>` protocol. 
+
+It enables :term:`Clients` to verify the identity of the End-User 
 based on the authentication performed by an :term:`Authorization Server`, 
-as well as to obtain basic profile information about the :term:`End-User` in an interoperable and :term:`RESTful manner`.
-
-This specification provides a mechanism for the OpenID Connect :term:`client` 
-to discover the :term:`user <End-User>`'s :term:`OpenID Provider` 
-as well as the necessary endpoints used by the OpenID Connect protocol suite.
+as well as to obtain :term:`basic profile information <UserInfo>` 
+about the End-User in an interoperable and REST-like manner.
 
 
-.. note::
+This specification defines a mechanism for an OpenID Connect Relying Party 
+to discover the End-User's OpenID Provider 
+and obtain information needed to interact with it, 
+including its OAuth 2.0 endpoint locations.
 
-    -   May 25, 2012, Draft 09 is available
-
-
+(draft21)

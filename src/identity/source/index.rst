@@ -40,7 +40,6 @@ others
     :maxdepth: 1
 
     oauth_assertion
-    oauth_responses
     oauth_mac
     oauth_reg
     oauth_introspect
@@ -48,6 +47,8 @@ others
     oauth_res_reg
     oauth-lrdd
     oauth_auth
+    oauth_responses
+    oauth_post
 
 Resource
 -----------
@@ -70,7 +71,7 @@ OpenID/Connect
     discovery
     session
 
-Depreciated
+Guide
 ^^^^^^^^^^^^^^^^^^^
 
 .. toctree::
@@ -78,6 +79,13 @@ Depreciated
 
     basic
     implicit
+
+Depreciated
+^^^^^^^^^^^^^^^^^^^
+
+.. toctree::
+    :maxdepth: 1
+
     standard
     messages
 

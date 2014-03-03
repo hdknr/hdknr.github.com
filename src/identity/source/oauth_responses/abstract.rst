@@ -1,16 +1,22 @@
 Abstract
 ===========
 
-This specification aims to provide guidance on proper encoding of responses 
-to OAuth 2.0 :term:`Authorization requests`, 
-where the request specifies a :term:`response type` that includes space characters.
+.. note::
+    - 新しい :term:`response_type`
+    - :term:`response_mode`
 
-This specification also serves as the registration document 
-for several specific new :term:`response types`, 
-in accordance with the stipulations [#]_ of the :term:`OAuth Parameters Registry`. 
+This specification provides **guidance** on the proper encoding of responses 
+to OAuth 2.0 :ref:`Authorization Requests` in which 
+the request uses a :term:`Response Type` value that includes space characters. 
 
-.. [#] a restriction that is insisted upon as a condition for an agreement, TheFreeDictionary 
-       ( http://www.thefreedictionary.com/stipulation )
+Furthermore, 
+this specification registers several new Response Type values 
+in the :term:`OAuth Authorization Endpoint Response Types` registry.
 
 
-(draft 03)
+This specification also defines a :ref:`Response Mode` Authorization Request parameter 
+that informs the Authorization Server of the mechanism to be used 
+for returning Authorization Response parameters 
+from the Authorization Endpoint.
+
+(draft11)

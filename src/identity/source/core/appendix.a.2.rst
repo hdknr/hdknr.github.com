@@ -35,7 +35,7 @@ A.2.  Example using response_type=id_token
 
 The value of the id_token parameter is the ID Token, which is a signed JWT, containing three base64url encoded segments separated by period ('.') characters. The first segment represents the JWT header. Base64url decoding it will result in the following set of Header Parameters:
 
-.. code-block:: javacript
+.. code-block:: javascript
 
   {"kid":"1e9gdk7","alg":"RS256"}
 
@@ -45,7 +45,7 @@ The second segment represents the Claims in the ID Token.
 
 Verifying and decoding the ID Token will yield the following Claims:
 
-.. code-block:: javacript
+.. code-block:: javascript
 
   {
    "iss": "http://server.example.com",

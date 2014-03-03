@@ -1,11 +1,13 @@
 Appendix C. Example ECDH-ES Key Agreement Computation
 ====================================================================
 
+This example uses ECDH-ES Key Agreement 
+and the :term:`Concat KDF` to derive the :term:`Content Encryption Key` (CEK) 
+in the manner described in :ref:`Section 4.6 <jwa.4.6>`.  
 
-This example uses ECDH-ES Key Agreement and the Concat KDF to derive
-the Content Encryption Key (CEK) in the manner described in
-Section 4.6.  In this example, the ECDH-ES Direct Key Agreement mode
-("alg" value "ECDH-ES") is used to produce an agreed upon key for AES
+In this example, 
+the ECDH-ES Direct Key Agreement mode ("alg" value "ECDH-ES") 
+is used to produce an agreed upon key for AES
 GCM with a 128 bit key ("enc" value "A128GCM").
 
 In this example, a sender Alice is encrypting content to a recipient
@@ -144,6 +146,7 @@ hash output is:
 The base64url encoded representation of this derived key is:
 
 ::
+
      VqqN6vgjbSBcIijNcacQGg
 
 (draft20)

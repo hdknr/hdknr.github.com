@@ -33,7 +33,7 @@ CA
 
 - Certifiate Authority
 
-PMI
+PKI
 ----
  
 - http://en.wikipedia.org/wiki/Privilege_Management_Infrastructure

@@ -29,3 +29,23 @@ key K; this is in the opposite order of the algorithm names in the
 identifiers "AES_128_CBC_HMAC_SHA_256" and "A128CBC-HS256".
 
 ( https://tools.ietf.org/html/draft-ietf-jose-json-web-encryption-13#appendix-B.1 )
+
+
+Python
+^^^^^^^^
+
+- CEK は :ref:`jwe.appendix.a.2.2` のCEKと同じで、
+  既に共有 Jwkキーで、 AES Key Wrapされたもの。
+
+.. code-block:: python
+
+    >>> cek = [4, 211, 31, 197, 84, 157, 252, 254, 11, 100, 157, 250, 63, 170, 106,
+    ...    206, 107, 124, 212, 45, 111, 107, 9, 219, 200, 177, 0, 240, 143, 156,
+    ...    44, 207]
+    >>> mac_key = cek[:16]
+    >>> enc_key = cek[16:]
+    >>> mac_key
+    [4, 211, 31, 197, 84, 157, 252, 254, 11, 100, 157, 250, 63, 170, 106, 206]
+    >>> enc_key
+    [107, 124, 212, 45, 111, 107, 9, 219, 200, 177, 0, 240, 143, 156, 44, 207]
+    

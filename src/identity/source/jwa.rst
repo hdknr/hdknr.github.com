@@ -767,6 +767,12 @@
 
 
 
+.. _jwa.terms:
+    
+.. include:: jwa/terms.rst
+
+
+
 .. _jwa.words:
     
 .. include:: jwa/words.rst

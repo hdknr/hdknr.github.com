@@ -16,6 +16,7 @@ and no canonicalization is performed before encoding.
 The following byte array contains the UTF-8 characters for the JWS Header:
 
 :: 
+
     [123, 34, 116, 121, 112, 34, 58, 34, 74, 87, 84, 34, 44, 13, 10, 32, 34, 97, 108, 103, 34, 58, 34, 72, 83, 50, 53, 54, 34, 125]
 
 Base64url encoding this UTF-8 representation yields this Encoded JWS Header value:

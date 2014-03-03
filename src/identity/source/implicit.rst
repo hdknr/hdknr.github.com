@@ -1,203 +1,42 @@
-============================================================================
-OpenID Connect Implicit Client Profile 1.0
-============================================================================
 
-.. contents:: 
-    :local:
+.. _implicit.head:
+    
+.. include:: implicit/head.rst
 
-Draft 10, http://openid.net/specs/openid-connect-implicit-1_0.html
 
-.. _implicit.abstract: 
 
+.. _implicit.abstract:
+    
 .. include:: implicit/abstract.rst
 
-.. _implicit.1:
 
-.. include:: implicit/1.rst
-
-.. _implicit.1.1:
-
-.. include:: implicit/1.1.rst
-
-.. _implicit.1.2:
-
-.. include:: implicit/1.2.rst
 
 .. _implicit.2:
-
+    
 .. include:: implicit/2.rst
 
-.. _implicit.2.1:
 
+
+.. _implicit.2.1:
+    
 .. include:: implicit/2.1.rst
 
-.. _implicit.2.1.1:
 
-.. include:: implicit/2.1.1.rst
-
-.. _implicit.2.1.1.1:
-
-.. include:: implicit/2.1.1.1.rst
-
-.. _implicit.2.1.2:
-
-.. include:: implicit/2.1.2.rst
-
-.. _implicit.2.1.3:
-
-.. include:: implicit/2.1.3.rst
-
-.. _implicit.2.1.4:
-
-.. include:: implicit/2.1.4.rst
 
 .. _implicit.2.1.5:
-
+    
 .. include:: implicit/2.1.5.rst
 
-.. _implicit.2.1.5.1:
 
+
+.. _implicit.2.1.5.1:
+    
 .. include:: implicit/2.1.5.1.rst
 
-.. _implicit.2.1.5.2:
 
-.. include:: implicit/2.1.5.2.rst
 
 .. _implicit.2.1.5.3:
-
+    
 .. include:: implicit/2.1.5.3.rst
 
-.. _implicit.2.2:
-
-.. include:: implicit/2.2.rst
-
-.. _implicit.2.2.1:
-
-.. include:: implicit/2.2.1.rst
-
-.. _implicit.2.2.2:
-
-.. include:: implicit/2.2.2.rst
-
-.. _implicit.2.3:
-
-.. include:: implicit/2.3.rst
-
-.. _implicit.2.3.1:
-
-.. include:: implicit/2.3.1.rst
-
-.. _implicit.2.3.2:
-
-.. include:: implicit/2.3.2.rst
-
-.. _implicit.2.3.3:
-
-.. include:: implicit/2.3.3.rst
-
-.. _implicit.2.4:
-
-.. include:: implicit/2.4.rst
-
-.. _implicit.2.5:
-
-.. include:: implicit/2.5.rst
-
-.. _implicit.2.5.1:
-
-.. include:: implicit/2.5.1.rst
-
-.. _implicit.2.5.2:
-
-.. include:: implicit/2.5.2.rst
-
-.. _implicit.2.5.3:
-
-.. include:: implicit/2.5.3.rst
-
-.. _implicit.3:
-
-.. include:: implicit/3.rst
-
-.. _implicit.3.1:
-
-.. include:: implicit/3.1.rst
-
-.. _implicit.3.2:
-
-.. include:: implicit/3.2.rst
-
-.. _implicit.3.2.1:
-
-.. include:: implicit/3.2.1.rst
-
-.. _implicit.3.3: 
-
-.. include:: implicit/3.3.rst
-
-.. _implicit.3.4: 
-
-.. include:: implicit/3.4.rst
-
-.. _implicit.3.5: 
-
-.. include:: implicit/3.5.rst
-
-.. _implicit.4:
-
-.. include:: implicit/4.rst
-
-.. _implicit.4.1:
-
-.. include:: implicit/4.1.rst
-
-.. _implicit.4.2:
-
-.. include:: implicit/4.2.rst
-
-
-.. _implicit.5:
-
-.. include:: implicit/5.rst
-
-.. _implicit.6:
-
-.. include:: implicit/6.rst
-
-.. _implicit.7:
-
-.. include:: implicit/7.rst
-
-.. _implicit.7.1:
-
-.. include:: implicit/7.1.rst
-
-.. _implicit.8:
-
-.. include:: implicit/8.rst
-
-.. _implicit.8.1:
-
-.. include:: implicit/8.1.rst
-
-.. _implicit.9:
-
-.. include:: implicit/9.rst
-
-.. _implicit.10:
-
-.. include:: implicit/10.rst
-
-
-.. _implicit.11:
-
-.. include:: implicit/11.rst
-
-.. _implicit.11.1:
-
-.. include:: implicit/11.1.rst
-
-.. _implicit.11.2:
-
-.. include:: implicit/11.2.rst
 

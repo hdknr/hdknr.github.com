@@ -2,38 +2,70 @@
 OpenID Connect
 ================
 
-Based on "`Welcome to OpenID Connect <http://openid.net/connect/>`_ " provided by `OpenID Foundation <http://openid.net/foundation/>`_ ..
+Based on "`Welcome to OpenID Connect <http://openid.net/wg/connect/>`_ " provided by `OpenID Foundation <http://openid.net/foundation/>`_ ..
 
 Current Version
 ===============
 
 .. glossary::
 
-    Basic Client Profile
-    Basic
-        :doc:`basic` -  Lightweight simple self-contained specification for a web-based Relying Party using the OAuth code flow.
 
-    Implicit Client Profile 
-    Implicit
-        :doc:`implicit` - Lightweight simple self-contained specification for a web-based Relying Party using the OAuth implicit flow.
-    
-    Discovery
-        :doc:`discovery` – (Optional) Defines how user and provider endpoints are dynamically discovered.
+    Core
+        Defines the core OpenID Connect functionality: 
 
-    Dynamic Registration
-    Registration
-        :doc:`reg`  – (Optional) Defines how clients dynamically register with OpenID Providers.
+        authentication built on top of :doc:`OAuth 2.0 <oauth>` 
+        and the use of Claims to communicate information about the End-User
 
-    Standard 
-        :doc:`standard` – Full HTTP binding specification, for both clients and OpenID Providers; references Messages.
+        :doc:`core.rst <core>`
 
-    Messages 
-        :doc:`messages` – Lists all the messages that are used in OpenID Connect. You can use this to create additional bindings for Connect, such as an OpenID Connect binding for XMPP.
+    Discovery 
+        (Optional) 
+
+        Defines how Clients dynamically discover information about OpenID Provider
+
+        :doc:`discovery.rst <discovery>`
+
+    Dynamic Registration 
+        (Optional) 
+
+        Defines how clients dynamically register with OpenID Providers
+
+
+        :doc:`reg.rst <reg>``
 
     Session Management 
-    Session
-        :doc:`session` – (Optional) Defines how to manage OpenID Connect sessions.
+        (Optional) 
+
+        Defines how to manage OpenID Connect sessions, 
+        including logout functionality
+
+        :doc:`session.rst <session>`
 
     OAuth 2.0 Multiple Response Types 
-        :doc:`oauth_responses` – Registration document for several specific new response types, in accordance with the stipulations of the OAuth Parameters Registry.
+        Defines several specific new OAuth 2.0 response types
 
+        :doc:`oauth_responses.rst <oauth_responses>`
+
+    OAuth 2.0 Form Post Response Mode 
+        (Optional) 
+
+        Defines how to return OAuth 2.0 Authorization Response parameters 
+        (including OpenID Connect Authentication Response parameters) 
+        using HTML form values that are auto-submitted by the User Agent using HTTP POST
+
+        :doc:`oauth_posts.rst <oauth_posts>`
+
+Below are links to the HTML versions of the released copies of the related implementer’s guides:
+
+.. glossary::
+    Basic Client Profile 
+        Simple subset of the Core functionality 
+        for a web-based Relying Party using the OAuth code flow
+
+        :doc:`basic.rst <basic>`
+
+    Implicit Client Profile 
+        Simple subset of the Core functionality 
+        for a web-based Relying Party using the OAuth implicit flow
+
+        :doc:`implicit.rst <implicit>`

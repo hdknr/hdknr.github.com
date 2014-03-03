@@ -37,9 +37,6 @@ import sys, os
 extensions = ['sphinx.ext.autodoc', 'sphinx.ext.doctest',  #'sphinx.ext.intersphinx', 
                 'sphinx.ext.todo', 'sphinx.ext.coverage', 'sphinx.ext.pngmath', 'sphinx.ext.ifconfig', 'sphinx.ext.viewcode']
 
-extensions.append('sphinx.ext.graphviz') # graphviz
-extensions.append('sphinxcontrib.seqdiag') #seqdiag
-
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
@@ -277,45 +274,55 @@ intersphinx_mapping = {'http://docs.python.org/': None}
 #########
 
 todo_include_todos = True
-exclude_patterns = ['oauth/*.rst',
-                    'session/*.rst',
-                    'standard/*.rst',
-                    'basic/*.rst',
-                    'poco/*.rst',
-                    'messages/*.rst',
-                    'jwt/*.rst',
-                    'jwe/*.rst',
-                    'jws/*.rst',
-                    'jwk/*.rst',
-                    'jwa/*.rst',
-                    'jwe_js/*.rst',
-                    'jws_js/*.rst',
-                    'nist-sp-800-63/*.rst',
-                    'oauth_*/*.rst',
-                    'reg/*.rst',
-                    'uma_core/*.rst',
-                    'uma_trust/*.rst',
-                    'discovery/*.rst',
-                    'bearer/*.rst',
-                    'oauth_responses/*.rst',
-                    'discussion/*.rst',
-                    'locale',
-                    'python/*.rst',
-                    'csharp/*.rst',
-                    'common/*.rst',
-                    'backplane/*.rst',
-                    'webfinger/*.rst',
-                    'scim_rest/*.rst',
-                    ]
+exclude_patterns = [
+    'acct/*.rst',
+    'backplane/*.rst',
+    'basic/*.rst',
+    'bearer/*.rst',
+    'common/*.rst',
+    'core/*.rst',
+    'csharp/*.rst',
+    'discovery/*.rst',
+    'discussion/*.rst',
+    'implicit/*.rst',
+    'jwa/*.rst',
+    'jwe/*.rst',
+    'jwe_js/*.rst',
+    'jwk/*.rst',
+    'jws/*.rst',
+    'jws_js/*.rst',
+    'jwt/*.rst',
+    'jose_usecase/*.rst',
+    'locale',
+    'messages/*.rst',
+    'nist-sp-800-63/*.rst',
+    'oauth-lrdd/*.rst',
+    'oauth/*.rst',
+    'oauth_*/*.rst',
+    'oauth_responses/*.rst',
+    'poco/*.rst',
+    'python/*.rst',
+    'reg/*.rst',
+    'scim_rest/*.rst',
+    'session/*.rst',
+    'standard/*.rst',
+    'uma_core/*.rst',
+    'uma_trust/*.rst',
+    'webfinger/*.rst',
+    'webcrypto/*.rst',
+]
 #
 # GETTEXT
 locale_dirs = ["locale"]
 language="en"
 #language = "ja"
 #language = "fr"
-#
+
+
 # -seqdiag
 extensions.append('sphinxcontrib.seqdiag')
+extensions.append('sphinx.ext.graphviz') # graphviz
+
 if os.uname()[0]=='Darwin':
     seqdiag_fontpath = '/Library/Fonts/Osaka.ttf'
 else:
@@ -324,6 +331,17 @@ else:
 # - github
 extensions.append('sphinxtogithub')  #:GITHUB by HDKNR
 #
-html_theme = 'mybasic' # HDKNR
-html_theme_path = ['../../../themes',] #HDKNR
 
+#html_theme = 'mybasic' # HDKNR
+#html_theme_path = ['../../../themes',] #HDKNR
+
+# -
+import sphinx_bootstrap_theme
+html_theme = 'bootstrap'                  #:
+html_theme_path = sphinx_bootstrap_theme.get_html_theme_path()
+#
+intersphinx_mapping = {
+   'sphinx': ('http://sphinx-users.jp/doc11', None),
+   'py': ('http://docs.python.jp/2/', None),
+   'py34': ('http://docs.python.org/3.4/',None),
+}
