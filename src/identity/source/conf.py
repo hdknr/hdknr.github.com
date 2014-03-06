@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# accounts documentation build configuration file, created by
-# sphinx-quickstart on Thu Aug 18 11:28:02 2011.
+# accounts documentation build configuration file, created by # sphinx-quickstart on Thu Aug 18 11:28:02 2011.
 #
 # This file is execfile()d with the current directory set to its containing dir.
 #
@@ -296,6 +295,7 @@ exclude_patterns = [
     'locale',
     'messages/*.rst',
     'nist-sp-800-63/*.rst',
+    'nist-sp800-56a/*.rst',
     'oauth-lrdd/*.rst',
     'oauth/*.rst',
     'oauth_*/*.rst',

@@ -167,12 +167,6 @@
 
 
 
-.. _jwa.4.7.2:
-    
-.. include:: jwa/4.7.2.rst
-
-
-
 .. _jwa.4.8:
     
 .. include:: jwa/4.8.rst

@@ -250,3 +250,33 @@
 .. include:: nist-sp800-56a/5.6.4.rst
 
 
+
+.. _nist-sp800-56a.6:
+    
+.. include:: nist-sp800-56a/6.rst
+
+
+
+.. _nist-sp800-56a.6.2:
+    
+.. include:: nist-sp800-56a/6.2.rst
+
+
+
+.. _nist-sp800-56a.6.2.1:
+    
+.. include:: nist-sp800-56a/6.2.1.rst
+
+
+
+.. _nist-sp800-56a.6.2.2:
+    
+.. include:: nist-sp800-56a/6.2.2.rst
+
+
+
+.. _nist-sp800-56a.6.2.2.2:
+    
+.. include:: nist-sp800-56a/6.2.2.2.rst
+
+
