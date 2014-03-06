@@ -12,6 +12,9 @@
     Key Derivation
         :ref:`jwa.key_derivation`
 
+        :term:`NIST SP800-56A`:
+            - The process by which keying material is derived from a shared secret and other information.
+
     Key Wrap
         :ref:`jwa.key_wrap`
 
@@ -20,7 +23,13 @@
         - 鍵カプセル化メカニズム。
         - 例:  公開鍵キーカプセル化 : `PSEC-KEM <http://info.isl.ntt.co.jp/crypt/psec/intro.html>`_
         - 参考 :term:`Key Wrap`
-        
+
+    NIST SP800-56A
+        - :doc:`nist-sp-800-56a`
+        - `Revision 1 <http://csrc.nist.gov/publications/nistpubs/800-56A/SP800-56A_Revision1_Mar08-2007.pdf>`_
+        - `Revision 2 <http://csrc.nist.gov/publications/drafts/800-56a/draft-sp-800-56a.pdf>`_
+
+
 .. _jwa.ecdh:
 
 ECDHキー承諾プロトコル

@@ -138,6 +138,7 @@ Related
     lrdd
     revoke
 
+    nist-sp800-56a.rst
     nist-sp-800-59a
     nist-sp-800-63 
 
