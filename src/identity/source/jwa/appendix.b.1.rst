@@ -2,7 +2,7 @@ B.1. Test Cases for AES_128_CBC_HMAC_SHA_256
 ------------------------------------------------
 
 
-AES_128_CBC_HMAC_SHA_256
+:ref:`AES_128_CBC_HMAC_SHA_256`
 
 ::
 

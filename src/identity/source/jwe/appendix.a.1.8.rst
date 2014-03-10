@@ -1,25 +1,13 @@
-A.1.8. Plaintext Encryption
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+A.1.8.  Validation
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Encrypt the :term:`Plaintext` with :term:`AES GCM` 
-using the :term:`CMK` as the encryption key, 
-the :term:`JWE Initialization Vector`, 
-and the ":term:`additional authenticated data`" value above, 
-requesting a 128 bit ":term:`authentication tag`" output.
+This example illustrates the process of creating a JWE with RSAES
+OAEP for key encryption and AES GCM for content encryption.  These
+results can be used to validate JWE decryption implementations for
+these algorithms.  Note that since the RSAES OAEP computation
+includes random values, the encryption results above will not be
+completely reproducible.  However, since the AES GCM computation is
+deterministic, the JWE Encrypted Ciphertext values will be the same
+for all encryptions performed using these inputs.
 
-The resulting Ciphertext is:
-
-.. code-block:: javascript
-
-   [253, 237, 181, 180, 97, 161, 105, 207, 233, 120, 65, 100, 45, 122,
-   246, 116, 195, 212, 102, 37, 36, 175]
-
-
-The resulting "authentication tag" value is:
-
-.. code-block:: javascript
-
-   [237, 94, 89, 14, 74, 52, 191, 249, 159, 216, 240, 28, 224, 147, 34,
-   82]
-
-(draft08, http://tools.ietf.org/html/draft-ietf-jose-json-web-encryption-08#appendix-A.1.8) 
+(draft23)

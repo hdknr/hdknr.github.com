@@ -359,6 +359,72 @@
 
 
 
+.. _jwe.appendix.a.3.4:
+    
+.. include:: jwe/appendix.a.3.4.rst
+
+
+
+.. _jwe.appendix.a.3.5:
+    
+.. include:: jwe/appendix.a.3.5.rst
+
+
+
+.. _jwe.appendix.a.3.6:
+    
+.. include:: jwe/appendix.a.3.6.rst
+
+
+
+.. _jwe.appendix.a.4:
+    
+.. include:: jwe/appendix.a.4.rst
+
+
+
+.. _jwe.appendix.a.4.1:
+    
+.. include:: jwe/appendix.a.4.1.rst
+
+
+
+.. _jwe.appendix.a.4.2:
+    
+.. include:: jwe/appendix.a.4.2.rst
+
+
+
+.. _jwe.appendix.a.4.3:
+    
+.. include:: jwe/appendix.a.4.3.rst
+
+
+
+.. _jwe.appendix.a.4.4:
+    
+.. include:: jwe/appendix.a.4.4.rst
+
+
+
+.. _jwe.appendix.a.4.5:
+    
+.. include:: jwe/appendix.a.4.5.rst
+
+
+
+.. _jwe.appendix.a.4.6:
+    
+.. include:: jwe/appendix.a.4.6.rst
+
+
+
+.. _jwe.appendix.a.4.7:
+    
+.. include:: jwe/appendix.a.4.7.rst
+
+
+
 .. _jwe.appendix.b:
     
 .. include:: jwe/appendix.b.rst
