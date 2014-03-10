@@ -3,14 +3,14 @@ A.1.1. JWE Header
 
 The following example JWE Header declares that:
 
-   -  the Content Encryption Key is encrypted to the recipient using the
-      RSAES OAEP algorithm to produce the JWE Encrypted Key and
+-  the Content Encryption Key is encrypted to the recipient using the
+   RSAES OAEP algorithm to produce the JWE Encrypted Key and
 
-   -  the Plaintext is encrypted using the AES GCM algorithm with a 256
-      bit key to produce the Ciphertext.
+-  the Plaintext is encrypted using the AES GCM algorithm with a 256
+   bit key to produce the Ciphertext.
 
 
-      ::
+   ::
 
         {"alg":"RSA-OAEP","enc":"A256GCM"}
 

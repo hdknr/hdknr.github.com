@@ -257,30 +257,6 @@
 
 
 
-.. _jwe.appendix.a.1.9:
-    
-.. include:: jwe/appendix.a.1.9.rst
-
-
-
-.. _jwe.appendix.a.1.10:
-    
-.. include:: jwe/appendix.a.1.10.rst
-
-
-
-.. _jwe.appendix.a.1.11:
-    
-.. include:: jwe/appendix.a.1.11.rst
-
-
-
-.. _jwe.appendix.a.1.12:
-    
-.. include:: jwe/appendix.a.1.12.rst
-
-
-
 .. _jwe.appendix.a.2:
     
 .. include:: jwe/appendix.a.2.rst
