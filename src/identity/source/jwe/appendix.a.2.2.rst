@@ -1,15 +1,14 @@
-A.2.2. Encoded JWE Header
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+A.2.2.  Content Encryption Key (CEK)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Base64url encoding the octets of the UTF-8 representation of the JWE
-Header yields this Encoded JWE Header value:
+Generate a 256 bit random Content Encryption Key (CEK).  
+
+In this example, the key value is:
 
 ::
 
-     eyJhbGciOiJSU0ExXzUiLCJlbmMiOiJBMTI4Q0JDLUhTMjU2In0
+   [4, 211, 31, 197, 84, 157, 252, 254, 11, 100, 157, 250, 63, 170, 106,
+   206, 107, 124, 212, 45, 111, 107, 9, 219, 200, 177, 0, 240, 143, 156,
+   44, 207]
 
-
-( https://tools.ietf.org/html/draft-ietf-jose-json-web-encryption-13#appendix-A.2.2 )
-
-.. note::
-    - JWE Header JSONのオクテットストリングをBase64URL化 -> EJH
+(draft23)

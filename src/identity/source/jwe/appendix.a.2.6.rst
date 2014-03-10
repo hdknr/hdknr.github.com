@@ -1,22 +1,42 @@
-A.2.6. Initialization Vector
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+A.2.6.  Content Encryption
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-.. note::
-    - 初期化ベクタは 16 オクテットランダムで作ってみる
+Encrypt the Plaintext with 
+:ref:`AES_128_CBC_HMAC_SHA_256` using 
+the CEK as the encryption key, 
+the JWE Initialization Vector, and 
+the Additional Authenticated Data value above.  
 
-Generate a random 128 bit JWE Initialization Vector.  
-In this example, the value is:
+The steps for doing this using the values 
+from Appendix A.3 are detailed in Appendix B.  
 
-::
-
-   [3, 22, 60, 12, 43, 67, 104, 105, 108, 108, 105, 99, 111, 116, 104, 101]
-
-Base64url encoding this value yields this Encoded JWE Initialization
-Vector value:
-
+The resulting Ciphertext is:
 
 ::
 
-     AxY8DCtDaGlsbGljb3RoZQ
+    [40, 57, 83, 181, 119, 33, 133, 148, 198, 185, 243, 24, 152, 230, 6,
+    75, 129, 223, 127, 19, 210, 82, 183, 230, 168, 33, 215, 104, 143,
+    112, 56, 102]
 
-( https://tools.ietf.org/html/draft-ietf-jose-json-web-encryption-13#appendix-A.2.6 )
+The resulting Authentication Tag value is:
+
+::
+
+    [246, 17, 244, 190, 4, 95, 98, 3, 231, 0, 115, 157, 242, 203, 100,
+    191]
+
+Encoding this JWE Ciphertext as BASE64URL(JWE Ciphertext) gives this
+value:
+
+::
+
+  KDlTtXchhZTGufMYmOYGS4HffxPSUrfmqCHXaI9wOGY
+
+Encoding this JWE Authentication Tag 
+as BASE64URL(JWE Authentication Tag) gives this value:
+
+::
+
+  9hH0vgRfYgPnAHOd8stkvw
+
+(draft23)

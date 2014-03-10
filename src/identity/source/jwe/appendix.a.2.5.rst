@@ -1,22 +1,17 @@
-A.2.5. Encoded JWE Encrypted Key
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+A.2.5.  Additional Authenticated Data
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Base64url encode the JWE Encrypted Key 
-to produce the Encoded JWE Encrypted Key. 
+Let the Additional Authenticated Data encryption parameter be
+ASCII(BASE64URL(UTF8(JWE Protected Header))).  
 
-This result (with line breaks for display purposes only) is:
+This value is:
 
 ::
 
-     UGhIOguC7IuEvf_NPVaXsGMoLOmwvc1GyqlIKOK1nN94nHPoltGRhWhw7Zx0-kFm
-     1NJn8LE9XShH59_i8J0PH5ZZyNfGy2xGdULU7sHNF6Gp2vPLgNZ__deLKxGHZ7Pc
-     HALUzoOegEI-8E66jX2E4zyJKx-YxzZIItRzC5hlRirb6Y5Cl_p-ko3YvkkysZIF
-     NPccxRU7qve1WYPxqbb2Yw8kZqa2rMWI5ng8OtvzlV7elprCbuPhcCdZ6XDP0_F8
-     rkXds2vE4X-ncOIM8hAYHHi29NX0mcKiRaD0-D-ljQTP-cFPgwCp6X-nZZd9OHBv
-     -B3oWh2TbqmScqXMR4gp_A
+   [101, 121, 74, 104, 98, 71, 99, 105, 79, 105, 74, 83, 85, 48, 69,
+   120, 88, 122, 85, 105, 76, 67, 74, 108, 98, 109, 77, 105, 79, 105,
+   74, 66, 77, 84, 73, 52, 81, 48, 74, 68, 76, 85, 104, 84, 77, 106, 85,
+   50, 73, 110, 48]
 
-( https://tools.ietf.org/html/draft-ietf-jose-json-web-encryption-13#appendix-A.2.5 )
- 
 
-.. note::
-    - 非対称暗合化で生成された JEK を Base64URLして EJEK
+(draft23)
