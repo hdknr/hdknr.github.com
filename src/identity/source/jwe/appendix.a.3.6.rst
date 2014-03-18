@@ -1,7 +1,7 @@
 A.3.6.  Content Encryption
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Encrypt the Plaintext with AES_128_CBC_HMAC_SHA_256 
+Encrypt the Plaintext with :ref:`AES_128_CBC_HMAC_SHA_256` 
 using the CEK as the encryption key, 
 the JWE Initialization Vector, 
 and the Additional Authenticated Data value above.  
@@ -42,4 +42,4 @@ as BASE64URL(JWE Authentication Tag) gives this value:
      U0m_YmjN04DJvceFICbCVQ
 
 
-(draft21)
+(draft23)

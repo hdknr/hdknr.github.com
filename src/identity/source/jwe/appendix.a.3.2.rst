@@ -5,8 +5,9 @@ A.3.2.  Content Encryption Key (CEK)
     - 256 ビットのランダムオクテットを生成し、これを CEKとします
     - このCEKは :ref:`jwe.appendix.a.3.3` でキーラップされて渡されます。
 
-Generate a 256 bit random Content Encryption Key (CEK).  In this
-example, the value is:
+Generate a 256 bit random Content Encryption Key (CEK).  
+
+In this example, the value is:
 
 ::
 
@@ -14,4 +15,4 @@ example, the value is:
    206, 107, 124, 212, 45, 111, 107, 9, 219, 200, 177, 0, 240, 143, 156,
    44, 207]
 
-(draft21)
+(draft23)

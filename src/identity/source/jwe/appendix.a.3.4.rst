@@ -28,3 +28,5 @@ Python
             >>> iv = ''.join(chr(i) for i in iv)
     >>> base64.base64url_encode(iv) == 'AxY8DCtDaGlsbGljb3RoZQ'
     True
+
+(draft23)

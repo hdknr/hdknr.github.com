@@ -125,6 +125,30 @@
 
 
 
+.. _jwe.5:
+    
+.. include:: jwe/5.rst
+
+
+
+.. _jwe.5.1:
+    
+.. include:: jwe/5.1.rst
+
+
+
+.. _jwe.5.2:
+    
+.. include:: jwe/5.2.rst
+
+
+
+.. _jwe.5.3:
+    
+.. include:: jwe/5.3.rst
+
+
+
 .. _jwe.6:
     
 .. include:: jwe/6.rst
@@ -350,6 +374,18 @@
 .. _jwe.appendix.a.3.6:
     
 .. include:: jwe/appendix.a.3.6.rst
+
+
+
+.. _jwe.appendix.a.3.7:
+    
+.. include:: jwe/appendix.a.3.7.rst
+
+
+
+.. _jwe.appendix.a.3.8:
+    
+.. include:: jwe/appendix.a.3.8.rst
 
 
 

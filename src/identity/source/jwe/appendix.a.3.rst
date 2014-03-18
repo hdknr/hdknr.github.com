@@ -23,5 +23,5 @@ The representation of this plaintext is:
     'Live long and prosper.'
 
 
-(draft21)
+(draft23)
 
