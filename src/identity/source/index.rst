@@ -127,6 +127,17 @@ Discovery
     swd
     acct
 
+Secrurity 
+---------------
+
+.. toctree::
+    :maxdepth: 1
+
+    rfc3394
+    nist-sp-800-59a
+    nist-sp-800-63 
+
+
 Related
 ---------------
 
@@ -137,10 +148,6 @@ Related
 
     lrdd
     revoke
-
-    nist-sp800-56a.rst
-    nist-sp-800-59a
-    nist-sp-800-63 
 
     poco
 
