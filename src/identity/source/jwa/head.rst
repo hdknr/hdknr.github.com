@@ -3,7 +3,7 @@ JSON Web Algorithms (JWA) : draft21
 ==========================================
 
 .. note::
-    - Draft 23 : https://tools.ietf.org/html/draft-ietf-jose-json-web-algorithms-23
+    - Draft 24 : https://tools.ietf.org/html/draft-ietf-jose-json-web-algorithms-24
 
 .. note::
     - 電子署名(alg)  :ref:`Section.3 <jwa.3>` 

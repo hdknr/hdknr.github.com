@@ -39,4 +39,4 @@ the JWS Protected Header and key are the same as in :ref:`Appendix A.3 <jws.appe
 resulting in the same JWS Signature value; therefore, 
 its computation is not repeated here.
 
-(draft20)
+(draft24)
