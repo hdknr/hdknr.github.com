@@ -1,5 +1,5 @@
 Resource Set Descriptor for OpenID Connect
----------------------------------------------------
+========================================================
 
 If an OpenID Connect OP works as an UMA AM,  the OP can return the UserInfo 
 in which Users' resource at Host are included as an Aggregated Claim , or

@@ -47,6 +47,18 @@
 
 
 
+.. _uma_core.1.3.3:
+    
+.. include:: uma_core/1.3.3.rst
+
+
+
+.. _uma_core.1.3.4:
+    
+.. include:: uma_core/1.3.4.rst
+
+
+
 .. _uma_core.1.4:
     
 .. include:: uma_core/1.4.rst
@@ -245,18 +257,6 @@
 
 
 
-.. _uma_core.3.5.1:
-    
-.. include:: uma_core/3.5.1.rst
-
-
-
-.. _uma_core.3.5.1.1:
-    
-.. include:: uma_core/3.5.1.1.rst
-
-
-
 .. _uma_core.3.6:
     
 .. include:: uma_core/3.6.rst
@@ -311,9 +311,33 @@
 
 
 
+.. _uma_core.5.3:
+    
+.. include:: uma_core/5.3.rst
+
+
+
 .. _uma_core.6:
     
 .. include:: uma_core/6.rst
+
+
+
+.. _uma_core.6.1:
+    
+.. include:: uma_core/6.1.rst
+
+
+
+.. _uma_core.6.2:
+    
+.. include:: uma_core/6.2.rst
+
+
+
+.. _uma_core.6.3:
+    
+.. include:: uma_core/6.3.rst
 
 
 
@@ -383,8 +407,26 @@
 
 
 
+.. _uma_core.13.3:
+    
+.. include:: uma_core/13.3.rst
+
+
+
 .. _uma_core.connect_resset:
     
 .. include:: uma_core/connect_resset.rst
+
+
+
+.. _uma_core.note.1:
+    
+.. include:: uma_core/note.1.rst
+
+
+
+.. _uma_core.note.2:
+    
+.. include:: uma_core/note.2.rst
 
 

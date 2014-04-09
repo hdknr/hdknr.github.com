@@ -1,16 +1,17 @@
-A.1.2.  Decoding
-^^^^^^^^^^^^^^^^^^^^^^^^
+A.1.2.  Validating
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Decoding the JWS first requires 
-removing the base64url encoding from the :term:`Encoded JWS Header`, 
-the :term:`Encoded JWS Payload`, 
-and the :term:`Encoded JWS Signature`. 
+Since the "alg" Header Parameter is "HS256", 
+we validate the HMAC SHA-256 value contained in the JWS Signature.
 
-We base64url decode the inputs 
-and turn them into the corresponding byte arrays. 
+To validate the HMAC value, 
+we repeat the previous process of 
+using the correct key and the JWS Signing Input 
+as input to the HMAC SHA-256 function 
+and then taking the output and determining 
+if it matches the JWS Signature.  
 
-We translate the header input byte array containing UTF-8 encoded characters 
-into the :term:`JWS Header string`.
+If it matches exactly, 
+the HMAC has been validated.
 
-
-(v.03)
+(draft25)

@@ -1,6 +1,16 @@
-A.2.2.  Decoding
+A.2.2.  Validating
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
-Decoding the JWS from this example requires processing the Encoded JWS Header and Encoded JWS Payload exactly as done in the first example.
+Since the "alg" Header Parameter is "RS256", 
+we validate the RSASSA-PKCS-v1_5 SHA-256 digital signature 
+contained in the JWS Signature.
 
-(v.03)
+Validating the JWS Signature is a little different 
+from the previous example.  
+
+We pass (n, e), 
+JWS Signature, and the JWS Signing Input 
+to an RSASSA-PKCS-v1_5 signature verifier 
+that has been configured to use the SHA-256 hash function.
+
+(draft25)

@@ -1,2 +1,4 @@
-A.1.  JWS using HMAC SHA-256
+A.1. Example JWS using HMAC SHA-256
 ------------------------------------------
+
+(draft25)

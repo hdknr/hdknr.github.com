@@ -6,4 +6,5 @@
 
 .. toctree::
     cron
+    find
     run-parts
