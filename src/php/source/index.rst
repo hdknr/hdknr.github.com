@@ -33,6 +33,7 @@ CakePHP
     cakephp/template
     cakephp/controller
     cakephp/model
+    cakephp/unittest
 
 Indices and tables
 ==================

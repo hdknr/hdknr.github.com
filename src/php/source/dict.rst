@@ -21,6 +21,11 @@ Array = Ordered Map =  Dictionary
 .. literalinclude:: php/dict.php.log
     :language: bash
 
+要素の空チェック
+---------------------------
+
+.. literalinclude:: php/dict_empty.php
+
 マージ
 ------
     
