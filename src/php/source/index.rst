@@ -6,7 +6,8 @@
 Welcome to PHP's documentation!
 ===============================
 
-Contents:
+PHP
+--------
 
 .. toctree::
     :maxdepth: 2
@@ -19,9 +20,19 @@ Contents:
     i18n
     regex
     error
-    cake
+    debug
     glossary
 
+CakePHP
+---------
+
+.. toctree::
+    :maxdepth: 2
+
+    cakephp/console
+    cakephp/template
+    cakephp/controller
+    cakephp/model
 
 Indices and tables
 ==================

@@ -20,4 +20,11 @@ Array = Ordered Map =  Dictionary
 
 .. literalinclude:: php/dict.php.log
     :language: bash
+
+マージ
+------
     
+
+.. literalinclude:: php/dict_merge.php
+    :language: php
+
