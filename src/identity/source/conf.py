@@ -284,6 +284,7 @@ exclude_patterns = [
     'discovery/*.rst',
     'discussion/*.rst',
     'implicit/*.rst',
+    'hostmeta/*.rst',
     'jwa/*.rst',
     'jwe/*.rst',
     'jwe_js/*.rst',
@@ -310,6 +311,9 @@ exclude_patterns = [
     'uma_trust/*.rst',
     'webfinger/*.rst',
     'webcrypto/*.rst',
+    'rfc3394/*.rst',
+    'rfc3986/*.rst',
+    'fips-186/*.rt',
 ]
 #
 # GETTEXT

@@ -123,6 +123,7 @@ Discovery
 .. toctree::
     :maxdepth: 1
 
+    hostmeta
     webfinger
     swd
     acct

@@ -237,6 +237,28 @@ syncdb
     (2,'membership','0002_auto__add_field_member_has_error','2012-02-19 19:52:52');
 
 
+テーブル再構築
+======================
+
+テーブルを削除
+
+::
+
+    python manage.py migrate appname zero
+
+すでに手動でdrop tableしてしまった
+
+::
+
+    python manage.py migrate appname zero --fake 
+
+作成
+
+::
+
+    python manage.py migrate appname 
+
+
 その他
 =========
 
