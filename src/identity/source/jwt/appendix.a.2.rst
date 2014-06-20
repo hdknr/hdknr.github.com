@@ -55,14 +55,12 @@ The Initialization Vector value used is:
     [82, 101, 100, 109, 111, 110, 100, 32, 87, 65, 32, 57, 56, 48, 53,
     50]
 
-This example uses the Content Encryption Key represented in JSON Web
-Key [JWK] format below:
+This example uses the Content Encryption Key represented 
+by the base64url encoded value below:
 
 ::
 
-  {"kty":"oct",
-   "k":"GawgguFyGrWKav7AX4VKUg"
-  }
+     GawgguFyGrWKav7AX4VKUg
 
 The final result for this Nested JWT (with line breaks for display
 purposes only) is:
@@ -91,4 +89,4 @@ purposes only) is:
   AVO9iT5AV4CzvDJCdhSFlQ
 
 
-(draft19)
+(draft21)

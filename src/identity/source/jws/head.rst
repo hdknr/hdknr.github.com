@@ -1,10 +1,9 @@
 ========================================
-JSON Web Signature (JWS) : draft25
+JSON Web Signature (JWS) : draft27
 ========================================
 
 .. note::
-    - https://tools.ietf.org/html/draft-ietf-jose-json-web-signature-25
-    - 24->25 変更無し
+    - https://tools.ietf.org/html/draft-ietf-jose-json-web-signature-27
 
 .. contents::
     :local:

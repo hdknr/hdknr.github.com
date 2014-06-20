@@ -2,11 +2,11 @@ Appendix B. "x5c" (X.509 Certificate Chain) Example
 ========================================================================
 
 The JSON array below is an example of a certificate chain that could
-be used as the value of an "x5c" (X.509 Certificate Chain) header parameter, 
-per :ref:`Section 4.1.6 <jws.4.1.6>`.  
+be used as the value of an "x5c" (X.509 Certificate Chain) Header
+Parameter, per Section 4.1.6.  Note that since these strings contain
+base64 encoded (not base64url encoded) values, they are allowed to
+contain white space and line breaks.
 
-Note that since these strings contain base64 encoded (not base64url encoded) values, 
-they are allowed to contain white space and line breaks.
 
 ::
 
@@ -82,4 +82,4 @@ they are allowed to contain white space and line breaks.
    C1u+mNr0HZDzTuIYEZoDJJKPTEjlbVUjP9UNV+mWwD5MlM/Mtsq2azSiGM5bUMM
    j4QssxsodyamEwCW/POuZ6lcg5Ktz885hZo+L7tdEy8W9ViH0Pd"]
 
-( draft 10, http://tools.ietf.org/html/draft-ietf-jose-json-web-signature-10#appendix-B )
+( draft27)

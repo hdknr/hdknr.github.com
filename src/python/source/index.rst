@@ -21,6 +21,7 @@ Tools:
     :maxdepth: 2
 
     tools/pyenv
+    tools/ansible
     tools/sentry
     tools/enum
     tools/recipe

@@ -1,5 +1,5 @@
 A.6.  Example JWS Using JWS JSON Serialization
-========================================================
+---------------------------------------------------------------
 
 This section contains an example using the JWS JSON Serialization.
 

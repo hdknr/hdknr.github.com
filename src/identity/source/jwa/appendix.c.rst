@@ -80,10 +80,13 @@ The resulting Concat KDF [NIST.800-56A] parameter values are:
       This is set to the ECDH-ES key agreement output.  (This value is
       often not directly exposed by libraries, due to NIST security
       requirements, and only serves as an input to a KDF.)  In this
-      example, Z is the octet sequence:
-      [158, 86, 217, 29, 129, 113, 53, 211, 114, 131, 66, 131, 191, 132,
-      38, 156, 251, 49, 110, 163, 218, 128, 106, 72, 246, 218, 167, 121,
-      140, 254, 144, 196].
+      example, Z is the octet sequence(using JSON array notation):
+
+      .. code-block:: javascript
+
+          [158, 86, 217, 29, 129, 113, 53, 211, 114, 131, 66, 131, 191, 132,
+          38, 156, 251, 49, 110, 163, 218, 128, 106, 72, 246, 218, 167, 121,
+          140, 254, 144, 196].
 
    keydatalen  
       This value is 128 - the number of bits in the desired

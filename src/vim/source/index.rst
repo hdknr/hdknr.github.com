@@ -15,10 +15,12 @@ Contents:
     replace 
     keys
     help
+    split
     vundle
     neobundle
     rc
     colors
+    pymode
 
 
 Indices and tables
