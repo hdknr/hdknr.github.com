@@ -6,4 +6,5 @@ Python 標準ライブラリ
     :maxdepth: 2
 
     datatypes
+    itertools
     internet

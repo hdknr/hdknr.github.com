@@ -25,6 +25,7 @@ Tools:
     tools/sentry
     tools/enum
     tools/recipe
+    tools/gunicorn
 
 
 
