@@ -1,5 +1,4 @@
-
-C.2.  JWE Header
+C.2.  JOSE Header
 ------------------------
 
 The following example JWE Protected Header declares that:

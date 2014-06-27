@@ -1,10 +1,14 @@
 ==========================================
-JSON Web Algorithms (JWA) : draft27
+JSON Web Algorithms (JWA) : draft28
 ==========================================
 
 .. note::
-    - Draft 27 : https://tools.ietf.org/html/draft-ietf-jose-json-web-algorithms-24
+    - Draft 28: https://tools.ietf.org/html/draft-ietf-jose-json-web-algorithms-28
 
+        - Security Considerations
+        - パディング: PKCS#5 -> PKCS#7 (http://tools.ietf.org/html/rfc2315)
+
+.. note::
 .. note::
     - 電子署名(alg)  :ref:`Section.3 <jwa.3>` 
     - 暗号化キーの取り扱い(暗号化とか,alg)  :ref:`Section.4 <jwa.4>` 

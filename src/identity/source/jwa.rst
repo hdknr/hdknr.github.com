@@ -581,6 +581,30 @@
 
 
 
+.. _jwa.8.10:
+    
+.. include:: jwa/8.10.rst
+
+
+
+.. _jwa.8.12:
+    
+.. include:: jwa/8.12.rst
+
+
+
+.. _jwa.8.13:
+    
+.. include:: jwa/8.13.rst
+
+
+
+.. _jwa.8.14:
+    
+.. include:: jwa/8.14.rst
+
+
+
 .. _jwa.9:
     
 .. include:: jwa/9.rst

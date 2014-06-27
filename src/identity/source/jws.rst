@@ -245,6 +245,30 @@
 
 
 
+.. _jws.10.4:
+    
+.. include:: jws/10.4.rst
+
+
+
+.. _jws.10.5:
+    
+.. include:: jws/10.5.rst
+
+
+
+.. _jws.10.6:
+    
+.. include:: jws/10.6.rst
+
+
+
+.. _jws.10.7:
+    
+.. include:: jws/10.7.rst
+
+
+
 .. _jws.11:
     
 .. include:: jws/11.rst
