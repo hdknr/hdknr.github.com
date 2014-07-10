@@ -1,9 +1,9 @@
 ====================================================================================
-JSON Web Encryption (JWE)(draft28)
+JSON Web Encryption (JWE)(draft30)
 ====================================================================================
 
 .. note::
-    - https://tools.ietf.org/html/draft-ietf-jose-json-web-encryption-28
+    - https://tools.ietf.org/html/draft-ietf-jose-json-web-encryption-30
     - Security Considerations
 
 .. contents::
