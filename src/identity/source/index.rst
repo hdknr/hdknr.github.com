@@ -107,15 +107,21 @@ JOSE and JWT
 
     jose
     jwa
-
     jwt
     jws
-    jws_hok
     jwe
     jwk
+    jose_usecase
+
+Jose Memo
+^^^^^^^^^^^^^^
+
+.. toctree::
+    :maxdepth: 1
+
+    jws_hok
     jws_js
     jwe_js
-    jose_usecase
 
 Discovery
 ---------------
