@@ -1,9 +1,9 @@
 ==========================================
-JSON Web Algorithms (JWA) : draft28
+JSON Web Algorithms (JWA) : draft30
 ==========================================
 
 .. note::
-    - Draft 28: https://tools.ietf.org/html/draft-ietf-jose-json-web-algorithms-28
+    - Draft 30: https://tools.ietf.org/html/draft-ietf-jose-json-web-algorithms-30
 
         - Security Considerations
         - パディング: PKCS#5 -> PKCS#7 (http://tools.ietf.org/html/rfc2315)
