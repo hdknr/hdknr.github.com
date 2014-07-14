@@ -1011,3 +1011,89 @@ Intellectual Property
 
    For OpenID Foundation's IPR Policy, refer to
    http://openid.net/ipr/OpenID_IPR_Policy_(Final_Clean_20071221).pdf
+
+
+Self Issued OP Token Agent
+==============================
+
+- モバイルアプリケーション(scheme=app)
+
+appがトークン無しでRPのエンドポイントにGET
+--------------------------------------------------------------------------------
+
+::
+
+    GET /api/profile HTTP/1.1
+    Host: rp.com
+
+::
+
+    Location  http://rp.com/siop/auth/req
+
+これに appのパラメータを入れてopenする
+
+.. glossary::
+
+    state
+        appが動作中のステータス
+
+    scheme
+        アプリケーションスキーム（ここだとapp)
+
+
+モバイルブラウザでRPにアクセス
+------------------------------------------------
+
+::
+
+    GET /siop/auth/req?state=d3243s&scheme=app
+    Host: rp.com
+    
+Self Issued  Authorization Requst が帰る::
+
+    Location openid://{{ siop auth req }}
+
+
+SIOPでOpenID Connect 認証する
+------------------------------------------------
+
+- Subject Jwk を作る
+- ID Token を作る
+- Safari 経由で Authorization Responseを返す
+
+:: 
+
+    GET /siop/auth/res?{{ siop auth res }}
+    Host: rp.com
+
+RP は認証処理を終えて、appへのアクセストークン発行の要求を返す
+----------------------------------------------------------------
+
+::
+
+    Location openid://acess_token?state=d3243s&scheme=app
+
+
+SIOPはapp向けのアクセストークンを作成して,appに渡す
+----------------------------------------------------------------
+
+- access_tokenはsub_jwkのキーを使ったJWTとする
+- RPに渡したID Tokenのダイジェストをクレームに入れる
+
+::
+   
+    open  app://tokne?state=d3243&access_token={{jwt}}
+
+
+appはstateに紐づいたリクエストRPに行い、リソースをもらう
+----------------------------------------------------------------
+
+::
+
+    GET /api/profile HTTP/1.1
+    Host: rp.com
+    Authorizatio: Bearer {{jwt}}
+
+::
+
+    { resource }
