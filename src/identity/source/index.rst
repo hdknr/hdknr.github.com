@@ -71,6 +71,15 @@ OpenID/Connect
     discovery
     session
 
+Native Apps
+
+.. toctree::
+    :maxdepth: 1
+
+    napps
+    napps_api
+    napps_core
+
 Guide
 ^^^^^^^^^^^^^^^^^^^
 
