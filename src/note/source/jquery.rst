@@ -102,6 +102,17 @@ UI
 セレクタ
 ========
 
+- http://semooh.jp/jquery/api/selectors/
+
+:checked
+-----------
+
+- 指定したラジオボタンがチェックされているかどうかを確認する
+
+.. literalinclude:: _static/jquery/selector_checked.html
+   :language: html
+
+
 contains
 -----------
 

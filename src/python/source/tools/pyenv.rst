@@ -2,10 +2,8 @@
 pyenv
 =============
 
-
 .. contents::
     :local:
-
 
 
 インストール準備
@@ -159,5 +157,34 @@ pytenv-virtual
     $ git clone https://github.com/yyuu/pyenv-virtualenv.git ~/.pyenv/plugins/pyenv-virtualenv
     $ exec "$SHELL"
 
+::
 
+    $ grep pyenv .bashrc
+    source ~/.bash_pyenv
+
+    $ echo 'eval "$(pyenv virtualenv-init -)"' >> ~/.bash_pyenv
+    $ source .bashrc
+    $ exec $SHELL
+
+作成
+------
+
+::
+
+    hdknr@ubuntu:~$ pyenv virtualenv 2.7.8 myenv
+    hdknr@ubuntu:~$ pyenv virtualenvs
+    * myenv (created from /home/hdknr/.pyenv/versions/2.7.8)
+
+アクティベート
+----------------------------
+
+::
+
+    hdknr@ubuntu:~$ pyenv activate myenv  
+    (myenv)hdknr@ubuntu:~$ 
+
+:: 
+
+    (myenv)hdknr@ubuntu:~$ deactivate 
+    hdknr@ubuntu:~$ 
 
