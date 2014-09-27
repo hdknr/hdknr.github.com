@@ -71,14 +71,38 @@
 
 
 
-.. _oauth_jwt_bearer.7.1:
+.. _oauth_jwt_bearer.8:
     
-.. include:: oauth_jwt_bearer/7.1.rst
+.. include:: oauth_jwt_bearer/8.rst
 
 
 
-.. _oauth_jwt_bearer.7.2:
+.. _oauth_jwt_bearer.8.1:
     
-.. include:: oauth_jwt_bearer/7.2.rst
+.. include:: oauth_jwt_bearer/8.1.rst
+
+
+
+.. _oauth_jwt_bearer.8.2:
+    
+.. include:: oauth_jwt_bearer/8.2.rst
+
+
+
+.. _oauth_jwt_bearer.9:
+    
+.. include:: oauth_jwt_bearer/9.rst
+
+
+
+.. _oauth_jwt_bearer.9.1:
+    
+.. include:: oauth_jwt_bearer/9.1.rst
+
+
+
+.. _oauth_jwt_bearer.9.2:
+    
+.. include:: oauth_jwt_bearer/9.2.rst
 
 

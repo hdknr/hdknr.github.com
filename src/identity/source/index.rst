@@ -72,6 +72,7 @@ OpenID/Connect
     session
 
 Native Apps
+^^^^^^^^^^^^^^^^
 
 .. toctree::
     :maxdepth: 1
@@ -79,6 +80,9 @@ Native Apps
     napps
     napps_api
     napps_core
+
+    connect_sia
+
 
 Guide
 ^^^^^^^^^^^^^^^^^^^

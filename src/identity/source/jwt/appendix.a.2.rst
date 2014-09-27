@@ -16,7 +16,7 @@ its computation is not repeated here.
 This example then encrypts this inner JWT to the recipient 
 using :term:`RSAES-PKCS1-V1_5` and :term:`AES_128_CBC_HMAC_SHA_256`.
 
-The following example JWE Header 
+The following example JOSE Header 
 (with line breaks for display purposes only) declares that:
 
 -   the Content Encryption Key is encrypted to the recipient 
@@ -24,7 +24,7 @@ The following example JWE Header
 
 -   the Plaintext is encrypted 
     using the AES_128_CBC_HMAC_SHA_256 algorithm 
-    to produce the Ciphertext, and
+    to produce the JWE Ciphertext, and
 
 -   the Plaintext is itself a JWT.
 
@@ -32,23 +32,23 @@ The following example JWE Header
 
   {"alg":"RSA1_5","enc":"A128CBC-HS256","cty":"JWT"}
 
-Base64url encoding the octets of the UTF-8 representation of the JWE
-Header yields this encoded JWE Header value:
+Base64url encoding the octets of the UTF-8 representation of the JOSE
+Header yields this encoded JOSE Header value:
 
 ::
 
   eyJhbGciOiJSU0ExXzUiLCJlbmMiOiJBMTI4Q0JDLUhTMjU2IiwiY3R5IjoiSldUIn0
 
 The computation of this JWT is identical to the computation of the
-JWE in Appendix A.2 of [JWE], other than that different JWE Header,
-Plaintext, Initialization Vector, and Content Encryption Key values
+JWE in Appendix A.2 of [JWE], other than that different JOSE Header,
+Plaintext, JWE Initialization Vector, and Content Encryption Key values
 are used.  (The RSA key used is the same.)
 
 The Payload used is the octets of the ASCII representation of the JWT
 at the end of Appendix Section A.2.1 of [JWS] (with all whitespace
 and line breaks removed), which is a sequence of 458 octets.
 
-The Initialization Vector value used is:
+The JWE Initialization Vector value used is:
 
 ::
 
@@ -89,4 +89,4 @@ purposes only) is:
   AVO9iT5AV4CzvDJCdhSFlQ
 
 
-(draft21)
+(draft23)

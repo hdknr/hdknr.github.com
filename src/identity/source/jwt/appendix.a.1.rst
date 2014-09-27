@@ -4,14 +4,14 @@ A.1. Example Encrypted JWT
 This example encrypts the same claims as used in Section 3.1 
 to the recipient using RSAES-PKCS1-V1_5 and AES_128_CBC_HMAC_SHA_256.
 
-The following example JWE Header 
+The following example JOSE Header 
 (with line breaks for display purposes only) declares that:
 
    -  the Content Encryption Key is encrypted to the recipient using the
       RSAES-PKCS1-V1_5 algorithm to produce the JWE Encrypted Key and
 
    -  the Plaintext is encrypted using the AES_128_CBC_HMAC_SHA_256
-      algorithm to produce the Ciphertext.
+      algorithm to produce the JWE Ciphertext.
 
       :: 
     
