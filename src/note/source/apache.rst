@@ -41,11 +41,28 @@ apxs2 コンパイラとかの為に
 設定ファイル確認
 ------------------
 
+configtest
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
 :: 
 
     # /usr/sbin/apache2ctl configtest
 
     Syntax OK
+
+Fedora, RHEL, CentOS, OSX
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+:: 
+
+    httpd -S
+
+Debian, Ubuntu
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+::
+
+    apache2ctl -S
 
 基本認証
 ---------
@@ -131,6 +148,13 @@ SELinux! :
 
     # vi /etc/sysconfig/selinux
     SELINUX=disabled
+
+confは問題ないのに仮想ホストにアクセスできない?
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+- サーバーの /etc/hosts に明示的に指定したIPアドレスが間違えているとか
+
+
 
 .. _apache.mod_rewrite:
 

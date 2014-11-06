@@ -20,6 +20,7 @@ Contents:
     github
     theme
     memo
+    markdown
     glossary
 
 Indices and tables

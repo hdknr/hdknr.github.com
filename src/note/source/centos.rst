@@ -62,6 +62,25 @@ CentOS
 ネットワーク
 ==============
 
+/etc/sysconfig/network-script
+------------------------------------------
+
+- 固定アドレス
+
+    ::
+
+        $ more /etc/sysconfig/network-scripts/ifcfg-eth1
+        # Intel Corporation 82540EM Gigabit Ethernet Controller
+        DEVICE=eth1
+        #BOOTPROTO=dhcp
+        ONBOOT=yes
+        HWADDR=08:00:27:73:c4:1b
+        #
+        BOOTPROTO=none
+        IPADDR=192.168.56.80
+        NETMASK=255.255.255.0
+
+
 nameserver
 ------------
 

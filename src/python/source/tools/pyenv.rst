@@ -188,3 +188,44 @@ pytenv-virtual
     (myenv)hdknr@ubuntu:~$ deactivate 
     hdknr@ubuntu:~$ 
 
+
+問題
+======
+
+setuptoolsの問題でインストールできない
+------------------------------------------------
+
+::
+
+    $ pyenv install 2.7.8
+    Downloading Python-2.7.8.tgz...
+    -> http://yyuu.github.io/pythons/74d70b914da4487aa1d97222b29e9554d042f825f26cb2b93abd20fdda56b557
+    Installing Python-2.7.8...
+    Installing setuptools from https://bootstrap.pypa.io/ez_setup.py...
+    error: failed to install setuptools via ez_setup.py
+    
+    BUILD FAILED
+    
+    Inspect or clean up the working tree at /tmp/python-build.20140917062116.9839
+    Results logged to /tmp/python-build.20140917062116.9839.log
+    
+    Last 10 log lines:
+        downloader_factory=options.downloader_factory,
+      File "/tmp/python-build.20140917062116.9839/ez_setup.py", line 287, in download_setuptools
+        downloader(url, saveto)
+      File "/tmp/python-build.20140917062116.9839/ez_setup.py", line 224, in download_file_wget
+        _clean_check(cmd, target)
+      File "/tmp/python-build.20140917062116.9839/ez_setup.py", line 169, in _clean_check
+        subprocess.check_call(cmd)
+      File "/root/.pyenv/versions/2.7.8/lib/python2.7/subprocess.py", line 540, in check_call
+        raise CalledProcessError(retcode, cmd)
+    subprocess.CalledProcessError: Command '['wget', 'https://pypi.python.org/packages/source/s/setuptools/setuptools-5.7.zip', '--quiet', '--output-document', '/tmp/python-build.20140917062116.9839/Python-2.7.8/setuptools-5.7.zip']' returned non-zero exit status 1
+    
+curlの問題:
+
+- https://github.com/yyuu/pyenv/issues/60
+- https://github.com/yyuu/pyenv/issues/200
+
+解決::
+
+    $ EZ_SETUP_OPTS="--insecure" pyenv install -v 2.7.8
