@@ -1,1 +1,0 @@
-../../common/table.userinfo.response.rst
