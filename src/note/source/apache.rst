@@ -50,6 +50,29 @@ configtest
 
     Syntax OK
 
+仮想ホスト(apache2ctl -S)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+::
+
+    root@ubuntu:/etc/apache2/sites-enabled# apache2ctl -S
+
+    VirtualHost configuration:
+    192.168.11.70:80       ubuntu.tact.local (/etc/apache2/sites-enabled/ubuntu.tact.local.conf:23)
+    *:80                   ubuntu.tact.local (/etc/apache2/sites-enabled/000-default.conf:1)
+    ServerRoot: "/etc/apache2"
+    Main DocumentRoot: "/var/www"
+    Main ErrorLog: "/var/log/apache2/error.log"
+    Mutex default: dir="/var/lock/apache2" mechanism=fcntl 
+    Mutex mpm-accept: using_defaults
+    Mutex watchdog-callback: using_defaults
+    PidFile: "/var/run/apache2/apache2.pid"
+    Define: DUMP_VHOSTS
+    Define: DUMP_RUN_CFG
+    User: name="www-data" id=33
+    Group: name="www-data" id=33
+
+
 Fedora, RHEL, CentOS, OSX
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 

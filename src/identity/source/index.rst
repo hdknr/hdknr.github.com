@@ -39,6 +39,7 @@ others
 .. toctree::
     :maxdepth: 1
 
+    oauth_spop
     oauth_assertion
     oauth_mac
     oauth_reg
@@ -124,6 +125,7 @@ JOSE and JWT
     jws
     jwe
     jwk
+    jwk_thumbprint
     jose_usecase
 
 Jose Memo
@@ -221,8 +223,10 @@ RFC
     :maxdepth: 1
 
     well-known
+    rfc3986
     rfc5988
     rfc4559
+    rfc6920
 
 Implementation
 -------------------------

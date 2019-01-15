@@ -8,3 +8,4 @@ Python 標準ライブラリ
     datatypes
     itertools
     internet
+    json

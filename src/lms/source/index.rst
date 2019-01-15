@@ -15,6 +15,10 @@ Contents:
     scorm_rte
     scorm_sn
 
+    terms
+    links
+    
+    allgolf
 
 
 Indices and tables
