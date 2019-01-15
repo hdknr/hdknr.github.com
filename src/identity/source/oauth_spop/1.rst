@@ -1,0 +1,101 @@
+1.  Introduction
+================================
+
+OAuth 2.0 [RFC6749] public clients are susceptible to the
+authorization "code" interception attack.
+
+The attacker thereby intercepts 
+the authorization code returned from the authorization endpoint 
+within communication path not protected by TLS, 
+such as inter-app communication 
+within the operating system of the client.
+
+Once the attacker has gained access 
+to the :term:`authorization code` it can use it to obtain the access token.
+
+
+Figure 1 shows the attack graphically.  
+
+In step (1) the :term:`native app` running on the end device, 
+such as a smart phone, issues an authorization request 
+via the browser/operating system, 
+which then gets forwarded to the OAuth 2.0 authorization server in step (2).
+
+The :term:`authorization server` returns the authorization code in step (3).
+
+The malicious app is able to observe the authorization code in step (4) 
+since it is registered to the custom URI scheme 
+used by the legitimate app.  
+
+This allows the attacker to reguest 
+and obtain an access token in step (5) and step (6), respectively.
+
+::
+
+ +~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+
+ | End Device (e.g., Smart Phone) |
+ |                                |
+ | +-------------+   +----------+ | (6) Access Token  +----------+
+ | |Legitimate   |   | Malicious|<--------------------|          |
+ | |OAuth 2.0 App|   | App      |-------------------->|          |
+ | +-------------+   +----------+ | (5) Authorization |          |
+ |        |    ^          ^       |        Grant      |          |
+ |        |     \         |       |                   |          |
+ |        |      \   (4)  |       |                   |          |
+ |    (1) |       \  Authz|       |                   |          |
+ |   Authz|        \ Code |       |                   |  Authz   |
+ | Request|         \     |       |                   |  Server  |
+ |        |          \    |       |                   |          |
+ |        |           \   |       |                   |          |
+ |        v            \  |       |                   |          |
+ | +----------------------------+ |                   |          |
+ | |                            | | (3) Authz Code    |          |
+ | |     Operating System/      |<--------------------|          |
+ | |         Browser            |-------------------->|          |
+ | |                            | | (2) Authz Request |          |
+ | +----------------------------+ |                   +----------+
+ +~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+
+
+          Figure 1: Authorization Code Interception Attack.
+
+A number of pre-conditions need to hold in order for this attack to
+work:
+
+1) The attacker manages to register a malicious application on the
+   client device and registers a custom URI scheme that is also used
+   by another application.
+
+   The operating systems must allow a custom URI schemes to be
+   registered by multiple applications.
+
+
+2) The OAuth 2.0 authorization code grant is used.
+
+3) The attacker has access to the client id.  All native app client-
+   instances use the same client id.  No client secret is used (since
+   public clients cannot keep their secrets confidential.)
+
+4) The attacker (via the installed app) is able to observe responses
+   from the authorization endpoint.  As a more sophisticated attack
+   scenario the attacker is also able to observe requests (in
+   addition to responses) to the authorization endpoint.  The
+   attacker is, however, not able to act as a man-in-the-middle.
+
+While this is a long list of pre-conditions the described attack has
+been observed in the wild and has to be considered in OAuth 2.0
+deployments.  While Section 4.4.1 of [RFC6819] describes mitigation
+techniques they are, unfortunately, not applicable since they rely on
+a per-client instance secret or aper client instance redirect URI.
+
+To mitigate this attack, this extension utilizes a dynamically
+created cryptographically random key called 'code verifier'.  The
+code verifier is created for every authorization request and its
+transformed value, called 'code challenge', is sent to the
+authorization server to obtain the authorization code.  The
+authorization "code" obtained is then sent to the token endpoint with
+the 'code verifier' and the server compares it with the previously
+received request code so that it can perform the proof of possession
+of the 'code verifier' by the client.  This works as the mitigation
+since the attacker would not know this one-time key.
+
+(draft06)
