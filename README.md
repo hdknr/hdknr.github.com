@@ -1,1 +1,3 @@
 # HDKNR
+
+- [diary](diary)
