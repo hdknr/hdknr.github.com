@@ -3,7 +3,7 @@ import click
 import calendar
 import os
 from datetime import datetime, date
-from jinja2 import Environment, FileSystemLoader
+from jinja2 import Environment, FileSystemLoader, BaseLoader
 
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -11,14 +11,22 @@ def date_format(date, fmt=None):
     fmt = fmt or "%m/%d"
     return date.strftime(fmt)
 
-def get_template(template=None, base=None):
-    if not template:
-        return None
-    base = base or os.path.join(BASE, '_templates') 
-    env = Environment(
-        loader=FileSystemLoader(base, encoding='utf8'))
-    env.filters = {'date': date_format}
-    return env.get_template(template)
+def get_template(template_name=None, template_string=None, base=None):
+    env = None
+    filters = {'date': date_format}
+
+    if template_name:
+        base = base or os.path.join(BASE, '_templates') 
+        env = Environment(
+            loader=FileSystemLoader(base, encoding='utf8'))
+        env.filters = filters
+        return env.get_template(template_name)
+
+    if template_string:
+        env = Environment(loader=BaseLoader)
+        env.filters = filters
+        return env.from_string(template_string)
+
 
 
 def render(ctx, **vars):
@@ -37,7 +45,7 @@ def render(ctx, **vars):
 @click.pass_context
 def diary(ctx, base, template):
     ctx.obj['base'] = base
-    ctx.obj['template'] = template
+    ctx.obj['template_name'] = template
 
 
 def main():
@@ -50,7 +58,7 @@ def main():
 @click.option('--reverse', '-r', is_flag=True)
 @click.pass_context
 def month_index(ctx, year, month, reverse):
-    ctx.obj['template'] = ctx.obj['template'] \
+    ctx.obj['template_name'] = ctx.obj['template_name'] \
         or 'month_index.md'
     today = datetime.now().date()
     y = int(year) if year else today.year
@@ -63,7 +71,6 @@ def month_index(ctx, year, month, reverse):
     if reverse:
         dates.reverse()
     render(ctx, dates=dates)
-
 
 
 if __name__ == '__main__':
