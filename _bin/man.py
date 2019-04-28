@@ -6,27 +6,25 @@ from datetime import datetime, date
 from jinja2 import Environment, FileSystemLoader, BaseLoader
 
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+TEMPLATE_BASE = os.path.join(BASE, '_templates')
 
 def date_format(date, fmt=None):
     fmt = fmt or "%m/%d"
     return date.strftime(fmt)
 
 def get_template(template_name=None, template_string=None, base=None):
-    env = None
     filters = {'date': date_format}
 
     if template_name:
-        base = base or os.path.join(BASE, '_templates') 
         env = Environment(
             loader=FileSystemLoader(base, encoding='utf8'))
-        env.filters = filters
+        env.filters.update(filters)
         return env.get_template(template_name)
 
     if template_string:
         env = Environment(loader=BaseLoader)
-        env.filters = filters
+        env.filters.update(filters)
         return env.from_string(template_string)
-
 
 
 def render(ctx, **vars):
@@ -41,11 +39,11 @@ def render(ctx, **vars):
 
 @click.group()
 @click.option('--base', '-b', default=None)
-@click.option('--template', '-t', default=None)
+@click.option('--template_name', '-t', default=None)
 @click.pass_context
-def diary(ctx, base, template):
-    ctx.obj['base'] = base
-    ctx.obj['template_name'] = template
+def diary(ctx, base, template_name):
+    ctx.obj['base'] = base or TEMPLATE_BASE
+    ctx.obj['template_name'] = template_name or f"{ctx.invoked_subcommand}.md"
 
 
 def main():
@@ -58,8 +56,6 @@ def main():
 @click.option('--reverse', '-r', is_flag=True)
 @click.pass_context
 def month_index(ctx, year, month, reverse):
-    ctx.obj['template_name'] = ctx.obj['template_name'] \
-        or 'month_index.md'
     today = datetime.now().date()
     y = int(year) if year else today.year
     m = int(month) if month else today.month

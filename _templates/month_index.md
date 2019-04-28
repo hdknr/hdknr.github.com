@@ -1,2 +1,2 @@
 {% for date in dates %}
-- [{{ date|date }}]({{date}}.md) {% endfor %}
+- [{{ date|date }}]({{date}}.md){% endfor %}
