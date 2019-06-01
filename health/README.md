@@ -6,6 +6,7 @@
 - [4種](https://youtu.be/bp2ZwBPkEk8)
 - [ツイスト](https://twitter.com/kei_aesthetic/status/1115200439270563840?s=12)
 - [30日プランクチャレンジ｜キツイけど効果大｜小さな成功で人生変わる](https://www.fungoal.com/30-day-plank-challenge/)
+- [【6分で終わる】腹筋を割るならこの種目！！（ポッコリお腹、下っ腹、わき腹にも効く） - YouTube](https://www.youtube.com/watch?v=64qsroYqaRE)
 
 ## 肩こり
 
