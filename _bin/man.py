@@ -43,7 +43,7 @@ def render(ctx, **vars):
 @click.pass_context
 def diary(ctx, base, template_name):
     ctx.obj['base'] = base or TEMPLATE_BASE
-    ctx.obj['template_name'] = template_name or f"{ctx.invoked_subcommand}.md"
+    ctx.obj['template_name'] = template_name or f"{ctx.invoked_subcommand}.md".replace('-', '_')
 
 
 def main():
